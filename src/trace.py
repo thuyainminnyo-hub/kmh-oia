@@ -44,8 +44,42 @@ class Tracer(Protocol):
 class InMemoryTracer:
     """Deterministic tracer that retains an ordered event list."""
 
+    REQUIRED_CONTEXT_KEYS = (
+        "request_id", "session_id", "workflow_id",
+        "task_id", "agent_id", "trace_id",
+    )
+
     def __init__(self) -> None:
         self.events: list[TraceEvent] = []
 
     def emit(self, event: TraceEvent) -> None:
+        if not event.stage.strip():
+            raise ValueError("trace stage must not be empty")
+        if not event.status.strip():
+            raise ValueError("trace status must not be empty")
+        missing = [key for key in self.REQUIRED_CONTEXT_KEYS if key not in event.metadata]
+        if missing:
+            raise ValueError(
+                "trace metadata missing required context: " + ", ".join(missing)
+            )
         self.events.append(event)
+
+    def validate_integrity(self) -> None:
+        """Validate context continuity and terminal status for a trace."""
+        if not self.events:
+            raise ValueError("trace must contain at least one event")
+        baseline = {
+            key: self.events[0].metadata[key]
+            for key in self.REQUIRED_CONTEXT_KEYS
+        }
+        for event in self.events:
+            current = {
+                key: event.metadata[key]
+                for key in self.REQUIRED_CONTEXT_KEYS
+            }
+            if current != baseline:
+                raise ValueError("trace execution context is inconsistent")
+        if self.events[-1].status not in {
+            "ok", "validation", "authorization", "recovery", "internal"
+        }:
+            raise ValueError("trace final status is invalid")
