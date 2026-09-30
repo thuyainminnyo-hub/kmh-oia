@@ -6,7 +6,7 @@ Operating Intelligence Architecture — executable runtime and integration syste
 
 `User Goal → Input Gateway → OIA Core → Context Assembly → Workflow → Agent → State → Tool Security → Governed Tool → Evaluation → Response → Trace`
 
-The runtime exposes replaceable boundaries for state, governed-tool execution, agent decisions, evaluation, response rendering, and structured tracing. The default implementations remain deterministic and local.
+The runtime exposes replaceable boundaries for input gateway, OIA core, context assembly, workflow, agent decisions, state, security policy, governed-tool execution, evaluation, response rendering, and structured tracing. The default implementations remain deterministic and local.
 
 ## Run
 
@@ -35,6 +35,12 @@ response, trace = run("hello", session_id="session-a", state=state)
 ```
 
 The JSON-file store is a local persistence boundary for the current integration stage. It is not a substitute for a production database or distributed state backend.
+
+## Security and governed tools
+
+`SecurityPolicy` is the authorization boundary for governed tool calls. `ToolSecurityPolicy` is the default deterministic allowlist implementation. `ToolExecutor` is the execution boundary, with `ToolRegistry` providing the local `echo` implementation.
+
+The current policy allows `echo` and rejects unlisted or empty tool names.
 
 ## Trace / observability
 
