@@ -2,6 +2,23 @@
 
 from dataclasses import dataclass, field
 from typing import Protocol
+from uuid import uuid4
+
+
+@dataclass(frozen=True)
+class ExecutionContext:
+    """Consistent identifiers carried across one runtime execution."""
+
+    request_id: str
+    session_id: str
+    workflow_id: str
+    task_id: str
+    agent_id: str
+    trace_id: str
+
+    @classmethod
+    def create(cls, session_id: str) -> "ExecutionContext":
+        return cls(*(str(uuid4()) for _ in range(5)), session_id=session_id)  # type: ignore[arg-type]
 
 
 @dataclass(frozen=True)
