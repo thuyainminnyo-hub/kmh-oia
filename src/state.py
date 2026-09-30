@@ -1,6 +1,8 @@
-"""Minimal in-memory session state for the KMH OIA first runtime slice."""
+"""Session state stores for the KMH OIA runtime."""
 
 from dataclasses import dataclass, field
+import json
+from pathlib import Path
 
 
 @dataclass
@@ -23,3 +25,38 @@ class StateStore:
         if not key.strip():
             raise ValueError("key must not be empty")
         self.get(session_id).values[key] = value
+
+
+class JsonFileStateStore(StateStore):
+    """Persist session state to a local JSON file across process restarts."""
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+        self._sessions: dict[str, SessionState] = {}
+        self._load()
+
+    def _load(self) -> None:
+        if not self.path.exists():
+            return
+        payload = json.loads(self.path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("state file must contain a JSON object")
+        self._sessions = {
+            session_id: SessionState(dict(values))
+            for session_id, values in payload.items()
+            if isinstance(session_id, str) and isinstance(values, dict)
+        }
+
+    def set(self, session_id: str, key: str, value: str) -> None:
+        super().set(session_id, key, value)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = self.path.with_suffix(self.path.suffix + ".tmp")
+        payload = {
+            session_id: state.values
+            for session_id, state in self._sessions.items()
+        }
+        temp_path.write_text(
+            json.dumps(payload, ensure_ascii=False, sort_keys=True),
+            encoding="utf-8",
+        )
+        temp_path.replace(self.path)
