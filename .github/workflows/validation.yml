@@ -39,4 +39,5 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m compileall -q src tests scripts
+      - run: python scripts/deployment_preflight.py
       - run: git diff --check
