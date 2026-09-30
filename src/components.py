@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from src.agent import Agent, AgentRequest, DeterministicAgent
 from src.security import ToolSecurityPolicy
 from src.state import StateStore, StateStoreContract
 from src.tools import ToolExecutor, ToolRegistry, ToolRequest, ToolResult
@@ -58,17 +59,19 @@ class OIARuntime:
         state: StateStoreContract | None = None,
         security: ToolSecurityPolicy | None = None,
         registry: ToolExecutor | None = None,
+        agent: Agent | None = None,
     ) -> None:
         self.state = state or StateStore()
         self.gateway = InputGateway()
         self.context = ContextAssembly()
         self.tool = GovernedTool(security, registry)
+        self.agent = agent or DeterministicAgent()
 
     def execute(
         self,
         goal: str,
         session_id: str = "default",
-        tool_name: str = "echo",
+        tool_name: str | None = "echo",
     ) -> tuple[str, list[str]]:
         output, stages, _ = self.execute_detailed(goal, session_id, tool_name)
         return output, stages
@@ -77,7 +80,7 @@ class OIARuntime:
         self,
         goal: str,
         session_id: str = "default",
-        tool_name: str = "echo",
+        tool_name: str | None = "echo",
     ) -> tuple[str, list[str], list[TraceEvent]]:
         stages: list[str] = []
         events: list[TraceEvent] = []
@@ -92,20 +95,22 @@ class OIARuntime:
         context = self.context.build(accepted)
         emit("context_assembly")
         emit("workflow")
-        emit("agent")
+        decision = self.agent.decide(AgentRequest(context["goal"]))
+        emit("agent", tool=decision.tool_name, reason=decision.reason)
         self.state.set(session_id, "last_goal", context["goal"])
         emit("state", session_id=session_id)
-        request = ToolRequest(tool_name=tool_name, input_text=context["goal"])
+        selected_tool = tool_name if tool_name is not None else decision.tool_name
+        request = ToolRequest(tool_name=selected_tool, input_text=decision.input_text)
         result = self.tool.execute(request)
         emit(
             "tool_security",
             status="ok" if result.success else "blocked",
-            tool=tool_name,
+            tool=selected_tool,
             reason=result.reason,
         )
         if not result.success:
             raise PermissionError(result.reason)
-        emit("governed_tool", tool=tool_name)
+        emit("governed_tool", tool=selected_tool)
         emit("evaluation")
         emit("response")
         emit("trace", event_count=str(len(events)))
