@@ -12,6 +12,14 @@ class TestTextPath(unittest.TestCase):
         self.assertEqual(len(trace.events), len(trace.stages))
         self.assertEqual(trace.events[-1].stage, "trace")
 
+    def test_trace_events_share_execution_context(self):
+        _, trace = run("hello OIA", session_id="session-a")
+        keys = {"request_id", "session_id", "workflow_id", "task_id", "agent_id", "trace_id"}
+        self.assertTrue(keys.issubset(trace.events[0].metadata))
+        for event in trace.events:
+            self.assertEqual(event.metadata["session_id"], "session-a")
+            self.assertEqual({k: event.metadata[k] for k in keys}, {k: trace.events[0].metadata[k] for k in keys})
+
     def test_empty_goal_is_rejected(self):
         with self.assertRaises(ValueError): run("   ")
 
