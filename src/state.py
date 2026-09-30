@@ -12,11 +12,15 @@ class SessionState:
 
 
 class StateStoreContract(Protocol):
-    """Minimal state boundary required by the OIA runtime."""
+    """State boundary with snapshot/restore support for recovery."""
 
     def get(self, session_id: str) -> SessionState: ...
 
     def set(self, session_id: str, key: str, value: str) -> None: ...
+
+    def snapshot(self, session_id: str) -> dict[str, str]: ...
+
+    def restore(self, session_id: str, snapshot: dict[str, str]) -> None: ...
 
 
 class StateStore:
@@ -34,6 +38,12 @@ class StateStore:
         if not key.strip():
             raise ValueError("key must not be empty")
         self.get(session_id).values[key] = value
+
+    def snapshot(self, session_id: str) -> dict[str, str]:
+        return dict(self.get(session_id).values)
+
+    def restore(self, session_id: str, snapshot: dict[str, str]) -> None:
+        self.get(session_id).values = dict(snapshot)
 
 
 class JsonFileStateStore(StateStore):

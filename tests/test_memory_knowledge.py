@@ -26,6 +26,12 @@ class FakeMemory:
     def update(self, session_id, key, value):
         self.updates.append((session_id, key, value))
 
+    def snapshot(self, session_id):
+        return list(self.entries)
+
+    def restore(self, session_id, snapshot):
+        self.entries = list(snapshot)
+
 
 class MemoryKnowledgeIntegrationTests(unittest.TestCase):
     def test_context_contains_memory_and_knowledge_for_agent(self):
@@ -53,4 +59,5 @@ class MemoryKnowledgeIntegrationTests(unittest.TestCase):
         self.assertEqual(memory.retrieve("b"), [])
 
 
-if __name__ == "__main__": unittest.main()
+if __name__ == "__main__":
+    unittest.main()

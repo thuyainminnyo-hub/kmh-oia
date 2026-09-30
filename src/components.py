@@ -89,6 +89,8 @@ class OIARuntime:
             stages.append(stage)
             self.tracer.emit(event)
 
+        state_snapshot = self.state.snapshot(session_id)
+        memory_snapshot = self.memory.snapshot(session_id)
         try:
             emit("input_gateway")
             accepted = self.gateway.accept(goal)
@@ -120,6 +122,9 @@ class OIARuntime:
             emit("trace", event_count=str(len(stages) + 1))
             return response.text, stages, self.tracer.events
         except Exception as error:
+            self.state.restore(session_id, state_snapshot)
+            self.memory.restore(session_id, memory_snapshot)
+            emit("rollback", status="ok")
             info = self.error_boundary.classify(error)
             emit("error", status=info.category.value, reason=info.message, recoverable=str(info.recoverable).lower())
             raise
