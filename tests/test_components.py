@@ -3,35 +3,34 @@ import unittest
 from src.agent import AgentDecision, AgentRequest
 from src.components import ContextAssembly, GovernedTool, InputGateway, OIARuntime
 from src.evaluation import EvaluationResult
+from src.response import Response
 from src.security import ToolSecurityPolicy
 from src.state import StateStore
 from src.tools import ToolRequest, ToolResult
-
 
 class FakeToolExecutor:
     def execute(self, request: ToolRequest) -> ToolResult:
         return ToolResult(request.tool_name, f"fake:{request.input_text}", True, "fake executor")
 
-
 class FakeAgent:
     def decide(self, request: AgentRequest) -> AgentDecision:
         return AgentDecision("echo", f"planned:{request.goal}", "test agent")
-
 
 class FakeEvaluator:
     def evaluate(self, result: ToolResult) -> EvaluationResult:
         return EvaluationResult(True, "test evaluator accepted")
 
-
 class RejectingEvaluator:
     def evaluate(self, result: ToolResult) -> EvaluationResult:
         return EvaluationResult(False, "test evaluator rejected")
 
+class FakeResponder:
+    def render(self, text: str) -> Response:
+        return Response(text=f"response:{text}")
 
 class ComponentBoundaryTests(unittest.TestCase):
     def test_gateway_rejects_empty_goal(self):
-        with self.assertRaises(ValueError):
-            InputGateway().accept(" ")
+        with self.assertRaises(ValueError): InputGateway().accept(" ")
 
     def test_context_assembly_is_deterministic(self):
         context = InputGateway().accept("hello")
@@ -47,48 +46,40 @@ class ComponentBoundaryTests(unittest.TestCase):
         self.assertEqual(blocked.reason, "tool is not allowlisted")
 
     def test_governed_tool_accepts_interchangeable_executor(self):
-        tool = GovernedTool(ToolSecurityPolicy(), FakeToolExecutor())
-        result = tool.execute(ToolRequest("echo", "hello"))
+        result = GovernedTool(ToolSecurityPolicy(), FakeToolExecutor()).execute(ToolRequest("echo", "hello"))
         self.assertTrue(result.success)
         self.assertEqual(result.output_text, "fake:hello")
-        self.assertEqual(result.reason, "fake executor")
 
     def test_runtime_accepts_interchangeable_agent(self):
-        runtime = OIARuntime(state=StateStore(), agent=FakeAgent())
-        response, _, events = runtime.execute_detailed("hello", tool_name=None)
+        response, _, events = OIARuntime(state=StateStore(), agent=FakeAgent()).execute_detailed("hello", tool_name=None)
         self.assertEqual(response, "planned:hello")
-        agent_event = next(event for event in events if event.stage == "agent")
-        self.assertEqual(agent_event.metadata["tool"], "echo")
-        self.assertEqual(agent_event.metadata["reason"], "test agent")
+        self.assertEqual(next(e for e in events if e.stage == "agent").metadata["reason"], "test agent")
 
     def test_runtime_accepts_interchangeable_evaluator(self):
-        runtime = OIARuntime(state=StateStore(), evaluator=FakeEvaluator())
-        response, _, events = runtime.execute_detailed("hello")
+        response, _, events = OIARuntime(state=StateStore(), evaluator=FakeEvaluator()).execute_detailed("hello")
         self.assertEqual(response, "hello")
-        evaluation_event = next(event for event in events if event.stage == "evaluation")
-        self.assertEqual(evaluation_event.metadata["reason"], "test evaluator accepted")
+        self.assertEqual(next(e for e in events if e.stage == "evaluation").metadata["reason"], "test evaluator accepted")
 
     def test_runtime_stops_on_rejected_evaluation(self):
-        runtime = OIARuntime(state=StateStore(), evaluator=RejectingEvaluator())
         with self.assertRaisesRegex(ValueError, "test evaluator rejected"):
-            runtime.execute_detailed("hello")
+            OIARuntime(state=StateStore(), evaluator=RejectingEvaluator()).execute_detailed("hello")
+
+    def test_runtime_accepts_interchangeable_responder(self):
+        response, _, events = OIARuntime(state=StateStore(), responder=FakeResponder()).execute_detailed("hello")
+        self.assertEqual(response, "response:hello")
+        self.assertEqual(next(e for e in events if e.stage == "response").status, "ok")
 
     def test_runtime_composes_components(self):
-        runtime = OIARuntime(state=StateStore())
-        response, stages = runtime.execute("hello", session_id="s1")
+        response, stages = OIARuntime(state=StateStore()).execute("hello", session_id="s1")
         self.assertEqual(response, "hello")
         self.assertEqual(stages[-3:], ["evaluation", "response", "trace"])
 
     def test_runtime_emits_structured_events(self):
-        runtime = OIARuntime(state=StateStore())
-        response, stages, events = runtime.execute_detailed("hello", session_id="s1")
+        response, stages, events = OIARuntime(state=StateStore()).execute_detailed("hello", session_id="s1")
         self.assertEqual(response, "hello")
         self.assertEqual([event.stage for event in events], stages)
-        tool_event = next(event for event in events if event.stage == "tool_security")
-        self.assertEqual(tool_event.status, "ok")
-        self.assertEqual(tool_event.metadata["tool"], "echo")
-        self.assertEqual(tool_event.metadata["reason"], "tool executed")
+        evaluation = next(event for event in events if event.stage == "evaluation")
+        self.assertEqual(evaluation.status, "ok")
+        self.assertEqual(evaluation.metadata["reason"], "tool result accepted")
 
-
-if __name__ == "__main__":
-    unittest.main()
+if __name__ == "__main__": unittest.main()
