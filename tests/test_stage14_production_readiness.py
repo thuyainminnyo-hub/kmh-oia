@@ -7,6 +7,7 @@ from src.production_readiness import (
     ControlledDeploymentController,
     PreDeploymentHealthController,
     ProductionEnvironmentValidator,
+    ProductionHealthGate,
     ReadinessReport,
     ReleaseCandidateLoader,
 )
@@ -94,6 +95,34 @@ class Stage14ProductionReadinessTests(unittest.TestCase):
                 readiness=readiness,
                 traffic_stages=(25, 10, 100),
             )
+
+    def test_production_health_gate_passes_only_when_all_required_components_pass(self):
+        checks = {name: True for name in ProductionHealthGate.REQUIRED_COMPONENTS}
+        report = ProductionHealthGate().assess(checks)
+        self.assertTrue(report.passed)
+        self.assertEqual(
+            list(ProductionHealthGate.REQUIRED_COMPONENTS),
+            [check.name for check in report.checks],
+        )
+
+    def test_production_health_gate_blocks_missing_component_evidence(self):
+        checks = {name: True for name in ProductionHealthGate.REQUIRED_COMPONENTS}
+        checks["observability"] = False
+
+        report = ProductionHealthGate().assess(checks)
+        self.assertFalse(report.passed)
+        self.assertEqual(["observability"], [check.name for check in report.checks if not check.passed])
+
+        with self.assertRaisesRegex(RuntimeError, "observability"):
+            ProductionHealthGate().gate(report)
+
+    def test_production_health_gate_treats_missing_checks_as_failed(self):
+        report = ProductionHealthGate().assess({"service": True, "api": True})
+        self.assertFalse(report.passed)
+        self.assertEqual(
+            len(ProductionHealthGate.REQUIRED_COMPONENTS) - 2,
+            len([check for check in report.checks if not check.passed]),
+        )
 
 
 if __name__ == "__main__":
