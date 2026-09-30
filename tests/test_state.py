@@ -1,7 +1,9 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 from src.main import run
-from src.state import StateStore
+from src.state import JsonFileStateStore, StateStore
 
 
 class StateCompatibilityTests(unittest.TestCase):
@@ -27,6 +29,32 @@ class StateCompatibilityTests(unittest.TestCase):
         _, trace = run("trace state", session_id="session-a", state=StateStore())
 
         self.assertIn("state", trace.stages)
+
+    def test_json_file_state_survives_store_recreation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "state.json"
+
+            first_store = JsonFileStateStore(path)
+            run("durable goal", session_id="session-a", state=first_store)
+
+            recreated_store = JsonFileStateStore(path)
+
+            self.assertEqual(
+                recreated_store.get("session-a").values["last_goal"],
+                "durable goal",
+            )
+
+    def test_json_file_state_isolated_by_session(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "state.json"
+            store = JsonFileStateStore(path)
+
+            run("goal A", session_id="session-a", state=store)
+            run("goal B", session_id="session-b", state=store)
+
+            recreated = JsonFileStateStore(path)
+            self.assertEqual(recreated.get("session-a").values["last_goal"], "goal A")
+            self.assertEqual(recreated.get("session-b").values["last_goal"], "goal B")
 
 
 if __name__ == "__main__":
