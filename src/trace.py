@@ -18,7 +18,14 @@ class ExecutionContext:
 
     @classmethod
     def create(cls, session_id: str) -> "ExecutionContext":
-        return cls(*(str(uuid4()) for _ in range(5)), session_id=session_id)  # type: ignore[arg-type]
+        return cls(
+            request_id=str(uuid4()),
+            session_id=session_id,
+            workflow_id=str(uuid4()),
+            task_id=str(uuid4()),
+            agent_id=str(uuid4()),
+            trace_id=str(uuid4()),
+        )
 
 
 @dataclass(frozen=True)
