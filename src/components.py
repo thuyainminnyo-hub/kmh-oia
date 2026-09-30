@@ -9,7 +9,7 @@ from src.response import DeterministicResponder, Responder
 from src.security import SecurityPolicy, ToolSecurityPolicy
 from src.state import StateStore, StateStoreContract
 from src.tools import ToolExecutor, ToolRegistry, ToolRequest, ToolResult
-from src.trace import InMemoryTracer, TraceEvent, Tracer
+from src.trace import ExecutionContext, InMemoryTracer, TraceEvent, Tracer
 from src.workflow import DeterministicOIACore, DeterministicWorkflow, OIACore, Workflow
 
 @dataclass(frozen=True)
@@ -39,9 +39,11 @@ class OIARuntime:
         output, stages, _ = self.execute_detailed(goal, session_id, tool_name); return output, stages
     def execute_detailed(self, goal: str, session_id: str = "default", tool_name: str | None = "echo") -> tuple[str, list[str], list[TraceEvent]]:
         stages: list[str] = []
+        execution = ExecutionContext.create(session_id)
+        ids = {"request_id": execution.request_id, "session_id": execution.session_id, "workflow_id": execution.workflow_id, "task_id": execution.task_id, "agent_id": execution.agent_id, "trace_id": execution.trace_id}
         def emit(stage: str, status: str = "ok", **metadata: str) -> None:
-            event = TraceEvent(stage, status, metadata); stages.append(stage); self.tracer.emit(event)
-        emit("input_gateway"); accepted = self.gateway.accept(goal); emit("oia_core"); core_context = self.core.build_context(accepted.goal); context = self.context.build(RuntimeContext(core_context["goal"])); emit("context_assembly"); emit("workflow"); agent_request = self.workflow.prepare(context); decision = self.agent.decide(agent_request); emit("agent", tool=decision.tool_name, reason=decision.reason); self.state.set(session_id, "last_goal", context["goal"]); emit("state", session_id=session_id); selected_tool = tool_name if tool_name is not None else decision.tool_name; result = self.tool.execute(ToolRequest(selected_tool, decision.input_text)); emit("tool_security", status="ok" if result.success else "blocked", tool=selected_tool, reason=result.reason)
+            event = TraceEvent(stage, status, {**ids, **metadata}); stages.append(stage); self.tracer.emit(event)
+        emit("input_gateway"); accepted = self.gateway.accept(goal); emit("oia_core"); core_context = self.core.build_context(accepted.goal); context = self.context.build(RuntimeContext(core_context["goal"])); emit("context_assembly"); emit("workflow"); agent_request = self.workflow.prepare(context); decision = self.agent.decide(agent_request); emit("agent", tool=decision.tool_name, reason=decision.reason); self.state.set(session_id, "last_goal", context["goal"]); emit("state"); selected_tool = tool_name if tool_name is not None else decision.tool_name; result = self.tool.execute(ToolRequest(selected_tool, decision.input_text)); emit("tool_security", status="ok" if result.success else "blocked", tool=selected_tool, reason=result.reason)
         if not result.success: raise PermissionError(result.reason)
         emit("governed_tool", tool=selected_tool); evaluation = self.evaluator.evaluate(result); emit("evaluation", status="ok" if evaluation.accepted else "rejected", reason=evaluation.reason)
         if not evaluation.accepted: raise ValueError(evaluation.reason)
