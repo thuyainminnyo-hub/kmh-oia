@@ -1,5 +1,6 @@
 import unittest
 
+from src.agent import AgentDecision, AgentRequest
 from src.components import ContextAssembly, GovernedTool, InputGateway, OIARuntime
 from src.security import ToolSecurityPolicy
 from src.state import StateStore
@@ -14,6 +15,11 @@ class FakeToolExecutor:
             success=True,
             reason="fake executor",
         )
+
+
+class FakeAgent:
+    def decide(self, request: AgentRequest) -> AgentDecision:
+        return AgentDecision("echo", f"planned:{request.goal}", "test agent")
 
 
 class ComponentBoundaryTests(unittest.TestCase):
@@ -40,6 +46,14 @@ class ComponentBoundaryTests(unittest.TestCase):
         self.assertTrue(result.success)
         self.assertEqual(result.output_text, "fake:hello")
         self.assertEqual(result.reason, "fake executor")
+
+    def test_runtime_accepts_interchangeable_agent(self):
+        runtime = OIARuntime(state=StateStore(), agent=FakeAgent())
+        response, _, events = runtime.execute_detailed("hello", tool_name=None)
+        self.assertEqual(response, "planned:hello")
+        agent_event = next(event for event in events if event.stage == "agent")
+        self.assertEqual(agent_event.metadata["tool"], "echo")
+        self.assertEqual(agent_event.metadata["reason"], "test agent")
 
     def test_runtime_composes_components(self):
         runtime = OIARuntime(state=StateStore())
