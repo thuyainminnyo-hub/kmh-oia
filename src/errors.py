@@ -4,12 +4,15 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
 
+from src.recovery import CancelledError
+
 
 class ErrorCategory(str, Enum):
     VALIDATION = "validation"
     AUTHORIZATION = "authorization"
     EXECUTION = "execution"
     EVALUATION = "evaluation"
+    RECOVERY = "recovery"
     INTERNAL = "internal"
 
 
@@ -34,4 +37,6 @@ class DeterministicErrorBoundary:
             return RuntimeErrorInfo(ErrorCategory.VALIDATION, str(error), False)
         if isinstance(error, PermissionError):
             return RuntimeErrorInfo(ErrorCategory.AUTHORIZATION, str(error), False)
+        if isinstance(error, (CancelledError, TimeoutError)):
+            return RuntimeErrorInfo(ErrorCategory.RECOVERY, str(error), False)
         return RuntimeErrorInfo(ErrorCategory.INTERNAL, str(error), False)
