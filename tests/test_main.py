@@ -20,11 +20,21 @@ class TestTextPath(unittest.TestCase):
             self.assertEqual(event.metadata["session_id"], "session-a")
             self.assertEqual({k: event.metadata[k] for k in keys}, {k: trace.events[0].metadata[k] for k in keys})
 
-    def test_empty_goal_is_rejected(self):
-        with self.assertRaises(ValueError): run("   ")
+    def test_empty_goal_is_rejected_and_traced(self):
+        from src.components import OIARuntime
+        runtime = OIARuntime()
+        with self.assertRaises(ValueError): runtime.execute_detailed("   ")
+        error = runtime.tracer.events[-1]
+        self.assertEqual(error.stage, "error")
+        self.assertEqual(error.status, "validation")
+        self.assertEqual(error.metadata["recoverable"], "false")
 
-    def test_unlisted_tool_is_blocked_before_execution(self):
-        with self.assertRaises(PermissionError): run("blocked", tool_name="shell")
+    def test_unlisted_tool_is_blocked_and_traced(self):
+        runtime = __import__("src.components", fromlist=["OIARuntime"]).OIARuntime()
+        with self.assertRaises(PermissionError): runtime.execute_detailed("blocked", tool_name="shell")
+        error = runtime.tracer.events[-1]
+        self.assertEqual(error.stage, "error")
+        self.assertEqual(error.status, "authorization")
 
     def test_blocked_tool_event_contains_security_metadata(self):
         from src.components import OIARuntime
