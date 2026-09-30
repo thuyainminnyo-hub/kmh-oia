@@ -37,7 +37,7 @@ class Stage12IntegrationValidationTests(unittest.TestCase):
         self.assertIn("governed_tool", stages)
         self.assertIn("evaluation", stages)
 
-        self.assertEqual(agent.request.context["memory"], [])
+        self.assertEqual(agent.request.context["memory"], "")
         self.assertIn("integration-source", agent.request.context["knowledge"])
 
         by_stage = {event.stage: event for event in events}
