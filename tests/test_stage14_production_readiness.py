@@ -4,8 +4,10 @@ import unittest
 from pathlib import Path
 
 from src.production_readiness import (
+    ControlledDeploymentController,
     PreDeploymentHealthController,
     ProductionEnvironmentValidator,
+    ReadinessReport,
     ReleaseCandidateLoader,
 )
 
@@ -43,6 +45,55 @@ class Stage14ProductionReadinessTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(RuntimeError, "pre-deployment health gate blocked"):
             PreDeploymentHealthController().gate(report)
+
+    def test_controlled_deployment_starts_at_canary_and_promotes_progressively(self):
+        readiness = ReadinessReport(True, ())
+        controller = ControlledDeploymentController()
+
+        state = controller.start(release_id="rc-1", readiness=readiness, traffic_stages=(5, 25, 100))
+        self.assertEqual((5, "canary"), (state.traffic_percent, state.phase))
+
+        state = controller.promote(state, health_passed=True, traffic_stages=(5, 25, 100))
+        self.assertEqual((25, "staged"), (state.traffic_percent, state.phase))
+
+        state = controller.promote(state, health_passed=True, traffic_stages=(5, 25, 100))
+        self.assertEqual((100, "promoted"), (state.traffic_percent, state.phase))
+
+    def test_controlled_deployment_blocks_failed_health_promotion(self):
+        readiness = ReadinessReport(True, ())
+        state = ControlledDeploymentController().start(
+            release_id="rc-1",
+            readiness=readiness,
+            traffic_stages=(5, 100),
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "failed health gate"):
+            ControlledDeploymentController().promote(
+                state,
+                health_passed=False,
+                traffic_stages=(5, 100),
+            )
+
+    def test_controlled_deployment_rollback_is_deterministic(self):
+        readiness = ReadinessReport(True, ())
+        controller = ControlledDeploymentController()
+        state = controller.start(release_id="rc-1", readiness=readiness, traffic_stages=(5, 100))
+
+        rolled_back = controller.rollback(state, reason="health regression")
+        self.assertEqual((0, "rolled_back", "health regression"), (
+            rolled_back.traffic_percent,
+            rolled_back.phase,
+            rolled_back.reason,
+        ))
+
+    def test_controlled_deployment_requires_valid_traffic_plan(self):
+        readiness = ReadinessReport(True, ())
+        with self.assertRaisesRegex(ValueError, "strictly increasing"):
+            ControlledDeploymentController().start(
+                release_id="rc-1",
+                readiness=readiness,
+                traffic_stages=(25, 10, 100),
+            )
 
 
 if __name__ == "__main__":
