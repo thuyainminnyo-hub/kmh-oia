@@ -9,6 +9,7 @@ from src.security import ToolSecurityPolicy
 from src.state import StateStore, StateStoreContract
 from src.tools import ToolExecutor, ToolRegistry, ToolRequest, ToolResult
 from src.trace import InMemoryTracer, TraceEvent, Tracer
+from src.workflow import DeterministicOIACore, DeterministicWorkflow, OIACore, Workflow
 
 
 @dataclass(frozen=True)
@@ -43,10 +44,13 @@ class OIARuntime:
     def __init__(self, state: StateStoreContract | None = None, security: ToolSecurityPolicy | None = None,
                  registry: ToolExecutor | None = None, agent: Agent | None = None,
                  evaluator: Evaluator | None = None, responder: Responder | None = None,
-                 tracer: Tracer | None = None) -> None:
+                 tracer: Tracer | None = None, core: OIACore | None = None,
+                 workflow: Workflow | None = None) -> None:
         self.state = state or StateStore()
         self.gateway = InputGateway()
         self.context = ContextAssembly()
+        self.core = core or DeterministicOIACore()
+        self.workflow = workflow or DeterministicWorkflow()
         self.tool = GovernedTool(security, registry)
         self.agent = agent or DeterministicAgent()
         self.evaluator = evaluator or DeterministicEvaluator()
@@ -66,10 +70,12 @@ class OIARuntime:
         emit("input_gateway")
         accepted = self.gateway.accept(goal)
         emit("oia_core")
-        context = self.context.build(accepted)
+        core_context = self.core.build_context(accepted.goal)
+        context = self.context.build(RuntimeContext(core_context["goal"]))
         emit("context_assembly")
         emit("workflow")
-        decision = self.agent.decide(AgentRequest(context["goal"]))
+        agent_request = self.workflow.prepare(context)
+        decision = self.agent.decide(agent_request)
         emit("agent", tool=decision.tool_name, reason=decision.reason)
         self.state.set(session_id, "last_goal", context["goal"])
         emit("state", session_id=session_id)
