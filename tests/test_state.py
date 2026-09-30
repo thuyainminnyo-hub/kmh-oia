@@ -7,7 +7,7 @@ from src.state import JsonFileStateStore, SessionState, StateStore
 
 
 class FakeStateBackend:
-    """Minimal structural implementation of the runtime state contract."""
+    """Structural implementation of the runtime state contract."""
 
     def __init__(self) -> None:
         self.values: dict[str, SessionState] = {}
@@ -18,62 +18,53 @@ class FakeStateBackend:
     def set(self, session_id: str, key: str, value: str) -> None:
         self.get(session_id).values[key] = value
 
+    def snapshot(self, session_id: str) -> dict[str, str]:
+        return dict(self.get(session_id).values)
+
+    def restore(self, session_id: str, snapshot: dict[str, str]) -> None:
+        self.get(session_id).values = dict(snapshot)
+
 
 class StateCompatibilityTests(unittest.TestCase):
     def test_state_persists_within_session(self):
         store = StateStore()
-
         run("first goal", session_id="session-a", state=store)
         response, _ = run("second goal", session_id="session-a", state=store)
-
         self.assertEqual(response, "second goal")
         self.assertEqual(store.get("session-a").values["last_goal"], "second goal")
 
     def test_sessions_are_isolated(self):
         store = StateStore()
-
         run("goal A", session_id="session-a", state=store)
         run("goal B", session_id="session-b", state=store)
-
         self.assertEqual(store.get("session-a").values["last_goal"], "goal A")
         self.assertEqual(store.get("session-b").values["last_goal"], "goal B")
 
     def test_state_stage_is_traced(self):
         _, trace = run("trace state", session_id="session-a", state=StateStore())
-
         self.assertIn("state", trace.stages)
 
     def test_json_file_state_survives_store_recreation(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "state.json"
-
             first_store = JsonFileStateStore(path)
             run("durable goal", session_id="session-a", state=first_store)
-
             recreated_store = JsonFileStateStore(path)
-
-            self.assertEqual(
-                recreated_store.get("session-a").values["last_goal"],
-                "durable goal",
-            )
+            self.assertEqual(recreated_store.get("session-a").values["last_goal"], "durable goal")
 
     def test_json_file_state_isolated_by_session(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "state.json"
             store = JsonFileStateStore(path)
-
             run("goal A", session_id="session-a", state=store)
             run("goal B", session_id="session-b", state=store)
-
             recreated = JsonFileStateStore(path)
             self.assertEqual(recreated.get("session-a").values["last_goal"], "goal A")
             self.assertEqual(recreated.get("session-b").values["last_goal"], "goal B")
 
     def test_runtime_accepts_structural_state_backend(self):
         backend = FakeStateBackend()
-
         response, _ = run("contract goal", session_id="session-a", state=backend)
-
         self.assertEqual(response, "contract goal")
         self.assertEqual(backend.get("session-a").values["last_goal"], "contract goal")
 
