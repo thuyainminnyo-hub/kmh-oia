@@ -1,4 +1,4 @@
-"""Stage 14 deterministic production-readiness controllers."""
+"""Stage 14 deterministic production-readiness and deployment controllers."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +16,14 @@ class ReadinessCheck:
 class ReadinessReport:
     passed: bool
     checks: tuple[ReadinessCheck, ...]
+
+
+@dataclass(frozen=True)
+class DeploymentState:
+    release_id: str
+    traffic_percent: int
+    phase: str
+    reason: str = ""
 
 
 class ReleaseCandidateLoader:
@@ -52,3 +60,82 @@ class PreDeploymentHealthController:
             failed = ", ".join(check.name for check in report.checks if not check.passed)
             raise RuntimeError(f"pre-deployment health gate blocked: {failed}")
 
+
+class ControlledDeploymentController:
+    """Model bounded staged promotion without performing a real deployment."""
+
+    def start(
+        self,
+        *,
+        release_id: str,
+        readiness: ReadinessReport,
+        traffic_stages: tuple[int, ...] = (5, 25, 100),
+    ) -> DeploymentState:
+        if not release_id.strip():
+            raise ValueError("release_id is required")
+        self._validate_traffic_stages(traffic_stages)
+        PreDeploymentHealthController().gate(readiness)
+        first = traffic_stages[0]
+        return DeploymentState(
+            release_id=release_id,
+            traffic_percent=first,
+            phase=self._phase_for(first, traffic_stages),
+        )
+
+    def promote(
+        self,
+        state: DeploymentState,
+        *,
+        health_passed: bool,
+        traffic_stages: tuple[int, ...] = (5, 25, 100),
+    ) -> DeploymentState:
+        self._validate_traffic_stages(traffic_stages)
+        if state.phase in {"promoted", "rolled_back"}:
+            raise RuntimeError(f"cannot promote from phase: {state.phase}")
+        if not health_passed:
+            raise RuntimeError("promotion blocked by failed health gate")
+
+        try:
+            index = traffic_stages.index(state.traffic_percent)
+        except ValueError as exc:
+            raise ValueError("state traffic is not part of the deployment plan") from exc
+        if index >= len(traffic_stages) - 1:
+            raise RuntimeError("deployment plan has no next promotion stage")
+
+        next_traffic = traffic_stages[index + 1]
+        return DeploymentState(
+            release_id=state.release_id,
+            traffic_percent=next_traffic,
+            phase=self._phase_for(next_traffic, traffic_stages),
+        )
+
+    def rollback(self, state: DeploymentState, *, reason: str) -> DeploymentState:
+        if not reason.strip():
+            raise ValueError("rollback reason is required")
+        return DeploymentState(
+            release_id=state.release_id,
+            traffic_percent=0,
+            phase="rolled_back",
+            reason=reason.strip(),
+        )
+
+    @staticmethod
+    def _validate_traffic_stages(traffic_stages: tuple[int, ...]) -> None:
+        if not traffic_stages:
+            raise ValueError("traffic_stages must not be empty")
+        if any(not isinstance(value, int) for value in traffic_stages):
+            raise ValueError("traffic stages must be integers")
+        if any(value <= 0 or value > 100 for value in traffic_stages):
+            raise ValueError("traffic stages must be between 1 and 100")
+        if any(left >= right for left, right in zip(traffic_stages, traffic_stages[1:])):
+            raise ValueError("traffic stages must be strictly increasing")
+        if traffic_stages[-1] != 100:
+            raise ValueError("traffic stages must end at 100 percent")
+
+    @staticmethod
+    def _phase_for(traffic_percent: int, traffic_stages: tuple[int, ...]) -> str:
+        if traffic_percent == 100:
+            return "promoted"
+        if traffic_percent == traffic_stages[0]:
+            return "canary"
+        return "staged"
