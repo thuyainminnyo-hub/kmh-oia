@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from src.agent import Agent, AgentRequest, DeterministicAgent
+from src.evaluation import DeterministicEvaluator, Evaluator
 from src.security import ToolSecurityPolicy
 from src.state import StateStore, StateStoreContract
 from src.tools import ToolExecutor, ToolRegistry, ToolRequest, ToolResult
@@ -60,12 +61,14 @@ class OIARuntime:
         security: ToolSecurityPolicy | None = None,
         registry: ToolExecutor | None = None,
         agent: Agent | None = None,
+        evaluator: Evaluator | None = None,
     ) -> None:
         self.state = state or StateStore()
         self.gateway = InputGateway()
         self.context = ContextAssembly()
         self.tool = GovernedTool(security, registry)
         self.agent = agent or DeterministicAgent()
+        self.evaluator = evaluator or DeterministicEvaluator()
 
     def execute(
         self,
@@ -111,7 +114,10 @@ class OIARuntime:
         if not result.success:
             raise PermissionError(result.reason)
         emit("governed_tool", tool=selected_tool)
-        emit("evaluation")
+        evaluation = self.evaluator.evaluate(result)
+        emit("evaluation", status="ok" if evaluation.accepted else "rejected", reason=evaluation.reason)
+        if not evaluation.accepted:
+            raise ValueError(evaluation.reason)
         emit("response")
         emit("trace", event_count=str(len(events)))
         return result.output_text, stages, events
