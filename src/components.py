@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from src.agent import Agent, AgentRequest, DeterministicAgent
 from src.evaluation import DeterministicEvaluator, Evaluator
+from src.response import DeterministicResponder, Responder, Response
 from src.security import ToolSecurityPolicy
 from src.state import StateStore, StateStoreContract
 from src.tools import ToolExecutor, ToolRegistry, ToolRequest, ToolResult
@@ -45,12 +46,7 @@ class GovernedTool:
     def execute(self, request: ToolRequest) -> ToolResult:
         decision = self.security.authorize(request.tool_name)
         if not decision.allowed:
-            return ToolResult(
-                tool_name=request.tool_name,
-                output_text="",
-                success=False,
-                reason=decision.reason,
-            )
+            return ToolResult(request.tool_name, "", False, decision.reason)
         return self.registry.execute(request)
 
 
@@ -62,6 +58,7 @@ class OIARuntime:
         registry: ToolExecutor | None = None,
         agent: Agent | None = None,
         evaluator: Evaluator | None = None,
+        responder: Responder | None = None,
     ) -> None:
         self.state = state or StateStore()
         self.gateway = InputGateway()
@@ -69,29 +66,18 @@ class OIARuntime:
         self.tool = GovernedTool(security, registry)
         self.agent = agent or DeterministicAgent()
         self.evaluator = evaluator or DeterministicEvaluator()
+        self.responder = responder or DeterministicResponder()
 
-    def execute(
-        self,
-        goal: str,
-        session_id: str = "default",
-        tool_name: str | None = "echo",
-    ) -> tuple[str, list[str]]:
+    def execute(self, goal: str, session_id: str = "default", tool_name: str | None = "echo") -> tuple[str, list[str]]:
         output, stages, _ = self.execute_detailed(goal, session_id, tool_name)
         return output, stages
 
-    def execute_detailed(
-        self,
-        goal: str,
-        session_id: str = "default",
-        tool_name: str | None = "echo",
-    ) -> tuple[str, list[str], list[TraceEvent]]:
+    def execute_detailed(self, goal: str, session_id: str = "default", tool_name: str | None = "echo") -> tuple[str, list[str], list[TraceEvent]]:
         stages: list[str] = []
         events: list[TraceEvent] = []
-
         def emit(stage: str, status: str = "ok", **metadata: str) -> None:
             stages.append(stage)
             events.append(TraceEvent(stage, status, metadata))
-
         emit("input_gateway")
         accepted = self.gateway.accept(goal)
         emit("oia_core")
@@ -103,14 +89,8 @@ class OIARuntime:
         self.state.set(session_id, "last_goal", context["goal"])
         emit("state", session_id=session_id)
         selected_tool = tool_name if tool_name is not None else decision.tool_name
-        request = ToolRequest(tool_name=selected_tool, input_text=decision.input_text)
-        result = self.tool.execute(request)
-        emit(
-            "tool_security",
-            status="ok" if result.success else "blocked",
-            tool=selected_tool,
-            reason=result.reason,
-        )
+        result = self.tool.execute(ToolRequest(selected_tool, decision.input_text))
+        emit("tool_security", status="ok" if result.success else "blocked", tool=selected_tool, reason=result.reason)
         if not result.success:
             raise PermissionError(result.reason)
         emit("governed_tool", tool=selected_tool)
@@ -118,6 +98,7 @@ class OIARuntime:
         emit("evaluation", status="ok" if evaluation.accepted else "rejected", reason=evaluation.reason)
         if not evaluation.accepted:
             raise ValueError(evaluation.reason)
+        response = self.responder.render(result.output_text)
         emit("response")
         emit("trace", event_count=str(len(events)))
-        return result.output_text, stages, events
+        return response.text, stages, events
