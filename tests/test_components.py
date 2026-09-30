@@ -3,7 +3,17 @@ import unittest
 from src.components import ContextAssembly, GovernedTool, InputGateway, OIARuntime
 from src.security import ToolSecurityPolicy
 from src.state import StateStore
-from src.tools import ToolRequest
+from src.tools import ToolRequest, ToolResult
+
+
+class FakeToolExecutor:
+    def execute(self, request: ToolRequest) -> ToolResult:
+        return ToolResult(
+            tool_name=request.tool_name,
+            output_text=f"fake:{request.input_text}",
+            success=True,
+            reason="fake executor",
+        )
 
 
 class ComponentBoundaryTests(unittest.TestCase):
@@ -23,6 +33,13 @@ class ComponentBoundaryTests(unittest.TestCase):
         blocked = tool.execute(ToolRequest("shell", "hello"))
         self.assertFalse(blocked.success)
         self.assertEqual(blocked.reason, "tool is not allowlisted")
+
+    def test_governed_tool_accepts_interchangeable_executor(self):
+        tool = GovernedTool(ToolSecurityPolicy(), FakeToolExecutor())
+        result = tool.execute(ToolRequest("echo", "hello"))
+        self.assertTrue(result.success)
+        self.assertEqual(result.output_text, "fake:hello")
+        self.assertEqual(result.reason, "fake executor")
 
     def test_runtime_composes_components(self):
         runtime = OIARuntime(state=StateStore())
