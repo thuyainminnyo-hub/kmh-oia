@@ -2,9 +2,10 @@
 
 from dataclasses import dataclass
 
-from src.components import OIARuntime, TraceEvent
+from src.components import OIARuntime
 from src.security import ToolSecurityPolicy
-from src.state import StateStore
+from src.state import StateStore, StateStoreContract
+from src.trace import TraceEvent, Tracer
 
 
 @dataclass
@@ -16,11 +17,12 @@ class Trace:
 def run(
     goal: str,
     session_id: str = "default",
-    state: StateStore | None = None,
+    state: StateStoreContract | None = None,
     security: ToolSecurityPolicy | None = None,
     tool_name: str = "echo",
+    tracer: Tracer | None = None,
 ) -> tuple[str, Trace]:
-    runtime = OIARuntime(state=state, security=security)
+    runtime = OIARuntime(state=state, security=security, tracer=tracer)
     response, stages, events = runtime.execute_detailed(
         goal,
         session_id=session_id,
