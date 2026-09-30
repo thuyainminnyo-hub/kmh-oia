@@ -1,12 +1,19 @@
 """Minimal deterministic security policy for governed tool calls."""
 
 from dataclasses import dataclass
+from typing import Protocol
 
 
 @dataclass(frozen=True)
 class ToolDecision:
     allowed: bool
     reason: str
+
+
+class SecurityPolicy(Protocol):
+    """Authorization boundary for governed tool calls."""
+
+    def authorize(self, tool_name: str) -> ToolDecision: ...
 
 
 class ToolSecurityPolicy:
