@@ -33,20 +33,11 @@ class Stage11EndToEndTests(unittest.TestCase):
         self.assertEqual(
             stages,
             [
-                "input_gateway",
-                "oia_core",
-                "context_assembly",
-                "workflow",
-                "agent",
-                "state",
-                "tool_security",
-                "governed_tool",
-                "evaluation",
-                "response",
-                "trace",
+                "input_gateway", "oia_core", "context_assembly", "workflow",
+                "agent", "state", "tool_security", "governed_tool",
+                "evaluation", "response", "trace",
             ],
         )
-
         self.assertIsNotNone(agent.request)
         self.assertIn("acceptance-source", agent.request.context["knowledge"])
 
@@ -60,28 +51,11 @@ class Stage11EndToEndTests(unittest.TestCase):
         self.assertEqual(stored["last_goal"], "KMH OIA Stage 11 governed tool evidence")
         self.assertEqual(stored["last_response"], response)
 
-        context_ids = {
-            event.metadata["request_id"],
-            event.metadata["session_id"],
-            event.metadata["workflow_id"],
-            event.metadata["task_id"],
-            event.metadata["agent_id"],
-            event.metadata["trace_id"],
-        }
-        self.assertEqual(context_ids.__len__(), 6)
+        keys = ("request_id", "session_id", "workflow_id", "task_id", "agent_id", "trace_id")
+        first_context = {key: events[0].metadata[key] for key in keys}
+        self.assertEqual(len(set(first_context.values())), 6)
         for event in events:
-            self.assertEqual(
-                {key: event.metadata[key] for key in (
-                    "request_id", "session_id", "workflow_id",
-                    "task_id", "agent_id", "trace_id"
-                )},
-                {
-                    key: events[0].metadata[key] for key in (
-                        "request_id", "session_id", "workflow_id",
-                        "task_id", "agent_id", "trace_id"
-                    )
-                },
-            )
+            self.assertEqual({key: event.metadata[key] for key in keys}, first_context)
 
 
 if __name__ == "__main__":
