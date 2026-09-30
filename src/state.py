@@ -3,11 +3,20 @@
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+from typing import Protocol
 
 
 @dataclass
 class SessionState:
     values: dict[str, str] = field(default_factory=dict)
+
+
+class StateStoreContract(Protocol):
+    """Minimal state boundary required by the OIA runtime."""
+
+    def get(self, session_id: str) -> SessionState: ...
+
+    def set(self, session_id: str, key: str, value: str) -> None: ...
 
 
 class StateStore:

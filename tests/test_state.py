@@ -3,7 +3,20 @@ import unittest
 from pathlib import Path
 
 from src.main import run
-from src.state import JsonFileStateStore, StateStore
+from src.state import JsonFileStateStore, SessionState, StateStore
+
+
+class FakeStateBackend:
+    """Minimal structural implementation of the runtime state contract."""
+
+    def __init__(self) -> None:
+        self.values: dict[str, SessionState] = {}
+
+    def get(self, session_id: str) -> SessionState:
+        return self.values.setdefault(session_id, SessionState())
+
+    def set(self, session_id: str, key: str, value: str) -> None:
+        self.get(session_id).values[key] = value
 
 
 class StateCompatibilityTests(unittest.TestCase):
@@ -55,6 +68,14 @@ class StateCompatibilityTests(unittest.TestCase):
             recreated = JsonFileStateStore(path)
             self.assertEqual(recreated.get("session-a").values["last_goal"], "goal A")
             self.assertEqual(recreated.get("session-b").values["last_goal"], "goal B")
+
+    def test_runtime_accepts_structural_state_backend(self):
+        backend = FakeStateBackend()
+
+        response, _ = run("contract goal", session_id="session-a", state=backend)
+
+        self.assertEqual(response, "contract goal")
+        self.assertEqual(backend.get("session-a").values["last_goal"], "contract goal")
 
 
 if __name__ == "__main__":
