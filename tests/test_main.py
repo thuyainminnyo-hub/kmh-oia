@@ -23,6 +23,8 @@ class TestTextPath(unittest.TestCase):
                 "trace",
             ],
         )
+        self.assertEqual(len(trace.events), len(trace.stages))
+        self.assertEqual(trace.events[-1].stage, "trace")
 
     def test_empty_goal_is_rejected(self):
         with self.assertRaises(ValueError):
@@ -31,6 +33,12 @@ class TestTextPath(unittest.TestCase):
     def test_unlisted_tool_is_blocked_before_execution(self):
         with self.assertRaises(PermissionError):
             run("blocked", tool_name="shell")
+
+    def test_blocked_tool_event_contains_security_metadata(self):
+        from src.components import OIARuntime
+        runtime = OIARuntime()
+        with self.assertRaises(PermissionError):
+            runtime.execute_detailed("blocked", tool_name="shell")
 
 
 if __name__ == "__main__":
