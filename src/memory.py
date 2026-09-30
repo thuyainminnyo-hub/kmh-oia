@@ -10,12 +10,22 @@ class MemoryEntry:
     value: str
 
 
+class MemorySnapshot(Protocol):
+    """Opaque snapshot representing one session's recoverable memory."""
+
+    pass
+
+
 class MemoryStore(Protocol):
-    """Boundary for retrieving and updating session memory."""
+    """Boundary for retrieving, updating, and restoring session memory."""
 
     def retrieve(self, session_id: str) -> list[MemoryEntry]: ...
 
     def update(self, session_id: str, key: str, value: str) -> None: ...
+
+    def snapshot(self, session_id: str) -> list[MemoryEntry]: ...
+
+    def restore(self, session_id: str, snapshot: list[MemoryEntry]) -> None: ...
 
 
 class InMemoryMemoryStore:
@@ -28,8 +38,22 @@ class InMemoryMemoryStore:
         return [MemoryEntry(key, value) for key, value in self._entries.get(session_id, {}).items()]
 
     def update(self, session_id: str, key: str, value: str) -> None:
+        self._validate(session_id, key)
+        self._entries.setdefault(session_id, {})[key] = value
+
+    def snapshot(self, session_id: str) -> list[MemoryEntry]:
+        if not session_id.strip():
+            raise ValueError("session_id must not be empty")
+        return self.retrieve(session_id)
+
+    def restore(self, session_id: str, snapshot: list[MemoryEntry]) -> None:
+        if not session_id.strip():
+            raise ValueError("session_id must not be empty")
+        self._entries[session_id] = {entry.key: entry.value for entry in snapshot}
+
+    @staticmethod
+    def _validate(session_id: str, key: str) -> None:
         if not session_id.strip():
             raise ValueError("session_id must not be empty")
         if not key.strip():
             raise ValueError("key must not be empty")
-        self._entries.setdefault(session_id, {})[key] = value
