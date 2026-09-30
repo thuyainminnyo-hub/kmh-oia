@@ -85,7 +85,7 @@ class OIARuntime:
         ids = {"request_id": execution.request_id, "session_id": execution.session_id, "workflow_id": execution.workflow_id, "task_id": execution.task_id, "agent_id": execution.agent_id, "trace_id": execution.trace_id}
 
         def emit(stage: str, status: str = "ok", **metadata: str) -> None:
-            event = TraceEvent(stage, status, {**ids, **metadata})
+            event = TraceEvent(stage, status, {**ids, "status": status, **metadata})
             stages.append(stage)
             self.tracer.emit(event)
 

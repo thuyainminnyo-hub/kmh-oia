@@ -20,7 +20,7 @@ class ToolSecurityPolicy:
     """Allow only explicitly registered deterministic tools."""
 
     def __init__(self, allowed_tools: set[str] | None = None) -> None:
-        self._allowed_tools = allowed_tools or {"echo"}
+        self._allowed_tools = set(allowed_tools) if allowed_tools is not None else {"echo"}
 
     def authorize(self, tool_name: str) -> ToolDecision:
         if not tool_name.strip():
