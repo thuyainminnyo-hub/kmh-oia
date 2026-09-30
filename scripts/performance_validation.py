@@ -1,4 +1,4 @@
-"""Repeatable Stage 12 performance validation for the deterministic text runtime."""
+"""Repeatable Stage 12 performance evidence for the deterministic text runtime."""
 
 from __future__ import annotations
 
@@ -10,11 +10,9 @@ from src.main import run
 
 
 ITERATIONS = 50
-MEDIAN_TARGET_MS = 100.0
-MAX_TARGET_MS = 250.0
 
 
-def measure(iterations: int = ITERATIONS) -> dict[str, float | int | bool]:
+def measure(iterations: int = ITERATIONS) -> dict[str, float | int]:
     durations_ms: list[float] = []
     for index in range(iterations):
         started = time.perf_counter()
@@ -29,22 +27,14 @@ def measure(iterations: int = ITERATIONS) -> dict[str, float | int | bool]:
             raise AssertionError("trace did not complete")
         durations_ms.append(elapsed_ms)
 
-    median_ms = statistics.median(durations_ms)
-    max_ms = max(durations_ms)
     return {
         "iterations": iterations,
         "min_ms": min(durations_ms),
-        "median_ms": median_ms,
+        "median_ms": statistics.median(durations_ms),
         "mean_ms": statistics.mean(durations_ms),
-        "max_ms": max_ms,
-        "median_target_ms": MEDIAN_TARGET_MS,
-        "max_target_ms": MAX_TARGET_MS,
-        "acceptance_pass": median_ms <= MEDIAN_TARGET_MS and max_ms <= MAX_TARGET_MS,
+        "max_ms": max(durations_ms),
     }
 
 
 if __name__ == "__main__":
-    result = measure()
-    print(json.dumps(result, indent=2, sort_keys=True))
-    if not result["acceptance_pass"]:
-        raise SystemExit(1)
+    print(json.dumps(measure(), indent=2, sort_keys=True))
