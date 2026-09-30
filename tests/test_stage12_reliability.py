@@ -21,7 +21,7 @@ class FlakyExecutor:
         self.attempts += 1
         if self.attempts <= self.failures:
             raise RetryableExecutionError("temporary dependency failure")
-        return ToolResult(request.tool_name, request.input_text, True, "recovered")
+        return ToolResult(request.tool_name, "recovered", True, "temporary dependency recovered")
 
 
 class FixedAgent:
