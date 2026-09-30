@@ -8,6 +8,7 @@ from src.errors import DeterministicErrorBoundary, ErrorBoundary
 from src.evaluation import DeterministicEvaluator, Evaluator
 from src.knowledge import KnowledgeSource, StaticKnowledgeSource
 from src.memory import InMemoryMemoryStore, MemoryStore
+from src.recovery import DeterministicRecoveryPolicy, RecoveryPolicy
 from src.response import DeterministicResponder, Responder
 from src.security import SecurityPolicy, ToolSecurityPolicy
 from src.state import StateStore, StateStoreContract
@@ -47,18 +48,19 @@ class ContextAssembly:
         }
 
 class GovernedTool:
-    def __init__(self, security: SecurityPolicy | None = None, registry: ToolExecutor | None = None) -> None:
+    def __init__(self, security: SecurityPolicy | None = None, registry: ToolExecutor | None = None, recovery: RecoveryPolicy | None = None) -> None:
         self.security = security or ToolSecurityPolicy()
         self.registry = registry or ToolRegistry()
+        self.recovery = recovery or DeterministicRecoveryPolicy()
 
     def execute(self, request: ToolRequest) -> ToolResult:
         decision = self.security.authorize(request.tool_name)
         if not decision.allowed:
             return ToolResult(request.tool_name, "", False, decision.reason)
-        return self.registry.execute(request)
+        return self.recovery.run(lambda: self.registry.execute(request))
 
 class OIARuntime:
-    def __init__(self, state: StateStoreContract | None = None, security: SecurityPolicy | None = None, registry: ToolExecutor | None = None, agent: Agent | None = None, evaluator: Evaluator | None = None, responder: Responder | None = None, tracer: Tracer | None = None, core: OIACore | None = None, workflow: Workflow | None = None, gateway: InputGatewayContract | None = None, context_assembly: ContextAssemblyContract | None = None, error_boundary: ErrorBoundary | None = None, memory: MemoryStore | None = None, knowledge: KnowledgeSource | None = None) -> None:
+    def __init__(self, state: StateStoreContract | None = None, security: SecurityPolicy | None = None, registry: ToolExecutor | None = None, agent: Agent | None = None, evaluator: Evaluator | None = None, responder: Responder | None = None, tracer: Tracer | None = None, core: OIACore | None = None, workflow: Workflow | None = None, gateway: InputGatewayContract | None = None, context_assembly: ContextAssemblyContract | None = None, error_boundary: ErrorBoundary | None = None, memory: MemoryStore | None = None, knowledge: KnowledgeSource | None = None, recovery: RecoveryPolicy | None = None) -> None:
         self.state = state or StateStore()
         self.memory = memory or InMemoryMemoryStore()
         self.knowledge = knowledge or StaticKnowledgeSource()
@@ -66,7 +68,7 @@ class OIARuntime:
         self.context = context_assembly or ContextAssembly(self.memory, self.knowledge)
         self.core = core or DeterministicOIACore()
         self.workflow = workflow or DeterministicWorkflow()
-        self.tool = GovernedTool(security, registry)
+        self.tool = GovernedTool(security, registry, recovery)
         self.agent = agent or DeterministicAgent()
         self.evaluator = evaluator or DeterministicEvaluator()
         self.responder = responder or DeterministicResponder()
