@@ -1,6 +1,8 @@
-"""Minimal executable KMH OIA text-path runtime."""
+"""Executable KMH OIA text-path runtime with session state."""
 
 from dataclasses import dataclass
+
+from src.state import StateStore
 
 
 @dataclass
@@ -8,10 +10,11 @@ class Trace:
     stages: list[str]
 
 
-def run(goal: str) -> tuple[str, Trace]:
+def run(goal: str, session_id: str = "default", state: StateStore | None = None) -> tuple[str, Trace]:
     if not goal.strip():
         raise ValueError("goal must not be empty")
 
+    state = state or StateStore()
     trace = Trace(stages=[])
 
     trace.stages.append("input_gateway")
@@ -20,6 +23,9 @@ def run(goal: str) -> tuple[str, Trace]:
     trace.stages.append("context_assembly")
     trace.stages.append("workflow")
     trace.stages.append("agent")
+
+    state.set(session_id, "last_goal", context["goal"])
+    trace.stages.append("state")
 
     # Governed tool: deterministic local transformation for the first slice.
     tool_output = context["goal"].strip()
