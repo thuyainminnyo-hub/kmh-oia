@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from src.security import ToolSecurityPolicy
 from src.state import StateStore, StateStoreContract
-from src.tools import ToolRegistry, ToolRequest, ToolResult
+from src.tools import ToolExecutor, ToolRegistry, ToolRequest, ToolResult
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ class GovernedTool:
     def __init__(
         self,
         security: ToolSecurityPolicy | None = None,
-        registry: ToolRegistry | None = None,
+        registry: ToolExecutor | None = None,
     ) -> None:
         self.security = security or ToolSecurityPolicy()
         self.registry = registry or ToolRegistry()
@@ -57,7 +57,7 @@ class OIARuntime:
         self,
         state: StateStoreContract | None = None,
         security: ToolSecurityPolicy | None = None,
-        registry: ToolRegistry | None = None,
+        registry: ToolExecutor | None = None,
     ) -> None:
         self.state = state or StateStore()
         self.gateway = InputGateway()

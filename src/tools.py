@@ -1,6 +1,7 @@
 """Typed governed-tool contracts for the KMH OIA runtime."""
 
 from dataclasses import dataclass
+from typing import Protocol
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,12 @@ class ToolResult:
     output_text: str
     success: bool
     reason: str
+
+
+class ToolExecutor(Protocol):
+    """Execution boundary consumed by the governed-tool component."""
+
+    def execute(self, request: ToolRequest) -> ToolResult: ...
 
 
 class ToolRegistry:
