@@ -26,7 +26,10 @@ class ComponentBoundaryTests(unittest.TestCase):
         with self.assertRaises(ValueError): InputGateway().accept(" ")
     def test_context_assembly_is_deterministic(self):
         context = InputGateway().accept("hello")
-        self.assertEqual(ContextAssembly().build(context), {"goal": "hello"})
+        assembled = ContextAssembly().build(context)
+        self.assertEqual(assembled["goal"], "hello")
+        self.assertEqual(assembled["memory"], "")
+        self.assertEqual(assembled["knowledge"], "")
     def test_runtime_accepts_interchangeable_gateway_and_context(self):
         response, _, events = OIARuntime(state=StateStore(), gateway=FakeGateway(), context_assembly=FakeContextAssembly(), agent=FakeAgent(), evaluator=FakeEvaluator(), responder=FakeResponder()).execute_detailed("hello")
         self.assertEqual(response, "planned:context:gateway:hello")

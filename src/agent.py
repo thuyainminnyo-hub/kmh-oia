@@ -1,12 +1,13 @@
 """Agent boundary for the KMH OIA runtime."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 
 @dataclass(frozen=True)
 class AgentRequest:
     goal: str
+    context: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
