@@ -15,6 +15,7 @@ class TestTextPath(unittest.TestCase):
                 "context_assembly",
                 "workflow",
                 "agent",
+                "state",
                 "governed_tool",
                 "evaluation",
                 "response",
