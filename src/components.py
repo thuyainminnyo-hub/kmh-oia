@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from src.security import ToolSecurityPolicy
-from src.state import StateStore
+from src.state import StateStore, StateStoreContract
 from src.tools import ToolRegistry, ToolRequest, ToolResult
 
 
@@ -55,7 +55,7 @@ class GovernedTool:
 class OIARuntime:
     def __init__(
         self,
-        state: StateStore | None = None,
+        state: StateStoreContract | None = None,
         security: ToolSecurityPolicy | None = None,
         registry: ToolRegistry | None = None,
     ) -> None:
