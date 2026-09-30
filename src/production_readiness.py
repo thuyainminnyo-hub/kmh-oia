@@ -1,4 +1,4 @@
-"""Stage 14 deterministic production-readiness and deployment controllers."""
+"""Stage 14 deterministic production-readiness, deployment, and health controllers."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,6 +24,19 @@ class DeploymentState:
     traffic_percent: int
     phase: str
     reason: str = ""
+
+
+@dataclass(frozen=True)
+class HealthCheck:
+    name: str
+    passed: bool
+    detail: str
+
+
+@dataclass(frozen=True)
+class HealthReport:
+    passed: bool
+    checks: tuple[HealthCheck, ...]
 
 
 class ReleaseCandidateLoader:
@@ -139,3 +152,37 @@ class ControlledDeploymentController:
         if traffic_percent == traffic_stages[0]:
             return "canary"
         return "staged"
+
+
+class ProductionHealthGate:
+    """Assess and gate deterministic post-deployment component health evidence."""
+
+    REQUIRED_COMPONENTS = (
+        "service",
+        "api",
+        "worker",
+        "audio",
+        "memory",
+        "knowledge",
+        "agent",
+        "workflow",
+        "tool",
+        "security",
+        "observability",
+    )
+
+    def assess(self, checks: dict[str, bool]) -> HealthReport:
+        ordered_checks = tuple(
+            HealthCheck(
+                name=name,
+                passed=checks.get(name, False),
+                detail="healthy" if checks.get(name, False) else "health evidence missing or failed",
+            )
+            for name in self.REQUIRED_COMPONENTS
+        )
+        return HealthReport(all(check.passed for check in ordered_checks), ordered_checks)
+
+    def gate(self, report: HealthReport) -> None:
+        if not report.passed:
+            failed = ", ".join(check.name for check in report.checks if not check.passed)
+            raise RuntimeError(f"production health gate blocked: {failed}")
