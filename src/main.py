@@ -1,7 +1,8 @@
-"""Executable KMH OIA text-path runtime with session state."""
+"""Executable KMH OIA text-path runtime with explicit component composition."""
 
 from dataclasses import dataclass
 
+from src.components import OIARuntime
 from src.security import ToolSecurityPolicy
 from src.state import StateStore
 
@@ -18,43 +19,13 @@ def run(
     security: ToolSecurityPolicy | None = None,
     tool_name: str = "echo",
 ) -> tuple[str, Trace]:
-    if not goal.strip():
-        raise ValueError("goal must not be empty")
-
-    state = state or StateStore()
-    security = security or ToolSecurityPolicy()
-    trace = Trace(stages=[])
-
-    trace.stages.append("input_gateway")
-    trace.stages.append("oia_core")
-    context = {"goal": goal.strip()}
-    trace.stages.append("context_assembly")
-    trace.stages.append("workflow")
-    trace.stages.append("agent")
-
-    state.set(session_id, "last_goal", context["goal"])
-    trace.stages.append("state")
-
-    decision = security.authorize(tool_name)
-    trace.stages.append("tool_security")
-    if not decision.allowed:
-        raise PermissionError(decision.reason)
-
-    # Governed tool: deterministic local transformation for the first slice.
-    tool_output = context["goal"].strip()
-    trace.stages.append("governed_tool")
-
-    evaluation = bool(tool_output)
-    trace.stages.append("evaluation")
-
-    response = tool_output
-    trace.stages.append("response")
-    trace.stages.append("trace")
-
-    if not evaluation:
-        raise RuntimeError("evaluation failed")
-
-    return response, trace
+    runtime = OIARuntime(state=state, security=security)
+    response, stages = runtime.execute(
+        goal,
+        session_id=session_id,
+        tool_name=tool_name,
+    )
+    return response, Trace(stages=stages)
 
 
 if __name__ == "__main__":
