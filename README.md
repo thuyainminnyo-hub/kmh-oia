@@ -6,6 +6,8 @@ Operating Intelligence Architecture — executable runtime and integration syste
 
 `User Goal → Input Gateway → OIA Core → Context Assembly → Workflow → Agent → State → Tool Security → Governed Tool → Evaluation → Response → Trace`
 
+The runtime exposes replaceable boundaries for state, governed-tool execution, agent decisions, evaluation, response rendering, and structured tracing. The default implementations remain deterministic and local.
+
 ## Run
 
 ```bash
@@ -33,3 +35,9 @@ response, trace = run("hello", session_id="session-a", state=state)
 ```
 
 The JSON-file store is a local persistence boundary for the current integration stage. It is not a substitute for a production database or distributed state backend.
+
+## Trace / observability
+
+`Tracer` is the runtime observability boundary. `InMemoryTracer` is the default deterministic implementation and retains ordered `TraceEvent` records. A compatible tracer can be injected through `run(..., tracer=...)` or `OIARuntime(..., tracer=...)`.
+
+No external telemetry backend is required by the current runtime.
