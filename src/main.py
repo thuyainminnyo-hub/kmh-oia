@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from src.security import ToolSecurityPolicy
 from src.state import StateStore
 
 
@@ -10,11 +11,18 @@ class Trace:
     stages: list[str]
 
 
-def run(goal: str, session_id: str = "default", state: StateStore | None = None) -> tuple[str, Trace]:
+def run(
+    goal: str,
+    session_id: str = "default",
+    state: StateStore | None = None,
+    security: ToolSecurityPolicy | None = None,
+    tool_name: str = "echo",
+) -> tuple[str, Trace]:
     if not goal.strip():
         raise ValueError("goal must not be empty")
 
     state = state or StateStore()
+    security = security or ToolSecurityPolicy()
     trace = Trace(stages=[])
 
     trace.stages.append("input_gateway")
@@ -26,6 +34,11 @@ def run(goal: str, session_id: str = "default", state: StateStore | None = None)
 
     state.set(session_id, "last_goal", context["goal"])
     trace.stages.append("state")
+
+    decision = security.authorize(tool_name)
+    trace.stages.append("tool_security")
+    if not decision.allowed:
+        raise PermissionError(decision.reason)
 
     # Governed tool: deterministic local transformation for the first slice.
     tool_output = context["goal"].strip()
