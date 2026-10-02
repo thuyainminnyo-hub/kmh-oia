@@ -87,9 +87,10 @@ class OIARuntime:
         execution = ExecutionContext.create(session_id)
         ids = {"request_id": execution.request_id, "session_id": execution.session_id, "workflow_id": execution.workflow_id, "task_id": execution.task_id, "agent_id": execution.agent_id, "trace_id": execution.trace_id}
 
-        def emit(stage: str, status: str = "ok", **metadata: str) -> None:
+        def emit(stage: str, status: str = "ok", record_stage: bool = True, **metadata: str) -> None:
             event = TraceEvent(stage, status, {**ids, "status": status, **metadata})
-            stages.append(stage)
+            if record_stage:
+                stages.append(stage)
             self.tracer.emit(event)
 
         state_snapshot = self.state.snapshot(session_id)
@@ -111,7 +112,7 @@ class OIARuntime:
             emit("state", memory_updated="true")
             selected_tool = tool_name if tool_name is not None else decision.tool_name
             autonomy = self.autonomy_policy.evaluate(selected_tool, self.autonomy_scope)
-            emit("autonomy_policy", status="ok" if autonomy.allowed else "blocked", action=selected_tool, scope=self.autonomy_scope, reason=autonomy.reason)
+            emit("autonomy_policy", status="ok" if autonomy.allowed else "blocked", record_stage=False, action=selected_tool, scope=self.autonomy_scope, reason=autonomy.reason)
             if not autonomy.allowed:
                 raise PermissionError(autonomy.reason)
             result = self.tool.execute(ToolRequest(selected_tool, decision.input_text))
