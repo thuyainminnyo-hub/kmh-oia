@@ -87,10 +87,9 @@ class OIARuntime:
         execution = ExecutionContext.create(session_id)
         ids = {"request_id": execution.request_id, "session_id": execution.session_id, "workflow_id": execution.workflow_id, "task_id": execution.task_id, "agent_id": execution.agent_id, "trace_id": execution.trace_id}
 
-        def emit(stage: str, status: str = "ok", record_stage: bool = True, **metadata: str) -> None:
+        def emit(stage: str, status: str = "ok", **metadata: str) -> None:
             event = TraceEvent(stage, status, {**ids, "status": status, **metadata})
-            if record_stage:
-                stages.append(stage)
+            stages.append(stage)
             self.tracer.emit(event)
 
         state_snapshot = self.state.snapshot(session_id)
@@ -112,11 +111,11 @@ class OIARuntime:
             emit("state", memory_updated="true")
             selected_tool = tool_name if tool_name is not None else decision.tool_name
             autonomy = self.autonomy_policy.evaluate(selected_tool, self.autonomy_scope)
-            emit("autonomy_policy", status="ok" if autonomy.allowed else "blocked", record_stage=False, action=selected_tool, scope=self.autonomy_scope, reason=autonomy.reason)
             if not autonomy.allowed:
+                emit("tool_security", status="blocked", tool=selected_tool, reason=autonomy.reason, autonomy_status="blocked", autonomy_action=selected_tool, autonomy_scope=self.autonomy_scope, autonomy_reason=autonomy.reason)
                 raise PermissionError(autonomy.reason)
             result = self.tool.execute(ToolRequest(selected_tool, decision.input_text))
-            emit("tool_security", status="ok" if result.success else "blocked", tool=selected_tool, reason=result.reason)
+            emit("tool_security", status="ok" if result.success else "blocked", tool=selected_tool, reason=result.reason, autonomy_status="ok", autonomy_action=selected_tool, autonomy_scope=self.autonomy_scope, autonomy_reason=autonomy.reason)
             if not result.success:
                 raise PermissionError(result.reason)
             emit("governed_tool", tool=selected_tool)
