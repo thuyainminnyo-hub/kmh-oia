@@ -14,7 +14,6 @@ class RecordingExecutor(ToolExecutor):
         return ToolResult(request.tool_name, request.input_text, True, "recorded")
 
 
-
 class RuntimeAutonomyEnforcementTests(unittest.TestCase):
     def test_denied_autonomy_scope_blocks_before_tool_execution(self):
         executor = RecordingExecutor()
@@ -25,6 +24,10 @@ class RuntimeAutonomyEnforcementTests(unittest.TestCase):
             runtime.execute_detailed("hello", session_id="s1")
 
         self.assertEqual(executor.calls, [])
+        event = next(event for event in runtime.tracer.events if event.stage == "tool_security")
+        self.assertEqual(event.status, "blocked")
+        self.assertEqual(event.metadata["autonomy_status"], "blocked")
+        self.assertEqual(event.metadata["autonomy_scope"], "production")
 
     def test_allowed_autonomy_action_and_scope_reaches_tool_execution(self):
         executor = RecordingExecutor()
@@ -35,8 +38,11 @@ class RuntimeAutonomyEnforcementTests(unittest.TestCase):
 
         self.assertEqual(response, "hello")
         self.assertEqual(len(executor.calls), 1)
-        decision = next(event for event in events if event.stage == "autonomy_policy")
-        self.assertEqual(decision.status, "ok")
+        event = next(event for event in events if event.stage == "tool_security")
+        self.assertEqual(event.status, "ok")
+        self.assertEqual(event.metadata["autonomy_status"], "ok")
+        self.assertEqual(event.metadata["autonomy_scope"], "staging")
 
 
-if __name__ == "__main__": unittest.main()
+if __name__ == "__main__":
+    unittest.main()
