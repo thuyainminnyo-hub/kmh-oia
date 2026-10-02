@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from src.agent import Agent, AgentRequest, DeterministicAgent
+from src.autonomy_policy import AutonomyPolicy
 from src.errors import DeterministicErrorBoundary, ErrorBoundary
 from src.evaluation import DeterministicEvaluator, Evaluator
 from src.knowledge import KnowledgeSource, StaticKnowledgeSource
@@ -60,7 +61,7 @@ class GovernedTool:
         return self.recovery.run(lambda: self.registry.execute(request))
 
 class OIARuntime:
-    def __init__(self, state: StateStoreContract | None = None, security: SecurityPolicy | None = None, registry: ToolExecutor | None = None, agent: Agent | None = None, evaluator: Evaluator | None = None, responder: Responder | None = None, tracer: Tracer | None = None, core: OIACore | None = None, workflow: Workflow | None = None, gateway: InputGatewayContract | None = None, context_assembly: ContextAssemblyContract | None = None, error_boundary: ErrorBoundary | None = None, memory: MemoryStore | None = None, knowledge: KnowledgeSource | None = None, recovery: RecoveryPolicy | None = None) -> None:
+    def __init__(self, state: StateStoreContract | None = None, security: SecurityPolicy | None = None, registry: ToolExecutor | None = None, agent: Agent | None = None, evaluator: Evaluator | None = None, responder: Responder | None = None, tracer: Tracer | None = None, core: OIACore | None = None, workflow: Workflow | None = None, gateway: InputGatewayContract | None = None, context_assembly: ContextAssemblyContract | None = None, error_boundary: ErrorBoundary | None = None, memory: MemoryStore | None = None, knowledge: KnowledgeSource | None = None, recovery: RecoveryPolicy | None = None, autonomy_policy: AutonomyPolicy | None = None, autonomy_scope: str = "local") -> None:
         self.state = state or StateStore()
         self.memory = memory or InMemoryMemoryStore()
         self.knowledge = knowledge or StaticKnowledgeSource()
@@ -69,6 +70,8 @@ class OIARuntime:
         self.core = core or DeterministicOIACore()
         self.workflow = workflow or DeterministicWorkflow()
         self.tool = GovernedTool(security, registry, recovery)
+        self.autonomy_policy = autonomy_policy or AutonomyPolicy({"echo"}, {"local"})
+        self.autonomy_scope = autonomy_scope
         self.agent = agent or DeterministicAgent()
         self.evaluator = evaluator or DeterministicEvaluator()
         self.responder = responder or DeterministicResponder()
@@ -107,6 +110,10 @@ class OIARuntime:
             self.memory.update(session_id, "last_goal", context["goal"])
             emit("state", memory_updated="true")
             selected_tool = tool_name if tool_name is not None else decision.tool_name
+            autonomy = self.autonomy_policy.evaluate(selected_tool, self.autonomy_scope)
+            emit("autonomy_policy", status="ok" if autonomy.allowed else "blocked", action=selected_tool, scope=self.autonomy_scope, reason=autonomy.reason)
+            if not autonomy.allowed:
+                raise PermissionError(autonomy.reason)
             result = self.tool.execute(ToolRequest(selected_tool, decision.input_text))
             emit("tool_security", status="ok" if result.success else "blocked", tool=selected_tool, reason=result.reason)
             if not result.success:
