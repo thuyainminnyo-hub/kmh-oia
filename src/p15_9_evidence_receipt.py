@@ -7,6 +7,7 @@ receipt-level traceability for one exact release.
 
 from dataclasses import dataclass
 from datetime import datetime
+import hashlib
 import re
 from typing import Iterable
 
@@ -19,6 +20,20 @@ _REQUIRED_CATEGORIES = (
     "authorization",
     "incident_exercise",
 )
+
+
+def verify_artifact_bytes(receipt: "EvidenceReceipt", content: bytes) -> bool:
+    """Return whether content bytes match a receipt's SHA-256 digest.
+
+    This verifies byte integrity only; it does not establish artifact origin,
+    operational validity, or satisfaction of an evidence gate.
+    """
+    if not isinstance(receipt, EvidenceReceipt):
+        raise ValueError("evidence receipt is required")
+    if not isinstance(content, bytes):
+        raise TypeError("artifact content must be bytes")
+    actual = hashlib.sha256(content).hexdigest()
+    return actual.lower() == receipt.sha256.strip().lower()
 
 
 def _require_timestamp(value: str) -> None:
