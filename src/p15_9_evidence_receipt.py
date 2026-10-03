@@ -6,11 +6,32 @@ receipt-level traceability for one exact release.
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 import re
 from typing import Iterable
 
 
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
+_REQUIRED_CATEGORIES = (
+    "telemetry",
+    "performance",
+    "rollback_drill",
+    "authorization",
+    "incident_exercise",
+)
+
+
+def _require_timestamp(value: str) -> None:
+    """Require an ISO-8601 timestamp with an explicit UTC offset."""
+    normalized = value.strip()
+    if normalized.endswith(("Z", "z")):
+        normalized = normalized[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError("observed_at must be an ISO-8601 timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("observed_at must include a UTC offset")
 
 
 @dataclass(frozen=True)
@@ -34,6 +55,9 @@ class EvidenceReceipt:
         for name, value in fields.items():
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{name} is required")
+        if self.category.strip() not in _REQUIRED_CATEGORIES:
+            raise ValueError("category must be one of the required evidence categories")
+        _require_timestamp(self.observed_at)
         if not _SHA256.fullmatch(self.sha256.strip()):
             raise ValueError("sha256 must be a 64-character hexadecimal digest")
 
@@ -48,6 +72,10 @@ class EvidenceReceiptManifest:
             raise ValueError("release_id is required")
         if not self.receipts:
             raise ValueError("at least one evidence receipt is required")
+        if any(not isinstance(receipt, EvidenceReceipt) for receipt in self.receipts):
+            raise ValueError("receipts must contain EvidenceReceipt values")
+        if any(receipt.release_id != self.release_id.strip() for receipt in self.receipts):
+            raise ValueError("receipt release_id does not match manifest release_id")
         ids = [receipt.artifact_id for receipt in self.receipts]
         if len(ids) != len(set(ids)):
             raise ValueError("duplicate artifact_id is not allowed")
@@ -56,13 +84,7 @@ class EvidenceReceiptManifest:
 class EvidenceReceiptManifestBuilder:
     """Build receipt-level traceability from externally supplied records."""
 
-    REQUIRED_CATEGORIES = (
-        "telemetry",
-        "performance",
-        "rollback_drill",
-        "authorization",
-        "incident_exercise",
-    )
+    REQUIRED_CATEGORIES = _REQUIRED_CATEGORIES
 
     def build(
         self,
