@@ -1,11 +1,13 @@
 """Tests for the P15.9 evidence receipt manifest."""
 
+import hashlib
 import unittest
 
 from src.p15_9_evidence_receipt import (
     EvidenceReceipt,
     EvidenceReceiptManifest,
     EvidenceReceiptManifestBuilder,
+    verify_artifact_bytes,
 )
 
 
@@ -84,6 +86,28 @@ class EvidenceReceiptManifestTests(unittest.TestCase):
     def test_direct_manifest_construction_rejects_release_mismatch(self) -> None:
         with self.assertRaisesRegex(ValueError, "release_id"):
             EvidenceReceiptManifest("release-15-9", (receipt("telemetry", release_id="other"),))
+
+    def test_artifact_bytes_match_receipt_digest(self) -> None:
+        content = b"evidence artifact"
+        item = EvidenceReceipt(
+            category="telemetry", release_id="release-15-9",
+            artifact_id="artifact-1", observed_at="2026-10-02T00:00:00Z",
+            source="operator://artifact-1", sha256=hashlib.sha256(content).hexdigest(),
+        )
+        self.assertTrue(verify_artifact_bytes(item, content))
+
+    def test_artifact_bytes_mismatch_receipt_digest(self) -> None:
+        content = b"evidence artifact"
+        item = EvidenceReceipt(
+            category="telemetry", release_id="release-15-9",
+            artifact_id="artifact-1", observed_at="2026-10-02T00:00:00Z",
+            source="operator://artifact-1", sha256=hashlib.sha256(content).hexdigest(),
+        )
+        self.assertFalse(verify_artifact_bytes(item, b"tampered artifact"))
+
+    def test_artifact_verification_requires_bytes(self) -> None:
+        with self.assertRaisesRegex(TypeError, "bytes"):
+            verify_artifact_bytes(receipt("telemetry"), "not bytes")
 
 
 if __name__ == "__main__":
