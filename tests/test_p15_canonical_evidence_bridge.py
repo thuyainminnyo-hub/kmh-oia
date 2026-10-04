@@ -135,15 +135,18 @@ class CanonicalEvidenceBridgeTests(unittest.TestCase):
             self.adapter.build_package(self.bridge(stage14_mapping=mappings))
 
     def test_br_09_conditional_mapping_without_applicability_blocks(self) -> None:
-        mappings = list(self.mappings)
-        mappings[0] = Stage14EvidenceMapping(
+        mapping_by_field = {mapping.field: mapping for mapping in self.mappings}
+        mapping_by_field["telemetry"] = Stage14EvidenceMapping(
             field="telemetry",
             evidence_reference_ids=("ref-telemetry",),
             applicability="",
             rationale="conditional mapping without applicability must block",
         )
+        mappings = tuple(
+            mapping_by_field[field] for field in self.adapter.REQUIRED_FIELDS
+        )
         with self.assertRaises(RuntimeError):
-            self.adapter.build_package(self.bridge(stage14_mapping=tuple(mappings)))
+            self.adapter.build_package(self.bridge(stage14_mapping=mappings))
 
     def test_br_10_false_boundary_acknowledgement_blocks(self) -> None:
         with self.assertRaises(RuntimeError):
