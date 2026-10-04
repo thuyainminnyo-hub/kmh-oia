@@ -76,13 +76,10 @@ class CanonicalEvidenceBridgeTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.adapter.build_package(self.bridge(release_deployment_mappings=mappings))
 
-    def test_br_04_release_mismatch_blocks(self) -> None:
+    def test_br_04_closure_release_mismatch_blocks(self) -> None:
         with self.assertRaises(ValueError):
             self.adapter.build_package(
-                self.bridge(
-                    release_id="different-release",
-                    closure=EvidenceClosure("different-release", True),
-                )
+                self.bridge(closure=EvidenceClosure("different-release", True))
             )
 
     def test_br_05_incomplete_closure_blocks(self) -> None:
