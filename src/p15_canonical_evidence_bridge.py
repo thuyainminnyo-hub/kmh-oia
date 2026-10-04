@@ -100,6 +100,8 @@ class CanonicalEvidenceBridgeAdapter:
             raise RuntimeError(
                 "bridge blocked: exactly one explicit release-to-deployment mapping is required"
             )
+        if not isinstance(mappings[0], ReleaseDeploymentMapping):
+            raise ValueError("release-to-deployment mappings must contain valid mapping values")
         identity = mappings[0]
         if identity.release_id.strip() != release:
             raise ValueError("release-to-deployment mapping release_id does not match")
@@ -107,9 +109,9 @@ class CanonicalEvidenceBridgeAdapter:
             raise ValueError("release-to-deployment mapping deployment_id does not match")
 
         refs = bridge.evidence_references
-        reference_ids = [ref.reference_id for ref in refs]
         if any(not isinstance(ref, EvidenceReference) for ref in refs):
             raise ValueError("evidence references must contain EvidenceReference values")
+        reference_ids = [ref.reference_id for ref in refs]
         if len(set(reference_ids)) != len(reference_ids):
             raise ValueError("duplicate evidence reference id")
         if any(
@@ -125,22 +127,25 @@ class CanonicalEvidenceBridgeAdapter:
         ):
             raise ValueError("evidence references require attributable provenance")
 
-        stage14_fields = [mapping.field for mapping in bridge.stage14_mapping]
+        mappings14 = bridge.stage14_mapping
+        if any(not isinstance(mapping, Stage14EvidenceMapping) for mapping in mappings14):
+            raise ValueError("Stage 14 mappings must contain valid mapping values")
+        stage14_fields = [mapping.field for mapping in mappings14]
         if len(stage14_fields) != len(set(stage14_fields)):
             raise ValueError("duplicate Stage 14 evidence mapping field")
-        missing = tuple(field for field in self.REQUIRED_FIELDS if field not in stage14_fields)
         unsupported = tuple(field for field in stage14_fields if field not in self.REQUIRED_FIELDS)
-        if missing:
-            raise RuntimeError(
-                "bridge blocked: missing Stage 14 evidence mappings: " + ", ".join(missing)
-            )
         if unsupported:
             raise RuntimeError(
                 "bridge blocked: unsupported Stage 14 evidence fields: " + ", ".join(unsupported)
             )
+        missing = tuple(field for field in self.REQUIRED_FIELDS if field not in stage14_fields)
+        if missing:
+            raise RuntimeError(
+                "bridge blocked: missing Stage 14 evidence mappings: " + ", ".join(missing)
+            )
 
         known_refs = set(reference_ids)
-        for mapping in bridge.stage14_mapping:
+        for mapping in mappings14:
             if not mapping.evidence_reference_ids:
                 raise RuntimeError(
                     f"bridge blocked: no evidence reference supplied for {mapping.field}"
