@@ -2,6 +2,7 @@ import unittest
 
 from src.live_operating_console import LiveOperatingConsole
 from src.live_runtime_bridge import LiveRuntimeBridge
+from src.standardization_engine import OperatingStandard
 
 
 class LiveRuntimeBridgeTests(unittest.TestCase):
@@ -24,6 +25,26 @@ class LiveRuntimeBridgeTests(unittest.TestCase):
         self.assertIn("input_gateway", record.trace_stages)
         self.assertIn("evaluation", record.trace_stages)
         self.assertTrue(any(item.startswith("trace_id=") for item in record.evidence))
+
+    def test_governed_execution_feeds_evidence_back_to_control_plane(self) -> None:
+        console = LiveOperatingConsole(date="2026-10-05", primary_objective="Governed execution")
+        command = console.add_command(
+            objective="execute governed work",
+            priority="P1",
+            owner="system",
+            expected_output="runtime response",
+        )
+        standard = OperatingStandard(
+            "std:a:v1", "a", "Require evidence", "Higher quality", 1, "ACTIVE"
+        )
+
+        record = LiveRuntimeBridge(console).execute(
+            command.id, standard=standard, applied_rule="Require evidence"
+        )
+
+        self.assertIsNotNone(record.standard_feedback)
+        self.assertFalse(record.standard_feedback.drift.drifted)
+        self.assertIsNone(record.standard_feedback.trigger)
 
     def test_unknown_command_is_rejected(self) -> None:
         console = LiveOperatingConsole(date="2026-10-05")
