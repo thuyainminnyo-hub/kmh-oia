@@ -29,7 +29,7 @@ class Command:
     learning: str = ""
     source_action_kind: str | None = None
     source_action_priority: int | None = None
-    source_action_reason: str | None = None
+    source_action_reason: str | None = None,\n    source_decision_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -51,11 +51,11 @@ class LiveOperatingConsole:
         self.primary_objective = primary_objective.strip()
         self._commands: dict[str, Command] = {}
 
-    def add_command(self, *, objective: str, priority: Priority, owner: str, expected_output: str, next_action: str = "", source_action_kind: str | None = None, source_action_priority: int | None = None, source_action_reason: str | None = None) -> Command:
+    def add_command(self, *, objective: str, priority: Priority, owner: str, expected_output: str, next_action: str = "", source_action_kind: str | None = None, source_action_priority: int | None = None, source_action_reason: str | None = None, source_decision_id: str | None = None) -> Command:
         for value, name in ((objective, "objective"), (owner, "owner"), (expected_output, "expected_output")):
             if not value.strip():
                 raise ValueError(f"{name} is required")
-        command = Command(str(uuid4()), objective.strip(), priority, owner.strip(), expected_output.strip(), next_action=next_action.strip(), source_action_kind=source_action_kind, source_action_priority=source_action_priority, source_action_reason=source_action_reason)
+        command = Command(str(uuid4()), objective.strip(), priority, owner.strip(), expected_output.strip(), next_action=next_action.strip(), source_action_kind=source_action_kind, source_action_priority=source_action_priority, source_action_reason=source_action_reason, source_decision_id=source_decision_id)
         self._commands[command.id] = command
         return command
 
