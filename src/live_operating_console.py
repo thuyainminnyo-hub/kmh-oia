@@ -29,7 +29,8 @@ class Command:
     learning: str = ""
     source_action_kind: str | None = None
     source_action_priority: int | None = None
-    source_action_reason: str | None = None,\n    source_decision_id: str | None = None
+    source_action_reason: str | None = None,
+    source_decision_id: str | None = None
 
 
 @dataclass(frozen=True)
