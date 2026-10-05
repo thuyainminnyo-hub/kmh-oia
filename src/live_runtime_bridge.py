@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from src.components import OIARuntime
 from src.live_operating_console import Command, LiveOperatingConsole
 from src.operating_memory import OperatingMemory
+from src.operating_memory import OperatingMemory
 from src.trace import InMemoryTracer
 
 
