@@ -18,6 +18,15 @@ class NextActionCommandMaterializerTests(unittest.TestCase):
         self.assertEqual(result.command.status, "INBOX")
         self.assertEqual(result.command.expected_output, "blocker resolved")
 
+    def test_provenance_is_preserved(self):
+        action = NextAction("DECISION", 4, "Review decision", "governance backlog")
+        result = NextActionCommandMaterializer().materialize(
+            action, self.console(), owner="system", expected_output="decision reviewed"
+        )
+        self.assertEqual(result.command.source_action_kind, "DECISION")
+        self.assertEqual(result.command.source_action_priority, 4)
+        self.assertEqual(result.command.source_action_reason, "governance backlog")
+
     def test_signal_action_becomes_p2(self):
         action = NextAction("SIGNAL", 5, "Review signal", "signal")
         result = NextActionCommandMaterializer().materialize(
