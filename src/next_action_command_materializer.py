@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 
-from .command_center_cycle_adapter import CommandCenterView
 from .live_operating_console import Command, LiveOperatingConsole
 from .next_action_engine import NextAction
 
@@ -14,7 +13,7 @@ class MaterializedAction:
 
 
 class NextActionCommandMaterializer:
-    """Turn recommendations into INBOX commands without executing them."""
+    """Turn recommendations into INBOX commands while preserving provenance."""
 
     def materialize(
         self,
@@ -37,5 +36,8 @@ class NextActionCommandMaterializer:
             owner=owner,
             expected_output=expected_output,
             next_action=action.action,
+            source_action_kind=action.kind,
+            source_action_priority=action.priority,
+            source_action_reason=action.reason,
         )
         return MaterializedAction(action, command)
