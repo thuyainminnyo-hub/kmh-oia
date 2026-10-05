@@ -10,6 +10,7 @@ from src.standardization_engine import OperatingStandard
 from src.active_standard_resolver import ActiveStandardResolver
 from src.standard_runtime_bridge import StandardRuntimeBridge
 from src.runtime_revalidation_pipeline import RuntimeRevalidationPipeline, AutomaticRevalidationResult
+from src.execution_telemetry import ExecutionTelemetry, ExecutionTelemetryCollector
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,7 @@ class ExecutionRecord:
     standard_feedback: StandardControlResult | None = None
     standard_id: str | None = None
     revalidation: AutomaticRevalidationResult | None = None
+    telemetry: ExecutionTelemetry | None = None
 
 
 class LiveRuntimeBridge:
@@ -37,6 +39,7 @@ class LiveRuntimeBridge:
         standard_resolver: ActiveStandardResolver | None = None,
         standard_runtime_bridge: StandardRuntimeBridge | None = None,
         revalidation_pipeline: RuntimeRevalidationPipeline | None = None,
+        telemetry_collector: ExecutionTelemetryCollector | None = None,
     ) -> None:
         self.console = console
         self.runtime = runtime or OIARuntime()
@@ -130,6 +133,31 @@ class LiveRuntimeBridge:
                 )
 
         learning = "Execution produced trace-backed evidence and passed QA."
+        telemetry = ExecutionTelemetry(
+            command_id=command.id,
+            qa_passed=command.qa_status == "PASS",
+            blocked=False,
+            rework=command.status == "REWORK",
+            evidence_count=len(command.evidence),
+            standard_compliant=(
+                standard_feedback.compliance.compliant
+                if standard_feedback is not None else None
+            ),
+            drift_detected=(
+                standard_feedback.drift.drifted
+                if standard_feedback is not None and standard_feedback.drift is not None else False
+            ),
+            revalidation_triggered=(
+                revalidation is not None and revalidation.control_result.trigger is not None
+            ),
+            revalidation_verdict=(
+                revalidation.control_result.revalidation.revalidation.verdict.value
+                if revalidation is not None
+                and revalidation.control_result.revalidation is not None
+                else None
+            ),
+        )
+        self.telemetry_collector.record(telemetry)
         self.console.record_learning(command.id, learning)
         self.memory.record(
             command_id=command.id,
@@ -153,6 +181,7 @@ class LiveRuntimeBridge:
             standard_feedback,
             selected_standard.id if selected_standard else None,
             revalidation,
+            telemetry,
         )
 
     def _get_command(self, command_id: str) -> Command:
