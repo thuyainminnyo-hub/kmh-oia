@@ -1,0 +1,22 @@
+name: KMH OIA Reel Bridge CI
+
+on:
+  pull_request:
+    paths:
+      - "src/reel_production_bridge.py"
+      - "tests/test_reel_production_bridge.py"
+      - "src/main.py"
+      - ".github/workflows/reel-production-bridge.yml"
+  push:
+    branches: ["main"]
+
+jobs:
+  reel-production-bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run Reel bridge tests
+        run: python -m unittest tests/test_reel_production_bridge.py
