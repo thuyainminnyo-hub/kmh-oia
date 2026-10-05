@@ -5,7 +5,7 @@ from src.components import OIARuntime
 from src.live_operating_console import Command, LiveOperatingConsole
 from src.operating_memory import OperatingMemory
 from src.trace import InMemoryTracer
-from src.standard_control_plane import StandardControlPlane
+from src.standard_control_plane import StandardControlPlane, StandardControlResult
 from src.standardization_engine import OperatingStandard
 
 
@@ -17,6 +17,7 @@ class ExecutionRecord:
     evidence: tuple[str, ...]
     qa_status: str
     final_status: str
+    standard_feedback: StandardControlResult | None = None
 
 
 class LiveRuntimeBridge:
@@ -53,14 +54,23 @@ class LiveRuntimeBridge:
             raise
 
         self.console.transition(command.id, "COMPLETED")
-        evidence = (f"trace_id={events[0].metadata['trace_id']}", f"trace_events={len(events)}", f"stages={' -> '.join(stages)}", f"response={response}")
+        trace_id = events[0].metadata["trace_id"]
+        evidence = (f"trace_id={trace_id}", f"trace_events={len(events)}", f"stages={' -> '.join(stages)}", f"response={response}")
         for item in evidence:
             self.console.attach_evidence(command.id, item)
         self.console.verify(command.id, passed=True, note="Runtime evaluation accepted the governed execution.")
+        standard_feedback = None
+        if standard is not None:
+            standard_feedback = self.control_plane.observe(
+                standard,
+                command.id,
+                applied_rule=applied_rule or "",
+                evidence_id=trace_id,
+            )
         learning = "Execution produced trace-backed evidence and passed QA."
         self.console.record_learning(command.id, learning)
         self.memory.record(command_id=command.id, wanted=command.expected_output, did=command.objective, actual=response, verified="Runtime trace and evaluation passed QA.", decision="Accept governed execution.", learned=learning, changed="Carry evidence-first verification into the next command.", next_command=command.next_action or "Select the next highest-leverage command.")
-        return ExecutionRecord(command.id, response, tuple(stages), tuple(evidence), command.qa_status, command.status)
+        return ExecutionRecord(command.id, response, tuple(stages), tuple(evidence), command.qa_status, command.status, standard_feedback)
 
     def _get_command(self, command_id: str) -> Command:
         for command in self.console.snapshot().commands:
