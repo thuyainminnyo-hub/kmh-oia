@@ -103,6 +103,9 @@ class LiveRuntimeBridge:
             f"trace_events={len(events)}",
             f"stages={' -> '.join(stages)}",
             f"response={response}",
+            f"source_action_kind={command.source_action_kind or ''}",
+            f"source_action_priority={command.source_action_priority if command.source_action_priority is not None else ''}",
+            f"source_action_reason={command.source_action_reason or ''}",
         )
         for item in evidence:
             self.console.attach_evidence(command.id, item)
