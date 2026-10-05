@@ -20,3 +20,21 @@ jobs:
           python-version: "3.11"
       - name: Run Reel bridge tests
         run: python -m unittest tests/test_reel_production_bridge.py
+      - name: Execute Day 2 RUN01 evidence probe
+        run: |
+          python - <<'PY'
+          import json
+          from src.reel_production_bridge import ReelProductionJob, execute_reel_job
+
+          job = ReelProductionJob(
+              run_id="KMH-REEL-DAY02-RUN01",
+              topic="ကား၊ ဆိုင်ကယ် မောင်းနှင်ရာမှာ သိထားသင့်တဲ့အချက်များ",
+          )
+          result = execute_reel_job(job)
+          print(json.dumps({
+              "run_id": result.run_id,
+              "stages": result.stages,
+              "trace_event_count": result.trace_event_count,
+              "response": result.response,
+          }, ensure_ascii=False))
+          PY
