@@ -9,6 +9,7 @@ from src.standard_control_plane import StandardControlPlane, StandardControlResu
 from src.standardization_engine import OperatingStandard
 from src.active_standard_resolver import ActiveStandardResolver
 from src.standard_runtime_bridge import StandardRuntimeBridge
+from src.runtime_revalidation_pipeline import RuntimeRevalidationPipeline, AutomaticRevalidationResult
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class ExecutionRecord:
     final_status: str
     standard_feedback: StandardControlResult | None = None
     standard_id: str | None = None
+    revalidation: AutomaticRevalidationResult | None = None
 
 
 class LiveRuntimeBridge:
@@ -34,6 +36,7 @@ class LiveRuntimeBridge:
         control_plane: StandardControlPlane | None = None,
         standard_resolver: ActiveStandardResolver | None = None,
         standard_runtime_bridge: StandardRuntimeBridge | None = None,
+        revalidation_pipeline: RuntimeRevalidationPipeline | None = None,
     ) -> None:
         self.console = console
         self.runtime = runtime or OIARuntime()
@@ -45,6 +48,9 @@ class LiveRuntimeBridge:
         self.standard_runtime_bridge = standard_runtime_bridge or StandardRuntimeBridge(
             self.control_plane
         )
+        self.revalidation_pipeline = revalidation_pipeline or RuntimeRevalidationPipeline(
+            self.control_plane
+        )
 
     def execute(
         self,
@@ -53,22 +59,19 @@ class LiveRuntimeBridge:
         standard: OperatingStandard | None = None,
         applied_rule: str | None = None,
         source_adaptation_id: str | None = None,
+        observed_effect: float | None = None,
+        outcome_positive: bool | None = None,
     ) -> ExecutionRecord:
         command = self._get_command(command_id)
-
         selected_standard = standard
         if selected_standard is None and source_adaptation_id is not None:
-            selected_standard = self.standard_resolver.resolve(
-                source_adaptation_id
-            ).standard
+            selected_standard = self.standard_resolver.resolve(source_adaptation_id).standard
 
         if selected_standard is not None:
             if applied_rule is None:
                 raise ValueError("applied_rule is required when a standard is supplied")
             self.standard_runtime_bridge.authorize(
-                selected_standard,
-                command.id,
-                applied_rule=applied_rule,
+                selected_standard, command.id, applied_rule=applied_rule
             )
 
         if command.status == "INBOX":
@@ -108,6 +111,7 @@ class LiveRuntimeBridge:
         )
 
         standard_feedback = None
+        revalidation = None
         if selected_standard is not None:
             standard_feedback = self.control_plane.observe(
                 selected_standard,
@@ -115,6 +119,15 @@ class LiveRuntimeBridge:
                 applied_rule=applied_rule or "",
                 evidence_id=trace_id,
             )
+            if observed_effect is not None and outcome_positive is not None:
+                revalidation = self.revalidation_pipeline.process(
+                    selected_standard,
+                    command.id,
+                    applied_rule=applied_rule or "",
+                    evidence_id=trace_id,
+                    observed_effect=observed_effect,
+                    outcome_positive=outcome_positive,
+                )
 
         learning = "Execution produced trace-backed evidence and passed QA."
         self.console.record_learning(command.id, learning)
@@ -127,8 +140,7 @@ class LiveRuntimeBridge:
             decision="Accept governed execution.",
             learned=learning,
             changed="Carry evidence-first verification into the next command.",
-            next_command=command.next_action
-            or "Select the next highest-leverage command.",
+            next_command=command.next_action or "Select the next highest-leverage command.",
         )
 
         return ExecutionRecord(
@@ -140,6 +152,7 @@ class LiveRuntimeBridge:
             command.status,
             standard_feedback,
             selected_standard.id if selected_standard else None,
+            revalidation,
         )
 
     def _get_command(self, command_id: str) -> Command:
