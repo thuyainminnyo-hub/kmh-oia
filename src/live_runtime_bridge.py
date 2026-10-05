@@ -151,7 +151,7 @@ class LiveRuntimeBridge:
                 revalidation is not None and revalidation.control_result.trigger is not None
             ),
             revalidation_verdict=(
-                revalidation.control_result.revalidation.revalidation.verdict.value
+                revalidation.control_result.revalidation.revalidation.verdict
                 if revalidation is not None
                 and revalidation.control_result.revalidation is not None
                 else None
