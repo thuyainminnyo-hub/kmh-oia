@@ -11,7 +11,7 @@ class DecisionOutcomeEvaluatorTests(unittest.TestCase):
     def execution(self, status="LEARNED"):
         return ExecutionRecord(
             "cmd:1", "done", ("input_gateway", "evaluation"),
-            ("trace_id=t1",), "PASS", status
+            ("trace_id=t1",), "PASS", status, None, None, None, None, "decision:quality_risk:1"
         )
 
     def decision(self, status="APPROVED"):
