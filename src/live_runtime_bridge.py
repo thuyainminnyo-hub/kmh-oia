@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from src.components import OIARuntime
 from src.live_operating_console import Command, LiveOperatingConsole
+from src.operating_memory import OperatingMemory
 from src.trace import InMemoryTracer
 
 
@@ -24,9 +25,10 @@ class ExecutionRecord:
 class LiveRuntimeBridge:
     """Execute a console command through the governed OIA runtime."""
 
-    def __init__(self, console: LiveOperatingConsole, runtime: OIARuntime | None = None) -> None:
+    def __init__(self, console: LiveOperatingConsole, runtime: OIARuntime | None = None, memory: OperatingMemory | None = None) -> None:
         self.console = console
         self.runtime = runtime or OIARuntime()
+        self.memory = memory or OperatingMemory()
 
     def execute(self, command_id: str) -> ExecutionRecord:
         command = self._get_command(command_id)
@@ -66,9 +68,18 @@ class LiveRuntimeBridge:
             passed=True,
             note="Runtime evaluation accepted the governed execution.",
         )
-        self.console.record_learning(
-            command.id,
-            "Execution produced trace-backed evidence and passed QA.",
+        learning = "Execution produced trace-backed evidence and passed QA."
+        self.console.record_learning(command.id, learning)
+        self.memory.record(
+            command_id=command.id,
+            wanted=command.expected_output,
+            did=command.objective,
+            actual=response,
+            verified="Runtime trace and evaluation passed QA.",
+            decision="Accept governed execution.",
+            learned=learning,
+            changed="Carry evidence-first verification into the next command.",
+            next_command=command.next_action or "Select the next highest-leverage command.",
         )
 
         return ExecutionRecord(
