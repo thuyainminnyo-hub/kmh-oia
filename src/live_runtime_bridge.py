@@ -24,7 +24,7 @@ class ExecutionRecord:
     standard_feedback: StandardControlResult | None = None
     standard_id: str | None = None
     revalidation: AutomaticRevalidationResult | None = None
-    telemetry: ExecutionTelemetry | None = None
+    telemetry: ExecutionTelemetry | None = None\n    source_decision_id: str | None = None
 
 
 class LiveRuntimeBridge:
