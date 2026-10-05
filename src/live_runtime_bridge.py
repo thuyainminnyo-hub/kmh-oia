@@ -7,6 +7,8 @@ from src.operating_memory import OperatingMemory
 from src.trace import InMemoryTracer
 from src.standard_control_plane import StandardControlPlane, StandardControlResult
 from src.standardization_engine import OperatingStandard
+from src.active_standard_resolver import ActiveStandardResolver
+from src.standard_runtime_bridge import StandardRuntimeBridge
 
 
 @dataclass(frozen=True)
@@ -18,23 +20,56 @@ class ExecutionRecord:
     qa_status: str
     final_status: str
     standard_feedback: StandardControlResult | None = None
+    standard_id: str | None = None
 
 
 class LiveRuntimeBridge:
     """Execute console commands through the governed OIA runtime."""
 
-    def __init__(self, console: LiveOperatingConsole, runtime: OIARuntime | None = None, memory: OperatingMemory | None = None, control_plane: StandardControlPlane | None = None) -> None:
+    def __init__(
+        self,
+        console: LiveOperatingConsole,
+        runtime: OIARuntime | None = None,
+        memory: OperatingMemory | None = None,
+        control_plane: StandardControlPlane | None = None,
+        standard_resolver: ActiveStandardResolver | None = None,
+        standard_runtime_bridge: StandardRuntimeBridge | None = None,
+    ) -> None:
         self.console = console
         self.runtime = runtime or OIARuntime()
         self.memory = memory or OperatingMemory()
         self.control_plane = control_plane or StandardControlPlane()
+        self.standard_resolver = standard_resolver or ActiveStandardResolver(
+            self.control_plane.registry
+        )
+        self.standard_runtime_bridge = standard_runtime_bridge or StandardRuntimeBridge(
+            self.control_plane
+        )
 
-    def execute(self, command_id: str, *, standard: OperatingStandard | None = None, applied_rule: str | None = None) -> ExecutionRecord:
+    def execute(
+        self,
+        command_id: str,
+        *,
+        standard: OperatingStandard | None = None,
+        applied_rule: str | None = None,
+        source_adaptation_id: str | None = None,
+    ) -> ExecutionRecord:
         command = self._get_command(command_id)
-        if standard is not None:
+
+        selected_standard = standard
+        if selected_standard is None and source_adaptation_id is not None:
+            selected_standard = self.standard_resolver.resolve(
+                source_adaptation_id
+            ).standard
+
+        if selected_standard is not None:
             if applied_rule is None:
                 raise ValueError("applied_rule is required when a standard is supplied")
-            self.control_plane.enforce(standard, command.id, applied_rule=applied_rule, evidence_attached=True)
+            self.standard_runtime_bridge.authorize(
+                selected_standard,
+                command.id,
+                applied_rule=applied_rule,
+            )
 
         if command.status == "INBOX":
             self.console.transition(command.id, "QUALIFIED")
@@ -48,29 +83,64 @@ class LiveRuntimeBridge:
         tracer = InMemoryTracer()
         self.runtime.tracer = tracer
         try:
-            response, stages, events = self.runtime.execute_detailed(command.objective, session_id=f"command:{command.id}")
+            response, stages, events = self.runtime.execute_detailed(
+                command.objective, session_id=f"command:{command.id}"
+            )
         except Exception:
             self.console.transition(command.id, "BLOCKED")
             raise
 
         self.console.transition(command.id, "COMPLETED")
         trace_id = events[0].metadata["trace_id"]
-        evidence = (f"trace_id={trace_id}", f"trace_events={len(events)}", f"stages={' -> '.join(stages)}", f"response={response}")
+        evidence = (
+            f"trace_id={trace_id}",
+            f"trace_events={len(events)}",
+            f"stages={' -> '.join(stages)}",
+            f"response={response}",
+        )
         for item in evidence:
             self.console.attach_evidence(command.id, item)
-        self.console.verify(command.id, passed=True, note="Runtime evaluation accepted the governed execution.")
+
+        self.console.verify(
+            command.id,
+            passed=True,
+            note="Runtime evaluation accepted the governed execution.",
+        )
+
         standard_feedback = None
-        if standard is not None:
+        if selected_standard is not None:
             standard_feedback = self.control_plane.observe(
-                standard,
+                selected_standard,
                 command.id,
                 applied_rule=applied_rule or "",
                 evidence_id=trace_id,
             )
+
         learning = "Execution produced trace-backed evidence and passed QA."
         self.console.record_learning(command.id, learning)
-        self.memory.record(command_id=command.id, wanted=command.expected_output, did=command.objective, actual=response, verified="Runtime trace and evaluation passed QA.", decision="Accept governed execution.", learned=learning, changed="Carry evidence-first verification into the next command.", next_command=command.next_action or "Select the next highest-leverage command.")
-        return ExecutionRecord(command.id, response, tuple(stages), tuple(evidence), command.qa_status, command.status, standard_feedback)
+        self.memory.record(
+            command_id=command.id,
+            wanted=command.expected_output,
+            did=command.objective,
+            actual=response,
+            verified="Runtime trace and evaluation passed QA.",
+            decision="Accept governed execution.",
+            learned=learning,
+            changed="Carry evidence-first verification into the next command.",
+            next_command=command.next_action
+            or "Select the next highest-leverage command.",
+        )
+
+        return ExecutionRecord(
+            command.id,
+            response,
+            tuple(stages),
+            tuple(evidence),
+            command.qa_status,
+            command.status,
+            standard_feedback,
+            selected_standard.id if selected_standard else None,
+        )
 
     def _get_command(self, command_id: str) -> Command:
         for command in self.console.snapshot().commands:
