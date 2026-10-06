@@ -17,6 +17,15 @@ class ExecutionIdentity:
     def key(self) -> str:
         return ":".join((self.account_id.strip(), self.instance_id.strip(), self.environment_id.strip(), self.session_id.strip()))
 
+    def provenance(self) -> dict[str, str]:
+        return {
+            "account_id": self.account_id.strip(),
+            "instance_id": self.instance_id.strip(),
+            "environment_id": self.environment_id.strip(),
+            "session_id": self.session_id.strip(),
+            "identity_key": self.key,
+        }
+
 @dataclass(frozen=True)
 class ExecutionIdentityContext:
     identity: ExecutionIdentity
