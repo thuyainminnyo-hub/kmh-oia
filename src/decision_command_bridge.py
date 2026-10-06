@@ -42,6 +42,7 @@ class DecisionCommandBridge:
             owner=decision.owner,
             expected_output=expected_output,
             next_action=decision.recommended_action,
+            source_decision_id=decision.id,
         )
         return AppliedDecision(
             decision_id=decision.id,
