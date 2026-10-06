@@ -116,6 +116,15 @@ class LiveRuntimeBridge:
             f"source_action_priority={command.source_action_priority if command.source_action_priority is not None else ''}",
             f"source_action_reason={command.source_action_reason or ''}",
         )
+        if execution_identity is not None:
+            identity = execution_identity.provenance()
+            evidence = evidence + (
+                f"account_id={identity['account_id']}",
+                f"instance_id={identity['instance_id']}",
+                f"environment_id={identity['environment_id']}",
+                f"session_id={identity['session_id']}",
+                f"identity_key={identity['identity_key']}",
+            )
         for item in evidence:
             self.console.attach_evidence(command.id, item)
 
