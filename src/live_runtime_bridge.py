@@ -13,6 +13,7 @@ from src.runtime_revalidation_pipeline import RuntimeRevalidationPipeline, Autom
 from src.execution_telemetry import ExecutionTelemetry, ExecutionTelemetryCollector
 from src.operating_loop_record import OperatingLoopRecord
 from src.execution_identity import ExecutionIdentity, ExecutionIdentityContext
+from src.real_execution_verification import RealExecutionVerificationEngine, VerificationResult
 from uuid import uuid4
 
 
@@ -31,6 +32,7 @@ class ExecutionRecord:
     source_decision_id: str | None = None
     operating_loop: OperatingLoopRecord | None = None
     execution_identity: ExecutionIdentityContext | None = None
+    verification: VerificationResult | None = None
 
 
 class LiveRuntimeBridge:
@@ -205,7 +207,7 @@ class LiveRuntimeBridge:
             next_command=command.next_action or "Select the next highest-leverage command.",
         )
 
-        return ExecutionRecord(
+        record = ExecutionRecord(
             command.id,
             response,
             tuple(stages),
@@ -219,6 +221,23 @@ class LiveRuntimeBridge:
             command.source_decision_id,
             loop_record,
             identity_context,
+        )
+        verification = RealExecutionVerificationEngine().verify(record)
+        return ExecutionRecord(
+            record.command_id,
+            record.response,
+            record.trace_stages,
+            record.evidence,
+            record.qa_status,
+            record.final_status,
+            record.standard_feedback,
+            record.standard_id,
+            record.revalidation,
+            record.telemetry,
+            record.source_decision_id,
+            record.operating_loop,
+            record.execution_identity,
+            verification,
         )
 
     def _get_command(self, command_id: str) -> Command:
