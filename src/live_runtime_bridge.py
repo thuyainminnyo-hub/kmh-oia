@@ -186,6 +186,7 @@ class LiveRuntimeBridge:
             selected_standard.id if selected_standard else None,
             revalidation,
             telemetry,
+            command.source_decision_id,
         )
 
     def _get_command(self, command_id: str) -> Command:
