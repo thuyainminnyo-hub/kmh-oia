@@ -69,6 +69,7 @@ class LiveRuntimeBridge:
         source_adaptation_id: str | None = None,
         observed_effect: float | None = None,
         outcome_positive: bool | None = None,
+        context_id: str | None = None,
     ) -> ExecutionRecord:
         command = self._get_command(command_id)
         selected_standard = standard
@@ -167,6 +168,18 @@ class LiveRuntimeBridge:
         )
         self.telemetry_collector.record(telemetry)
         self.console.record_learning(command.id, learning)
+        execution_id = f"exec:{uuid4()}"
+        loop_record = OperatingLoopRecord(
+            context_id=context_id or f"runtime:{command.id}",
+            decision_id=command.source_decision_id or "UNLINKED",
+            command_id=command.id,
+            execution_id=execution_id,
+            trace_id=trace_id,
+            qa_status=command.qa_status,
+            evidence_status="OBSERVED",
+            learning_status="NOT_ADMITTED",
+            source_decision_id=command.source_decision_id,
+        )
         self.memory.record(
             command_id=command.id,
             wanted=command.expected_output,
@@ -191,6 +204,7 @@ class LiveRuntimeBridge:
             revalidation,
             telemetry,
             command.source_decision_id,
+            loop_record,
         )
 
     def _get_command(self, command_id: str) -> Command:
