@@ -12,6 +12,7 @@ from src.standard_runtime_bridge import StandardRuntimeBridge
 from src.runtime_revalidation_pipeline import RuntimeRevalidationPipeline, AutomaticRevalidationResult
 from src.execution_telemetry import ExecutionTelemetry, ExecutionTelemetryCollector
 from src.operating_loop_record import OperatingLoopRecord
+from src.execution_identity import ExecutionIdentity, ExecutionIdentityContext
 from uuid import uuid4
 
 
@@ -29,6 +30,7 @@ class ExecutionRecord:
     telemetry: ExecutionTelemetry | None = None
     source_decision_id: str | None = None
     operating_loop: OperatingLoopRecord | None = None
+    execution_identity: ExecutionIdentityContext | None = None
 
 
 class LiveRuntimeBridge:
@@ -70,6 +72,7 @@ class LiveRuntimeBridge:
         observed_effect: float | None = None,
         outcome_positive: bool | None = None,
         context_id: str | None = None,
+        execution_identity: ExecutionIdentity | None = None,
     ) -> ExecutionRecord:
         command = self._get_command(command_id)
         selected_standard = standard
@@ -169,6 +172,7 @@ class LiveRuntimeBridge:
         self.telemetry_collector.record(telemetry)
         self.console.record_learning(command.id, learning)
         execution_id = f"exec:{uuid4()}"
+        identity_context = (ExecutionIdentityContext(execution_identity, command.id, execution_id) if execution_identity is not None else None)
         loop_record = OperatingLoopRecord(
             context_id=context_id or f"runtime:{command.id}",
             decision_id=command.source_decision_id or "UNLINKED",
@@ -205,6 +209,7 @@ class LiveRuntimeBridge:
             telemetry,
             command.source_decision_id,
             loop_record,
+            identity_context,
         )
 
     def _get_command(self, command_id: str) -> Command:
