@@ -11,6 +11,8 @@ from src.active_standard_resolver import ActiveStandardResolver
 from src.standard_runtime_bridge import StandardRuntimeBridge
 from src.runtime_revalidation_pipeline import RuntimeRevalidationPipeline, AutomaticRevalidationResult
 from src.execution_telemetry import ExecutionTelemetry, ExecutionTelemetryCollector
+from src.operating_loop_record import OperatingLoopRecord
+from uuid import uuid4
 
 
 @dataclass(frozen=True)
@@ -24,7 +26,9 @@ class ExecutionRecord:
     standard_feedback: StandardControlResult | None = None
     standard_id: str | None = None
     revalidation: AutomaticRevalidationResult | None = None
-    telemetry: ExecutionTelemetry | None = None\n    source_decision_id: str | None = None
+    telemetry: ExecutionTelemetry | None = None
+    source_decision_id: str | None = None
+    operating_loop: OperatingLoopRecord | None = None
 
 
 class LiveRuntimeBridge:
@@ -136,7 +140,7 @@ class LiveRuntimeBridge:
                     outcome_positive=outcome_positive,
                 )
 
-        learning = "Execution produced trace-backed evidence and passed QA."
+        learning = "Runtime observation recorded: governed execution passed QA with trace evidence."
         telemetry = ExecutionTelemetry(
             command_id=command.id,
             qa_passed=command.qa_status == "PASS",
