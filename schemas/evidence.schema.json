@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Operating Intelligence Evidence",
+  "type": "object",
+  "required": [
+    "evidence_id",
+    "execution_id",
+    "content_version",
+    "channel",
+    "timestamp",
+    "source",
+    "verification_status",
+    "outcome"
+  ],
+  "properties": {
+    "evidence_id": {"type": "string", "minLength": 1},
+    "execution_id": {"type": "string", "minLength": 1},
+    "content_version": {"type": "string", "minLength": 1},
+    "channel": {"type": "string", "minLength": 1},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "source": {"type": "string", "minLength": 1},
+    "publication_status": {"enum": ["verified", "unverified"]},
+    "verification_status": {"enum": ["pending", "verified", "disputed"]},
+    "exposure": {"type": ["number", "null"], "minimum": 0},
+    "engagement": {"type": ["number", "null"], "minimum": 0},
+    "inquiries": {"type": ["number", "null"], "minimum": 0},
+    "qualified_inquiries": {"type": ["number", "null"], "minimum": 0},
+    "bookings": {"type": ["number", "null"], "minimum": 0},
+    "customer_feedback": {"type": ["string", "null"]},
+    "complaints": {"type": ["number", "null"], "minimum": 0},
+    "outcome": {"enum": ["pending", "positive", "neutral", "negative"]},
+    "raw_observation": {"type": ["string", "null"]},
+    "interpretation": {"type": ["string", "null"]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"verification_status": {"const": "verified"}}},
+      "then": {"required": ["raw_observation"]}
+    }
+  ]
+}
