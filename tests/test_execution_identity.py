@@ -5,6 +5,8 @@ class ExecutionIdentityTests(unittest.TestCase):
     def test_identity_builds_stable_hierarchy_key(self):
         identity = ExecutionIdentity("account-a", "instance-1", "prod", "session-9")
         self.assertEqual(identity.key, "account-a:instance-1:prod:session-9")
+        self.assertEqual(identity.provenance()["instance_id"], "instance-1")
+        self.assertEqual(identity.provenance()["account_id"], "account-a")
 
     def test_identity_requires_all_scopes(self):
         with self.assertRaises(ValueError):
