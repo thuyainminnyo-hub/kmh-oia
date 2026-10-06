@@ -54,6 +54,7 @@ class LiveRuntimeBridge:
         self.revalidation_pipeline = revalidation_pipeline or RuntimeRevalidationPipeline(
             self.control_plane
         )
+        self.telemetry_collector = telemetry_collector or ExecutionTelemetryCollector()
 
     def execute(
         self,
