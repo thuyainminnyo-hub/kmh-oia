@@ -38,6 +38,11 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
 
         self.assertEqual(record.final_status, "LEARNED")
         self.assertEqual(record.source_decision_id, decision.id)
+        self.assertIsNotNone(record.operating_loop)
+        self.assertTrue(record.operating_loop.decision_traceable)
+        self.assertEqual(record.operating_loop.evidence_status, "OBSERVED")
+        self.assertEqual(record.operating_loop.learning_status, "NOT_ADMITTED")
+        self.assertFalse(record.operating_loop.externally_validated)
         self.assertTrue(record.telemetry.qa_passed)
         snapshot = collector.snapshot()
         self.assertEqual(snapshot.executions, 1)
