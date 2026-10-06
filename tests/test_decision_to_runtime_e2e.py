@@ -37,6 +37,7 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
         ).execute(applied.command_id)
 
         self.assertEqual(record.final_status, "LEARNED")
+        self.assertEqual(record.source_decision_id, decision.id)
         self.assertTrue(record.telemetry.qa_passed)
         snapshot = collector.snapshot()
         self.assertEqual(snapshot.executions, 1)
