@@ -37,7 +37,7 @@ class Command:
 class ConsoleSnapshot:
     date: str
     primary_objective: str
-    commands: tuple[Command, ...]
+    commands: list[Command]
     blockers: tuple[str, ...]
     evidence_pending: int
     qa_pending: int
@@ -72,6 +72,23 @@ class LiveOperatingConsole:
             self._commands[command.id] = command
             return command
         if args:
+            # Support the legacy mixed form: id as positional, remaining fields as keywords.
+            if len(args) == 1 and all(value is not None for value in (objective, priority, owner, expected_output)):
+                command_id = str(args[0])
+                command = Command(
+                    command_id,
+                    objective.strip(),
+                    priority,
+                    owner.strip(),
+                    expected_output.strip(),
+                    next_action=next_action.strip(),
+                    source_action_kind=source_action_kind,
+                    source_action_priority=source_action_priority,
+                    source_action_reason=source_action_reason,
+                    source_decision_id=source_decision_id,
+                )
+                self._commands[command.id] = command
+                return command
             if len(args) not in {5, 6}:
                 raise TypeError("positional add_command expects id, priority, objective, owner, expected_output[, next_action]")
             if any(value is not None for value in (objective, priority, owner, expected_output)):
