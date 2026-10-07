@@ -21,7 +21,8 @@ class NextActionCommandMaterializer:
         console: LiveOperatingConsole,
         *,
         owner: str,
-        expected_output: str,\n        source_decision_id: str | None = None,
+        expected_output: str,
+        source_decision_id: str | None = None,
     ) -> MaterializedAction:
         if action.kind == "NONE":
             raise ValueError("cannot materialize an empty next action")
@@ -38,6 +39,7 @@ class NextActionCommandMaterializer:
             next_action=action.action,
             source_action_kind=action.kind,
             source_action_priority=action.priority,
-            source_action_reason=action.reason,\n            source_decision_id=source_decision_id,
+            source_action_reason=action.reason,
+            source_decision_id=source_decision_id,
         )
         return MaterializedAction(action, command)
