@@ -6,7 +6,7 @@ an explicit boundary before a proposal can become an active system change.
 from dataclasses import dataclass
 from typing import Literal
 
-from src.operating_memory import OperatingMemoryRecord
+from src.operating_memory import OperatingMemory, OperatingMemoryRecord
 
 AdaptationStatus = Literal["PROPOSED", "APPROVED", "REJECTED", "APPLIED"]
 

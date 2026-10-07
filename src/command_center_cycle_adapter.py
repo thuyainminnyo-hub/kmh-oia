@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from .decision_queue import DecisionQueue
 from .operating_cycle_monitor import OperatingCycleSnapshot
-from .live_operating_console import ConsoleSnapshot
+from .live_operating_console import ConsoleSnapshot, LiveOperatingConsole
 
 
 @dataclass(frozen=True)
@@ -25,15 +25,16 @@ class CommandCenterCycleAdapter:
     def build(
         self,
         cycle: OperatingCycleSnapshot,
-        console: ConsoleSnapshot,
+        console: LiveOperatingConsole | ConsoleSnapshot,
     ) -> CommandCenterView:
+        snapshot = console.snapshot() if isinstance(console, LiveOperatingConsole) else console
         return CommandCenterView(
-            primary_objective=console.primary_objective,
+            primary_objective=snapshot.primary_objective,
             health=cycle.health,
             signals=cycle.signal_count,
             pending_decisions=cycle.pending_decision_count,
             decision_ids=cycle.decision_ids,
-            blockers=console.blockers,
-            evidence_pending=console.evidence_pending,
-            qa_pending=console.qa_pending,
+            blockers=snapshot.blockers,
+            evidence_pending=snapshot.evidence_pending,
+            qa_pending=snapshot.qa_pending,
         )
