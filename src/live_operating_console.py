@@ -170,7 +170,7 @@ class LiveOperatingConsole:
         return command
 
     def snapshot(self) -> ConsoleSnapshot:
-        commands = tuple(sorted(self._commands.values(), key=lambda c: (c.priority, c.status, c.id)))
+        commands = list(sorted(self._commands.values(), key=lambda c: (c.priority, c.status, c.id)))
         blockers = tuple(c.objective for c in commands if c.status == "BLOCKED")
         evidence_pending = sum(c.status == "COMPLETED" and not c.evidence for c in commands)
         qa_pending = sum(c.status == "COMPLETED" and bool(c.evidence) for c in commands)
