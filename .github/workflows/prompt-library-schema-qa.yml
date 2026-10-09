@@ -1,0 +1,54 @@
+name: Prompt Library Schema QA
+
+on:
+  push:
+    paths:
+      - "schemas/prompt-library-record.schema.json"
+      - "scripts/validate_prompt_record.py"
+      - "tests/fixtures/prompt-library/**"
+      - ".github/workflows/prompt-library-schema-qa.yml"
+  pull_request:
+    paths:
+      - "schemas/prompt-library-record.schema.json"
+      - "scripts/validate_prompt_record.py"
+      - "tests/fixtures/prompt-library/**"
+      - ".github/workflows/prompt-library-schema-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  schema-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install validator dependency
+        run: python -m pip install --upgrade pip jsonschema
+
+      - name: Positive path — valid draft fixture must pass
+        run: python scripts/validate_prompt_record.py tests/fixtures/prompt-library/valid-draft.example.json
+
+      - name: Negative path — invalid fixture must be rejected
+        shell: bash
+        run: |
+          set +e
+          python scripts/validate_prompt_record.py tests/fixtures/prompt-library/invalid-record.example.json
+          status=$?
+          set -e
+          if [ "$status" -ne 1 ]; then
+            echo "Expected schema validator exit code 1 for invalid fixture; got $status"
+            exit 1
+          fi
+          echo "PASS: invalid fixture was rejected with expected exit code 1."
+
+      - name: State test boundary
+        run: |
+          echo "Schema QA only. No prompt behavior, approval, or production execution is proven by this workflow."
