@@ -1,0 +1,12 @@
+{
+  "prompt_id": "KMH-PROMPT-INVALID-001",
+  "version": "one",
+  "title": "Invalid fixture",
+  "purpose": "Intentionally invalid fixture for validator negative-path testing.",
+  "input_contract": "task string",
+  "expected_output": "text",
+  "target_model_or_tool": "fixture",
+  "status": "DRAFT",
+  "created_at": "not-a-date",
+  "proposed_by": "KMH-PILOT-SETUP"
+}
