@@ -1,0 +1,65 @@
+{
+  "prompt_id": "KMH-VIDEO-ATM-CANCEL-001",
+  "version": "0.1.0",
+  "title": "ATM Cancel Button Reel - Storyboard (6 shots x 8s, Google Flow)",
+  "purpose": "Existing KMH video storyboard prompt stored in the AI Prompt Library. Pilot use is controlled record creation and QA planning; publication remains blocked pending behavior and factual review.",
+  "prompt_text": "SHOT 1 (0-8s): Card insert close-up, cinematic. Dialogue: \"ATM ကနေ ငွေထုတ်ပြီးတိုင်း Cancel ခလုတ်ကို မနှိပ်ဘူးဆိုရင် အန္တရာယ်ရှိနိုင်တယ်\" Ambient: ATM beep || SHOT 2 (8-16s): Walking away, screen still lit. Dialogue: \"အများစုက session ချက်ချင်း မပိတ်ဘူး\" Ambient: footsteps || SHOT 3 (16-24s): Active session close-up, blurred figure approaching. Dialogue: \"Short window အတွင်းမှာ session continue လုပ်နိုင်တယ်\" Ambient: suspense tone || SHOT 4 (24-32s): Crowded ATM booth. Dialogue: \"Crowded ATM တွေမှာ ပိုဖြစ်တတ်တယ်\" Ambient: crowd murmur || SHOT 5 (32-40s): Pressing Cancel, screen resets. Dialogue: \"Cancel နှိပ်ပါ၊ home screen ပြန်ရောက်အောင် စောင့်ပါ\" Ambient: button click, chime || SHOT 6 (40-48s): Share prompt, smiling. Dialogue: \"Save ထားပြီး Share ပေးပါ\" Ambient: upbeat tone",
+  "input_contract": {
+    "required": [
+      "Use as the source storyboard prompt without silently editing the original text."
+    ],
+    "notes": [
+      "Original record does not declare structured input variables; unknown input parameters remain unspecified."
+    ]
+  },
+  "expected_output": {
+    "criteria": [
+      "Output represents six sequential shots.",
+      "Each shot is assigned an 8-second interval spanning 00:00–00:48.",
+      "Preserve the supplied Burmese dialogue and shot order unless a separately reviewed revision is authorized.",
+      "Represent the listed ambient sound cues in the corresponding shots.",
+      "Factual claim about ATM sessions remaining active must be reviewed against a reliable source before public release."
+    ],
+    "not_guaranteed": [
+      "Visual quality, actual generation output, and factual accuracy have not been behavior-tested."
+    ]
+  },
+  "target_model_or_tool": "Google Flow (as recorded in original Notion AI Prompt Library; exact model/version not recorded)",
+  "status": "DRAFT",
+  "change_summary": "Initial controlled draft record created from an existing Notion AI Prompt Library entry; source prompt text preserved verbatim as retrieved. No behavior changes made.",
+  "test_cases": [
+    {
+      "case_id": "NORMAL-01",
+      "kind": "NORMAL",
+      "input_fixture_ref": "source: https://app.notion.com/p/3b4fd51bf5758176a364c5a7bdbce978",
+      "expected_criteria": "Check six ordered shots, eight seconds per shot, continuous 00:00–00:48 coverage, and preservation of original dialogue and ambient cues."
+    },
+    {
+      "case_id": "EDGE-01",
+      "kind": "EDGE",
+      "input_fixture_ref": "source: https://app.notion.com/p/3b4fd51bf5758176a364c5a7bdbce978",
+      "expected_criteria": "Check no missing, overlapping, or out-of-order time ranges; flag any output that changes Burmese dialogue or omits sound cues."
+    },
+    {
+      "case_id": "FAILURE-01",
+      "kind": "FAILURE",
+      "input_fixture_ref": "source: https://app.notion.com/p/3b4fd51bf5758176a364c5a7bdbce978",
+      "expected_criteria": "Do not approve for public release if the ATM-session safety claims lack reliable factual support or if output invents additional safety claims."
+    }
+  ],
+  "test_evidence": [
+    {
+      "test_run_id": "KMH-PROMPT-QA-001",
+      "verdict": "NOT RUN",
+      "reviewer_note": "Record creation only. No model/tool behavior execution performed; no actual output inspected."
+    }
+  ],
+  "proposed_by": "KMH Prompt Library QA Pilot",
+  "reviewed_by": "NOT REVIEWED",
+  "approved_by": "NOT APPROVED",
+  "created_at": "2026-10-10T00:00:00Z",
+  "source_refs": [
+    "https://app.notion.com/p/3b4fd51bf5758176a364c5a7bdbce978",
+    "https://app.notion.com/p/e8dd4886ef034769b0f76f0b31f5dff5"
+  ]
+}
