@@ -1,0 +1,57 @@
+{
+  "prompt_id": "KMH-PROMPT-EXAMPLE-001",
+  "version": "0.1.0",
+  "title": "Example draft — placeholder only",
+  "purpose": "Schema validation fixture only; not an approved KMH production prompt.",
+  "prompt_text": "PLACEHOLDER ONLY — replace with the exact text of a real selected prompt before any behavioral test.",
+  "input_contract": {
+    "type": "object",
+    "required": [
+      "task"
+    ],
+    "properties": {
+      "task": {
+        "type": "string"
+      }
+    }
+  },
+  "expected_output": {
+    "type": "string",
+    "acceptance_criteria": [
+      "Output follows the task requirements",
+      "Unknowns are stated rather than invented"
+    ]
+  },
+  "target_model_or_tool": "UNSPECIFIED — fixture only",
+  "status": "DRAFT",
+  "change_summary": "Initial placeholder fixture for testing the Prompt Library record schema; not a real prompt.",
+  "test_cases": [
+    {
+      "case_id": "NORMAL-001",
+      "kind": "NORMAL",
+      "expected_criteria": "Fixture passes record-schema validation only."
+    },
+    {
+      "case_id": "EDGE-001",
+      "kind": "EDGE",
+      "expected_criteria": "Fixture passes record-schema validation only."
+    },
+    {
+      "case_id": "FAILURE-001",
+      "kind": "FAILURE",
+      "expected_criteria": "Fixture passes record-schema validation only."
+    }
+  ],
+  "test_evidence": [
+    {
+      "test_run_id": "NOT-RUN",
+      "verdict": "NOT RUN",
+      "reviewer_note": "Placeholder fixture; no model/tool behavior test has been executed."
+    }
+  ],
+  "proposed_by": "KMH-PILOT-SETUP",
+  "reviewed_by": "NOT REVIEWED",
+  "approved_by": "NOT APPROVED",
+  "created_at": "2026-10-10T00:00:00Z",
+  "source_refs": []
+}
