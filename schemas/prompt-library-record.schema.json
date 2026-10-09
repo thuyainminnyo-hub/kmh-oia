@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/thuyainminnyo-hub/kmh-oia/blob/main/schemas/prompt-library-record.schema.json",
+  "title": "KMH Prompt Library Record",
+  "description": "Schema contract for one versioned KMH prompt record. Schema validation does not establish behavioral correctness or approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "prompt_id",
+    "version",
+    "title",
+    "purpose",
+    "prompt_text",
+    "input_contract",
+    "expected_output",
+    "target_model_or_tool",
+    "status",
+    "created_at",
+    "proposed_by"
+  ],
+  "properties": {
+    "prompt_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Z0-9][A-Z0-9._-]*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prompt_text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_contract": {
+      "type": [
+        "object",
+        "string"
+      ]
+    },
+    "expected_output": {
+      "type": [
+        "object",
+        "string"
+      ]
+    },
+    "target_model_or_tool": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "IN_REVIEW",
+        "APPROVED",
+        "PUBLISHED",
+        "NEEDS_CHANGES",
+        "REJECTED",
+        "RETIRED"
+      ]
+    },
+    "change_summary": {
+      "type": "string"
+    },
+    "test_cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "kind",
+          "expected_criteria"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "EDGE",
+              "FAILURE",
+              "REGRESSION"
+            ]
+          },
+          "input_fixture_ref": {
+            "type": "string"
+          },
+          "expected_criteria": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "test_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "test_run_id",
+          "verdict"
+        ],
+        "properties": {
+          "test_run_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actual_output_ref": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "NOT RUN"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "model_or_tool_version": {
+            "type": "string"
+          },
+          "reviewer_note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "proposed_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
