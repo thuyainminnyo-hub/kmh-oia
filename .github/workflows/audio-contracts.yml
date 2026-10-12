@@ -5,8 +5,12 @@ on:
     paths:
       - "src/audio_contracts.py"
       - "src/azure_speech_adapter.py"
+      - "src/azure_voice_bridge.py"
+      - "src/voice.py"
       - "tests/test_audio_contracts.py"
       - "tests/test_azure_speech_adapter.py"
+      - "tests/test_azure_voice_bridge.py"
+      - "tests/test_voice.py"
       - ".github/workflows/audio-contracts.yml"
   push:
     branches:
@@ -32,4 +36,4 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run audio contract and Azure adapter tests
-        run: python -m unittest tests.test_audio_contracts tests.test_azure_speech_adapter -v
+        run: python -m unittest tests.test_audio_contracts tests.test_azure_speech_adapter tests.test_azure_voice_bridge tests.test_voice -v
