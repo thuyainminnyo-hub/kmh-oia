@@ -56,6 +56,11 @@ class TextToSpeechAdapter(Protocol):
     def synthesize(self, text: str, language: str = "my") -> SynthesisResult: ...
 
 
+def _validate_optional_positive_integer(name: str, value: int | None) -> None:
+    if value is not None and (type(value) is not int or value <= 0):
+        raise AudioContractError(f"{name} must be a positive integer.")
+
+
 def validate_audio_input(audio: AudioInput, *, max_bytes: int = 20_000_000) -> None:
     """Validate safe, basic transport metadata before passing bytes to a provider.
 
@@ -64,22 +69,21 @@ def validate_audio_input(audio: AudioInput, *, max_bytes: int = 20_000_000) -> N
     """
     if not isinstance(audio.payload, bytes) or not audio.payload:
         raise AudioContractError("Audio payload is empty; provide a non-empty audio file.")
+    if type(max_bytes) is not int or max_bytes <= 0:
+        raise AudioContractError("max_bytes must be a positive integer.")
     if len(audio.payload) > max_bytes:
         raise AudioContractError(f"Audio payload exceeds the {max_bytes}-byte limit.")
     if not audio.mime_type or "/" not in audio.mime_type:
         raise AudioContractError("A valid audio MIME type is required.")
     if not audio.mime_type.lower().startswith("audio/"):
         raise AudioContractError("Unsupported MIME type: expected an audio/* type.")
-    if audio.sample_rate_hz is not None and audio.sample_rate_hz <= 0:
-        raise AudioContractError("sample_rate_hz must be a positive integer.")
-    if audio.channels is not None and audio.channels <= 0:
-        raise AudioContractError("channels must be a positive integer.")
-    if audio.duration_ms is not None and audio.duration_ms <= 0:
-        raise AudioContractError("duration_ms must be a positive integer.")
+    _validate_optional_positive_integer("sample_rate_hz", audio.sample_rate_hz)
+    _validate_optional_positive_integer("channels", audio.channels)
+    _validate_optional_positive_integer("duration_ms", audio.duration_ms)
 
 
 def validate_wav_input(audio: AudioInput, *, max_bytes: int = 20_000_000) -> None:
-    """Validate a WAV/PCM payload using the Python standard library."""
+    """Validate a WAV payload and cross-check declared metadata against its header."""
     validate_audio_input(audio, max_bytes=max_bytes)
     if audio.mime_type.lower() not in {"audio/wav", "audio/x-wav", "audio/wave"}:
         raise AudioContractError("This validator accepts WAV only; convert the file or use a matching adapter.")
@@ -97,5 +101,8 @@ def validate_wav_input(audio: AudioInput, *, max_bytes: int = 20_000_000) -> Non
                 raise AudioContractError("Declared channels do not match the WAV header.")
             if audio.sample_rate_hz is not None and audio.sample_rate_hz != sample_rate:
                 raise AudioContractError("Declared sample rate does not match the WAV header.")
+            actual_duration_ms = frames * 1000 / sample_rate
+            if audio.duration_ms is not None and abs(audio.duration_ms - actual_duration_ms) > 1:
+                raise AudioContractError("Declared duration does not match the WAV frame count.")
     except (wave.Error, EOFError) as exc:
         raise AudioContractError("Invalid or unsupported WAV file; provide a valid PCM WAV recording.") from exc
