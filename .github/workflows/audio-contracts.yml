@@ -1,0 +1,31 @@
+name: KMH Audio Contracts
+
+on:
+  pull_request:
+    paths:
+      - "src/audio_contracts.py"
+      - "tests/test_audio_contracts.py"
+      - ".github/workflows/audio-contracts.yml"
+  push:
+    branches:
+      - "feat/kmh-audio-contracts"
+    paths:
+      - "src/audio_contracts.py"
+      - "tests/test_audio_contracts.py"
+      - ".github/workflows/audio-contracts.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audio-contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run focused audio contract tests
+        run: python -m unittest discover -s tests -p 'test_audio_contracts.py' -v
