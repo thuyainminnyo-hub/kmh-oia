@@ -30,6 +30,7 @@ class AudioContractTests(unittest.TestCase):
             language_hint="my",
             sample_rate_hz=16000,
             channels=1,
+            duration_ms=10,
         )
         validate_wav_input(audio)
 
@@ -53,6 +54,16 @@ class AudioContractTests(unittest.TestCase):
         audio = AudioInput(make_wav(), "audio/wav", sample_rate_hz=8000)
         with self.assertRaisesRegex(AudioContractError, "sample rate"):
             validate_wav_input(audio)
+
+    def test_rejects_declared_duration_mismatch(self):
+        audio = AudioInput(make_wav(), "audio/wav", duration_ms=50)
+        with self.assertRaisesRegex(AudioContractError, "duration"):
+            validate_wav_input(audio)
+
+    def test_rejects_non_integer_metadata(self):
+        audio = AudioInput(make_wav(), "audio/wav", sample_rate_hz=16000.5)
+        with self.assertRaisesRegex(AudioContractError, "positive integer"):
+            validate_audio_input(audio)
 
     def test_result_contracts_are_provider_neutral(self):
         stt = TranscriptionResult("မင်္ဂလာပါ", "mock", "mock-stt", 12, 0.99)
