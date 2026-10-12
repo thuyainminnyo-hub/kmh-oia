@@ -42,6 +42,10 @@ class AudioContractTests(unittest.TestCase):
         with self.assertRaisesRegex(AudioContractError, "audio"):
             validate_audio_input(AudioInput(b"payload", "text/plain"))
 
+    def test_rejects_non_string_mime_type(self):
+        with self.assertRaisesRegex(AudioContractError, "MIME type"):
+            validate_audio_input(AudioInput(b"payload", None))
+
     def test_rejects_payload_over_limit(self):
         with self.assertRaisesRegex(AudioContractError, "exceeds"):
             validate_audio_input(AudioInput(b"12345", "audio/wav"), max_bytes=4)
