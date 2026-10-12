@@ -73,7 +73,7 @@ def validate_audio_input(audio: AudioInput, *, max_bytes: int = 20_000_000) -> N
         raise AudioContractError("max_bytes must be a positive integer.")
     if len(audio.payload) > max_bytes:
         raise AudioContractError(f"Audio payload exceeds the {max_bytes}-byte limit.")
-    if not audio.mime_type or "/" not in audio.mime_type:
+    if not isinstance(audio.mime_type, str) or not audio.mime_type or "/" not in audio.mime_type:
         raise AudioContractError("A valid audio MIME type is required.")
     if not audio.mime_type.lower().startswith("audio/"):
         raise AudioContractError("Unsupported MIME type: expected an audio/* type.")
