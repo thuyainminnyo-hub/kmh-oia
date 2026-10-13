@@ -83,6 +83,47 @@ class CriticalThinkingQATests(unittest.TestCase):
         ))
         self.assertEqual(result.verdict, "REWORK")
 
+    def test_unrecognized_scope_fails_closed(self):
+        result = evaluate_case(CriticalThinkingCase(
+            correlation_id="KMH-CRITQA-TEST-008",
+            original_claim="A claim.",
+            evidence_count=1,
+            conclusion_scope="apparently_bounded",  # type: ignore[arg-type]
+        ))
+        self.assertEqual(result.verdict, "REWORK")
+        self.assertIn("input_schema:fail", result.checks)
+
+    def test_boolean_evidence_count_fails_closed(self):
+        result = evaluate_case(CriticalThinkingCase(
+            correlation_id="KMH-CRITQA-TEST-009",
+            original_claim="A claim.",
+            evidence_count=True,  # type: ignore[arg-type]
+            conclusion_scope="bounded",
+        ))
+        self.assertEqual(result.verdict, "REWORK")
+        self.assertIn("input_schema:fail", result.checks)
+
+    def test_negative_evidence_count_fails_closed(self):
+        result = evaluate_case(CriticalThinkingCase(
+            correlation_id="KMH-CRITQA-TEST-010",
+            original_claim="A claim.",
+            evidence_count=-1,
+            conclusion_scope="bounded",
+        ))
+        self.assertEqual(result.verdict, "REWORK")
+        self.assertIn("input_schema:fail", result.checks)
+
+    def test_non_string_claim_fails_closed_without_crashing(self):
+        result = evaluate_case(CriticalThinkingCase(
+            correlation_id="KMH-CRITQA-TEST-011",
+            original_claim=None,  # type: ignore[arg-type]
+            evidence_count=1,
+            conclusion_scope="bounded",
+        ))
+        self.assertEqual(result.verdict, "REWORK")
+        self.assertEqual(result.original_claim, "")
+        self.assertIn("input_schema:fail", result.checks)
+
 
 if __name__ == "__main__":
     unittest.main()
