@@ -124,6 +124,17 @@ class CriticalThinkingQATests(unittest.TestCase):
         self.assertEqual(result.original_claim, "")
         self.assertIn("input_schema:fail", result.checks)
 
+    def test_zero_evidence_cannot_pass_even_if_population_flag_is_true(self):
+        result = evaluate_case(CriticalThinkingCase(
+            correlation_id="KMH-CRITQA-TEST-012",
+            original_claim="Every item in the population has property X.",
+            evidence_count=0,
+            conclusion_scope="universal",
+            evidence_covers_entire_population=True,
+        ))
+        self.assertEqual(result.verdict, "REWORK")
+        self.assertIn("evidence_count:fail", result.checks)
+
 
 if __name__ == "__main__":
     unittest.main()
