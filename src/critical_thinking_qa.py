@@ -17,6 +17,7 @@ class CriticalThinkingCase:
     conclusion_scope: Literal["bounded", "universal", "unknown"]
     evidence_covers_entire_population: bool = False
     conclusion_qualified: bool = False
+    revised_conclusion: str | None = None
     human_review_required: bool = False
 
 
@@ -59,18 +60,20 @@ def evaluate_case(case: CriticalThinkingCase) -> CriticalThinkingQAResult:
         and not case.evidence_covers_entire_population
     ):
         checks.append("universal_claim_supported_by_full_population:fail")
-        if not case.conclusion_qualified:
-            checks.append("uncertainty_qualification:fail")
+        revised = (case.revised_conclusion or "").strip()
+        if not revised or revised == case.original_claim.strip():
+            checks.append("revised_conclusion_text:missing_or_unchanged")
             return CriticalThinkingQAResult(
                 case.correlation_id, "REWORK", case.original_claim,
                 tuple(checks),
-                "A universal conclusion is not established by partial evidence; qualify it or provide complete population evidence.",
+                "Partial evidence cannot establish a universal conclusion. Supply a revised conclusion that narrows the claim; a qualification flag alone is insufficient.",
             )
-        checks.append("uncertainty_qualification:pass")
+        checks.append("revised_conclusion_text:provided")
+        checks.append("revised_conclusion_semantics:human_review_required")
         return CriticalThinkingQAResult(
-            case.correlation_id, "PASS", case.original_claim,
+            case.correlation_id, "HUMAN_REVIEW", case.original_claim,
             tuple(checks),
-            "Passed with qualification: partial evidence does not establish a universal conclusion.",
+            "A revised conclusion was supplied, but a human must verify that it genuinely narrows the universal claim before approval.",
         )
     checks.append("conclusion_scope_supported:pass")
     return CriticalThinkingQAResult(
