@@ -32,6 +32,32 @@ class CriticalThinkingQAResult:
 
 def evaluate_case(case: CriticalThinkingCase) -> CriticalThinkingQAResult:
     """Apply deterministic QA rules without rewriting the submitted claim."""
+    if not isinstance(case, CriticalThinkingCase):
+        raise TypeError("case must be a CriticalThinkingCase")
+
+    # Dataclass annotations are not runtime validation. Fail closed on malformed
+    # structured inputs instead of raising incidental AttributeError/TypeError or
+    # accidentally treating an unknown scope as a supported bounded claim.
+    schema_valid = (
+        isinstance(case.correlation_id, str)
+        and isinstance(case.original_claim, str)
+        and type(case.evidence_count) is int
+        and case.evidence_count >= 0
+        and case.conclusion_scope in ("bounded", "universal", "unknown")
+        and type(case.evidence_covers_entire_population) is bool
+        and type(case.conclusion_qualified) is bool
+        and (case.revised_conclusion is None or isinstance(case.revised_conclusion, str))
+        and type(case.human_review_required) is bool
+    )
+    if not schema_valid:
+        return CriticalThinkingQAResult(
+            correlation_id=case.correlation_id if isinstance(case.correlation_id, str) else "",
+            verdict="REWORK",
+            original_claim=case.original_claim if isinstance(case.original_claim, str) else "",
+            checks=("input_schema:fail",),
+            reason="Structured QA input contains invalid field types or values.",
+        )
+
     if not case.correlation_id.strip() or not case.original_claim.strip():
         return CriticalThinkingQAResult(
             correlation_id=case.correlation_id,
@@ -40,14 +66,7 @@ def evaluate_case(case: CriticalThinkingCase) -> CriticalThinkingQAResult:
             checks=("required_fields_present:fail",),
             reason="Correlation ID and original claim must be non-empty.",
         )
-    if case.evidence_count < 0:
-        return CriticalThinkingQAResult(
-            correlation_id=case.correlation_id,
-            verdict="REWORK",
-            original_claim=case.original_claim,
-            checks=("evidence_count_non_negative:fail",),
-            reason="Evidence count cannot be negative.",
-        )
+
     checks = ["required_fields_present:pass", "original_claim_preserved:pass"]
     if case.human_review_required or case.conclusion_scope == "unknown":
         checks.append("human_review_gate:required")
@@ -55,6 +74,7 @@ def evaluate_case(case: CriticalThinkingCase) -> CriticalThinkingQAResult:
             case.correlation_id, "HUMAN_REVIEW", case.original_claim,
             tuple(checks), "Case requires human judgment before approval.",
         )
+
     if (
         case.conclusion_scope == "universal"
         and not case.evidence_covers_entire_population
@@ -75,6 +95,7 @@ def evaluate_case(case: CriticalThinkingCase) -> CriticalThinkingQAResult:
             tuple(checks),
             "A revised conclusion was supplied, but a human must verify that it genuinely narrows the universal claim before approval.",
         )
+
     checks.append("conclusion_scope_supported:pass")
     return CriticalThinkingQAResult(
         case.correlation_id, "PASS", case.original_claim,
