@@ -68,6 +68,14 @@ def evaluate_case(case: CriticalThinkingCase) -> CriticalThinkingQAResult:
         )
 
     checks = ["required_fields_present:pass", "original_claim_preserved:pass"]
+    if case.evidence_count == 0:
+        checks.append("evidence_count:fail")
+        return CriticalThinkingQAResult(
+            case.correlation_id, "REWORK", case.original_claim,
+            tuple(checks),
+            "At least one evidence item is required before a claim can pass deterministic QA.",
+        )
+
     if case.human_review_required or case.conclusion_scope == "unknown":
         checks.append("human_review_gate:required")
         return CriticalThinkingQAResult(
