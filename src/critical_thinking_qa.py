@@ -104,8 +104,14 @@ def evaluate_case(case: CriticalThinkingCase) -> CriticalThinkingQAResult:
             "A revised conclusion was supplied, but a human must verify that it genuinely narrows the universal claim before approval.",
         )
 
-    checks.append("conclusion_scope_supported:pass")
+    # PASS is deliberately limited to structural contract checks. Evidence-to-claim
+    # relevance is not assessed by this deterministic metadata-only adapter.
+    if case.conclusion_qualified:
+        checks.append("conclusion_qualified:informational_only")
+    checks.append("structural_contract:pass")
+    checks.append("evidence_to_claim_support:not_assessed")
     return CriticalThinkingQAResult(
         case.correlation_id, "PASS", case.original_claim,
-        tuple(checks), "Deterministic contract checks passed.",
+        tuple(checks),
+        "Structural contract checks passed; evidence-to-claim support was not assessed.",
     )
