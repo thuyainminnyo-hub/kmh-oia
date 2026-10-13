@@ -15,7 +15,35 @@ class CriticalThinkingQATests(unittest.TestCase):
         ))
         self.assertEqual(result.original_claim, claim)
         self.assertEqual(result.correlation_id, "KMH-CRITQA-TEST-001")
-        self.assertEqual(result.verdict, "PASS")
+        self.assertEqual(result.verdict, "REWORK")
+        self.assertIn("revised_conclusion_text:missing_or_unchanged", result.checks)
+
+    def test_unchanged_revised_universal_claim_returns_rework(self):
+        claim = "Nobody at the university speaks French."
+        result = evaluate_case(CriticalThinkingCase(
+            correlation_id="KMH-CRITQA-TEST-006",
+            original_claim=claim,
+            evidence_count=2,
+            conclusion_scope="universal",
+            conclusion_qualified=True,
+            revised_conclusion=claim,
+        ))
+        self.assertEqual(result.verdict, "REWORK")
+        self.assertEqual(result.original_claim, claim)
+
+    def test_revised_conclusion_requires_human_semantic_review(self):
+        claim = "Nobody at the university speaks French."
+        result = evaluate_case(CriticalThinkingCase(
+            correlation_id="KMH-CRITQA-TEST-007",
+            original_claim=claim,
+            evidence_count=2,
+            conclusion_scope="universal",
+            conclusion_qualified=True,
+            revised_conclusion="The two people observed do not speak French.",
+        ))
+        self.assertEqual(result.verdict, "HUMAN_REVIEW")
+        self.assertEqual(result.original_claim, claim)
+        self.assertIn("revised_conclusion_semantics:human_review_required", result.checks)
 
     def test_unqualified_universal_claim_returns_rework(self):
         result = evaluate_case(CriticalThinkingCase(
@@ -25,7 +53,7 @@ class CriticalThinkingQATests(unittest.TestCase):
             conclusion_scope="universal",
         ))
         self.assertEqual(result.verdict, "REWORK")
-        self.assertIn("uncertainty_qualification:fail", result.checks)
+        self.assertIn("revised_conclusion_text:missing_or_unchanged", result.checks)
 
     def test_explicit_human_review_gate_wins(self):
         result = evaluate_case(CriticalThinkingCase(
