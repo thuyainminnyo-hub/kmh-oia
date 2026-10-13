@@ -124,6 +124,29 @@ class CriticalThinkingQATests(unittest.TestCase):
         self.assertEqual(result.original_claim, "")
         self.assertIn("input_schema:fail", result.checks)
 
+    def test_bounded_pass_is_structural_only_not_evidence_support(self):
+        result = evaluate_case(CriticalThinkingCase(
+            correlation_id="KMH-CRITQA-TEST-013",
+            original_claim="This sample proves the claim.",
+            evidence_count=1,
+            conclusion_scope="bounded",
+        ))
+        self.assertEqual(result.verdict, "PASS")
+        self.assertIn("structural_contract:pass", result.checks)
+        self.assertIn("evidence_to_claim_support:not_assessed", result.checks)
+        self.assertIn("evidence-to-claim support was not assessed", result.reason)
+
+    def test_conclusion_qualified_flag_is_explicitly_informational(self):
+        result = evaluate_case(CriticalThinkingCase(
+            correlation_id="KMH-CRITQA-TEST-014",
+            original_claim="A bounded claim.",
+            evidence_count=1,
+            conclusion_scope="bounded",
+            conclusion_qualified=True,
+        ))
+        self.assertIn("conclusion_qualified:informational_only", result.checks)
+        self.assertIn("evidence_to_claim_support:not_assessed", result.checks)
+
     def test_zero_evidence_cannot_pass_even_if_population_flag_is_true(self):
         result = evaluate_case(CriticalThinkingCase(
             correlation_id="KMH-CRITQA-TEST-012",
