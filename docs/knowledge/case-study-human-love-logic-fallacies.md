@@ -64,3 +64,10 @@ The story's central irony is that Thihanra believes love can be engineered throu
 ## Final verdict
 
 **ACCEPT WITH NUANCE** as a reusable critical-thinking and narrative case study. Preserve the comic reversal while qualifying oversimplified fallacy examples and separating literary satire from factual or ethical conclusions.
+
+
+## KMH Agent Workflow Connection
+
+Reusable workflow specification: [Critical Thinking Agent + QA Agent v1.0](../workflows/critical-thinking-qa-agent-workflow-v1.md).
+
+**Implementation status:** Build spec documented; runtime connection, execution evidence, QA record, and end-to-end verification remain pending.
