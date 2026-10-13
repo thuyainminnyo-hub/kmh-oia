@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime
 
 from src.critical_thinking_qa import CriticalThinkingCase
 from src.critical_thinking_qa_runtime import CriticalThinkingQARuntime
@@ -35,6 +36,15 @@ class CriticalThinkingQARuntimeTests(unittest.TestCase):
         ):
             self.assertEqual(result.event.metadata[key], getattr(execution, key))
         self.assertEqual(result.event.metadata["correlation_id"], "corr-1")
+        self.assertEqual(result.event.metadata["workflow_version"], "KMH-WF-CRIT-QA-001@1.0")
+        self.assertEqual(result.event.metadata["input_reference"], "inline:structured-case")
+        self.assertEqual(result.event.metadata["output_claim"], case.original_claim)
+        self.assertEqual(result.event.metadata["verdict"], "PASS")
+        self.assertEqual(result.event.metadata["execution_status"], "ok")
+        timestamp = result.event.metadata["timestamp_utc"]
+        self.assertTrue(timestamp.endswith("+00:00"))
+        datetime.fromisoformat(timestamp)
+        self.assertIn("evidence_to_claim_support:not_assessed", result.event.metadata["checks"])
         tracer.validate_integrity()
 
     def test_rework_fails_closed_as_validation_event(self) -> None:
