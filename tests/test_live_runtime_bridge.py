@@ -25,6 +25,18 @@ class LiveRuntimeBridgeTests(unittest.TestCase):
         self.assertIn("input_gateway", record.trace_stages)
         self.assertIn("evaluation", record.trace_stages)
         self.assertTrue(any(item.startswith("trace_id=") for item in record.evidence))
+        self.assertIsNotNone(record.operating_loop)
+        self.assertEqual(record.operating_loop.evidence_status, "OBSERVED")
+        self.assertEqual(record.operating_loop.learning_status, "NOT_ADMITTED")
+        self.assertEqual(
+            record.operating_loop.evidence_refs,
+            (
+                f"trace:{record.operating_loop.trace_id}",
+                f"command-qa:{command.id}",
+            ),
+        )
+        self.assertIsNone(record.operating_loop.learning_admission_id)
+        self.assertIsNone(record.operating_loop.decision_change_id)
 
     def test_governed_execution_feeds_evidence_back_to_control_plane(self) -> None:
         console = LiveOperatingConsole(date="2026-10-05", primary_objective="Governed execution")
