@@ -209,3 +209,10 @@ Run one deliberately small dry-run record against the story, using a new `Correl
 4. the execution log and final approval state.
 
 Do not claim that this dry run has occurred until the evidence exists.
+
+
+## Test Fixtures
+
+- [KMH-TC-001 — Hasty Generalization (manual desk-check; runtime not run)](tests/KMH-TC-001-hasty-generalization.md)
+
+The fixture defines expected outputs and acceptance checks. It is not evidence of live agent execution.
