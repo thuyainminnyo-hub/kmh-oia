@@ -1,0 +1,68 @@
+name: KMH Sequential Auto-Run Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_text:
+        description: "Text passed to the existing OIA runtime"
+        required: true
+        default: "KMH sequential auto-run smoke test"
+  push:
+    branches:
+      - main
+      - "feat/**"
+    paths:
+      - "src/**"
+      - "tests/**"
+      - ".github/workflows/kmh-sequential-auto-run.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kmh-sequential-auto-run-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sequential-smoke-test:
+    name: Build → Connect → Run → Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 1. Checkout OIA source
+        uses: actions/checkout@v4
+
+      - name: 2. Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 3. Build check — compile source and tests
+        run: python -m compileall -q src tests
+
+      - name: 4. Verify — run unit test suite
+        run: python -m unittest discover -s tests -v
+
+      - name: 5. Run — execute existing OIA runtime
+        env:
+          TASK_TEXT: ${{ inputs.task_text || 'KMH sequential auto-run smoke test' }}
+        run: python -m src.main "$TASK_TEXT"
+
+      - name: 6. Record run summary
+        if: always()
+        env:
+          TASK_TEXT: ${{ inputs.task_text || 'KMH sequential auto-run smoke test' }}
+        run: |
+          {
+            echo "## KMH Sequential Auto-Run"
+            echo
+            echo "- Workflow: KMH Sequential Auto-Run Smoke Test"
+            echo "- Run ID: ${GITHUB_RUN_ID}"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Ref: ${GITHUB_REF}"
+            echo "- Input: ${TASK_TEXT}"
+            echo "- Job status: ${{ job.status }}"
+            echo
+            echo "This run validates the deterministic OIA runtime and repository tests."
+            echo "It does not prove external LLM calls, independent AI-agent execution, or production readiness."
+          } >> "$GITHUB_STEP_SUMMARY"
