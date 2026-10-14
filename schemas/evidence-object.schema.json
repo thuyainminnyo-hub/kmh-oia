@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KMH OIA Evidence Object Contract v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidence_id",
+    "kind",
+    "source",
+    "observed_at",
+    "scope",
+    "source_revision",
+    "validation_state"
+  ],
+  "properties": {
+    "evidence_id": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "minLength": 1},
+    "source": {"type": "string", "minLength": 1},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "scope": {"type": "string", "minLength": 1},
+    "source_revision": {"type": "string", "minLength": 1},
+    "artifact_ref": {"type": ["string", "null"], "minLength": 1},
+    "sha256_digest": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "run_id": {"type": ["string", "null"], "minLength": 1},
+    "command_id": {"type": ["string", "null"], "minLength": 1},
+    "trace_id": {"type": ["string", "null"], "minLength": 1},
+    "execution_id": {"type": ["string", "null"], "minLength": 1},
+    "config_version": {"type": ["string", "null"], "minLength": 1},
+    "agent_version": {"type": ["string", "null"], "minLength": 1},
+    "validation_state": {"enum": ["OBSERVED", "VERIFIED", "OUTCOME_LINKED"]},
+    "validation_ref": {"type": ["string", "null"], "minLength": 1},
+    "outcome_ref": {"type": ["string", "null"], "minLength": 1}
+  },
+  "anyOf": [
+    {"required": ["artifact_ref"], "properties": {"artifact_ref": {"type": "string", "minLength": 1}}},
+    {"required": ["sha256_digest"], "properties": {"sha256_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}
+  ],
+  "oneOf": [
+    {"required": ["run_id"], "properties": {"run_id": {"type": "string", "minLength": 1}}},
+    {"required": ["command_id"], "properties": {"command_id": {"type": "string", "minLength": 1}}},
+    {"required": ["trace_id"], "properties": {"trace_id": {"type": "string", "minLength": 1}}},
+    {"required": ["execution_id"], "properties": {"execution_id": {"type": "string", "minLength": 1}}}
+  ],
+  "allOf": [
+    {
+      "if": {"properties": {"validation_state": {"enum": ["VERIFIED", "OUTCOME_LINKED"]}}},
+      "then": {"required": ["validation_ref"], "properties": {"validation_ref": {"type": "string", "minLength": 1}}}
+    },
+    {
+      "if": {"properties": {"validation_state": {"const": "OUTCOME_LINKED"}}},
+      "then": {"required": ["outcome_ref"], "properties": {"outcome_ref": {"type": "string", "minLength": 1}}}
+    }
+  ]
+}
