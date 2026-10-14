@@ -194,6 +194,7 @@ class LiveRuntimeBridge:
             evidence_status="OBSERVED",
             learning_status="NOT_ADMITTED",
             source_decision_id=command.source_decision_id,
+            evidence_refs=(f"trace:{trace_id}", f"command-qa:{command.id}"),
         )
         self.memory.record(
             command_id=command.id,
