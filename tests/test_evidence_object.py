@@ -32,6 +32,18 @@ class EvidenceObjectTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "artifact_ref or sha256_digest"):
             self.make_evidence(artifact_ref=None)
 
+    def test_non_string_execution_reference_is_rejected_cleanly(self):
+        with self.assertRaisesRegex(ValueError, "execution reference"):
+            self.make_evidence(run_id=123, command_id=None, trace_id=None, execution_id=None)
+
+    def test_non_string_optional_reference_is_rejected_cleanly(self):
+        with self.assertRaisesRegex(ValueError, "trace_id must be a nonblank string"):
+            self.make_evidence(trace_id=123)
+
+    def test_non_string_digest_is_rejected_cleanly(self):
+        with self.assertRaisesRegex(ValueError, "64 lowercase hexadecimal"):
+            self.make_evidence(artifact_ref=None, sha256_digest=123)
+
     def test_sha256_digest_must_have_exact_format(self):
         with self.assertRaisesRegex(ValueError, "64 lowercase hexadecimal"):
             self.make_evidence(artifact_ref=None, sha256_digest="not-a-digest")
