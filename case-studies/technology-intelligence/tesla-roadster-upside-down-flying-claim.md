@@ -2,15 +2,13 @@
 
 - **Case ID:** KMH-CS-TECH-001
 - **Category:** Technology Intelligence / Claim Verification
-- **Status:** PENDING VERIFICATION
+- **Status:** PARTIALLY VERIFIED — demonstration reported by multiple independent outlets; production capability remains unverified.
 - **Source claim:** A social post says Tesla demonstrated a Roadster that can drive upside down and fly during a live test.
 - **Notion record:** https://app.notion.com/p/3fbfd51bf575818db49edae96f48b03e?pvs=204
 
 ## Claim versus evidence
 
-The social post is a claim, not sufficient evidence by itself. This record does not yet contain a verified original event video, an official Tesla statement, technical documentation, or independent reporting that establishes the claimed demonstration occurred as described.
-
-Do not treat earlier conversational assertions about a dated launch event, upside-down operation, flight capability, or production timing as verified until primary and reputable independent sources are attached.
+The social post alone was not sufficient evidence. Subsequent reporting from Reuters and The Verge, published after the October 15, 2026 event, independently describes an upside-down ramp demonstration and brief airborne maneuvers. The official Tesla livestream/replay is available at https://livestream.tesla.com/?fy=2026, but the original footage and official technical specifications still need to be archived and checked directly. Reports about a demonstration do not independently establish production readiness, road legality, repeatability, or safety.
 
 ## Questions to verify
 
@@ -23,9 +21,9 @@ Do not treat earlier conversational assertions about a dated launch event, upsid
 
 ## Evidence checklist
 
-- [ ] Original live video and publication date captured
-- [ ] Official Tesla source located
-- [ ] Independent reputable source located
+- [ ] Original live video reviewed and key timestamps captured
+- [ ] Official Tesla technical specifications archived and reviewed
+- [x] Independent reputable reporting located (Reuters; The Verge)
 - [ ] Technical mechanism and limits documented
 - [ ] Prototype versus production status distinguished
 - [ ] Safety, regulatory, and real-world-use limitations reviewed
@@ -47,7 +45,7 @@ Classify each statement as VERIFIED, PARTIALLY VERIFIED, UNVERIFIED, or CONTRADI
 
 ## Current decision
 
-**PENDING VERIFICATION.** The supplied social post alone does not establish that Tesla performed the described live test. No production or purchase decision should rely on this record until evidence is added.
+**PARTIALLY VERIFIED.** Multiple reputable outlets report that the demonstration occurred, supporting the narrow claim about the public demo. The original footage has not yet been reviewed and archived here, and production-ready flying-car capability, independent engineering validation, safety, regulatory approval, and customer availability remain unverified. Do not treat the vehicle as road-legal or production-ready based on the demo alone.
 
 ## Source supplied by user
 
@@ -81,3 +79,12 @@ Hashtags: #Roadster #Tesla
 
 ### Change log
 - 2026-10-16: Updated after finding independent reporting from Reuters and The Verge, with additional corroboration from The Information. Previous “no independent reporting located” wording is superseded by this update.
+
+
+## Evidence update — 2026-10-16 (primary source to review)
+
+- Tesla official Roadster livestream/replay page: https://livestream.tesla.com/?fy=2026 — primary-source landing page located; the actual footage/specifications have not yet been independently archived or timestamp-reviewed in this repository.
+- Reuters, October 15, 2026: https://www.reuters.com/business/autos-transportation/tesla-set-to-unveil-next-generation-roadster-sports-ev-after-years-delay-2026-10-15/
+- The Verge, October 16, 2026: https://www.theverge.com/transportation/1012552/tesla-roadster-next-gen-reveal-elon-musk
+
+**QA:** PARTIAL PASS for the narrow claim that the demonstration was reported; NOT PASS for production-ready flying-car capability. Keep the case open pending direct review of the primary footage and official specifications.
