@@ -33,6 +33,15 @@
 
 **Gate B status: PENDING.** Runtime access/configuration, approved fixture/version/hash, and output/log locations are not verified. No runtime command has been executed for this case.
 
+
+## Access constraint — phone-only workflow
+- User confirmed on 2026-10-16 that they currently have phone-only access.
+- A local workstation/runner and its OS/Python versions are therefore not available for verification through the current workflow.
+- Continue documentation, review, and readiness tracking from GitHub using the phone.
+- Do not substitute GitHub-hosted Actions, a cloud runner, or an unreviewed online execution service for the approved local-runtime scope.
+- Runtime smoke test and unit tests remain **NOT RUN** for this case. Repository CI is not evidence of local runtime execution.
+- Revisit Gate B only if a suitable local execution environment becomes available and its isolation, configuration, synthetic fixture/hash, output path, and evidence/log locations can be verified. Any change from local-only execution requires separate scope review/approval first.
+
 ## Gate C — Execution and evidence
 Before starting:
 - [ ] Capture commit SHA, branch, input manifest/hash, environment details, and start timestamp.
