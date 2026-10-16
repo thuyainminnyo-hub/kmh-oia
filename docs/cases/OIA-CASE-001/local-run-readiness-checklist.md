@@ -24,7 +24,7 @@
 
 ## Gate B — Local runtime readiness
 - [ ] Identify the local machine/runner and operating-system/runtime versions.
-- [ ] Confirm the exact command(s) to run from repository documentation; do not invent commands.
+- [x] Locate the documented commands in `README.md` (documentation verified on this PR branch): runtime smoke `python -m src.main "hello"`; test suite `python -m unittest discover -s tests -v`. These are documented candidates only; neither command has been run for this case, and execution remains on hold until the other Gate B items are verified.
 - [ ] Confirm dependencies and configuration versions.
 - [ ] Confirm no production credentials or external integrations are enabled.
 - [ ] Confirm synthetic fixture/input path, approved version, and hash.
