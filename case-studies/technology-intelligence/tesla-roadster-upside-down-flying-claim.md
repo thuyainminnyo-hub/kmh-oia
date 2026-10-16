@@ -59,3 +59,25 @@ Hashtags: #Roadster #Tesla
 
 - Initial record created from the user-supplied claim.
 - No claim is marked verified in this initial version.
+
+
+## 7. Evidence update — 2026-10-16
+
+**Revised claim status: PARTIALLY VERIFIED (demonstration reported by independent outlets).** The broad social-post claim is supported by multiple reputable reports published after the October 15, 2026 event. This is stronger evidence than the original social post alone, but the original Tesla livestream and official technical documentation have not yet been archived in this case record.
+
+### Independent reporting
+- Reuters, October 15, 2026: https://www.reuters.com/business/autos-transportation/tesla-set-unveil-next-generation-roadster-sports-ev-after-years-delay-2026-10-15/ — reports a demonstration of upside-down driving on a ramp using a suction system, plus airborne maneuvers and landing with built-in thrusters. Reuters says road use and legality were not immediately clear.
+- The Verge, October 16, 2026: https://www.theverge.com/transportation/1012552/tesla-roadster-next-gen-reveal-elon-musk — reports upside-down driving and a brief flight during the event, and notes major safety/regulatory caveats and a stated 2028 production target.
+- The Information, October 15, 2026: https://www.theinformation.com/briefings/tesla-unveils-next-generation-roadster-acrobatic-demo — reports the event and describes the Rocket version as invite-only and not approved for public roads.
+
+### What is supported vs. unresolved
+- **Supported by independent reporting:** A Roadster demonstration took place; reports describe upside-down ramp driving and a brief airborne maneuver using suction/propulsion systems.
+- **Not established by this evidence alone:** Independent engineering validation, repeatability, real-world safety, regulatory approval, production readiness, or that every Roadster trim can fly.
+- **Production status:** Reuters reports production is planned for 2028; this is a reported target, not proof that production or customer deliveries have begun.
+- **Primary-source gap:** Add the original Tesla livestream/replay and official Tesla specifications when directly located and archived.
+
+### QA decision
+**PARTIAL PASS for the narrow claim that a demonstration was reported; NOT PASS for production-ready flying-car capability.** Keep the overall case open until the original livestream/official specifications and the limitations above are captured. Do not infer road legality or consumer availability from a staged demonstration.
+
+### Change log
+- 2026-10-16: Updated after finding independent reporting from Reuters and The Verge, with additional corroboration from The Information. Previous “no independent reporting located” wording is superseded by this update.
