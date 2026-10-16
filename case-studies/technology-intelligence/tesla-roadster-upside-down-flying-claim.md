@@ -88,3 +88,15 @@ Hashtags: #Roadster #Tesla
 - The Verge, October 16, 2026: https://www.theverge.com/transportation/1012552/tesla-roadster-next-gen-reveal-elon-musk
 
 **QA:** PARTIAL PASS for the narrow claim that the demonstration was reported; NOT PASS for production-ready flying-car capability. Keep the case open pending direct review of the primary footage and official specifications.
+
+
+## Primary-source review — 2026-10-16
+
+- Official Tesla livestream page located and opened: https://livestream.tesla.com/?autoplay=true
+- Review result: the web-readable page exposed only a minimal player shell; the actual replay could not be inspected or timestamp-verified in this review. The original-footage checklist item remains open.
+- Reuters: https://www.reuters.com/business/autos-transportation/tesla-set-unveil-next-generation-roadster-sports-ev-after-years-delay-2026-10-15/ — reports upside-down ramp driving using suction and airborne turns/landing using built-in thrusters; public-road legality was unclear.
+- The Verge: https://www.theverge.com/transportation/1012552/tesla-roadster-next-gen-reveal-elon-musk — reports brief flight and describes compressed-air thrusters and fan-based suction, while noting safety and regulatory caveats.
+
+**Evidence boundary:** Credible outlets report the demonstration; direct review of the full primary footage, independent engineering validation, regulatory approval, and production capability remain unverified.
+
+**Next action:** Review the replay manually, capture timestamps and official spec links, and only then mark the relevant checklist items complete.
