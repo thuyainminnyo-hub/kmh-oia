@@ -56,7 +56,9 @@ Primary source: https://www.anthropic.com/research/ecdsa-curve-origins
 
 Anthropic reports that Claude traced most NIST ECDSA curve seed origins to the lrand48 pseudorandom generator initialized with Unix timestamps. The report says this is not a cryptographic break and does not require changing systems. It also leaves open questions: B-163 remains unexplained, the origin of several base points is unknown, and the criteria for skipped candidate curves are not fully known.
 
-**Case-study status:** Source reviewed; KMH independent reproduction not yet run. Do not label this case independently verified by KMH until the reproduction and review evidence are recorded.
+**Case-study status (2026-10-17):** KMH executed the published reconstruction logic in the available ChatGPT Python execution environment. All 14 seed strings printed by Anthropic's snippet matched Anthropic's expected output. This is a narrow reproduction of the published calculation; independent review and separate-runtime reproduction remain pending. It was not run on the user's Android device. Do not treat this as proof that every NIST curve or cryptographic system is free of weaknesses.
+
+Verification record: https://github.com/thuyainminnyo-hub/kmh-oia/blob/main/docs/research/runs/nist-ecdsa-seed-reproduction-2026-10-17.md
 
 ## Notion ↔ GitHub operating contract
 - Notion is the human-readable control record and decision log.
@@ -68,6 +70,6 @@ Anthropic reports that Claude traced most NIST ECDSA curve seed origins to the l
 ## Next implementation steps
 1. Review this protocol on a phone.
 2. Create a case record for the NIST seed investigation in Notion.
-3. Run a reproducible test using the published source code.
-4. Record actual output and independent review.
+3. Obtain a second reviewer or separate-runtime reproduction of the published seed code.
+4. Keep unresolved questions (B-163, unexplained base points, and skipped candidate criteria) visible.
 5. Decide whether to automate the Notion/GitHub handoff only after the manual path works.
