@@ -1,7 +1,12 @@
+import json
 import unittest
+from pathlib import Path
 from dataclasses import FrozenInstanceError
 
 from src.evidence_object import EvidenceObject
+
+
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "evidence-object.schema.json"
 
 
 class EvidenceObjectTests(unittest.TestCase):
@@ -83,6 +88,35 @@ class EvidenceObjectTests(unittest.TestCase):
     def test_blank_required_fields_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "source_revision"):
             self.make_evidence(source_revision=" ")
+
+    def test_schema_is_valid_json_and_declares_expected_contract(self):
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(schema["$schema"], "https://json-schema.org/draft/2020-12/schema")
+        self.assertEqual(
+            schema["properties"]["validation_state"]["enum"],
+            ["OBSERVED", "VERIFIED", "OUTCOME_LINKED"],
+        )
+        self.assertEqual(len(schema["allOf"]), 4)
+
+    def test_schema_nonblank_pattern_rejects_whitespace_only_values(self):
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        nonblank_pattern = schema["properties"]["source"]["pattern"]
+        self.assertIsNotNone(__import__("re").search(nonblank_pattern, "kmh-oia"))
+        self.assertIsNone(__import__("re").search(nonblank_pattern, "   "))
+
+    def test_schema_requires_verification_and_outcome_references_by_state(self):
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        verification_rule, outcome_rule = schema["allOf"][2:]
+        self.assertEqual(
+            verification_rule["if"]["properties"]["validation_state"]["enum"],
+            ["VERIFIED", "OUTCOME_LINKED"],
+        )
+        self.assertEqual(verification_rule["then"]["required"], ["validation_ref"])
+        self.assertEqual(
+            outcome_rule["if"]["properties"]["validation_state"]["const"],
+            "OUTCOME_LINKED",
+        )
+        self.assertEqual(outcome_rule["then"]["required"], ["outcome_ref"])
 
 
 if __name__ == "__main__":
