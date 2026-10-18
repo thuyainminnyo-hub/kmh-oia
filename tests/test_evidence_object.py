@@ -55,7 +55,7 @@ class EvidenceObjectTests(unittest.TestCase):
             self.make_evidence(artifact_ref=None, sha256_digest="not-a-digest")
 
     def test_timezone_is_required(self):
-        with self.assertRaisesRegex(ValueError, "timezone offset"):
+        with self.assertRaisesRegex(ValueError, "RFC-3339"):
             self.make_evidence(observed_at="2026-10-14T08:30:00")
 
     def test_invalid_timestamp_is_rejected(self):
