@@ -11,6 +11,9 @@ from typing import Literal
 
 EvidenceValidationState = Literal["OBSERVED", "VERIFIED", "OUTCOME_LINKED"]
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_RFC3339_RE = re.compile(
+    r"^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+)
 
 
 @dataclass(frozen=True)
@@ -54,13 +57,15 @@ class EvidenceObject:
         if missing:
             raise ValueError("required evidence fields are missing: " + ", ".join(missing))
 
+        if not _RFC3339_RE.fullmatch(self.observed_at):
+            raise ValueError("observed_at must be an RFC-3339 date-time")
         try:
             parsed = datetime.fromisoformat(
                 self.observed_at[:-1] + "+00:00"
                 if self.observed_at.endswith("Z") else self.observed_at
             )
         except ValueError as exc:
-            raise ValueError("observed_at must be an ISO-8601 timestamp") from exc
+            raise ValueError("observed_at must be an RFC-3339 date-time") from exc
         if parsed.tzinfo is None or parsed.utcoffset() is None:
             raise ValueError("observed_at must include a timezone offset")
 
