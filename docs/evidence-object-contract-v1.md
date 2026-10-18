@@ -12,7 +12,7 @@ Every object must identify:
 
 - `evidence_id`: stable unique identifier assigned by the caller.
 - `kind` and `source`: what the evidence represents and which system produced it.
-- `observed_at`: ISO-8601 timestamp with an explicit timezone.
+- `observed_at`: RFC-3339 date-time with an explicit timezone.
 - `scope`: the workflow, pilot, target, or evaluation scope.
 - `source_revision`: source-code or workflow revision that produced the observation.
 - At least one of `run_id`, `command_id`, `trace_id`, or `execution_id`.
@@ -57,7 +57,7 @@ The schema and model are intended to stay aligned. CI must pass on the exact pul
 ## Acceptance checklist
 
 - [x] Required provenance fields are defined.
-- [x] Timezone-aware timestamps are required.
+- [x] RFC-3339 timestamps with timezone are required.
 - [x] Artifact reference or SHA-256 digest is required.
 - [x] Validation-state prerequisites are explicit.
 - [x] Python object is immutable.
