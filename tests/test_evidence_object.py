@@ -2,6 +2,7 @@ import json
 import unittest
 from pathlib import Path
 from dataclasses import FrozenInstanceError
+import re
 
 from src.evidence_object import EvidenceObject
 
@@ -101,8 +102,8 @@ class EvidenceObjectTests(unittest.TestCase):
     def test_schema_nonblank_pattern_rejects_whitespace_only_values(self):
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
         nonblank_pattern = schema["properties"]["source"]["pattern"]
-        self.assertIsNotNone(__import__("re").search(nonblank_pattern, "kmh-oia"))
-        self.assertIsNone(__import__("re").search(nonblank_pattern, "   "))
+        self.assertIsNotNone(re.search(nonblank_pattern, "kmh-oia"))
+        self.assertIsNone(re.search(nonblank_pattern, "   "))
 
     def test_schema_requires_verification_and_outcome_references_by_state(self):
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
