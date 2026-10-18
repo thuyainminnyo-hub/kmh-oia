@@ -59,8 +59,12 @@ class EvidenceObjectTests(unittest.TestCase):
             self.make_evidence(observed_at="2026-10-14T08:30:00")
 
     def test_invalid_timestamp_is_rejected(self):
-        with self.assertRaisesRegex(ValueError, "ISO-8601"):
+        with self.assertRaisesRegex(ValueError, "RFC-3339"):
             self.make_evidence(observed_at="yesterday")
+
+    def test_timestamp_with_space_separator_is_rejected_for_schema_parity(self):
+        with self.assertRaisesRegex(ValueError, "RFC-3339"):
+            self.make_evidence(observed_at="2026-10-14 08:30:00+00:00")
 
     def test_verified_state_requires_validation_reference(self):
         with self.assertRaisesRegex(ValueError, "validation_ref"):
