@@ -51,7 +51,7 @@ class JsonlEvidenceStore:
             if evidence.evidence_id in self._index:
                 raise ValueError(f"evidence_id already exists: {evidence.evidence_id}")
             with self.path.open("a", encoding="utf-8") as stream:
-                stream.write(json.dumps(record, sort_keys=True, ensure_ascii=False) + "\\n")
+                stream.write(json.dumps(record, sort_keys=True, ensure_ascii=False) + "\n")
                 stream.flush()
             self._index[evidence.evidence_id] = record
 
