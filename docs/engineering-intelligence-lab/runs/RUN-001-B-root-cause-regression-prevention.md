@@ -59,3 +59,41 @@ Turn the RUN 001-A incident signal into testable hypotheses and a regression-pre
 
 ## Next action
 Run a tabletop hypothesis-selection checkpoint. Then, if a safe test environment and evidence are available, execute only the selected regression test there. Otherwise keep the run marked PENDING/BLOCKED rather than inventing results.
+
+
+## H1 / H2 hypothesis assessment — planned, not executed
+
+### H1 — Code / downstream-call regression (priority)
+**Confirming evidence:** deployment time aligns with incident onset; code diff changes downstream-call, timeout, retry, connection, or error handling; correlated logs/traces show failures on the changed path; a controlled staging test reproduces the failure on the new version but not the old version with configuration held constant.
+
+**Falsifying evidence:** relevant call path is unchanged; errors predate the release; with code held constant, restoring the approved configuration resolves the issue; safe reproduction under representative conditions does not reproduce a version-dependent failure. A failed reproduction alone is not conclusive if test conditions differ.
+
+**Minimal test:** T1 baseline (old code + approved config), then T2 compare old and new code while holding config, test payload, dependency behavior, and duration constant.
+
+**Expected result if H1 is true:** the new version consistently produces the relevant timeout/error/latency regression and the old version does not; logs/traces identify the changed path. If both versions behave alike, H1 is weakened, not automatically disproved.
+
+### H2 — Configuration drift (alternative)
+**Confirming evidence:** trustworthy snapshots/change history show a relevant configuration difference around incident onset; the parameter plausibly affects timeout/retry/endpoint/connection behavior; with code held constant, the suspect configuration reproduces the failure and the approved configuration removes it.
+
+**Falsifying evidence:** reliable versioned snapshots show no relevant change; the suspect parameter has no effect under controlled tests; with configuration held constant, failure follows the code version instead. Missing history is not proof that no change occurred.
+
+**Minimal test:** T1 baseline (old code + approved config), then T3 compare approved and suspect configuration while holding code, test payload, dependency behavior, and duration constant. Use only an authorized isolated test environment.
+
+**Expected result if H2 is true:** the suspect configuration reproduces the incident signature and restoring the approved configuration resolves it without a code change.
+
+### Four-case comparison (test design only)
+- A: old code + approved config — baseline
+- B: new code + approved config — isolates code change (H1)
+- C: old code + suspect config — isolates configuration change (H2)
+- D: new code + suspect config — optional interaction check, only if safe and needed
+
+Compare 5xx rate, p95 latency, dependency timeout/retry counts, and correlated logs/traces over the same defined test window. Set thresholds before running; no thresholds or results are invented here.
+
+### Status update
+- Hypothesis selection: H1 priority; H2 alternative — **DESIGN COMPLETE**
+- Confirming/falsifying evidence: **DOCUMENTED**
+- Minimal tests and expected outcomes: **DOCUMENTED**
+- Tabletop/live test execution: **NOT RUN**
+- Live telemetry/reproduction evidence: **NOT PROVIDED**
+- Root cause: **UNCONFIRMED**
+- Production PASS: **NOT CLAIMED**
