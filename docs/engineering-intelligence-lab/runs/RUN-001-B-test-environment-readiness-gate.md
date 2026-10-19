@@ -66,3 +66,19 @@ Read-only inspection of the repository default branch (`main`) found:
 **PENDING — NOT READY TO RUN.** The repository has test and preflight machinery, but this does not establish that the incident-specific versions/configuration or an authorized isolated service environment are available. Do not run production or staging tests until the missing inputs and authorization are verified.
 
 This was read-only repository inspection only. No workflow was triggered, no deployment/configuration was changed, and no live test was run.
+
+
+## CI Evidence Update — 2026-10-19
+The GitHub Actions API was queried read-only after the repository evidence note was committed.
+
+- **KMH OIA Tests:** run [39183956955](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39183956955), completed, conclusion **success**, head SHA `87d575c7f93cb446dd916dc01a8a39c94cad9cd2`.
+- **KMH OIA Validation:** run [39183956951](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39183956951), completed, conclusion **success**, same head SHA.
+- These are repository CI runs triggered by the documentation commit. They are not incident-specific H1/H2 reproduction tests and do not establish staging access, incident-linked code versions, or configuration history.
+
+### Updated evidence classification
+- Repository CI for the current documentation commit: **VERIFIED SUCCESS**.
+- Incident-specific old/new code and relevant diff: **NOT IDENTIFIED**.
+- Approved/suspect runtime configuration history: **NOT IDENTIFIED**.
+- Authorized isolated staging environment: **NOT CONFIRMED**.
+- Incident-specific live test: **NOT RUN**.
+- Gate decision: **PENDING — NOT READY TO RUN**.
