@@ -192,3 +192,26 @@ A targeted read-only lookup of workflow runs associated with PR #81 head SHA `0c
 - Gate: **PENDING — NOT READY TO RUN**; root cause **UNCONFIRMED**; production PASS **NOT CLAIMED**.
 
 Read-only run/job/artifact metadata inspection only. No workflow was triggered or rerun, no PR was merged, and no deployment/configuration was changed.
+
+
+## PR #81 Performance Artifact Contents Inspected — 2026-10-19
+Downloaded and inspected artifact `kmh-oia-performance-validation` (ID `12118876471`) from successful PR-head validation run `39080510903`. The ZIP contains `performance-validation.json` with:
+- iterations: 50
+- min_ms: 0.034130999978287946
+- median_ms: 0.03657999999973072
+- mean_ms: 0.0480821999968839
+- max_ms: 0.44417999998813684
+
+These are measured timings from the repository's deterministic local validation path, not end-to-end production or staging latency. No baseline comparison, service-level SLO, or incident-specific telemetry is established by this artifact alone. The artifact contains only these five numeric fields; it does not itself establish incident root cause or staging readiness.
+
+### Updated evidence classification
+- PR #81 head-SHA repository CI: **VERIFIED SUCCESS**.
+- PR #81 performance-validation artifact existence and JSON contents: **VERIFIED**.
+- Artifact reports 50 iterations; median ~0.03658 ms, mean ~0.04808 ms, max ~0.44418 ms in its recorded local test context.
+- Incident-specific old/new service code IDs and diff: **NOT IDENTIFIED**.
+- Approved/suspect runtime configuration snapshots/history: **NOT IDENTIFIED**.
+- Authorized isolated staging environment/owner: **NOT CONFIRMED**.
+- Incident-specific H1/H2 test: **NOT RUN**.
+- Gate remains **PENDING — NOT READY TO RUN**; root cause **UNCONFIRMED**; production PASS **NOT CLAIMED**.
+
+Read-only artifact download and inspection only. No workflow was triggered or rerun, no PR merged, and no deployment/configuration changed.
