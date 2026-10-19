@@ -134,3 +134,23 @@ A further read-only search checked GitHub issue and pull-request records for thi
 **Scope limitation:** This means only that the searched GitHub issue/PR queries returned no matching records; it does **not** prove that no incident record exists elsewhere or under different terms. Record these inputs as **NOT FOUND IN REVIEWED SOURCES** until a source owner provides evidence.
 
 **Decision unchanged:** **PENDING — NOT READY TO RUN**. No test/workflow/deployment was triggered; no runtime configuration changed; root cause remains **UNCONFIRMED**.
+
+
+## Follow-up PR Evidence Review — 2026-10-19
+A second read-only search of pull requests returned related repository-level evidence records:
+
+- [PR #81 — Fix performance evidence import path and fail-fast pipeline](https://github.com/thuyainminnyo-hub/kmh-oia/pull/81) is **OPEN**. Its description says CI has not yet been run for this PR and asks reviewers to confirm that `performance-validation.json` is produced before treating that performance-evidence gate as PASS. This is a repository pipeline issue, not an incident-specific H1/H2 result.
+- [PR #65 — P15.9 evidence receipt manifest](https://github.com/thuyainminnyo-hub/kmh-oia/pull/65) is merged and provides repository-level evidence receipt/traceability rules. Its description explicitly does not collect live telemetry, execute rollback or incident drills, grant authorization, or certify production readiness.
+- [PR #66 — P15.8 external evidence submission contract](https://github.com/thuyainminnyo-hub/kmh-oia/pull/66) is merged and documents required external evidence categories. It does not itself supply incident evidence.
+- Related Stage 14/15 PR descriptions likewise describe deterministic repository-level gate/controller logic, not proof of live infrastructure execution.
+
+### Updated evidence classification
+- Related repository evidence contracts: **FOUND**.
+- PR #81 performance-pipeline fix: **OPEN; CI/evidence artifact not verified in this review**.
+- Incident-specific old/new service commit IDs and diff: **NOT IDENTIFIED**.
+- Approved/suspect runtime configuration snapshots/history: **NOT IDENTIFIED**.
+- Authorized isolated staging environment and owner: **NOT CONFIRMED**.
+- Incident-specific test: **NOT RUN**.
+- Root cause: **UNCONFIRMED**; production PASS: **NOT CLAIMED**.
+
+**Decision unchanged: PENDING — NOT READY TO RUN.** No workflow was triggered, no PR was merged, and no deployment or runtime configuration was changed. This was read-only source review plus documentation only.
