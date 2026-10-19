@@ -173,3 +173,22 @@ The earlier successful repository runs also expose artifacts named `kmh-oia-perf
 - Gate: **PENDING — NOT READY TO RUN**; root cause **UNCONFIRMED**; production PASS **NOT CLAIMED**.
 
 Read-only CI/artifact metadata inspection only. No workflow was manually triggered or rerun; no PR was merged; no deployment/configuration was changed.
+
+
+## PR #81 Head-SHA CI and Artifact Verification — 2026-10-19
+A targeted read-only lookup of workflow runs associated with PR #81 head SHA `0c2d6aecadc83165205c3d70e851ec4e8715b2a0` found:
+- [KMH OIA Validation run 39080510903](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39080510903): completed **success**. Its jobs `tests`, `performance-evidence`, and `repository-validation` all completed successfully. The `performance-evidence` step named “Run performance validation” and the artifact upload step both succeeded.
+- [KMH OIA Tests run 39080511086](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39080511086): completed **success**; test and performance-baseline jobs succeeded.
+- The validation run lists artifact `kmh-oia-performance-validation`, artifact ID `12118876471`, size 273 bytes, tied to the same PR head SHA. The tests run lists `kmh-oia-performance-baseline`, artifact ID `12118498584`, size 166 bytes, also tied to that SHA. Artifact metadata and existence are verified; artifact contents were not opened in this review.
+- PR #81 remains **OPEN / NOT MERGED**. The successful CI runs provide repository-level evidence for the PR head, but they are deterministic local-runtime performance checks, not tests against a real incident service, staging environment, or live dependencies.
+
+### Revised evidence classification
+- PR #81 head-SHA repository CI: **VERIFIED SUCCESS**.
+- Performance-validation artifact presence for PR #81 head SHA: **VERIFIED**; contents/metrics not independently inspected.
+- Incident-specific old/new service code IDs and diff: **NOT IDENTIFIED**.
+- Approved/suspect runtime configuration snapshots/history: **NOT IDENTIFIED**.
+- Authorized isolated staging environment/owner: **NOT CONFIRMED**.
+- Incident-specific H1/H2 test: **NOT RUN**.
+- Gate: **PENDING — NOT READY TO RUN**; root cause **UNCONFIRMED**; production PASS **NOT CLAIMED**.
+
+Read-only run/job/artifact metadata inspection only. No workflow was triggered or rerun, no PR was merged, and no deployment/configuration was changed.
