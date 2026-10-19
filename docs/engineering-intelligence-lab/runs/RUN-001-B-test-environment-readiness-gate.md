@@ -36,7 +36,8 @@ Hold test payload, dependency behavior, and test window constant as far as pract
 ## Current status
 - Readiness checklist: **CREATED**
 - Environment access/evidence: **NOT CONFIRMED**
-- Gate decision: **PENDING USER/OWNER CONFIRMATION**
+- User readiness response: staging/test environment **UNCERTAIN**; code version/configuration history **UNCERTAIN**
+- Gate decision: **PENDING — NOT READY TO RUN**
 - Live test: **NOT RUN**
 - Root cause: **UNCONFIRMED**
 - Production PASS: **NOT CLAIMED**
