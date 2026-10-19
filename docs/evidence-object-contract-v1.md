@@ -4,7 +4,7 @@
 
 An evidence object is a stable, immutable record that links an observed artifact to the execution context that produced it. It is the evidence boundary between runtime observation, QA, later learning admission, and decision change.
 
-This contract does **not** implement durable storage, verify external URLs or artifacts, establish business outcomes, admit learning, or authorize production deployment.
+The current implementation includes a local JSONL persistence prototype. It is **not production-grade durable storage** and does not verify external artifacts, establish business outcomes, admit learning, or authorize production deployment.
 
 ## Required provenance
 
@@ -37,6 +37,20 @@ The Python contract uses a frozen dataclass. Corrections should create a new evi
 
 Do not store secrets, access tokens, credentials, or unnecessary personal/customer data in evidence fields. Prefer controlled artifact references and content digests. Apply access controls and retention policies at the eventual persistence layer.
 
+## Local JSONL store boundary
+
+`src/evidence_store.py` provides a small append-only JSONL prototype:
+
+- append a validated `EvidenceObject`;
+- reject duplicate IDs in the current process and on reload;
+- read one object by ID;
+- list objects by trace ID in append order;
+- reject malformed persisted records during load.
+
+Tests use temporary directories and cover round-trip reads, recreation/reload, duplicate protection, trace filtering/order, invalid input, and fail-closed loading.
+
+**Limitations:** locking is per store instance/process, not cross-process; flush is not equivalent to an fsync-backed crash-durability guarantee; there is no authentication/authorization, backup/restore, tamper-evident log, retention enforcement, or multi-node storage. Treat this as a local prototype, not a production evidence service.
+
 ## Learning and decision boundary
 
 - Evidence creation does not mean learning is admitted.
@@ -50,9 +64,11 @@ Do not store secrets, access tokens, credentials, or unnecessary personal/custom
 
 - Python model: `src/evidence_object.py`
 - JSON Schema: `schemas/evidence-object.schema.json`
-- Focused tests: `tests/test_evidence_object.py`
+- Model tests: `tests/test_evidence_object.py`
+- Local JSONL prototype: `src/evidence_store.py`
+- Store tests: `tests/test_evidence_store.py`
 
-The schema and model are intended to stay aligned. CI must pass on the exact pull-request head before this slice is considered verified. A passing test suite proves contract behavior under tests only; it does not establish durable evidence storage or production readiness.
+The schema and model are intended to stay aligned. CI must pass on the exact pull-request head before this slice is considered verified. Passing tests prove only the behaviors exercised by those tests; they do not establish production readiness.
 
 ## Acceptance checklist
 
@@ -61,9 +77,11 @@ The schema and model are intended to stay aligned. CI must pass on the exact pul
 - [x] Artifact reference or SHA-256 digest is required.
 - [x] Validation-state prerequisites are explicit.
 - [x] Python object is immutable.
-- [x] Focused unit tests cover the principal invariants.
-- [ ] Run repository test suite and validation on the exact PR head.
-- [ ] Review schema/model parity and merge only after human review.
-- [ ] Implement durable evidence storage and retrieval.
+- [x] Focused model tests cover principal invariants.
+- [x] Local JSONL prototype and focused store tests are present.
+- [x] Repository test and validation workflows passed on commit `9ed59ae9b9808d478a8c47217c2b185f7fd3a646`.
+- [ ] Review schema/model parity with actual JSON Schema validation, not only schema-shape assertions.
+- [ ] Human review and merge decision.
+- [ ] Replace local prototype with storage meeting durability, concurrency, access-control, backup, and recovery requirements.
 - [ ] Implement separate learning-admission and decision-change services.
-- [ ] Verify a controlled Studio workflow with inspectable evidence.
+- [ ] Verify a controlled Studio workflow with inspectable execution and QA evidence.
