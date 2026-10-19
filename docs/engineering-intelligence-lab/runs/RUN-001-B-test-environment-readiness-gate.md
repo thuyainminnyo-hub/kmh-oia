@@ -154,3 +154,22 @@ A second read-only search of pull requests returned related repository-level evi
 - Root cause: **UNCONFIRMED**; production PASS: **NOT CLAIMED**.
 
 **Decision unchanged: PENDING — NOT READY TO RUN.** No workflow was triggered, no PR was merged, and no deployment or runtime configuration was changed. This was read-only source review plus documentation only.
+
+
+## Repository CI Recheck After Evidence Update — 2026-10-19
+A read-only GitHub Actions query confirmed that the latest documentation commit `9deb4750f24f520754e1fa8182492087115bec21` triggered two repository workflows, both completed successfully:
+- [KMH OIA Tests — run 39185022589](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39185022589): **success**.
+- [KMH OIA Validation — run 39185022569](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39185022569): **success**.
+
+The earlier successful repository runs also expose artifacts named `kmh-oia-performance-baseline` and `kmh-oia-performance-validation`. Their existence is verified from the Actions artifact listing; artifact contents were not inspected in this check. These runs are on a documentation commit, not PR #81's head SHA (`0c2d6aecadc83165205c3d70e851ec4e8715b2a0`) and not an incident-linked service version. Therefore they do not satisfy PR #81's request to verify that PR's pipeline output and do not establish incident-specific H1/H2 evidence.
+
+### Status
+- Latest documentation-commit repository CI: **VERIFIED SUCCESS**.
+- PR #81 CI/artifact output: **NOT VERIFIED** (PR remains open).
+- Incident-linked old/new service code IDs and diff: **NOT IDENTIFIED**.
+- Approved/suspect runtime config snapshots/history: **NOT IDENTIFIED**.
+- Authorized isolated staging environment/owner: **NOT CONFIRMED**.
+- Incident-specific test: **NOT RUN**.
+- Gate: **PENDING — NOT READY TO RUN**; root cause **UNCONFIRMED**; production PASS **NOT CLAIMED**.
+
+Read-only CI/artifact metadata inspection only. No workflow was manually triggered or rerun; no PR was merged; no deployment/configuration was changed.
