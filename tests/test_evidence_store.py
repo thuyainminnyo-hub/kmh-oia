@@ -1,4 +1,5 @@
 """Tests for the append-only JSONL evidence store."""
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -46,7 +47,7 @@ class JsonlEvidenceStoreTests(unittest.TestCase):
             reopened = JsonlEvidenceStore(path)
             self.assertEqual(reopened.get(expected.evidence_id), expected)
 
-    def test_list_by_trace_returns_only_matching_records(self):
+    def test_list_by_trace_returns_only_matching_records_in_append_order(self):
         with tempfile.TemporaryDirectory() as directory:
             store = JsonlEvidenceStore(Path(directory) / "evidence.jsonl")
             first = self.make_evidence("evidence:001", "trace:shared")
@@ -55,6 +56,34 @@ class JsonlEvidenceStoreTests(unittest.TestCase):
             for item in (first, second, other):
                 store.append(item)
             self.assertEqual(store.list_by_trace("trace:shared"), [first, second])
+
+    def test_unknown_id_returns_none(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = JsonlEvidenceStore(Path(directory) / "evidence.jsonl")
+            self.assertIsNone(store.get("evidence:missing"))
+
+    def test_append_rejects_non_evidence_object(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = JsonlEvidenceStore(Path(directory) / "evidence.jsonl")
+            with self.assertRaisesRegex(TypeError, "EvidenceObject"):
+                store.append({"evidence_id": "evidence:001"})
+
+    def test_blank_trace_id_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = JsonlEvidenceStore(Path(directory) / "evidence.jsonl")
+            for trace_id in ("", "   "):
+                with self.subTest(trace_id=trace_id):
+                    with self.assertRaisesRegex(ValueError, "nonblank"):
+                        store.list_by_trace(trace_id)
+
+    def test_duplicate_ids_in_existing_file_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "evidence.jsonl"
+            record = self.make_evidence()
+            encoded = json.dumps(record.__dict__, sort_keys=True)
+            path.write_text(encoded + "\n" + encoded + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "duplicate evidence_id"):
+                JsonlEvidenceStore(path)
 
     def test_invalid_store_record_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
