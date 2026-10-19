@@ -82,3 +82,19 @@ The GitHub Actions API was queried read-only after the repository evidence note 
 - Authorized isolated staging environment: **NOT CONFIRMED**.
 - Incident-specific live test: **NOT RUN**.
 - Gate decision: **PENDING — NOT READY TO RUN**.
+
+
+## CI Scope Inspection — 2026-10-19
+Read-only inspection of the exact workflow definitions, job summaries, and scripts for the two successful CI runs clarified what they establish:
+
+- **Unit-test job:** runs `python -m unittest discover -s tests -v` on GitHub-hosted Ubuntu with Python 3.12.
+- **Performance baseline:** `scripts/performance_baseline.py` invokes the deterministic local `src.main.run` text path 20 times and checks response equality while measuring elapsed time.
+- **Performance validation:** `scripts/performance_validation.py` invokes the same deterministic local text runtime 50 times, checks response equality and trace completion, and measures elapsed time.
+- **Repository validation:** compiles `src`, `tests`, and `scripts`; runs `scripts/deployment_preflight.py`; and checks `git diff --check`.
+- **Preflight scope:** confirms required repository paths exist and compiles source; it does not connect to an API service, verify staging authorization, compare old/new incident code, inspect runtime config snapshots, or measure live service 5xx/p95/dependency timeouts.
+
+**Interpretation:** CI success is valid evidence that these repository-level checks passed on the documented commit. The performance scripts are local deterministic-runtime measurements, not measurements of the hypothetical incident API. No incident-specific reproduction or live service test was run.
+
+**Gate decision unchanged:** **PENDING — NOT READY TO RUN**. H1/H2 incident-specific test **NOT RUN**; staging **NOT CONFIRMED**; code/config evidence **NOT IDENTIFIED**; root cause **UNCONFIRMED**; production PASS **NOT CLAIMED**.
+
+Read-only inspection only. No workflow was triggered, no deployment or runtime configuration was changed, and no paid resource was created.
