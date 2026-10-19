@@ -44,3 +44,25 @@ Hold test payload, dependency behavior, and test window constant as far as pract
 
 ## Next action
 Confirm which readiness inputs are available. If no authorized isolated environment exists, keep this gate BLOCKED/PENDING and continue only with tabletop analysis. Do not deploy, roll back, change production configuration, or incur paid cloud costs as part of this run.
+
+
+## Repository Evidence Discovery — 2026-10-19
+Read-only inspection of the repository default branch (`main`) found:
+
+- `docs/stage12-production-readiness.md` explicitly says the available package does **not** declare production readiness and lists gaps including unobservable CI evidence for some historical stage gates, undefined performance acceptance targets, missing production telemetry/security validation, and local-only rollback/state boundaries.
+- `docs/stage13-deployment-runbook.md` is a preparation runbook, not deployment authorization. Its release commit, deployment environment, approval, rollback owner, and production SLO fields are `TBD`.
+- `scripts/deployment_preflight.py` checks repository paths and source compilation. It does not verify a real staging environment, service authorization, configuration snapshots, or runtime health.
+- `.github/workflows/test.yml` and `.github/workflows/validation.yml` define GitHub-hosted CI jobs for unit tests, compilation/preflight, and performance evidence. Workflow definitions alone do not prove that a particular run passed or that a staging environment exists.
+- Repository paths include a `tests/` suite, but local repository tests are not equivalent to reproducing the fictional API incident against a real service.
+
+### Evidence interpretation
+- Repository source/runbook evidence: **FOUND**.
+- Exact H1 old/new service code versions and incident-linked diff: **NOT IDENTIFIED** by this read-only discovery.
+- Approved and suspect runtime configuration snapshots/history: **NOT IDENTIFIED**.
+- Authorized isolated staging environment and owner: **NOT CONFIRMED**.
+- Current CI run result for a specific candidate release: **NOT VERIFIED in this gate**.
+
+### Updated gate assessment
+**PENDING — NOT READY TO RUN.** The repository has test and preflight machinery, but this does not establish that the incident-specific versions/configuration or an authorized isolated service environment are available. Do not run production or staging tests until the missing inputs and authorization are verified.
+
+This was read-only repository inspection only. No workflow was triggered, no deployment/configuration was changed, and no live test was run.
