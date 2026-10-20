@@ -1,10 +1,9 @@
 """Trusted runtime-to-learning application service.
 
-This service is the only supported application path for admitting decision
-outcomes into learning. The provider-specific outcome classifier must be
-configured by trusted application wiring; caller-supplied outcome booleans are
-never accepted here. Python objects are application contracts, not a security
-boundary against arbitrary code executing in the same process.
+The service re-verifies the receipt through its configured verifier immediately
+before learning admission. ExecutionRecord and verifier-result dataclasses are
+application contracts, not unforgeable security capabilities; the verifier is
+therefore the trust source rather than a caller-supplied result object's type.
 """
 from dataclasses import dataclass
 from typing import Protocol
@@ -15,13 +14,16 @@ from src.decision_queue import DecisionItem
 from src.evidence_admission_gate import EvidenceAdmissionResult
 from src.live_runtime_bridge import ExecutionRecord
 from src.operating_memory import OperatingMemory, OperatingMemoryRecord
-from src.trusted_source_receipt import ReceiptVerificationResult
+from src.trusted_source_receipt import (
+    ReceiptVerificationResult,
+    TrustedSourceReceiptVerifier,
+)
 from src.verified_learning_admission import VerifiedLearningAdmission
 
 
 @dataclass(frozen=True)
 class TrustedOutcomeClassification:
-    """Provider-specific semantic classification derived from verified receipt data."""
+    """Provider-specific semantic classification derived from a verified receipt."""
 
     outcome_positive: bool
     reason: str
@@ -53,16 +55,18 @@ class TrustedDecisionLearningResult:
 
 
 class TrustedDecisionLearningService:
-    """Admit only runtime-linked, receipt-verified outcomes into governed learning."""
+    """Re-verify runtime receipt evidence before admitting outcome-linked learning."""
 
     def __init__(
         self,
         *,
         classifier: TrustedOutcomeClassifier | None,
+        receipt_verifier: TrustedSourceReceiptVerifier | None,
         memory: OperatingMemory,
         adaptation_engine: AdaptationEngine | None = None,
     ) -> None:
         self._classifier = classifier
+        self._receipt_verifier = receipt_verifier
         self._memory = memory
         self._adaptation_engine = adaptation_engine or AdaptationEngine()
 
@@ -76,19 +80,19 @@ class TrustedDecisionLearningService:
         next_command: str,
         confidence: float = 1.0,
     ) -> TrustedDecisionLearningResult:
-        """Validate trusted runtime evidence, classify it, then create a governed candidate.
+        """Re-verify receipt, re-check attribution, then create a governed candidate.
 
-        A rejected or incomplete chain returns a non-admitted result and does not
-        write to operating memory or create an adaptation proposal.
+        Any rejected/incomplete chain fails closed and does not write memory.
         """
+        execution_id = (
+            execution.operating_loop.execution_id
+            if execution.operating_loop is not None else None
+        )
         base = dict(
             admitted=False,
             decision_id=decision.id,
             command_id=execution.command_id,
-            execution_id=(
-                execution.operating_loop.execution_id
-                if execution.operating_loop is not None else None
-            ),
+            execution_id=execution_id,
             admission=None,
             outcome=None,
             memory=None,
@@ -104,30 +108,84 @@ class TrustedDecisionLearningService:
             return blocked("Decision is not approved.")
         if execution.source_decision_id != decision.id:
             return blocked("Execution source_decision_id does not match the approved decision.")
-        if self._classifier is None:
-            return blocked("Trusted provider outcome classifier is not configured.")
-        if not isinstance(execution.admission, EvidenceAdmissionResult):
+        if execution.final_status != "LEARNED":
+            return blocked("Execution has not reached the LEARNED state.")
+        if execution.qa_status != "PASS":
+            return blocked("Internal runtime QA did not pass.")
+        loop = execution.operating_loop
+        if loop is None:
+            return blocked("Operating-loop trace is required.")
+        if (
+            loop.decision_id != decision.id
+            or loop.source_decision_id != decision.id
+            or loop.command_id != execution.command_id
+            or not loop.execution_id.strip()
+            or not loop.trace_id.strip()
+        ):
+            return blocked("Decision/command/execution/trace attribution mismatch.")
+        gate = execution.admission
+        if not isinstance(gate, EvidenceAdmissionResult):
             return blocked("Runtime evidence admission result is missing.")
         if (
-            execution.admission.decision != "ADMITTED"
-            or not execution.admission.learning_admitted
-            or execution.admission.evidence_status != "OUTCOME_LINKED"
+            gate.decision != "ADMITTED"
+            or not gate.learning_admitted
+            or gate.evidence_status != "OUTCOME_LINKED"
+            or loop.learning_status != "ADMITTED"
+            or loop.evidence_status != "OUTCOME_LINKED"
         ):
             return blocked("Runtime evidence was not admitted as OUTCOME_LINKED.")
-        receipt = execution.trusted_receipt_verification
-        if not isinstance(receipt, ReceiptVerificationResult) or not receipt.verified:
-            return blocked("Trusted receipt verification is missing or rejected.")
+        if self._receipt_verifier is None:
+            return blocked("Independent trusted receipt verifier is not configured.")
+        recorded_receipt = execution.trusted_receipt_verification
+        if not isinstance(recorded_receipt, ReceiptVerificationResult):
+            return blocked("Runtime receipt verification result is missing.")
+        if not recorded_receipt.verified:
+            return blocked("Runtime receipt verification was rejected.")
+        if (
+            recorded_receipt.execution_id != loop.execution_id
+            or not recorded_receipt.source_record_id.strip()
+            or not recorded_receipt.provider_name.strip()
+        ):
+            return blocked("Runtime receipt is not attributed to the execution trace.")
         if not isinstance(evidence_id, str) or not evidence_id.strip():
             return blocked("evidence_id is required.")
         if not isinstance(policy_version, str) or not policy_version.strip():
             return blocked("policy_version is required.")
         if not isinstance(next_command, str) or not next_command.strip():
             return blocked("next_command is required.")
-        if not isinstance(confidence, (int, float)) or not 0.0 <= confidence <= 1.0:
+        if not isinstance(confidence, (int, float)) or isinstance(confidence, bool) or not 0.0 <= confidence <= 1.0:
             return blocked("confidence must be between 0 and 1.")
+        if self._classifier is None:
+            return blocked("Trusted provider outcome classifier is not configured.")
 
-        # Use a neutral placeholder only to validate execution-to-decision
-        # attribution before provider-specific semantic outcome classification.
+        # Re-fetch and re-authenticate the provider receipt at the learning
+        # boundary. A consumed/replayed receipt fails closed in the replay store.
+        try:
+            receipt = self._receipt_verifier.verify(
+                recorded_receipt.source_record_id, loop.execution_id
+            )
+        except Exception as exc:
+            return blocked(f"Independent receipt verification failed closed ({type(exc).__name__}).")
+        if not isinstance(receipt, ReceiptVerificationResult) or not receipt.verified:
+            return blocked("Independent receipt verification failed or receipt was replayed.")
+        if (
+            receipt.provider_name != recorded_receipt.provider_name
+            or receipt.source_record_id != recorded_receipt.source_record_id
+            or receipt.execution_id != loop.execution_id
+            or receipt.raw_observation != recorded_receipt.raw_observation
+            or receipt.verification_method != recorded_receipt.verification_method
+        ):
+            return blocked("Independently verified receipt does not match runtime receipt.")
+
+        expected_source = f"{receipt.provider_name}:{receipt.source_record_id}"
+        actual_raw = receipt.raw_observation
+        # The verifier provides authoritative attribution; ensure the recorded
+        # gate result includes that same source and observation.
+        if execution.trusted_receipt_verification.raw_observation != actual_raw:
+            return blocked("Runtime raw observation differs from independent receipt.")
+        if not expected_source:
+            return blocked("Trusted source attribution is incomplete.")
+
         placeholder = DecisionOutcome(
             decision_id=decision.id,
             command_id=execution.command_id,
@@ -179,7 +237,7 @@ class TrustedDecisionLearningService:
             did=execution.response or "Runtime execution completed.",
             actual=receipt.raw_observation,
             verified=(
-                f"Receipt verified by {receipt.provider_name} using "
+                f"Receipt independently verified by {receipt.provider_name} using "
                 f"{receipt.verification_method}; evidence admitted under "
                 f"{policy_version.strip()}."
             ),
@@ -212,5 +270,5 @@ class TrustedDecisionLearningService:
             outcome=outcome,
             memory=memory,
             adaptation=adaptation,
-            reasons=("Trusted receipt, attribution, admission, and outcome classification passed.",),
+            reasons=("Independent receipt verification, attribution, evidence admission, and outcome classification passed.",),
         )
