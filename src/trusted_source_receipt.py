@@ -1,10 +1,12 @@
 """Trusted external source receipt verification primitives.
 
-This module defines the adapter boundary only. A production provider adapter must
-implement authentic receipt verification and execution attribution using the
-provider's actual API/signature mechanism; caller booleans are not trusted.
+This module defines the adapter boundary only. Production adapters must verify
+receipts using the provider's real API/signature mechanism; caller booleans are
+not trusted. Freshness is checked here, while persistent replay prevention must
+be enforced by a durable store supplied by the runtime deployment.
 """
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Protocol
 
 
@@ -48,18 +50,24 @@ class TrustedSourceAdapter(Protocol):
 
 
 class TrustedSourceReceiptVerifier:
-    """Validate receipt provenance and attribution using an injected adapter."""
+    """Validate allowlist, receipt integrity, attribution, and receipt freshness."""
 
     def __init__(
         self,
         adapter: TrustedSourceAdapter | None,
         *,
         allowed_providers: tuple[str, ...] = (),
+        max_receipt_age_seconds: int = 86400,
+        clock=None,
     ) -> None:
+        if max_receipt_age_seconds < 0:
+            raise ValueError("max_receipt_age_seconds must be non-negative")
         self.adapter = adapter
         self.allowed_providers = frozenset(
             provider.strip() for provider in allowed_providers if provider.strip()
         )
+        self.max_receipt_age_seconds = max_receipt_age_seconds
+        self.clock = clock or (lambda: datetime.now(timezone.utc))
 
     def verify(
         self, source_record_id: str, execution_id: str
@@ -90,10 +98,13 @@ class TrustedSourceReceiptVerifier:
                 return self._rejected(provider, record_id, execution, "Receipt is not linked to this execution ID.")
             if not receipt.raw_observation.strip():
                 return self._rejected(provider, record_id, execution, "Receipt raw observation is missing.")
-            if not receipt.observed_at.strip() or not receipt.content_hash.strip():
-                return self._rejected(provider, record_id, execution, "Receipt timestamp or content hash is missing.")
+            if not receipt.content_hash.strip():
+                return self._rejected(provider, record_id, execution, "Receipt content hash is missing.")
             if not receipt.verification_method.strip():
                 return self._rejected(provider, record_id, execution, "Receipt verification method is missing.")
+            freshness_reason = self._check_freshness(receipt.observed_at)
+            if freshness_reason:
+                return self._rejected(provider, record_id, execution, freshness_reason)
             if not adapter.verify_receipt(receipt):
                 return self._rejected(provider, record_id, execution, "Provider receipt integrity/authenticity verification failed.")
             if not adapter.match_execution(receipt, execution):
@@ -109,8 +120,30 @@ class TrustedSourceReceiptVerifier:
             execution_id=execution,
             raw_observation=receipt.raw_observation,
             verification_method=receipt.verification_method,
-            reasons=("Trusted provider receipt integrity and execution attribution checks passed.",),
+            reasons=("Trusted provider receipt integrity, freshness, and execution attribution checks passed.",),
         )
+
+    def _check_freshness(self, observed_at: str) -> str | None:
+        if not isinstance(observed_at, str) or not observed_at.strip():
+            return "Receipt timestamp is missing."
+        try:
+            timestamp_text = observed_at.strip()
+            if timestamp_text.endswith("Z"):
+                timestamp_text = timestamp_text[:-1] + "+00:00"
+            observed = datetime.fromisoformat(timestamp_text)
+            if observed.tzinfo is None:
+                return "Receipt timestamp must include a timezone."
+            now = self.clock()
+            if now.tzinfo is None:
+                return "Verifier clock must include a timezone."
+            age = (now.astimezone(timezone.utc) - observed.astimezone(timezone.utc)).total_seconds()
+        except (TypeError, ValueError, OverflowError):
+            return "Receipt timestamp is invalid."
+        if age < 0:
+            return "Receipt timestamp is in the future."
+        if age > self.max_receipt_age_seconds:
+            return "Receipt is stale and exceeds the maximum allowed age."
+        return None
 
     @staticmethod
     def _rejected(
