@@ -21,6 +21,7 @@ class EvidenceAdmissionRequest:
     outcome_linked: bool = False
     source_authenticated: bool = False
     attribution_verified: bool = False
+    trusted_receipt_verified: bool = False
 
 
 @dataclass(frozen=True)
@@ -61,13 +62,17 @@ class EvidenceAdmissionGate:
             reasons.append("External source authentication is required for OUTCOME_LINKED admission.")
         if status == "OUTCOME_LINKED" and not request.attribution_verified:
             reasons.append("Execution-to-outcome attribution verification is required for admission.")
+        if status == "OUTCOME_LINKED" and not request.trusted_receipt_verified:
+            reasons.append("Trusted source receipt verification did not pass; learning admission remains blocked.")
 
-        # A caller-supplied label is not independent evidence. Keep admission
-        # closed until a trusted adapter supplies a verified-source receipt.
-        # This module intentionally has no trusted receipt verifier wired yet.
-        reasons.append("Trusted source receipt verification is not integrated; learning admission remains blocked.")
-
-        admitted = False
+        admitted = (
+            not missing
+            and status == "OUTCOME_LINKED"
+            and request.outcome_linked
+            and request.source_authenticated
+            and request.attribution_verified
+            and request.trusted_receipt_verified
+        )
         if not admitted and not reasons:
             reasons.append(
                 "Evidence is present but does not meet the outcome-linked learning admission threshold."
@@ -100,6 +105,7 @@ class EvidenceAdmissionGate:
             outcome_linked=outcome_linked,
             source_authenticated=evidence.get("source_authenticated", "").strip().lower() == "true",
             attribution_verified=evidence.get("attribution_verified", "").strip().lower() == "true",
+            trusted_receipt_verified=evidence.get("trusted_receipt_verified", "").strip().lower() == "true",
         )
         result = self.evaluate(request)
         if status_text in allowed:
