@@ -51,5 +51,14 @@ class ControlledPilotTests(unittest.TestCase):
             self.assertIsNone(evidence.outcome_ref)
 
 
+    def test_blank_source_revision_is_rejected_before_execution(self):
+        with self.assertRaisesRegex(ValueError, "source_revision"):
+            run_pilot(
+                "this should not execute",
+                source_revision="   ",
+            )
+
+
+
 if __name__ == "__main__":
     unittest.main()
