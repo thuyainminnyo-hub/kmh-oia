@@ -108,6 +108,19 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "durable receipt_replay_store is required"):
             LiveRuntimeBridge(console, require_durable_replay_store=True)
 
+
+    def test_production_mode_checks_sqlite_store_health(self):
+        _, console, _ = self._approved_command()
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SQLiteReceiptReplayStore(str(Path(tmp) / "evidence-replay.sqlite3"))
+            store.health_check = lambda: False
+            with self.assertRaisesRegex(ValueError, "health check failed"):
+                LiveRuntimeBridge(
+                    console,
+                    receipt_replay_store=store,
+                    require_durable_replay_store=True,
+                )
+
     def test_runtime_accepts_configured_sqlite_replay_store(self):
         _, console, applied = self._approved_command()
         with tempfile.TemporaryDirectory() as tmp:
