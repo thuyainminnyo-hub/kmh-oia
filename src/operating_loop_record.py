@@ -46,4 +46,7 @@ class OperatingLoopRecord:
 
     @property
     def externally_validated(self) -> bool:
-        return self.evidence_status == "OUTCOME_LINKED"
+        return (
+            self.evidence_status == "OUTCOME_LINKED"
+            and self.learning_status == "ADMITTED"
+        )
