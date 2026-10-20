@@ -100,8 +100,9 @@ python -m src.pilot "controlled pilot hello"
 
 This is a controlled integration pilot only. It does not independently validate
 the output quality, create a QA verdict, resolve the source revision automatically,
-or prove an outcome. The pilot intentionally leaves `source_revision` as
-`working-tree-unresolved`; callers must replace that value with a trustworthy
-revision identifier before using the record as release evidence. It must not
+or prove an outcome. The pilot defaults `source_revision` to `unresolved` unless a revision is passed
+explicitly via the Python argument or `--source-revision` CLI flag. The pilot
+does not independently prove that supplied revision corresponds to the running
+working tree; callers must verify it before using the record as release evidence. It must not
 promote evidence to `VERIFIED` or `OUTCOME_LINKED` without separate review and
 outcome records.
