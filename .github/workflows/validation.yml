@@ -125,7 +125,7 @@ jobs:
               "actual_release_decision": bundle["release_decision"],
               "diagnostics": diagnostics,
               "result": "PASS",
-          }, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+          }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
           print(out.read_text(encoding="utf-8"))
           PY
       - name: Upload negative-path simulation receipt
