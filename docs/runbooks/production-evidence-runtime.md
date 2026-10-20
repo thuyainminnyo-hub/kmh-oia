@@ -77,6 +77,18 @@ The command requires an existing file and will not silently create a new databas
 
 A PASS proves only that the supplied SQLite file can be read and that a duplicate claim is rejected across local OS processes. It does not prove that the supplied path is truly on persistent mounted storage, that the full application is deployed correctly, that a real external provider is authentic, or that multi-host claims are safe. Independently confirm the volume/mount configuration and service-account permissions.
 
+## Target-Host Evidence Capture Template
+
+Copy `docs/runbooks/target-host-evidence.template.json` to a private deployment working directory and fill it from actual target-host observations; do not claim a persistent volume is confirmed unless the operator has independently checked the mount/volume configuration and service account permissions.
+
+1. Confirm the intended SQLite database file exists on the persistent volume.
+2. Run `python scripts/production_replay_smoke.py --db-path /var/lib/kmh-oia/evidence-replay.sqlite3` against that exact file.
+3. Copy the complete JSON smoke report into `smoke_test_report`, record the UTC test time, environment and host/service identifier, set `persistent_volume_confirmed` to true only after checking the actual mount, and record the exact commit SHA tested.
+4. Run `python -m scripts.deployment_evidence_bundle --commit-sha "$GITHUB_SHA" --ci-runs deployment-ci-runs.json --target-evidence target-host-evidence.json --output deployment-evidence-bundle.json`.
+5. Review each gate independently. The bundle must still show provider authenticity as `NOT_VERIFIED`, external business outcome as `HOLD`, and multi-host replay as `NOT_VERIFIED` until separate evidence exists.
+
+Never commit host identifiers, internal addresses, secrets, provider credentials, or real sensitive receipt payloads into a public repository. Keep the populated evidence JSON in the approved private release evidence store and share only redacted status/result summaries where appropriate.
+
 ## Evidence Status Matrix
 
 The following matrix separates repository-level evidence from environment/provider evidence so a passing CI run cannot be mistaken for a production release.
