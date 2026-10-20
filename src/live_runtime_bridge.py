@@ -215,9 +215,7 @@ class LiveRuntimeBridge:
                 interpretation=interpretation,
                 verification_status=status_text,
                 outcome_linked=outcome_linked,
-                source_authenticated=trusted_receipt_verified,
-                attribution_verified=trusted_receipt_verified,
-                trusted_receipt_verified=trusted_receipt_verified,
+                trusted_receipt_verification=receipt_verification,
             )
         )
         loop_record = OperatingLoopRecord(
