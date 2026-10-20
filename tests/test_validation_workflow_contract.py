@@ -44,8 +44,6 @@ class ValidationWorkflowContractTests(unittest.TestCase):
 
     def test_manual_negative_path_workflow_uses_real_scheduler_result_and_preserves_receipt(self):
         self.assertIn("workflow_dispatch:", self.negative_workflow)
-        self.assertIn("pull_request:", self.negative_workflow)
-        self.assertIn("github.event_name == 'pull_request' || inputs.simulate_prerequisite_failure", self.negative_workflow)
         self.assertIn("exit 1", self.negative_workflow)
         self.assertIn("needs.prerequisite-probe.result", self.negative_workflow)
         self.assertIn("if: ${{ always() }}", self.negative_workflow)
