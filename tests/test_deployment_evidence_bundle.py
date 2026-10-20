@@ -199,6 +199,32 @@ def test_target_evidence_with_wrong_sha_cannot_pass_even_with_green_ci(self):
     self.assertEqual(target_gate(result)["status"], "NOT_VERIFIED")
     self.assertEqual(result["release_decision"], "HOLD")
 
+    def test_verified_target_host_does_not_clear_unverified_provider_or_outcome(self):
+        result = build_bundle(
+            commit_sha="abc123",
+            ci_runs=[{
+                "name": "Tests",
+                "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1",
+                "head_sha": "abc123",
+                "conclusion": "success",
+                "is_required_check": True,
+            }],
+            target_evidence=passing_target(commit_sha="abc123"),
+        )
+        gates = {gate["gate"]: gate for gate in result["gates"]}
+        self.assertEqual(gates["repository_ci_for_bundle_commit"]["status"], "PASS")
+        self.assertEqual(gates["target_host_persistent_storage_and_process_replay"]["status"], "PASS")
+        self.assertEqual(gates["real_provider_authenticity_and_execution_attribution"]["status"], "NOT_VERIFIED")
+        self.assertEqual(gates["external_business_outcome"]["status"], "HOLD")
+        self.assertEqual(gates["multi_host_replay"]["status"], "NOT_VERIFIED")
+        self.assertEqual(result["release_decision"], "HOLD")
+
+    def test_no_ci_rows_cannot_make_repository_ci_gate_pass(self):
+        result = build_bundle(commit_sha="abc123", ci_runs=[])
+        ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
+        self.assertEqual(ci["status"], "NOT_VERIFIED")
+        self.assertEqual(result["release_decision"], "HOLD")
+
 
 if __name__ == "__main__":
     unittest.main()
