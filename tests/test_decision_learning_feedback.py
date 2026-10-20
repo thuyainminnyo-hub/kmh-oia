@@ -17,6 +17,8 @@ class DecisionLearningFeedbackTests(unittest.TestCase):
             actual="risk reduced", next_command="continue"
         )
         self.assertEqual(result.memory.decision, "Decision decision:1: GOOD")
+        self.assertIn("external evidence source and verification are not established", result.memory.verified)
+        self.assertIn("provisionally", result.memory.learned)
         self.assertIsNone(result.adaptation)
 
     def test_poor_decision_creates_proposed_adaptation(self):
