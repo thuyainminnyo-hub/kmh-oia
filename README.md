@@ -127,3 +127,17 @@ except ReleaseBlocked:
 The adapter raises when the decision is `BLOCK`, its input is not a ReleaseDecision, or its decision checks are empty or not all passing. Tests ensure a BLOCK decision raises before a sample protected-action marker can run.
 
 This is still a local enforcement seam: it does not deploy, authenticate the decision author, verify a signature, or retrieve a tamper-protected decision from trusted storage. A production action must load the decision from trusted storage and enforce the gate in the deployment/job entrypoint with least privilege. A constructed `ALLOW` object alone is not trusted authorization.
+
+
+## Release decision integrity envelope
+
+`src/release_envelope.py` creates a stable JSON representation of a release-decision record and a SHA-256 digest, and verifies that a supplied envelope body matches the digest. This provides tamper detection when the trusted digest/envelope is separately protected.
+
+```python
+from src.release_envelope import create_envelope, verify_envelope
+
+envelope = create_envelope(decision)
+assert verify_envelope(envelope)
+```
+
+A plain checksum is **not** a signature: anyone who can change both the body and digest can recompute it. Therefore, the envelope must be stored in a trusted access-controlled system, or be signed with a key whose private component is unavailable to the decision writer. The current helper does not implement signatures or trusted storage.
