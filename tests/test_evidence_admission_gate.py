@@ -65,9 +65,10 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
                 attribution_verified=True,
             )
         )
-        self.assertEqual(result.decision, "ADMITTED")
-        self.assertTrue(result.learning_admitted)
+        self.assertEqual(result.decision, "NOT_ADMITTED")
+        self.assertFalse(result.learning_admitted)
         self.assertEqual(result.missing_fields, ())
+        self.assertTrue(any("trusted source receipt" in reason.lower() for reason in result.reasons))
 
     def test_outcome_linked_status_without_source_authentication_is_rejected(self):
         result = self.gate.evaluate(
