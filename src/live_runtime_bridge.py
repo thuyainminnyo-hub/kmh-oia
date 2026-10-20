@@ -84,6 +84,8 @@ class LiveRuntimeBridge:
         interpretation: str = "",
         verification_status: str = "OBSERVED",
         outcome_linked: bool = False,
+        source_authenticated: bool = False,
+        attribution_verified: bool = False,
     ) -> ExecutionRecord:
         command = self._get_command(command_id)
         selected_standard = standard
@@ -181,6 +183,8 @@ class LiveRuntimeBridge:
                 interpretation=interpretation,
                 verification_status=status_text,
                 outcome_linked=outcome_linked,
+                source_authenticated=source_authenticated,
+                attribution_verified=attribution_verified,
             )
         )
         loop_record = OperatingLoopRecord(
