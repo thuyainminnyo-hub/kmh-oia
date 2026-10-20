@@ -172,3 +172,25 @@ decision = require_signed_release_allowed(signed_envelope, HMAC_KEY)
 The key must be supplied by a trusted secret manager or protected runtime configuration; do not commit it to source control, put it in the envelope, or log it. The verifier rejects missing/short keys, wrong-key signatures, envelope body changes, and non-ALLOW decisions.
 
 **Security boundary:** HMAC authenticates the envelope relative to holders of the shared key. It does not establish independent reviewer identity if the same service can both approve and sign; it does not implement key rotation or hardware-backed protection. Production deployment must isolate signing authority, store keys outside the repository, and enforce this gate at the actual release entrypoint. Tests use a test-only key string and are not production key material.
+
+
+### Key IDs and controlled rotation
+
+HMAC envelopes now carry a non-secret `key_id`, and that ID is included in the signed material so it cannot be changed independently. The verifier can select an HMAC key from a caller-supplied keyring and enforce an allowlist of accepted key IDs:
+
+```python
+from src.signed_release_envelope import (
+    sign_decision,
+    require_release_allowed_with_keyring,
+)
+
+# keyring values must be loaded from a trusted secret manager, not hard-coded.
+keyring = {"release-key-v2": active_key, "release-key-v1": retiring_key}
+accepted_key_ids = {"release-key-v2", "release-key-v1"}  # explicit overlap window
+signed = sign_decision(decision, active_key, key_id="release-key-v2")
+allowed = require_release_allowed_with_keyring(signed, keyring, accepted_key_ids)
+
+# After the migration window, remove release-key-v1 from accepted_key_ids.
+```
+
+Rotation policy is explicit: accept old and new IDs only during a reviewed overlap window; after retirement, remove the old ID from the accepted set so signatures using it fail closed. The implementation does not provide a secret manager, automatic rotation scheduler, key revocation feed, or production KMS integration. Key provisioning/retirement remain operator-controlled and must be audit logged.
