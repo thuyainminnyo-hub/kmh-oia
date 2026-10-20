@@ -162,7 +162,9 @@ class TrustedDecisionLearningService:
         # boundary. A consumed/replayed receipt fails closed in the replay store.
         try:
             receipt = self._receipt_verifier.verify(
-                recorded_receipt.source_record_id, loop.execution_id
+                recorded_receipt.source_record_id,
+                loop.execution_id,
+                claim_replay=False,
             )
         except Exception as exc:
             return blocked(f"Independent receipt verification failed closed ({type(exc).__name__}).")
