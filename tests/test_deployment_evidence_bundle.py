@@ -1,6 +1,4 @@
-import tempfile
 import unittest
-from pathlib import Path
 
 from scripts.deployment_evidence_bundle import build_bundle
 
@@ -45,8 +43,6 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
             gates["target_host_persistent_storage_and_process_replay"]["status"],
             "PASS",
         )
-        # Even a complete local-host handoff must not claim real-provider or
-        # external business-outcome verification.
         self.assertEqual(
             gates["real_provider_authenticity_and_execution_attribution"]["status"],
             "NOT_VERIFIED",
@@ -79,6 +75,35 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         result = build_bundle(
             commit_sha="new-sha",
             ci_runs=[{"name": "Tests", "head_sha": "old-sha", "conclusion": "success"}],
+        )
+        ci = next(gate for gate in result["gates"] if gate["gate"] == "repository_ci_for_bundle_commit")
+        self.assertEqual(ci["status"], "NOT_VERIFIED")
+
+    def test_optional_non_required_run_does_not_block_required_green_run(self):
+        result = build_bundle(
+            commit_sha="sha-1",
+            ci_runs=[
+                {"name": "Tests", "head_sha": "sha-1", "conclusion": "success"},
+                {
+                    "name": "Informational check",
+                    "head_sha": "sha-old",
+                    "conclusion": "failure",
+                    "is_required_check": False,
+                },
+            ],
+        )
+        ci = next(gate for gate in result["gates"] if gate["gate"] == "repository_ci_for_bundle_commit")
+        self.assertEqual(ci["status"], "PASS")
+        self.assertFalse(ci["evidence"][1]["matches_bundle_commit"])
+        self.assertFalse(ci["evidence"][1]["is_required_check"])
+
+    def test_failed_required_run_blocks_ci_gate_even_when_another_passes(self):
+        result = build_bundle(
+            commit_sha="sha-1",
+            ci_runs=[
+                {"name": "Tests", "head_sha": "sha-1", "conclusion": "success"},
+                {"name": "Validation", "head_sha": "sha-1", "conclusion": "failure"},
+            ],
         )
         ci = next(gate for gate in result["gates"] if gate["gate"] == "repository_ci_for_bundle_commit")
         self.assertEqual(ci["status"], "NOT_VERIFIED")
