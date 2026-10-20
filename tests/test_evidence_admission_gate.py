@@ -4,6 +4,7 @@ from src.evidence_admission_gate import (
     EvidenceAdmissionGate,
     EvidenceAdmissionRequest,
 )
+from src.trusted_source_receipt import ReceiptVerificationResult
 
 
 class EvidenceAdmissionGateTests(unittest.TestCase):
@@ -52,78 +53,100 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
         self.assertEqual(result.decision, "NOT_ADMITTED")
         self.assertFalse(result.learning_admitted)
 
-    def test_claimed_authentication_without_trusted_receipt_is_rejected(self):
-        result = self.gate.evaluate(
-            EvidenceAdmissionRequest(
-                execution_id="exec:1",
-                source="booking_system:record-42",
-                raw_observation="booking_id=record-42",
-                interpretation="booking attributed to execution",
-                verification_status="OUTCOME_LINKED",
-                outcome_linked=True,
-                source_authenticated=True,
-                attribution_verified=True,
-            )
+    def test_mapping_boolean_claims_cannot_bypass_trusted_verifier(self):
+        result = self.gate.evaluate_mapping(
+            {
+                "execution_id": "exec:1",
+                "source": "booking-provider:record-42",
+                "raw_observation": "booking_id=42",
+                "verification_status": "OUTCOME_LINKED",
+                "outcome_linked": "true",
+                "source_authenticated": "true",
+                "attribution_verified": "true",
+                "trusted_receipt_verified": "true",
+            }
         )
         self.assertEqual(result.decision, "NOT_ADMITTED")
         self.assertFalse(result.learning_admitted)
-        self.assertEqual(result.missing_fields, ())
         self.assertTrue(any("trusted source receipt" in reason.lower() for reason in result.reasons))
 
-    def test_verified_trusted_receipt_can_be_admitted(self):
+    def test_matching_trusted_verifier_result_can_be_admitted(self):
+        receipt_result = ReceiptVerificationResult(
+            verified=True,
+            provider_name="booking-provider",
+            source_record_id="record-42",
+            execution_id="exec:1",
+            raw_observation="booking_id=42;status=confirmed",
+            verification_method="test-verifier",
+            reasons=("verified for unit test",),
+        )
         result = self.gate.evaluate(
             EvidenceAdmissionRequest(
                 execution_id="exec:1",
-                source="booking_system:record-42",
-                raw_observation="booking_id=record-42",
+                source="booking-provider:record-42",
+                raw_observation="booking_id=42;status=confirmed",
                 interpretation="booking attributed to execution",
                 verification_status="OUTCOME_LINKED",
                 outcome_linked=True,
-                source_authenticated=True,
-                attribution_verified=True,
-                trusted_receipt_verified=True,
+                trusted_receipt_verification=receipt_result,
             )
         )
         self.assertEqual(result.decision, "ADMITTED")
         self.assertTrue(result.learning_admitted)
         self.assertEqual(result.missing_fields, ())
 
-    def test_outcome_linked_status_without_source_authentication_is_rejected(self):
+    def test_verifier_result_for_different_execution_is_rejected(self):
+        receipt_result = ReceiptVerificationResult(
+            verified=True,
+            provider_name="booking-provider",
+            source_record_id="record-42",
+            execution_id="exec:other",
+            raw_observation="booking_id=42;status=confirmed",
+            verification_method="test-verifier",
+            reasons=("test fixture",),
+        )
         result = self.gate.evaluate(
             EvidenceAdmissionRequest(
                 execution_id="exec:1",
-                source="booking_system:record-42",
-                raw_observation="booking_id=record-42",
+                source="booking-provider:record-42",
+                raw_observation="booking_id=42;status=confirmed",
                 verification_status="OUTCOME_LINKED",
                 outcome_linked=True,
-                attribution_verified=True,
+                trusted_receipt_verification=receipt_result,
             )
         )
         self.assertEqual(result.decision, "NOT_ADMITTED")
         self.assertFalse(result.learning_admitted)
-        self.assertTrue(any("authentication" in reason.lower() for reason in result.reasons))
 
-    def test_outcome_linked_status_without_attribution_is_rejected(self):
+    def test_verifier_result_with_mismatched_raw_observation_is_rejected(self):
+        receipt_result = ReceiptVerificationResult(
+            verified=True,
+            provider_name="booking-provider",
+            source_record_id="record-42",
+            execution_id="exec:1",
+            raw_observation="booking_id=42;status=confirmed",
+            verification_method="test-verifier",
+            reasons=("test fixture",),
+        )
         result = self.gate.evaluate(
             EvidenceAdmissionRequest(
                 execution_id="exec:1",
-                source="booking_system:record-42",
-                raw_observation="booking_id=record-42",
+                source="booking-provider:record-42",
+                raw_observation="caller-edited observation",
                 verification_status="OUTCOME_LINKED",
                 outcome_linked=True,
-                source_authenticated=True,
+                trusted_receipt_verification=receipt_result,
             )
         )
         self.assertEqual(result.decision, "NOT_ADMITTED")
         self.assertFalse(result.learning_admitted)
-        self.assertTrue(any("attribution" in reason.lower() for reason in result.reasons))
 
     def test_outcome_link_flag_without_outcome_linked_status_is_rejected(self):
         result = self.gate.evaluate(
             EvidenceAdmissionRequest(
                 execution_id="exec:1",
-                source="booking_system:record-42",
-                raw_observation="booking_id=record-42",
+                source="booking-provider:record-42",
+                raw_observation="booking_id=42",
                 verification_status="VERIFIED",
                 outcome_linked=True,
             )
