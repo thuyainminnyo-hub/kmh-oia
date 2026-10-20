@@ -181,3 +181,26 @@ jobs:
           name: kmh-oia-deployment-evidence-bundle
           path: deployment-evidence-bundle.json
           if-no-files-found: warn
+      - name: Enforce prerequisite jobs succeeded
+        if: ${{ always() }}
+        shell: bash
+        env:
+          TESTS_RESULT: ${{ needs.tests.result }}
+          PERFORMANCE_RESULT: ${{ needs.performance-evidence.result }}
+          REPOSITORY_RESULT: ${{ needs.repository-validation.result }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          required = {
+              "tests": os.environ.get("TESTS_RESULT", ""),
+              "performance-evidence": os.environ.get("PERFORMANCE_RESULT", ""),
+              "repository-validation": os.environ.get("REPOSITORY_RESULT", ""),
+          }
+          failed = {name: result for name, result in required.items() if result != "success"}
+          if failed:
+              print(f"Required prerequisite jobs did not succeed: {failed}", file=sys.stderr)
+              raise SystemExit(1)
+          print("All required prerequisite jobs succeeded.")
+          PY
