@@ -110,7 +110,7 @@ jobs:
           ]
           with open("deployment-ci-runs.json", "w", encoding="utf-8") as stream:
               json.dump(rows, stream, indent=2)
-              stream.write("\\n")
+              stream.write("\n")
           print(json.dumps(rows, indent=2))
           PY
       - name: Generate deployment evidence handoff bundle
