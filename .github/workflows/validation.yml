@@ -60,5 +60,26 @@ jobs:
         with:
           name: kmh-oia-production-readiness-snapshot
           path: production-readiness-snapshot.json
+      - name: Generate deployment evidence handoff bundle
+        shell: bash
+        run: |
+          cat > deployment-ci-runs.json <<'JSON'
+          [
+            {
+              "name": "KMH OIA Tests",
+              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+              "head_sha": "${GITHUB_SHA}",
+              "conclusion": "success"
+            }
+          ]
+          JSON
+          python -m scripts.deployment_evidence_bundle \
+            --commit-sha "${GITHUB_SHA}" \
+            --ci-runs deployment-ci-runs.json \
+            --output deployment-evidence-bundle.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kmh-oia-deployment-evidence-bundle
+          path: deployment-evidence-bundle.json
       - run: git diff --check
       - run: python -m unittest discover -s tests -v
