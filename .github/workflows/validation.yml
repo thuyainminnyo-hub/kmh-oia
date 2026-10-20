@@ -60,20 +60,50 @@ jobs:
         with:
           name: kmh-oia-production-readiness-snapshot
           path: production-readiness-snapshot.json
-      - name: Generate deployment evidence handoff bundle
+      - run: git diff --check
+      - run: python -m unittest discover -s tests -v
+
+  deployment-evidence-bundle:
+    if: ${{ always() }}
+    needs: [tests, performance-evidence, repository-validation]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Capture prerequisite job results
         shell: bash
         run: |
           cat > deployment-ci-runs.json <<'JSON'
           [
             {
-              "name": "KMH OIA Validation",
+              "name": "KMH OIA Tests",
               "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
               "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ job.status }}",
+              "conclusion": "${{ needs.tests.result }}",
+              "is_required_check": true
+            },
+            {
+              "name": "KMH OIA Performance Evidence",
+              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+              "head_sha": "${GITHUB_SHA}",
+              "conclusion": "${{ needs.performance-evidence.result }}",
+              "is_required_check": true
+            },
+            {
+              "name": "KMH OIA Repository Validation",
+              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+              "head_sha": "${GITHUB_SHA}",
+              "conclusion": "${{ needs.repository-validation.result }}",
               "is_required_check": true
             }
           ]
           JSON
+          cat deployment-ci-runs.json
+      - name: Generate deployment evidence handoff bundle
+        run: |
           python -m scripts.deployment_evidence_bundle \
             --commit-sha "${GITHUB_SHA}" \
             --ci-runs deployment-ci-runs.json \
@@ -82,5 +112,3 @@ jobs:
         with:
           name: kmh-oia-deployment-evidence-bundle
           path: deployment-evidence-bundle.json
-      - run: git diff --check
-      - run: python -m unittest discover -s tests -v
