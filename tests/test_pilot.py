@@ -46,6 +46,7 @@ class ControlledPilotTests(unittest.TestCase):
                 evidence_path=Path(directory) / "evidence.jsonl",
             )
             self.assertEqual(evidence.validation_state, "OBSERVED")
+            self.assertEqual(evidence.source_revision, "unresolved")
             self.assertIsNone(evidence.validation_ref)
             self.assertIsNone(evidence.outcome_ref)
 
