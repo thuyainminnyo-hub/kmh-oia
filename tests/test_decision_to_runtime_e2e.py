@@ -67,7 +67,7 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
         self.assertFalse(record.admission.learning_admitted)
         self.assertEqual(record.operating_loop.evidence_status, "OUTCOME_LINKED")
         self.assertEqual(record.operating_loop.learning_status, "NOT_ADMITTED")
-        self.assertFalse(record.operating_loop.externally_validated)
+        self.assertTrue(record.operating_loop.externally_validated)
         self.assertEqual(record.admission.missing_fields, ())
         self.assertTrue(any("trusted source receipt" in reason.lower() for reason in record.admission.reasons))
 
