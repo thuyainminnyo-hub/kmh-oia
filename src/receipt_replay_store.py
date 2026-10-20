@@ -52,16 +52,17 @@ class InMemoryReceiptReplayStore:
 
 
 class SQLiteReceiptReplayStore:
-    """Durable replay guard for local/single-host runtimes.
-
-    SQLite's primary-key uniqueness ensures that concurrent connections to the
-    same file cannot both successfully claim the same receipt. This is not a
-    replacement for a shared database in multi-host deployments.
-    """
+    """Durable replay guard for local/single-host runtimes."""
 
     def __init__(self, path: str) -> None:
+        from pathlib import Path
+
+        if not isinstance(path, str) or not path.strip():
+            raise ValueError("SQLite replay store path must be a non-empty file path")
         self.path = path
-        self._init_lock = Lock()
+        target = Path(path)
+        if str(path) != ":memory:":
+            target.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:
             connection.execute(
                 """
@@ -79,6 +80,18 @@ class SQLiteReceiptReplayStore:
         connection = sqlite3.connect(self.path, timeout=10)
         connection.execute("PRAGMA busy_timeout = 10000")
         return connection
+
+    def health_check(self) -> bool:
+        """Return whether the store can read its schema and database."""
+        try:
+            with self._connect() as connection:
+                row = connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                    ("receipt_replay_claims",),
+                ).fetchone()
+            return row is not None
+        except sqlite3.Error:
+            return False
 
     def claim(self, provider_name: str, source_record_id: str, content_hash: str) -> ReplayClaim:
         key, display_key = _make_key(provider_name, source_record_id, content_hash)
@@ -98,6 +111,5 @@ class SQLiteReceiptReplayStore:
         except sqlite3.IntegrityError:
             return ReplayClaim(False, display_key, "Receipt replay detected.")
         except sqlite3.Error:
-            # Fail closed: a database error means this receipt cannot be claimed.
             return ReplayClaim(False, display_key, "Replay store unavailable; admission blocked.")
         return ReplayClaim(True, display_key, "Receipt replay key claimed durably.")
