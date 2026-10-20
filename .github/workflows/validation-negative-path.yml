@@ -63,7 +63,7 @@ jobs:
           TESTS_RESULT: ${{ needs.prerequisite-probe.result }}
           PERFORMANCE_RESULT: success
           REPOSITORY_RESULT: success
-          INJECT_FAILURE: ${{ inputs.simulate_prerequisite_failure }}
+          INJECT_FAILURE: ${{ github.event_name == 'pull_request' || inputs.simulate_prerequisite_failure }}
         run: |
           set +e
           python scripts/check_prerequisite_results.py
