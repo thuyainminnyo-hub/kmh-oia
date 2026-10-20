@@ -46,7 +46,7 @@ jobs:
                   "injected_failure": os.environ["INJECT_FAILURE"].lower() == "true",
                   "prerequisite_result": os.environ["PROBE_RESULT"],
                   "expected_helper_exit": 1 if os.environ["INJECT_FAILURE"].lower() == "true" else 0,
-              }, indent=2) + "\\n",
+              }, indent=2) + "\n",
               encoding="utf-8",
           )
           PY
