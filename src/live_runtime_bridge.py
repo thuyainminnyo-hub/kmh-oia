@@ -20,6 +20,7 @@ from src.trusted_source_receipt import (
     TrustedSourceReceiptVerifier,
 )
 from src.receipt_replay_store import ReceiptReplayStore
+from src.receipt_replay_store import SQLiteReceiptReplayStore
 from src.execution_identity import ExecutionIdentity, ExecutionIdentityContext
 from src.real_execution_verification import RealExecutionVerificationEngine, VerificationResult
 
@@ -67,6 +68,12 @@ class LiveRuntimeBridge:
             raise ValueError(
                 "A durable receipt_replay_store is required when "
                 "require_durable_replay_store=True."
+            )
+        if require_durable_replay_store and isinstance(
+            receipt_replay_store, SQLiteReceiptReplayStore
+        ) and not receipt_replay_store.health_check():
+            raise ValueError(
+                "SQLite receipt replay store health check failed; refusing startup."
             )
         self.console = console
         self.runtime = runtime or OIARuntime()
