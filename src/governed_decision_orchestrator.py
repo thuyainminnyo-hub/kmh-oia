@@ -82,8 +82,10 @@ class GovernedDecisionOrchestrator:
             standard=standard,
             applied_rule=applied_rule,
             source_adaptation_id=source_adaptation_id,
-            observed_effect=observed_effect,
-            outcome_positive=outcome_positive,
+            # The caller-supplied outcome signal must not influence runtime
+            # revalidation when this execution is entering the trusted learning path.
+            observed_effect=None if request_learning else observed_effect,
+            outcome_positive=None if request_learning else outcome_positive,
             source_record_id=source_record_id if request_learning else "",
             verification_status="OUTCOME_LINKED" if request_learning else "OBSERVED",
             outcome_linked=request_learning,
