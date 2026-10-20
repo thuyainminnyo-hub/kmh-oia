@@ -51,16 +51,22 @@ def build_bundle(
 
     normalized_runs = []
     for run in ci_runs:
+        head_sha = run.get("head_sha", "")
+        conclusion = run.get("conclusion", "NOT_VERIFIED")
         normalized_runs.append({
             "name": run.get("name", "unknown"),
             "url": run.get("url", ""),
-            "head_sha": run.get("head_sha", ""),
-            "conclusion": run.get("conclusion", "NOT_VERIFIED"),
-            "matches_bundle_commit": run.get("head_sha") == commit_sha,
+            "head_sha": head_sha,
+            "conclusion": conclusion,
+            "matches_bundle_commit": head_sha == commit_sha,
+            "is_required_check": run.get("is_required_check", True) is True,
         })
-    required_green = bool(normalized_runs) and all(
+    required_checks = [
+        row for row in normalized_runs if row["is_required_check"]
+    ]
+    required_green = bool(required_checks) and all(
         row["conclusion"] == "success" and row["matches_bundle_commit"]
-        for row in normalized_runs
+        for row in required_checks
     )
 
     gates = [
@@ -68,8 +74,8 @@ def build_bundle(
             "gate": "repository_ci_for_bundle_commit",
             "status": "PASS" if required_green else "NOT_VERIFIED",
             "evidence": normalized_runs,
-            "next_action": "Keep exact-SHA checks green." if required_green else
-                "Supply successful CI runs for this exact commit SHA.",
+            "next_action": "Keep exact-SHA required checks green." if required_green else
+                "Supply successful required CI runs for this exact commit SHA.",
         },
         {
             "gate": "target_host_persistent_storage_and_process_replay",
@@ -106,7 +112,7 @@ def build_bundle(
         "READY_FOR_REVIEW" if all(gate["status"] == "PASS" for gate in gates) else "NOT_VERIFIED"
     )
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "bundle_commit_sha": commit_sha,
         "assessment_scope": "deployment evidence handoff; not self-attestation of deployment",
@@ -114,6 +120,7 @@ def build_bundle(
         "gates": gates,
         "limitations": [
             "CI success is not a production deployment.",
+            "Only checks marked is_required_check contribute to repository CI gate.",
             "Operator-provided volume confirmation must correspond to the actual target environment.",
             "A local SQLite process-boundary test does not prove multi-host behavior.",
             "No outcome receipt supplied means outcome is unverified, not proven negative.",
@@ -149,6 +156,7 @@ def main() -> int:
     print(json.dumps({
         "output": str(args.output),
         "release_decision": bundle["release_decision"],
+        "ci_status": bundle["gates"][0]["status"],
         "target_host_status": bundle["gates"][1]["status"],
         "outcome_status": bundle["gates"][3]["status"],
     }, sort_keys=True))
