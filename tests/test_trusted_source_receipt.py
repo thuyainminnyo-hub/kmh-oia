@@ -1,9 +1,13 @@
 import unittest
+from datetime import datetime, timezone
 
 from src.trusted_source_receipt import (
     TrustedSourceReceipt,
     TrustedSourceReceiptVerifier,
 )
+
+
+FIXED_NOW = datetime(2026, 10, 20, 12, 0, tzinfo=timezone.utc)
 
 
 class FakeTrustedSourceAdapter:
@@ -22,7 +26,7 @@ class FakeTrustedSourceAdapter:
             source_record_id=source_record_id,
             execution_id=execution_id,
             raw_observation="booking_id=42;status=confirmed",
-            observed_at="2026-10-20T10:00:00Z",
+            observed_at="2026-10-20T11:30:00Z",
             content_hash="sha256:test-fixture",
             verification_method="fake-adapter-test",
         )
@@ -35,10 +39,15 @@ class FakeTrustedSourceAdapter:
 
 
 class TrustedSourceReceiptVerifierTests(unittest.TestCase):
-    def verifier(self, adapter=None, allowed=("booking-provider",)):
-        return TrustedSourceReceiptVerifier(adapter, allowed_providers=allowed)
+    def verifier(self, adapter=None, allowed=("booking-provider",), max_age=86400):
+        return TrustedSourceReceiptVerifier(
+            adapter,
+            allowed_providers=allowed,
+            max_receipt_age_seconds=max_age,
+            clock=lambda: FIXED_NOW,
+        )
 
-    def test_valid_allowlisted_receipt_passes_integrity_and_attribution(self):
+    def test_valid_allowlisted_fresh_receipt_passes(self):
         result = self.verifier(FakeTrustedSourceAdapter()).verify("booking:42", "exec:1")
         self.assertTrue(result.verified)
         self.assertEqual(result.provider_name, "booking-provider")
@@ -78,7 +87,7 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
             source_record_id="booking:42",
             execution_id="exec:other",
             raw_observation="booking_id=42;status=confirmed",
-            observed_at="2026-10-20T10:00:00Z",
+            observed_at="2026-10-20T11:30:00Z",
             content_hash="sha256:test-fixture",
             verification_method="fake-adapter-test",
         )
@@ -94,7 +103,7 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
             source_record_id="booking:42",
             execution_id="exec:1",
             raw_observation=" ",
-            observed_at="2026-10-20T10:00:00Z",
+            observed_at="2026-10-20T11:30:00Z",
             content_hash="sha256:test-fixture",
             verification_method="fake-adapter-test",
         )
@@ -103,6 +112,70 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         ).verify("booking:42", "exec:1")
         self.assertFalse(result.verified)
         self.assertIn("raw observation is missing", result.reasons[0])
+
+    def test_stale_receipt_fails_closed(self):
+        stale = TrustedSourceReceipt(
+            provider_name="booking-provider",
+            source_record_id="booking:42",
+            execution_id="exec:1",
+            raw_observation="booking_id=42;status=confirmed",
+            observed_at="2026-10-18T11:30:00Z",
+            content_hash="sha256:test-fixture",
+            verification_method="fake-adapter-test",
+        )
+        result = self.verifier(
+            FakeTrustedSourceAdapter(receipt=stale), max_age=3600
+        ).verify("booking:42", "exec:1")
+        self.assertFalse(result.verified)
+        self.assertIn("stale", result.reasons[0])
+
+    def test_future_receipt_timestamp_fails_closed(self):
+        future = TrustedSourceReceipt(
+            provider_name="booking-provider",
+            source_record_id="booking:42",
+            execution_id="exec:1",
+            raw_observation="booking_id=42;status=confirmed",
+            observed_at="2026-10-20T12:01:00Z",
+            content_hash="sha256:test-fixture",
+            verification_method="fake-adapter-test",
+        )
+        result = self.verifier(
+            FakeTrustedSourceAdapter(receipt=future)
+        ).verify("booking:42", "exec:1")
+        self.assertFalse(result.verified)
+        self.assertIn("future", result.reasons[0])
+
+    def test_timezone_free_timestamp_fails_closed(self):
+        no_timezone = TrustedSourceReceipt(
+            provider_name="booking-provider",
+            source_record_id="booking:42",
+            execution_id="exec:1",
+            raw_observation="booking_id=42;status=confirmed",
+            observed_at="2026-10-20T11:30:00",
+            content_hash="sha256:test-fixture",
+            verification_method="fake-adapter-test",
+        )
+        result = self.verifier(
+            FakeTrustedSourceAdapter(receipt=no_timezone)
+        ).verify("booking:42", "exec:1")
+        self.assertFalse(result.verified)
+        self.assertIn("timezone", result.reasons[0])
+
+    def test_invalid_timestamp_fails_closed(self):
+        invalid = TrustedSourceReceipt(
+            provider_name="booking-provider",
+            source_record_id="booking:42",
+            execution_id="exec:1",
+            raw_observation="booking_id=42;status=confirmed",
+            observed_at="not-a-time",
+            content_hash="sha256:test-fixture",
+            verification_method="fake-adapter-test",
+        )
+        result = self.verifier(
+            FakeTrustedSourceAdapter(receipt=invalid)
+        ).verify("booking:42", "exec:1")
+        self.assertFalse(result.verified)
+        self.assertIn("invalid", result.reasons[0])
 
 
 if __name__ == "__main__":
