@@ -194,3 +194,25 @@ allowed = require_release_allowed_with_keyring(signed, keyring, accepted_key_ids
 ```
 
 Rotation policy is explicit: accept old and new IDs only during a reviewed overlap window; after retirement, remove the old ID from the accepted set so signatures using it fail closed. The implementation does not provide a secret manager, automatic rotation scheduler, key revocation feed, or production KMS integration. Key provisioning/retirement remain operator-controlled and must be audit logged.
+
+
+## Key rotation audit trail (local prototype)
+
+`src/key_rotation_audit.py` records `KEY_ACTIVATED`, `KEY_DEPRECATED`, and `KEY_RETIRED` events with key ID, actor ID, reason, accepted-key IDs, timestamp, sequence, previous hash, and entry hash. Before appending, the implementation validates the existing chain; the local JSONL write flushes and calls `fsync`. Any altered record or broken link is rejected.
+
+```python
+from src.key_rotation_audit import KeyRotationEvent, append_rotation_event, verify_rotation_audit
+
+event = KeyRotationEvent.create(
+    action="KEY_ACTIVATED",
+    key_id="release-key-v2",
+    actor_id="authenticated-operator-id",
+    reason="planned rotation with temporary overlap",
+    accepted_key_ids={"release-key-v1", "release-key-v2"},
+    previous_active_key_id="release-key-v1",
+)
+append_rotation_event(event, "runtime/security/key-rotation-audit.jsonl")
+assert verify_rotation_audit("runtime/security/key-rotation-audit.jsonl")
+```
+
+This hash chain is **tamper-evident, not tamper-proof**: an actor who can rewrite the entire local file can recompute the chain. Production must export events to independently retained, access-controlled audit storage and verify operator identity through a trusted service. Do not log key bytes, secret-manager payloads, or credentials in rotation events.
