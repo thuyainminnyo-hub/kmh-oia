@@ -218,3 +218,21 @@ Do not claim that this dry run has occurred until the evidence exists.
 - [KMH-TC-001 — Hasty Generalization (manual desk-check; runtime not run)](tests/KMH-TC-001-hasty-generalization.md)
 
 The fixture defines expected outputs and acceptance checks. It is not evidence of live agent execution.
+
+
+## 12. Runtime Gate Audit — 2026-10-20
+
+**Project:** KMH Cognitive Intelligence Engine (KMH-CIE)  
+**Audit outcome:** BUILD SPEC COMPLETE FOR FIRST FIXTURE / CONNECT BLOCKED / LIVE RUN NOT EXECUTED
+
+### Evidence inspected
+- The AgentScope Runtime Verification Pack identifies AgentScope as a candidate execution substrate, not a verified KMH integration: [Notion verification pack](https://app.notion.com/p/3f1fd51bf57581ecab36fd329a8a868f).
+- The related runtime gate audit records Make.com authentication/capacity and scene-input prerequisites as unresolved, and states that no runtime was executed: [Notion gate audit](https://app.notion.com/p/3f9fd51bf57581c29f83cb95203e99a2).
+- Repository test fixture KMH-TC-001 remains a manual desk-check, not a live-agent result.
+- The currently available connected tool set exposes GitHub/Notion operations and browser automation, but no direct AgentScope invocation endpoint or confirmed KMH agent runtime.
+
+### Decision
+Do not mark KMH-CIE as runtime verified. Do not label a ChatGPT-generated analysis as an independent agent execution. The next valid runtime proof must include a real execution environment, separate Critical Thinking and QA outputs, one stable Correlation_ID, timestamps/Execution_IDs, and retrievable logs.
+
+### Safe next action
+Prepare a KMH-CIE-specific runtime binding only after an actual execution route is available and authenticated. Keep the existing Make.com scenario untouched; any test scenario must be isolated and its schedule state checked before edits. Until then, use KMH-TC-001 only as a manual contract check.
