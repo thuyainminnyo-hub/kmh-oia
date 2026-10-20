@@ -72,6 +72,70 @@ jobs:
       - run: git diff --check
       - run: python -m unittest discover -s tests -v
 
+  negative-path-validation:
+    if: ${{ always() }}
+    needs: [tests, performance-evidence, repository-validation]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Simulate a failed prerequisite receipt in an isolated fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import subprocess
+          import sys
+          from pathlib import Path
+          from scripts.capture_ci_evidence import capture_ci_evidence
+          from scripts.deployment_evidence_bundle import build_bundle
+
+          sha = "a" * 40
+          url = "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/12345"
+          values = {
+              "url": url,
+              "head_sha": sha,
+              "bundle_sha": sha,
+              "tests": "success",
+              "performance": "failure",
+              "repository": "success",
+          }
+          receipts, diagnostics = capture_ci_evidence(values)
+          if receipts[1]["conclusion"] != "failure":
+              raise SystemExit("negative-path setup error: failure was not preserved")
+          if diagnostics["capture_status"] != "CAPTURED":
+              raise SystemExit("expected a structurally captured failed-job receipt")
+          bundle = build_bundle(commit_sha=sha, ci_runs=receipts)
+          ci_gate = next(g for g in bundle["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
+          if ci_gate["status"] == "PASS":
+              raise SystemExit("FAIL-CLOSED VIOLATION: failed required prerequisite produced PASS")
+          if bundle["release_decision"] != "HOLD":
+              raise SystemExit("FAIL-CLOSED VIOLATION: failed required prerequisite promoted release")
+          out = Path("negative-path-validation.json")
+          out.write_text(json.dumps({
+              "scenario": "required_performance_job_failure",
+              "input_conclusions": {k: values[k] for k in ("tests", "performance", "repository")},
+              "expected_ci_gate": "NOT_VERIFIED",
+              "actual_ci_gate": ci_gate["status"],
+              "expected_release_decision": "HOLD",
+              "actual_release_decision": bundle["release_decision"],
+              "diagnostics": diagnostics,
+              "result": "PASS",
+          }, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
+          print(out.read_text(encoding="utf-8"))
+          PY
+      - name: Upload negative-path simulation receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-oia-negative-path-validation
+          path: negative-path-validation.json
+          if-no-files-found: warn
+
   deployment-evidence-bundle:
     if: ${{ always() }}
     needs: [tests, performance-evidence, repository-validation]
