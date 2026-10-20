@@ -49,6 +49,22 @@ This is an integration pattern, not a drop-in application entry point: instantia
 
 Run `python -m scripts.production_readiness_snapshot` to emit a JSON status snapshot. Exit code is 0 only when every gate is `PASS`; expected current behavior is exit code 2 with release decision `HOLD`, because live deployment, real-provider evidence, real business outcome and multi-host replay remain unverified. This report reflects repository-observable facts only; it does not query a live deployment.
 
+## Deployment Evidence Bundle
+
+Generate a conservative JSON handoff bundle from CI run metadata and optional operator-collected target-host evidence:
+
+```bash
+python -m scripts.deployment_evidence_bundle \
+  --commit-sha "$GITHUB_SHA" \
+  --ci-runs deployment-ci-runs.json \
+  --target-evidence target-host-evidence.json \
+  --output deployment-evidence-bundle.json
+```
+
+`--target-evidence` must be a JSON object containing all of these fields before the target-host gate can pass: `environment_id`, `host_or_service_id`, `persistent_volume_confirmed: true`, `database_path`, `smoke_test_report` with `result: "PASS"`, `smoke_tested_at_utc`, and `commit_sha` equal to the bundle SHA. Confirm mount persistence out-of-band before setting `persistent_volume_confirmed`; the bundle generator does not independently inspect the host or mount. CI runs only count as PASS when their head SHA matches the bundle SHA and their conclusion is `success`.
+
+The validation workflow emits this bundle as the `kmh-oia-deployment-evidence-bundle` artifact. Its current CI-only bundle is expected to leave target host `NOT_VERIFIED`, provider authenticity `NOT_VERIFIED`, external business outcome `HOLD`, and multi-host replay `NOT_VERIFIED`. A JSON artifact is a handoff record, not a release approval.
+
 ## Deployment-host Replay Smoke Test
 
 After the service owner has created the intended persistent SQLite database file on the target host, run:
