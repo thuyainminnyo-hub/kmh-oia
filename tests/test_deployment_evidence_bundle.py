@@ -114,6 +114,28 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
         self.assertEqual(ci["status"], "NOT_VERIFIED")
 
+    def test_required_ci_row_rejects_non_actions_github_urls(self):
+        for url in (
+            "https://github.com.example.invalid/org/repo/actions/runs/1",
+            "https://github.com/org/repo/blob/main/README.md",
+            "https://github.com/org/repo/actions/runs/1?redirect=elsewhere",
+            "https://github.com/org/repo/actions/runs/not-a-number",
+        ):
+            with self.subTest(url=url):
+                result = build_bundle(
+                    commit_sha="sha-1",
+                    ci_runs=[{
+                        "name": "Tests",
+                        "url": url,
+                        "head_sha": "sha-1",
+                        "conclusion": "success",
+                        "is_required_check": True,
+                    }],
+                )
+                ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
+                self.assertEqual(ci["status"], "NOT_VERIFIED")
+                self.assertTrue(any("GitHub HTTPS Actions run URL" in error for error in ci["validation_errors"]))
+
     def test_required_ci_row_needs_complete_metadata_and_github_run_url(self):
         result = build_bundle(
             commit_sha="sha-1",
@@ -199,7 +221,7 @@ def test_target_evidence_with_wrong_sha_cannot_pass_even_with_green_ci(self):
     self.assertEqual(target_gate(result)["status"], "NOT_VERIFIED")
     self.assertEqual(result["release_decision"], "HOLD")
 
-    def test_verified_target_host_does_not_clear_unverified_provider_or_outcome(self):
+def test_verified_target_host_does_not_clear_unverified_provider_or_outcome(self):
         result = build_bundle(
             commit_sha="abc123",
             ci_runs=[{
