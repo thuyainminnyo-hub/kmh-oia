@@ -1,11 +1,7 @@
 """Deterministic admission gate for evidence-backed operating-loop learning.
 
-Admission is conservative by design:
-- required provenance must be present;
-- raw observation is separate from interpretation;
-- VERIFIED evidence needs a source and a raw observation;
-- learning admission requires outcome-linked evidence;
-- this gate evaluates supplied metadata and does not independently prove the source is authentic.
+The gate validates supplied metadata and requires independent verification
+signals before admitting learning. It does not itself authenticate a provider.
 """
 from dataclasses import dataclass
 from typing import Literal, Mapping
@@ -23,6 +19,8 @@ class EvidenceAdmissionRequest:
     interpretation: str = ""
     verification_status: EvidenceStatus = "UNKNOWN"
     outcome_linked: bool = False
+    source_authenticated: bool = False
+    attribution_verified: bool = False
 
 
 @dataclass(frozen=True)
@@ -35,7 +33,7 @@ class EvidenceAdmissionResult:
 
 
 class EvidenceAdmissionGate:
-    """Check evidence admission requirements without fabricating evidence."""
+    """Admit learning only when provenance, authentication, and attribution agree."""
 
     def evaluate(self, request: EvidenceAdmissionRequest) -> EvidenceAdmissionResult:
         missing = tuple(
@@ -47,31 +45,37 @@ class EvidenceAdmissionGate:
             )
             if not isinstance(value, str) or not value.strip()
         )
-
         reasons: list[str] = []
         status = request.verification_status
 
         if missing:
             reasons.append("Required provenance or raw observation is missing.")
-        if status == "VERIFIED" and not missing and not request.source.strip():
-            reasons.append("Verified evidence requires an identified source.")
+        if status not in {"UNKNOWN", "OBSERVED", "VERIFIED", "OUTCOME_LINKED"}:
+            reasons.append("Unrecognized verification_status; treated as UNKNOWN.")
+            status = "UNKNOWN"
         if status == "OUTCOME_LINKED" and not request.outcome_linked:
             reasons.append("OUTCOME_LINKED status requires explicit outcome linkage.")
         if request.outcome_linked and status != "OUTCOME_LINKED":
             reasons.append("Outcome linkage was asserted without OUTCOME_LINKED verification status.")
+        if status == "OUTCOME_LINKED" and not request.source_authenticated:
+            reasons.append("External source authentication is required for OUTCOME_LINKED admission.")
+        if status == "OUTCOME_LINKED" and not request.attribution_verified:
+            reasons.append("Execution-to-outcome attribution verification is required for admission.")
 
         admitted = (
             not missing
             and status == "OUTCOME_LINKED"
             and request.outcome_linked
+            and request.source_authenticated
+            and request.attribution_verified
         )
         if not admitted and not reasons:
             reasons.append(
-                "Evidence is recorded but does not meet the external outcome-linked learning admission threshold."
+                "Evidence is present but does not meet the outcome-linked learning admission threshold."
             )
         if admitted:
             reasons.append(
-                "Required fields are present and outcome linkage is explicitly declared; source authenticity remains externally dependent."
+                "Required fields, source authentication, and attribution verification were explicitly supplied."
             )
 
         return EvidenceAdmissionResult(
@@ -83,15 +87,10 @@ class EvidenceAdmissionGate:
         )
 
     def evaluate_mapping(self, evidence: Mapping[str, str]) -> EvidenceAdmissionResult:
-        """Evaluate a plain evidence mapping, marking absent values as empty."""
+        """Evaluate supplied metadata; missing or invalid fields fail closed."""
         status_text = evidence.get("verification_status", "UNKNOWN")
         allowed = {"UNKNOWN", "OBSERVED", "VERIFIED", "OUTCOME_LINKED"}
-        if status_text not in allowed:
-            status: EvidenceStatus = "UNKNOWN"
-            status_reason = "Unrecognized verification_status; treated as UNKNOWN."
-        else:
-            status = status_text  # type: ignore[assignment]
-            status_reason = ""
+        status: EvidenceStatus = status_text if status_text in allowed else "UNKNOWN"  # type: ignore[assignment]
         outcome_linked = evidence.get("outcome_linked", "").strip().lower() == "true"
         request = EvidenceAdmissionRequest(
             execution_id=evidence.get("execution_id", ""),
@@ -100,14 +99,16 @@ class EvidenceAdmissionGate:
             interpretation=evidence.get("interpretation", ""),
             verification_status=status,
             outcome_linked=outcome_linked,
+            source_authenticated=evidence.get("source_authenticated", "").strip().lower() == "true",
+            attribution_verified=evidence.get("attribution_verified", "").strip().lower() == "true",
         )
         result = self.evaluate(request)
-        if not status_reason:
+        if status_text in allowed:
             return result
         return EvidenceAdmissionResult(
             decision=result.decision,
             evidence_status=result.evidence_status,
             learning_admitted=result.learning_admitted,
             missing_fields=result.missing_fields,
-            reasons=(status_reason,) + result.reasons,
+            reasons=("Unrecognized verification_status; treated as UNKNOWN.",) + result.reasons,
         )
