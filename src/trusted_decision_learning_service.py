@@ -143,6 +143,7 @@ class TrustedDecisionLearningService:
             return blocked("Runtime receipt verification was rejected.")
         if (
             recorded_receipt.execution_id != loop.execution_id
+            or not recorded_receipt.content_hash.strip()
             or not recorded_receipt.source_record_id.strip()
             or not recorded_receipt.provider_name.strip()
         ):
@@ -176,6 +177,7 @@ class TrustedDecisionLearningService:
             or receipt.execution_id != loop.execution_id
             or receipt.raw_observation != recorded_receipt.raw_observation
             or receipt.verification_method != recorded_receipt.verification_method
+            or receipt.content_hash != recorded_receipt.content_hash
         ):
             return blocked("Independently verified receipt does not match runtime receipt.")
 
