@@ -61,11 +61,43 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
                 interpretation="booking attributed to execution",
                 verification_status="OUTCOME_LINKED",
                 outcome_linked=True,
+                source_authenticated=True,
+                attribution_verified=True,
             )
         )
         self.assertEqual(result.decision, "ADMITTED")
         self.assertTrue(result.learning_admitted)
         self.assertEqual(result.missing_fields, ())
+
+    def test_outcome_linked_status_without_source_authentication_is_rejected(self):
+        result = self.gate.evaluate(
+            EvidenceAdmissionRequest(
+                execution_id="exec:1",
+                source="booking_system:record-42",
+                raw_observation="booking_id=record-42",
+                verification_status="OUTCOME_LINKED",
+                outcome_linked=True,
+                attribution_verified=True,
+            )
+        )
+        self.assertEqual(result.decision, "NOT_ADMITTED")
+        self.assertFalse(result.learning_admitted)
+        self.assertTrue(any("authentication" in reason.lower() for reason in result.reasons))
+
+    def test_outcome_linked_status_without_attribution_is_rejected(self):
+        result = self.gate.evaluate(
+            EvidenceAdmissionRequest(
+                execution_id="exec:1",
+                source="booking_system:record-42",
+                raw_observation="booking_id=record-42",
+                verification_status="OUTCOME_LINKED",
+                outcome_linked=True,
+                source_authenticated=True,
+            )
+        )
+        self.assertEqual(result.decision, "NOT_ADMITTED")
+        self.assertFalse(result.learning_admitted)
+        self.assertTrue(any("attribution" in reason.lower() for reason in result.reasons))
 
     def test_outcome_link_flag_without_outcome_linked_status_is_rejected(self):
         result = self.gate.evaluate(
