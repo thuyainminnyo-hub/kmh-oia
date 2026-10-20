@@ -49,7 +49,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             ProductionEvidenceRuntimeConfig("", ("test-provider",)).validate()
 
     def test_rejects_memory_sqlite_path(self):
-        with self.assertRaisesRegex(ValueError, "in-memory SQLite"):
+        with self.assertRaisesRegex(ValueError, "file-backed SQLite path"):
             ProductionEvidenceRuntimeConfig(":memory:", ("test-provider",)).validate()
 
 
