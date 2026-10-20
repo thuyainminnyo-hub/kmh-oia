@@ -24,8 +24,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python scripts/performance_validation.py | tee performance-validation.json
-      - run: python scripts/validate_performance_artifact.py performance-validation.json
+      - name: Generate and validate performance evidence
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m scripts.performance_validation | tee performance-validation.json
+          python scripts/validate_performance_artifact.py performance-validation.json
       - uses: actions/upload-artifact@v4
         with:
           name: kmh-oia-performance-validation
