@@ -6,6 +6,28 @@ from src.execution_telemetry import ExecutionTelemetryCollector
 from src.live_operating_console import LiveOperatingConsole
 from src.live_runtime_bridge import LiveRuntimeBridge
 from src.telemetry_signal_engine import IntelligenceSignal, TelemetrySignalEngine
+from src.trusted_source_receipt import TrustedSourceReceipt
+
+
+class FakeBookingSourceAdapter:
+    provider_name = "booking-provider"
+
+    def fetch_receipt(self, source_record_id, execution_id):
+        return TrustedSourceReceipt(
+            provider_name=self.provider_name,
+            source_record_id=source_record_id,
+            execution_id=execution_id,
+            raw_observation="booking_id=record-42;status=confirmed",
+            observed_at="2026-10-20T10:00:00Z",
+            content_hash="sha256:test-fixture",
+            verification_method="fake-adapter-test",
+        )
+
+    def verify_receipt(self, receipt):
+        return True
+
+    def match_execution(self, receipt, execution_id):
+        return receipt.execution_id == execution_id
 
 
 class DecisionToRuntimeE2ETests(unittest.TestCase):
@@ -52,24 +74,25 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
         self.assertEqual(snapshot.evidence_coverage, 1.0)
         self.assertEqual(TelemetrySignalEngine().analyze(snapshot), [])
 
-    def test_outcome_linked_evidence_can_be_admitted_when_explicitly_supplied(self):
+    def test_outcome_linked_evidence_is_admitted_only_through_trusted_adapter(self):
         decision, console, applied = self._approved_command()
-        record = LiveRuntimeBridge(console).execute(
+        record = LiveRuntimeBridge(
+            console,
+            trusted_source_adapter=FakeBookingSourceAdapter(),
+            allowed_source_providers=("booking-provider",),
+        ).execute(
             applied.command_id,
-            evidence_source="booking_system:record-42",
-            raw_observation="booking_id=record-42",
             interpretation="booking attributed to execution",
             verification_status="OUTCOME_LINKED",
             outcome_linked=True,
-            source_authenticated=True,
-            attribution_verified=True,
+            source_record_id="record-42",
         )
-        self.assertFalse(record.admission.learning_admitted)
+        self.assertTrue(record.trusted_receipt_verification.verified)
+        self.assertTrue(record.admission.learning_admitted)
         self.assertEqual(record.operating_loop.evidence_status, "OUTCOME_LINKED")
-        self.assertEqual(record.operating_loop.learning_status, "NOT_ADMITTED")
+        self.assertEqual(record.operating_loop.learning_status, "ADMITTED")
         self.assertTrue(record.operating_loop.externally_validated)
         self.assertEqual(record.admission.missing_fields, ())
-        self.assertTrue(any("trusted source receipt" in reason.lower() for reason in record.admission.reasons))
 
     def test_outcome_link_flag_without_matching_status_stays_unadmitted(self):
         _, console, applied = self._approved_command()
@@ -94,7 +117,8 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
         )
         self.assertFalse(record.admission.learning_admitted)
         self.assertEqual(record.operating_loop.learning_status, "NOT_ADMITTED")
-        self.assertTrue(any("authentication" in reason.lower() for reason in record.admission.reasons))
+        self.assertFalse(record.operating_loop.externally_validated)
+        self.assertTrue(any("trusted source receipt" in reason.lower() for reason in record.admission.reasons))
 
     def test_rejected_decision_never_reaches_runtime(self):
         queue = DecisionQueue()
