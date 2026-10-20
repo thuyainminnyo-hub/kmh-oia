@@ -194,6 +194,17 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         self.assertIn("replay", second.reasons[0].lower())
 
 
+    def test_replay_store_exception_fails_closed(self):
+        class BrokenReplayStore:
+            def claim(self, provider_name, source_record_id, content_hash):
+                raise OSError("database unavailable")
+
+        result = self.verifier(
+            FakeTrustedSourceAdapter(), replay_store=BrokenReplayStore()
+        ).verify("booking:42", "exec:1")
+        self.assertFalse(result.verified)
+        self.assertIn("OSError", result.reasons[0])
+
 
 if __name__ == "__main__":
     unittest.main()
