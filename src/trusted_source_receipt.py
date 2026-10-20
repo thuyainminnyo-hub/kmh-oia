@@ -67,7 +67,22 @@ class TrustedSourceReceiptVerifier:
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.replay_store = replay_store if replay_store is not None else InMemoryReceiptReplayStore()
 
-    def verify(self, source_record_id: str, execution_id: str) -> ReceiptVerificationResult:
+    def verify(
+        self,
+        source_record_id: str,
+        execution_id: str,
+        *,
+        claim_replay: bool = True,
+    ) -> ReceiptVerificationResult:
+        """Verify a provider receipt, optionally without claiming replay a second time.
+
+        claim_replay=False is reserved for a learning-boundary recheck after the
+        runtime has already claimed the matching receipt. The verifier still
+        fetches/authenticates the receipt and checks freshness and attribution;
+        callers must compare the receipt with the prior runtime admission.
+        """
+        if not isinstance(claim_replay, bool):
+            return self._rejected("", source_record_id, execution_id, "claim_replay must be boolean.")
         adapter = self.adapter
         provider = adapter.provider_name.strip() if adapter is not None else ""
         record_id = source_record_id.strip() if isinstance(source_record_id, str) else ""
@@ -109,16 +124,17 @@ class TrustedSourceReceiptVerifier:
             # Provider/verification errors fail closed without exposing exception details.
             return self._rejected(provider, record_id, execution, f"Receipt verification failed safely ({type(exc).__name__}).")
 
-        try:
-            replay_claim = self.replay_store.claim(provider, record_id, receipt.content_hash)
-        except Exception as exc:
-            # Replay-store availability is part of the admission boundary.
-            return self._rejected(
-                provider, record_id, execution,
-                f"Replay store unavailable; admission blocked ({type(exc).__name__}).",
-            )
-        if not replay_claim.accepted:
-            return self._rejected(provider, record_id, execution, replay_claim.reason)
+        if claim_replay:
+            try:
+                replay_claim = self.replay_store.claim(provider, record_id, receipt.content_hash)
+            except Exception as exc:
+                # Replay-store availability is part of the admission boundary.
+                return self._rejected(
+                    provider, record_id, execution,
+                    f"Replay store unavailable; admission blocked ({type(exc).__name__}).",
+                )
+            if not replay_claim.accepted:
+                return self._rejected(provider, record_id, execution, replay_claim.reason)
 
         return ReceiptVerificationResult(
             verified=True,
