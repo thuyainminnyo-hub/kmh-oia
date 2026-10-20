@@ -149,7 +149,7 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         )
         ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
         self.assertEqual(ci["status"], "NOT_VERIFIED")
-        self.assertTrue(any("GitHub HTTPS run URL" in error for error in ci["validation_errors"]))
+        self.assertTrue(any("GitHub HTTPS Actions run URL" in error for error in ci["validation_errors"]))
 
     def test_missing_required_ci_check_flag_does_not_default_to_required_pass(self):
         result = build_bundle(
