@@ -6,7 +6,7 @@ from src.decision_command_bridge import DecisionCommandBridge
 from src.decision_queue import DecisionQueue
 from src.governed_decision_orchestrator import GovernedDecisionOrchestrator
 from src.live_operating_console import LiveOperatingConsole
-from src.live_runtime_bridge import LiveRuntimeBridge
+from src.live_runtime_bridge import ExecutionRecord, LiveRuntimeBridge
 from src.execution_telemetry import ExecutionTelemetry, ExecutionTelemetryCollector
 from src.operating_memory import OperatingMemory
 from src.telemetry_signal_engine import IntelligenceSignal
@@ -146,6 +146,49 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         self.assertIsNone(result.learning_feedback.memory)
         self.assertIsNone(result.learning_feedback.adaptation)
         self.assertEqual(memory.recent(), ())
+
+
+    def test_caller_outcome_boolean_is_not_forwarded_on_trusted_learning_path(self):
+        class RecordingRuntimeBridge:
+            def __init__(self):
+                self.kwargs = None
+
+            def execute(self, command_id, **kwargs):
+                self.kwargs = kwargs
+                return ExecutionRecord(
+                    command_id=command_id,
+                    response="runtime completed",
+                    trace_stages=("input_gateway", "evaluation"),
+                    evidence=("trace_id=trace:1",),
+                    qa_status="PASS",
+                    final_status="LEARNED",
+                )
+
+        queue = DecisionQueue()
+        decision = queue.enqueue(self.signal(), owner="system")
+        queue.decide(decision.id, approved=True)
+        console = LiveOperatingConsole(date="2026-10-20")
+        runtime = RecordingRuntimeBridge()
+        learning_service = TrustedDecisionLearningService(
+            classifier=FakeOutcomeClassifier(),
+            memory=OperatingMemory(),
+        )
+        result = GovernedDecisionOrchestrator(
+            queue, console, runtime_bridge=runtime, learning_service=learning_service
+        ).execute_approved(
+            decision.id,
+            expected_output="quality review completed",
+            outcome_positive=True,
+            observed_effect=1.0,
+            source_record_id="booking:record:1",
+            learning_evidence_id="evidence:booking-outcome:1",
+            learning_policy_version="policy:v1",
+            learning_next_command="Hold for verification",
+        )
+
+        self.assertIsNone(runtime.kwargs["outcome_positive"])
+        self.assertIsNone(runtime.kwargs["observed_effect"])
+        self.assertFalse(result.learning_feedback.admitted)
 
     def test_pending_decision_cannot_reach_runtime(self):
         queue = DecisionQueue()
