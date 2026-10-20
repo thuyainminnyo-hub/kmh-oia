@@ -38,6 +38,35 @@ class ControlledPilotTests(unittest.TestCase):
             self.assertEqual(store.get(evidence.evidence_id), evidence)
             self.assertEqual(store.list_by_trace(evidence.trace_id), [evidence])
 
+    def test_pilot_artifact_digest_matches_persisted_bytes(self):
+        import hashlib
+
+        with tempfile.TemporaryDirectory() as directory:
+            _, evidence, _ = run_pilot(
+                "verify persisted digest",
+                artifact_dir=Path(directory) / "artifacts",
+                evidence_path=Path(directory) / "evidence.jsonl",
+            )
+            artifact_bytes = Path(evidence.artifact_ref).read_bytes()
+            self.assertEqual(
+                hashlib.sha256(artifact_bytes).hexdigest(),
+                evidence.sha256_digest,
+            )
+
+    def test_artifact_tampering_is_detectable_against_evidence_digest(self):
+        import hashlib
+
+        with tempfile.TemporaryDirectory() as directory:
+            _, evidence, _ = run_pilot(
+                "detect artifact tampering",
+                artifact_dir=Path(directory) / "artifacts",
+                evidence_path=Path(directory) / "evidence.jsonl",
+            )
+            artifact_path = Path(evidence.artifact_ref)
+            artifact_path.write_bytes(artifact_path.read_bytes() + b"tampered")
+            changed_digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+            self.assertNotEqual(changed_digest, evidence.sha256_digest)
+
     def test_pilot_keeps_execution_record_observed_not_verified(self):
         with tempfile.TemporaryDirectory() as directory:
             _, evidence, _ = run_pilot(
