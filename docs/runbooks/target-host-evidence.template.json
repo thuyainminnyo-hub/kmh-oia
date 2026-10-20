@@ -1,0 +1,12 @@
+{
+  "environment_id": "REPLACE_WITH_ENVIRONMENT_NAME",
+  "host_or_service_id": "REPLACE_WITH_HOST_OR_SERVICE_ID",
+  "persistent_volume_confirmed": false,
+  "database_path": "/var/lib/kmh-oia/evidence-replay.sqlite3",
+  "smoke_test_report": {
+    "result": "NOT_RUN",
+    "note": "Replace with complete JSON output from scripts/production_replay_smoke.py after running on target host."
+  },
+  "smoke_tested_at_utc": "",
+  "commit_sha": ""
+}
