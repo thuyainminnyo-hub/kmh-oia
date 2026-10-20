@@ -130,6 +130,10 @@ def validate_ci_runs(commit_sha: str, ci_runs: list[Any]) -> tuple[list[dict[str
             row_errors.append("conclusion must be a non-empty string")
         if not isinstance(required_flag, bool):
             row_errors.append("is_required_check must be a boolean")
+        for field in ("name", "url", "head_sha", "conclusion"):
+            value = run.get(field)
+            if isinstance(value, str) and ("${" in value or "$GITHUB_" in value):
+                row_errors.append(f"{field} contains unresolved workflow placeholder")
 
         matches = isinstance(head_sha, str) and bool(head_sha) and head_sha == commit_sha
         is_required = required_flag is True

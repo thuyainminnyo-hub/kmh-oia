@@ -80,33 +80,39 @@ jobs:
           python-version: "3.12"
       - name: Capture prerequisite job results
         shell: bash
+        env:
+          CI_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CI_HEAD_SHA: ${{ github.sha }}
+          TESTS_RESULT: ${{ needs.tests.result }}
+          PERFORMANCE_RESULT: ${{ needs.performance-evidence.result }}
+          REPOSITORY_VALIDATION_RESULT: ${{ needs.repository-validation.result }}
         run: |
-          cat > deployment-ci-runs.json <<'JSON'
-          [
-            {
-              "name": "KMH OIA Tests",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.tests.result }}",
-              "is_required_check": true
-            },
-            {
-              "name": "KMH OIA Performance Evidence",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.performance-evidence.result }}",
-              "is_required_check": true
-            },
-            {
-              "name": "KMH OIA Repository Validation",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.repository-validation.result }}",
-              "is_required_check": true
-            }
+          python - <<'PY'
+          import json
+          import os
+
+          run_url = os.environ["CI_RUN_URL"]
+          head_sha = os.environ["CI_HEAD_SHA"]
+          checks = [
+              ("KMH OIA Tests", os.environ["TESTS_RESULT"]),
+              ("KMH OIA Performance Evidence", os.environ["PERFORMANCE_RESULT"]),
+              ("KMH OIA Repository Validation", os.environ["REPOSITORY_VALIDATION_RESULT"]),
           ]
-          JSON
-          cat deployment-ci-runs.json
+          rows = [
+              {
+                  "name": name,
+                  "url": run_url,
+                  "head_sha": head_sha,
+                  "conclusion": conclusion,
+                  "is_required_check": True,
+              }
+              for name, conclusion in checks
+          ]
+          with open("deployment-ci-runs.json", "w", encoding="utf-8") as stream:
+              json.dump(rows, stream, indent=2)
+              stream.write("\n")
+          print(json.dumps(rows, indent=2))
+          PY
       - name: Generate deployment evidence handoff bundle
         run: |
           python -m scripts.deployment_evidence_bundle \
