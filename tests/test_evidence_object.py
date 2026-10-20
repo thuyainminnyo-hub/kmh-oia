@@ -124,5 +124,75 @@ class EvidenceObjectTests(unittest.TestCase):
         self.assertEqual(outcome_rule["then"]["required"], ["outcome_ref"])
 
 
+    def test_timestamp_with_invalid_calendar_date_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "RFC-3339"):
+            self.make_evidence(observed_at="2026-02-30T08:30:00Z")
+
+    def test_schema_validation_and_model_parity_when_jsonschema_available(self):
+        try:
+            import jsonschema
+        except ImportError:
+            self.skipTest("jsonschema dependency is not installed")
+
+        from dataclasses import asdict
+
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        jsonschema.Draft202012Validator.check_schema(schema)
+        validator = jsonschema.Draft202012Validator(
+            schema, format_checker=jsonschema.FormatChecker()
+        )
+        valid_record = asdict(self.make_evidence())
+        validator.validate(valid_record)
+
+        invalid_cases = [
+            ({"source": "   "}, {"source": "   "}),
+            ({"observed_at": "2026-02-30T08:30:00Z"}, {"observed_at": "2026-02-30T08:30:00Z"}),
+            ({"sha256_digest": "BAD"}, {"sha256_digest": "BAD"}),
+            (
+                {"run_id": None, "command_id": None, "trace_id": None, "execution_id": None},
+                {"run_id": None, "command_id": None, "trace_id": None, "execution_id": None},
+            ),
+            (
+                {"validation_state": "VERIFIED", "validation_ref": None},
+                {"validation_state": "VERIFIED", "validation_ref": None},
+            ),
+            (
+                {"validation_state": "OUTCOME_LINKED", "validation_ref": "review:001", "outcome_ref": None},
+                {"validation_state": "OUTCOME_LINKED", "validation_ref": "review:001", "outcome_ref": None},
+            ),
+        ]
+        for model_overrides, wire_overrides in invalid_cases:
+            with self.subTest(overrides=model_overrides):
+                try:
+                    self.make_evidence(**model_overrides)
+                except (TypeError, ValueError):
+                    model_rejects = True
+                else:
+                    model_rejects = False
+
+                wire = {
+                    "evidence_id": "evidence:001",
+                    "kind": "runtime_trace",
+                    "source": "kmh-oia",
+                    "observed_at": "2026-10-14T08:30:00Z",
+                    "scope": "controlled-pilot",
+                    "source_revision": "abc1234",
+                    "artifact_ref": "trace:run-001",
+                    "sha256_digest": None,
+                    "run_id": "run-001",
+                    "command_id": None,
+                    "trace_id": None,
+                    "execution_id": None,
+                    "config_version": None,
+                    "agent_version": None,
+                    "validation_state": "OBSERVED",
+                    "validation_ref": None,
+                    "outcome_ref": None,
+                }
+                wire.update(wire_overrides)
+                schema_rejects = not validator.is_valid(wire)
+                self.assertEqual(model_rejects, schema_rejects, f"model/schema mismatch for {model_overrides!r}")
+
+
 if __name__ == "__main__":
     unittest.main()
