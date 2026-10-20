@@ -62,13 +62,12 @@ class EvidenceAdmissionGate:
         if status == "OUTCOME_LINKED" and not request.attribution_verified:
             reasons.append("Execution-to-outcome attribution verification is required for admission.")
 
-        admitted = (
-            not missing
-            and status == "OUTCOME_LINKED"
-            and request.outcome_linked
-            and request.source_authenticated
-            and request.attribution_verified
-        )
+        # A caller-supplied label is not independent evidence. Keep admission
+        # closed until a trusted adapter supplies a verified-source receipt.
+        # This module intentionally has no trusted receipt verifier wired yet.
+        reasons.append("Trusted source receipt verification is not integrated; learning admission remains blocked.")
+
+        admitted = False
         if not admitted and not reasons:
             reasons.append(
                 "Evidence is present but does not meet the outcome-linked learning admission threshold."
