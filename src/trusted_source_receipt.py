@@ -1,15 +1,17 @@
 """Trusted external source receipt verification primitives.
 
-This module defines the adapter boundary only. Production adapters must verify
-receipts using the provider's real API/signature mechanism; caller booleans are
-not trusted. Freshness is checked here, while persistent replay prevention must
-be enforced by a durable store supplied by the runtime deployment.
+Freshness and replay checks are applied before evidence can be admitted.
+The default replay store is process-local; deployments can inject a durable
+store such as SQLiteReceiptReplayStore or a shared transactional implementation.
 """
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Protocol
 
-from src.receipt_replay_store import InMemoryReceiptReplayStore, ReceiptReplayStore
+from src.receipt_replay_store import (
+    InMemoryReceiptReplayStore,
+    ReceiptReplayStore,
+)
 
 
 @dataclass(frozen=True)
@@ -35,25 +37,17 @@ class ReceiptVerificationResult:
 
 
 class TrustedSourceAdapter(Protocol):
-    """Provider-specific receipt adapter; never implement with caller assertions."""
-
     @property
     def provider_name(self) -> str: ...
 
-    def fetch_receipt(
-        self, source_record_id: str, execution_id: str
-    ) -> TrustedSourceReceipt | None: ...
+    def fetch_receipt(self, source_record_id: str, execution_id: str) -> TrustedSourceReceipt | None: ...
 
     def verify_receipt(self, receipt: TrustedSourceReceipt) -> bool: ...
 
-    def match_execution(
-        self, receipt: TrustedSourceReceipt, execution_id: str
-    ) -> bool: ...
+    def match_execution(self, receipt: TrustedSourceReceipt, execution_id: str) -> bool: ...
 
 
 class TrustedSourceReceiptVerifier:
-    """Validate allowlist, receipt integrity, attribution, and receipt freshness."""
-
     def __init__(
         self,
         adapter: TrustedSourceAdapter | None,
@@ -71,11 +65,9 @@ class TrustedSourceReceiptVerifier:
         )
         self.max_receipt_age_seconds = max_receipt_age_seconds
         self.clock = clock or (lambda: datetime.now(timezone.utc))
-        self.replay_store = replay_store or InMemoryReceiptReplayStore()
+        self.replay_store = replay_store if replay_store is not None else InMemoryReceiptReplayStore()
 
-    def verify(
-        self, source_record_id: str, execution_id: str
-    ) -> ReceiptVerificationResult:
+    def verify(self, source_record_id: str, execution_id: str) -> ReceiptVerificationResult:
         adapter = self.adapter
         provider = adapter.provider_name.strip() if adapter is not None else ""
         record_id = source_record_id.strip() if isinstance(source_record_id, str) else ""
@@ -113,15 +105,10 @@ class TrustedSourceReceiptVerifier:
                 return self._rejected(provider, record_id, execution, "Provider receipt integrity/authenticity verification failed.")
             if not adapter.match_execution(receipt, execution):
                 return self._rejected(provider, record_id, execution, "Provider attribution check did not match the execution.")
+            replay_claim = self.replay_store.claim(provider, record_id, receipt.content_hash)
         except Exception as exc:
-            # Avoid returning arbitrary provider exception data that may contain secrets.
             return self._rejected(provider, record_id, execution, f"Receipt verification failed safely ({type(exc).__name__}).")
 
-        replay_claim = self.replay_store.claim(
-            provider,
-            record_id,
-            receipt.content_hash,
-        )
         if not replay_claim.accepted:
             return self._rejected(provider, record_id, execution, replay_claim.reason)
 
@@ -158,9 +145,7 @@ class TrustedSourceReceiptVerifier:
         return None
 
     @staticmethod
-    def _rejected(
-        provider: str, record_id: str, execution: str, reason: str
-    ) -> ReceiptVerificationResult:
+    def _rejected(provider: str, record_id: str, execution: str, reason: str) -> ReceiptVerificationResult:
         return ReceiptVerificationResult(
             verified=False,
             provider_name=provider,
