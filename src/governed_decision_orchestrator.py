@@ -1,4 +1,4 @@
-"""Orchestrate approved intelligence decisions through Command Center and runtime."""
+"""Orchestrate approved decisions through runtime and trusted learning admission."""
 
 from dataclasses import dataclass
 
@@ -6,16 +6,21 @@ from .decision_command_bridge import AppliedDecision, DecisionCommandBridge
 from .decision_queue import DecisionQueue
 from .live_operating_console import LiveOperatingConsole
 from .live_runtime_bridge import ExecutionRecord, LiveRuntimeBridge
+from .trusted_decision_learning_service import (
+    TrustedDecisionLearningResult,
+    TrustedDecisionLearningService,
+)
 
 
 @dataclass(frozen=True)
 class GovernedExecution:
     applied_decision: AppliedDecision
     execution: ExecutionRecord
+    learning_feedback: TrustedDecisionLearningResult | None = None
 
 
 class GovernedDecisionOrchestrator:
-    """Execute only decisions that have explicitly crossed governance approval."""
+    """Execute only approved decisions and optionally route verified outcomes to learning."""
 
     def __init__(
         self,
@@ -23,11 +28,13 @@ class GovernedDecisionOrchestrator:
         console: LiveOperatingConsole,
         runtime_bridge: LiveRuntimeBridge | None = None,
         command_bridge: DecisionCommandBridge | None = None,
+        learning_service: TrustedDecisionLearningService | None = None,
     ) -> None:
         self.queue = queue
         self.console = console
         self.command_bridge = command_bridge or DecisionCommandBridge()
         self.runtime_bridge = runtime_bridge or LiveRuntimeBridge(console)
+        self.learning_service = learning_service
 
     def execute_approved(
         self,
@@ -40,6 +47,10 @@ class GovernedDecisionOrchestrator:
         source_adaptation_id: str | None = None,
         observed_effect: float | None = None,
         outcome_positive: bool | None = None,
+        learning_evidence_id: str | None = None,
+        learning_policy_version: str | None = None,
+        learning_next_command: str | None = None,
+        source_record_id: str = "",
     ) -> GovernedExecution:
         decision = next(
             (item for item in self.queue._items if item.id == decision_id),
@@ -57,6 +68,15 @@ class GovernedDecisionOrchestrator:
             expected_output=expected_output,
             priority=priority,
         )
+        # A receipt ID is only a lookup hint. The runtime verifier must fetch,
+        # authenticate, freshness-check and attribute the actual provider receipt.
+        request_learning = bool(
+            self.learning_service is not None
+            and source_record_id.strip()
+            and learning_evidence_id
+            and learning_policy_version
+            and learning_next_command
+        )
         execution = self.runtime_bridge.execute(
             applied.command_id,
             standard=standard,
@@ -64,5 +84,18 @@ class GovernedDecisionOrchestrator:
             source_adaptation_id=source_adaptation_id,
             observed_effect=observed_effect,
             outcome_positive=outcome_positive,
+            source_record_id=source_record_id if request_learning else "",
+            verification_status="OUTCOME_LINKED" if request_learning else "OBSERVED",
+            outcome_linked=request_learning,
         )
-        return GovernedExecution(applied, execution)
+
+        learning_feedback = None
+        if request_learning and self.learning_service is not None:
+            learning_feedback = self.learning_service.capture_execution(
+                decision,
+                execution,
+                evidence_id=learning_evidence_id or "",
+                policy_version=learning_policy_version or "",
+                next_command=learning_next_command or "",
+            )
+        return GovernedExecution(applied, execution, learning_feedback)
