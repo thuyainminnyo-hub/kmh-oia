@@ -31,7 +31,7 @@ class FakeTrustedSourceAdapter:
             execution_id=execution_id,
             raw_observation="booking outcome=failed",
             observed_at=datetime.now(timezone.utc).isoformat(),
-            content_hash=f"sha256:receipt-{self.calls}",
+            content_hash="sha256:receipt-stable",
             verification_method="test-provider-signature-and-attribution",
         )
 
@@ -103,7 +103,7 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
                 source_record_id="record:1", execution_id="exec:1",
                 raw_observation="booking outcome=failed",
                 verification_method="test-provider-signature-and-attribution",
-                reasons=("test receipt",),
+                reasons=("test receipt",), content_hash="sha256:receipt-stable",
             )
         return ExecutionRecord(
             command_id=command_id, response="runtime completed",
@@ -205,6 +205,45 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
             reasons=("caller claim",),
         )
         result = self.capture(execution=self.execution(receipt_result=forged))
+        self.assertFalse(result.admitted)
+        self.assertIsNone(result.memory)
+        self.assertIsNone(result.adaptation)
+        self.assertEqual(self.classifier.calls, 0)
+
+
+    def test_changed_content_hash_between_runtime_and_learning_recheck_fails_closed(self):
+        class RotatingHashAdapter(FakeTrustedSourceAdapter):
+            def __init__(self):
+                super().__init__()
+                self.fetches = 0
+
+            def fetch_receipt(self, source_record_id, execution_id):
+                self.fetches += 1
+                receipt = super().fetch_receipt(source_record_id, execution_id)
+                return TrustedSourceReceipt(
+                    provider_name=receipt.provider_name,
+                    source_record_id=receipt.source_record_id,
+                    execution_id=receipt.execution_id,
+                    raw_observation=receipt.raw_observation,
+                    observed_at=receipt.observed_at,
+                    content_hash=("sha256:receipt-stable" if self.fetches == 1 else "sha256:receipt-mutated"),
+                    verification_method=receipt.verification_method,
+                )
+
+        adapter = RotatingHashAdapter()
+        verifier = TrustedSourceReceiptVerifier(
+            adapter, allowed_providers=("booking-provider",)
+        )
+        runtime_receipt = verifier.verify("record:1", "exec:1")
+        self.assertTrue(runtime_receipt.verified)
+        execution = self.execution(receipt_result=runtime_receipt)
+        service = TrustedDecisionLearningService(
+            classifier=self.classifier, receipt_verifier=verifier, memory=self.memory
+        )
+        result = service.capture_execution(
+            self.decision, execution, evidence_id="evidence:1",
+            policy_version="policy:v1", next_command="Run a bounded shadow experiment",
+        )
         self.assertFalse(result.admitted)
         self.assertIsNone(result.memory)
         self.assertIsNone(result.adaptation)
