@@ -14,8 +14,8 @@ Define a provider adapter contract with:
 - `normalize_observation(receipt)`
 
 The adapter must return a typed result. A record is eligible for learning admission only when:
-1. A provider-side receipt is fetched from an allowlisted, configured integration.
-2. The receipt's authenticity/integrity check passes according to the provider's supported mechanism (for example, signed webhook verification, authenticated API response plus provider record lookup, or another documented method).
+1. A provider-side receipt is fetched by the generic `TrustedSourceReceiptVerifier` through an allowlisted, configured adapter.
+2. The adapter's receipt authenticity/integrity check passes according to the provider's supported mechanism (for example, signed webhook verification, authenticated API response plus provider record lookup, or another documented method).
 3. The receipt's stable provider record ID is preserved.
 4. The evidence explicitly references the KMH OIA `execution_id`, or a versioned attribution record explains the linkage.
 5. The raw provider observation is stored separately from interpretation.
@@ -47,4 +47,4 @@ The adapter must return a typed result. A record is eligible for learning admiss
 6. Keep `EXEC-SUN-TRAVEL-005` on HOLD until a genuine measurement source is selected and verified.
 
 ## Current repository boundary
-The current gate conservatively blocks learning admission without a trusted receipt verifier. The `source_authenticated` and `attribution_verified` fields are attestations only; they are not a provider-side proof. This contract is a next-step specification, not an assertion that the adapter already exists.
+A generic `TrustedSourceReceiptVerifier` protocol and deterministic fake-adapter tests exist. The runtime can call an injected adapter and the gate admits only when the verifier result passes. No real provider-specific adapter, production credentials, or provider API integration exists yet. Fake-adapter tests validate code paths, not an actual provider's authenticity mechanisms. The `source_authenticated` and `attribution_verified` runtime arguments are retained only for compatibility and are ignored as proof.
