@@ -166,6 +166,7 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         runtime = RecordingRuntimeBridge()
         learning_service = TrustedDecisionLearningService(
             classifier=FakeOutcomeClassifier(),
+            receipt_verifier=None,
             memory=OperatingMemory(),
         )
         result = GovernedDecisionOrchestrator(
