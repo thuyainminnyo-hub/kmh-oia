@@ -89,20 +89,36 @@ jobs:
           name: kmh-oia-production-readiness-snapshot
           path: production-readiness-snapshot.json
           if-no-files-found: error
-      - name: Generate deployment evidence handoff bundle
+      - run: git diff --check
+      - run: python -m unittest discover -s tests -v
+
+  deployment-evidence-bundle:
+    if: ${{ always() }}
+    needs: [tests, performance-evidence, repository-validation]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Capture exact prerequisite job results
         shell: bash
         env:
           CI_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           CI_HEAD_SHA: ${{ github.sha }}
-          CI_CONCLUSION: ${{ job.status }}
           BUNDLE_COMMIT_SHA: ${{ github.sha }}
+          TESTS_RESULT: ${{ needs.tests.result }}
+          PERFORMANCE_RESULT: ${{ needs.performance-evidence.result }}
+          REPOSITORY_RESULT: ${{ needs.repository-validation.result }}
         run: |
           python - <<'PY'
           import json
           import os
           from pathlib import Path
 
-          required = ("CI_RUN_URL", "CI_HEAD_SHA", "CI_CONCLUSION", "BUNDLE_COMMIT_SHA")
+          required = ("CI_RUN_URL", "CI_HEAD_SHA", "BUNDLE_COMMIT_SHA",
+                      "TESTS_RESULT", "PERFORMANCE_RESULT", "REPOSITORY_RESULT")
           values = {key: os.environ.get(key, "") for key in required}
           missing = [key for key, value in values.items() if not value]
           if missing:
@@ -111,16 +127,29 @@ jobs:
               raise SystemExit("Unresolved placeholder in CI metadata")
           if values["CI_HEAD_SHA"] != values["BUNDLE_COMMIT_SHA"]:
               raise SystemExit("CI run SHA does not match bundle commit SHA")
+
+          results = {
+              "KMH OIA Tests": values["TESTS_RESULT"],
+              "KMH OIA Performance Evidence": values["PERFORMANCE_RESULT"],
+              "KMH OIA Repository Validation": values["REPOSITORY_RESULT"],
+          }
+          rows = [{
+              "name": name,
+              "url": values["CI_RUN_URL"],
+              "head_sha": values["CI_HEAD_SHA"],
+              "conclusion": conclusion,
+              "is_required_check": True,
+          } for name, conclusion in results.items()]
           Path("deployment-ci-runs.json").write_text(
-              json.dumps([{
-                  "name": "KMH OIA Validation",
-                  "url": values["CI_RUN_URL"],
-                  "head_sha": values["CI_HEAD_SHA"],
-                  "conclusion": values["CI_CONCLUSION"],
-                  "is_required_check": True,
-              }], indent=2) + "\n",
-              encoding="utf-8",
-          )
+              json.dumps(rows, indent=2) + "\n", encoding="utf-8")
+          failed = {name: conclusion for name, conclusion in results.items()
+                    if conclusion != "success"}
+          if failed:
+              print(f"Required CI checks did not all pass: {failed}")
+              # Still build the handoff bundle to preserve honest failure evidence.
+              # The artifact's CI gate will be NOT_VERIFIED, and this job fails below.
+              Path("required-ci-checks-failed.txt").write_text(
+                  json.dumps(failed, indent=2) + "\n", encoding="utf-8")
           PY
           python -m scripts.deployment_evidence_bundle \
             --commit-sha "$BUNDLE_COMMIT_SHA" \
@@ -131,13 +160,21 @@ jobs:
           from pathlib import Path
 
           bundle = json.loads(Path("deployment-evidence-bundle.json").read_text(encoding="utf-8"))
-          if bundle.get("gates", [{}])[0].get("status") != "PASS":
-              raise SystemExit("Bundle did not verify required CI for this exact commit SHA")
+          gate = bundle.get("gates", [{}])[0]
+          if gate.get("status") != "PASS":
+              raise SystemExit("Bundle did not verify all required CI jobs for this exact commit SHA")
+          if len(gate.get("evidence", [])) != 3:
+              raise SystemExit("Expected one evidence row for each of the three prerequisite jobs")
           PY
       - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
         with:
           name: kmh-oia-deployment-evidence-bundle
-          path: deployment-evidence-bundle.json
-          if-no-files-found: error
-      - run: git diff --check
-      - run: python -m unittest discover -s tests -v
+          path: |
+            deployment-evidence-bundle.json
+            required-ci-checks-failed.txt
+          if-no-files-found: warn
+      - name: Fail when required CI was not all green
+        if: ${{ always() }}
+        run: |
+          test ! -f required-ci-checks-failed.txt
