@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timezone
 
 from src.decision_command_bridge import DecisionCommandBridge
 from src.decision_queue import DecisionQueue
@@ -12,13 +13,16 @@ from src.trusted_source_receipt import TrustedSourceReceipt
 class FakeBookingSourceAdapter:
     provider_name = "booking-provider"
 
+    def __init__(self, clock=None):
+        self.clock = clock or (lambda: datetime.now(timezone.utc))
+
     def fetch_receipt(self, source_record_id, execution_id):
         return TrustedSourceReceipt(
             provider_name=self.provider_name,
             source_record_id=source_record_id,
             execution_id=execution_id,
             raw_observation="booking_id=record-42;status=confirmed",
-            observed_at="2026-10-20T10:00:00Z",
+            observed_at=self.clock().astimezone(timezone.utc).isoformat(),
             content_hash="sha256:test-fixture",
             verification_method="fake-adapter-test",
         )
