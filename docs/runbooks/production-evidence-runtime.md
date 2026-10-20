@@ -49,6 +49,18 @@ This is an integration pattern, not a drop-in application entry point: instantia
 
 Run `python -m scripts.production_readiness_snapshot` to emit a JSON status snapshot. Exit code is 0 only when every gate is `PASS`; expected current behavior is exit code 2 with release decision `HOLD`, because live deployment, real-provider evidence, real business outcome and multi-host replay remain unverified. This report reflects repository-observable facts only; it does not query a live deployment.
 
+## Deployment-host Replay Smoke Test
+
+After the service owner has created the intended persistent SQLite database file on the target host, run:
+
+```bash
+python scripts/production_replay_smoke.py --db-path /var/lib/kmh-oia/evidence-replay.sqlite3
+```
+
+The command requires an existing file and will not silently create a new database on a possibly wrong path. It launches two separate Python processes, uses a fresh synthetic receipt identity, and expects the first claim to pass and the second to be rejected as replay. Capture the JSON output, the tested host/environment identifier, the commit SHA, and the UTC timestamp in the deployment evidence record. Do not include real provider secrets or sensitive receipt payloads.
+
+A PASS proves only that the supplied SQLite file can be read and that a duplicate claim is rejected across local OS processes. It does not prove that the supplied path is truly on persistent mounted storage, that the full application is deployed correctly, that a real external provider is authentic, or that multi-host claims are safe. Independently confirm the volume/mount configuration and service-account permissions.
+
 ## Evidence Status Matrix
 
 The following matrix separates repository-level evidence from environment/provider evidence so a passing CI run cannot be mistaken for a production release.
