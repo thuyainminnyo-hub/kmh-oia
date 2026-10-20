@@ -64,11 +64,12 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
             source_authenticated=True,
             attribution_verified=True,
         )
-        self.assertTrue(record.admission.learning_admitted)
+        self.assertFalse(record.admission.learning_admitted)
         self.assertEqual(record.operating_loop.evidence_status, "OUTCOME_LINKED")
-        self.assertEqual(record.operating_loop.learning_status, "ADMITTED")
-        self.assertTrue(record.operating_loop.externally_validated)
+        self.assertEqual(record.operating_loop.learning_status, "NOT_ADMITTED")
+        self.assertFalse(record.operating_loop.externally_validated)
         self.assertEqual(record.admission.missing_fields, ())
+        self.assertTrue(any("trusted source receipt" in reason.lower() for reason in record.admission.reasons))
 
     def test_outcome_link_flag_without_matching_status_stays_unadmitted(self):
         _, console, applied = self._approved_command()
