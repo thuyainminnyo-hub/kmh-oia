@@ -14,6 +14,11 @@ from src.runtime_revalidation_pipeline import RuntimeRevalidationPipeline, Autom
 from src.execution_telemetry import ExecutionTelemetry, ExecutionTelemetryCollector
 from src.operating_loop_record import OperatingLoopRecord
 from src.evidence_admission_gate import EvidenceAdmissionGate, EvidenceAdmissionRequest, EvidenceAdmissionResult
+from src.trusted_source_receipt import (
+    ReceiptVerificationResult,
+    TrustedSourceAdapter,
+    TrustedSourceReceiptVerifier,
+)
 from src.execution_identity import ExecutionIdentity, ExecutionIdentityContext
 from src.real_execution_verification import RealExecutionVerificationEngine, VerificationResult
 
@@ -35,6 +40,7 @@ class ExecutionRecord:
     execution_identity: ExecutionIdentityContext | None = None
     verification: VerificationResult | None = None
     admission: EvidenceAdmissionResult | None = None
+    trusted_receipt_verification: ReceiptVerificationResult | None = None
 
 
 class LiveRuntimeBridge:
@@ -51,6 +57,8 @@ class LiveRuntimeBridge:
         revalidation_pipeline: RuntimeRevalidationPipeline | None = None,
         telemetry_collector: ExecutionTelemetryCollector | None = None,
         evidence_admission_gate: EvidenceAdmissionGate | None = None,
+        trusted_source_adapter: TrustedSourceAdapter | None = None,
+        allowed_source_providers: tuple[str, ...] = (),
     ) -> None:
         self.console = console
         self.runtime = runtime or OIARuntime()
@@ -67,6 +75,10 @@ class LiveRuntimeBridge:
         )
         self.telemetry_collector = telemetry_collector or ExecutionTelemetryCollector()
         self.evidence_admission_gate = evidence_admission_gate or EvidenceAdmissionGate()
+        self.trusted_source_verifier = TrustedSourceReceiptVerifier(
+            trusted_source_adapter,
+            allowed_providers=allowed_source_providers,
+        )
 
     def execute(
         self,
@@ -86,6 +98,7 @@ class LiveRuntimeBridge:
         outcome_linked: bool = False,
         source_authenticated: bool = False,
         attribution_verified: bool = False,
+        source_record_id: str = "",
     ) -> ExecutionRecord:
         command = self._get_command(command_id)
         selected_standard = standard
@@ -175,16 +188,36 @@ class LiveRuntimeBridge:
         status_text = verification_status if verification_status in {
             "UNKNOWN", "OBSERVED", "VERIFIED", "OUTCOME_LINKED"
         } else "UNKNOWN"
+        receipt_verification = (
+            self.trusted_source_verifier.verify(source_record_id, execution_id)
+            if source_record_id.strip() else None
+        )
+        trusted_receipt_verified = bool(
+            receipt_verification is not None and receipt_verification.verified
+        )
+        admission_source = (
+            f"{receipt_verification.provider_name}:{receipt_verification.source_record_id}"
+            if trusted_receipt_verified and receipt_verification is not None
+            else evidence_source
+        )
+        admission_raw_observation = (
+            receipt_verification.raw_observation
+            if trusted_receipt_verified and receipt_verification is not None
+            else raw_observation
+        )
+        # Caller-supplied auth/attribution booleans are retained for call
+        # compatibility but cannot substitute for trusted receipt verification.
         admission = self.evidence_admission_gate.evaluate(
             EvidenceAdmissionRequest(
                 execution_id=execution_id,
-                source=evidence_source,
-                raw_observation=raw_observation,
+                source=admission_source,
+                raw_observation=admission_raw_observation,
                 interpretation=interpretation,
                 verification_status=status_text,
                 outcome_linked=outcome_linked,
-                source_authenticated=source_authenticated,
-                attribution_verified=attribution_verified,
+                source_authenticated=trusted_receipt_verified,
+                attribution_verified=trusted_receipt_verified,
+                trusted_receipt_verified=trusted_receipt_verified,
             )
         )
         loop_record = OperatingLoopRecord(
@@ -256,6 +289,7 @@ class LiveRuntimeBridge:
             record.qa_status, record.final_status, record.standard_feedback, record.standard_id,
             record.revalidation, record.telemetry, record.source_decision_id,
             record.operating_loop, record.execution_identity, verification, admission,
+            receipt_verification,
         )
 
     def _get_command(self, command_id: str) -> Command:
