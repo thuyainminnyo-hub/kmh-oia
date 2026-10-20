@@ -37,9 +37,9 @@ class DecisionOutcomeEvaluator:
             raise ValueError("decision outcome requires learned execution")
         quality: DecisionQuality = "GOOD" if outcome_positive else "POOR"
         reason = (
-            "Approved decision produced a positive verified outcome."
+            "Caller-supplied outcome evaluation is positive; external verification is not established."
             if outcome_positive
-            else "Approved decision produced a negative verified outcome."
+            else "Caller-supplied outcome evaluation is negative; external verification is not established."
         )
         return DecisionOutcome(decision.id, execution.command_id, outcome_positive, quality, reason)
 
