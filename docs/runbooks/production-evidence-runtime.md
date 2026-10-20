@@ -107,6 +107,50 @@ Only pass `--confirm-persistent-volume` after independently inspecting the mount
 
 If the target checkout lacks Git metadata, use a full clone or a release image/build process that can verify the immutable source SHA; do not fabricate or manually override the SHA.
 
+## Operator Handoff — Exact Evidence Capture and Submission
+
+Use this section as the handoff checklist when the deployment operator has access to the real target environment.
+
+### Before capture
+- [ ] Record the release commit SHA from the approved release candidate and check out that exact commit on the target host.
+- [ ] Verify the service is using the intended SQLite file and that the file is on the actual persistent mount; inspect the mount configuration and service-account access independently.
+- [ ] Confirm the file already exists and the normal service startup/health-check procedure succeeds.
+- [ ] Store the output under the organization's private release-evidence location. Do not place populated host receipts or sensitive provider payloads in this public repository.
+
+### Capture and report
+Run the existing helper from the target checkout, replacing the example IDs and private output path with actual values:
+```bash
+python -m scripts.capture_target_host_evidence \
+  --db-path /var/lib/kmh-oia/evidence-replay.sqlite3 \
+  --environment-id <actual-environment-id> \
+  --host-or-service-id <actual-host-or-service-id> \
+  --expected-commit-sha "$(git rev-parse HEAD)" \
+  --confirm-persistent-volume \
+  --output /secure/private-release-evidence/target-host-evidence.json
+```
+
+Only include `--confirm-persistent-volume` after the actual mount has been independently checked. A successful helper exit records operator confirmation plus the local independent-OS-process replay result; it is not a provider authenticity receipt or an external business outcome receipt.
+
+Then generate the bundle using the full CI run metadata for that exact SHA:
+```bash
+python -m scripts.deployment_evidence_bundle \
+  --commit-sha "$(git rev-parse HEAD)" \
+  --ci-runs /secure/private-release-evidence/deployment-ci-runs.json \
+  --target-evidence /secure/private-release-evidence/target-host-evidence.json \
+  --output /secure/private-release-evidence/deployment-evidence-bundle.json
+```
+
+### Handoff package and acceptance
+Submit the following through the approved private release-evidence channel:
+1. Exact release commit SHA and links to the successful Tests and Validation runs for that SHA.
+2. Redacted helper console summary, complete smoke report, UTC capture timestamp, environment ID, host/service ID, and verified database path.
+3. Evidence of the mount/volume check and the service-account access check. Do not expose credentials or internal secrets.
+4. Generated deployment evidence bundle and a gate-by-gate review.
+
+Accept the target-host gate only if the exact-SHA check passes, the smoke report is complete and PASS, the same requested database path is recorded, and the operator can support the persistence confirmation. Keep provider authenticity as `NOT_VERIFIED`, external business outcome as `HOLD`, and multi-host replay as `NOT_VERIFIED` until separate evidence closes each gate. A target-host receipt alone cannot approve the release.
+
+If no authorized operator has access to the target environment, stop at this handoff; do not synthesize a receipt, use the template as real evidence, or claim deployment verification.
+
 ## Evidence Status Matrix
 
 The following matrix separates repository-level evidence from environment/provider evidence so a passing CI run cannot be mistaken for a production release.
