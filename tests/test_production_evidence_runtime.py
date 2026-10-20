@@ -57,6 +57,11 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "in-memory SQLite"):
             ProductionEvidenceRuntimeConfig("file::memory:?cache=shared", ("test-provider",)).validate()
 
+
+    def test_rejects_sqlite_uri_even_when_it_looks_file_backed(self):
+        with self.assertRaisesRegex(ValueError, "file-backed SQLite path"):
+            ProductionEvidenceRuntimeConfig("file:/var/lib/kmh-oia/replay.sqlite3?mode=rw", ("test-provider",)).validate()
+
     def test_requires_provider_allowlist_to_be_explicit_tuple(self):
         with self.assertRaisesRegex(ValueError, "explicit tuple"):
             ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", ["test-provider"]).validate()
