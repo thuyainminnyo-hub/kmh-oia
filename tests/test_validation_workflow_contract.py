@@ -42,13 +42,29 @@ class ValidationWorkflowContractTests(unittest.TestCase):
         self.assertIn("return 1", self.prerequisite_check)
         self.assertIn("All required prerequisite jobs succeeded.", self.prerequisite_check)
 
-    def test_manual_negative_path_workflow_uses_real_scheduler_result_and_preserves_receipt(self):
-        self.assertIn("workflow_dispatch:", self.negative_workflow)
-        self.assertIn("exit 1", self.negative_workflow)
-        self.assertIn("needs.prerequisite-probe.result", self.negative_workflow)
-        self.assertIn("if: ${{ always() }}", self.negative_workflow)
-        self.assertIn("kmh-oia-negative-path-receipt", self.negative_workflow)
-        self.assertIn("Assert fail-closed helper matches actual scheduler result", self.negative_workflow)
+    def test_manual_negative_path_receipt_captures_actual_helper_result_before_upload(self):
+        workflow = self.negative_workflow
+        helper = workflow.index("python scripts/check_prerequisite_results.py")
+        receipt_write = workflow.index('Path("negative-path-receipt.json").write_text')
+        upload = workflow.index("name: Upload scheduler-level negative-path receipt")
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("exit 1", workflow)
+        self.assertIn("needs.prerequisite-probe.result", workflow)
+        self.assertLess(helper, receipt_write)
+        self.assertLess(receipt_write, upload)
+        self.assertIn("if: ${{ always() }}", workflow[upload:])
+        self.assertIn("actual_helper_exit", workflow)
+        self.assertIn("expected_helper_exit", workflow)
+        self.assertIn("assertion_passed", workflow)
+        self.assertIn("run_url", workflow)
+        self.assertIn("run_id", workflow)
+        self.assertIn("commit_sha", workflow)
+
+    def test_manual_negative_path_covers_failure_and_success_control(self):
+        self.assertIn("expected_scheduler_result=failure", self.negative_workflow)
+        self.assertIn("expected_scheduler_result=success", self.negative_workflow)
+        self.assertIn('if: ${{ inputs.simulate_prerequisite_failure }}', self.negative_workflow)
+        self.assertIn('if: ${{ !inputs.simulate_prerequisite_failure }}', self.negative_workflow)
 
     def test_receipt_generator_does_not_use_quoted_json_heredoc(self):
         self.assertNotIn("<<'JSON'", self.workflow)
