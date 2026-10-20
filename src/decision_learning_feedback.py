@@ -33,9 +33,9 @@ class DecisionLearningFeedbackEngine:
         next_experiment: str = "",
     ) -> DecisionLearningFeedback:
         learned = (
-            "Reinforce the decision pattern because the verified outcome was positive."
+            "Reinforce the decision pattern provisionally because the evaluated outcome was positive; external verification is not established."
             if outcome.quality == "GOOD"
-            else "Investigate the decision pattern because the verified outcome was negative."
+            else "Investigate the decision pattern because the evaluated outcome was negative; external verification is not established."
         )
         changed = (
             "Keep the decision rule unless new evidence contradicts it."
@@ -47,7 +47,7 @@ class DecisionLearningFeedbackEngine:
             wanted=wanted,
             did=outcome.reason,
             actual=actual,
-            verified="Execution reached LEARNED and the outcome was evaluated.",
+            verified="Outcome evaluated from supplied input; external evidence source and verification are not established by this record.",
             decision=f"Decision {outcome.decision_id}: {outcome.quality}",
             learned=learned,
             changed=changed,
