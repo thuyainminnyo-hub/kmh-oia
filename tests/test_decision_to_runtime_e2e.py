@@ -8,6 +8,9 @@ from src.live_operating_console import LiveOperatingConsole
 from src.live_runtime_bridge import LiveRuntimeBridge
 from src.telemetry_signal_engine import IntelligenceSignal, TelemetrySignalEngine
 from src.trusted_source_receipt import TrustedSourceReceipt
+from src.receipt_replay_store import SQLiteReceiptReplayStore
+import tempfile
+from pathlib import Path
 
 
 class FakeBookingSourceAdapter:
@@ -97,6 +100,26 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
         self.assertEqual(record.operating_loop.learning_status, "ADMITTED")
         self.assertTrue(record.operating_loop.externally_validated)
         self.assertEqual(record.admission.missing_fields, ())
+
+
+    def test_runtime_accepts_configured_sqlite_replay_store(self):
+        _, console, applied = self._approved_command()
+        with tempfile.TemporaryDirectory() as tmp:
+            replay_store = SQLiteReceiptReplayStore(str(Path(tmp) / "evidence-replay.sqlite3"))
+            record = LiveRuntimeBridge(
+                console,
+                trusted_source_adapter=FakeBookingSourceAdapter(),
+                allowed_source_providers=("booking-provider",),
+                receipt_replay_store=replay_store,
+            ).execute(
+                applied.command_id,
+                interpretation="booking attributed to execution",
+                verification_status="OUTCOME_LINKED",
+                outcome_linked=True,
+                source_record_id="record-42",
+            )
+        self.assertTrue(record.trusted_receipt_verification.verified)
+        self.assertTrue(record.admission.learning_admitted)
 
     def test_outcome_link_flag_without_matching_status_stays_unadmitted(self):
         _, console, applied = self._approved_command()
