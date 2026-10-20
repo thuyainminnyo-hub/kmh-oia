@@ -8,6 +8,7 @@ access-controlled, independently retained audit storage.
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -114,8 +115,7 @@ def _load_verified(path: Path) -> list[dict]:
                 if linked_previous != previous_hash:
                     raise ValueError("broken previous hash")
                 calculated = _entry_hash(sequence, event, linked_previous)
-                if not isinstance(linked_hash, str) or not hashlib.compare_digest(linked_hash, calculated):
-                    # hashlib.compare_digest is unavailable on some Python builds; use hmac.compare_digest.
+                if not isinstance(linked_hash, str) or not hmac.compare_digest(linked_hash, calculated):
                     raise ValueError("entry hash mismatch")
             except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
                 raise ValueError(f"invalid or tampered key-rotation audit at line {line_number}") from exc
