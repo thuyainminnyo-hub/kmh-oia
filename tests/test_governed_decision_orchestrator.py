@@ -84,21 +84,18 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             primary_objective="Governed execution with verified outcome",
         )
         memory = OperatingMemory()
-        learning_service = TrustedDecisionLearningService(
-            classifier=FakeOutcomeClassifier(),
-            receipt_verifier=runtime.trusted_source_verifier,
-            memory=memory,
-        )
         runtime = LiveRuntimeBridge(
             console,
             trusted_source_adapter=FakeBookingAdapter(),
             allowed_source_providers=("booking-provider",),
         )
+        learning_service = TrustedDecisionLearningService(
+            classifier=FakeOutcomeClassifier(),
+            receipt_verifier=runtime.trusted_source_verifier,
+            memory=memory,
+        )
         result = GovernedDecisionOrchestrator(
-            queue,
-            console,
-            runtime_bridge=runtime,
-            learning_service=learning_service,
+            queue, console, runtime_bridge=runtime, learning_service=learning_service
         ).execute_approved(
             decision.id,
             expected_output="quality review completed",
@@ -111,20 +108,20 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         self.assertEqual(result.execution.final_status, "LEARNED")
         self.assertTrue(result.execution.trusted_receipt_verification.verified)
         self.assertEqual(result.execution.admission.decision, "ADMITTED")
-        self.assertIsNotNone(result.learning_feedback)
         self.assertTrue(result.learning_feedback.admitted)
         self.assertEqual(result.learning_feedback.outcome.quality, "POOR")
         self.assertEqual(result.learning_feedback.adaptation.status, "PROPOSED")
         self.assertEqual(len(memory.recent()), 1)
 
-    def test_learning_service_with_missing_trusted_adapter_fails_closed(self):
+    def test_missing_runtime_verifier_fails_closed(self):
         queue = DecisionQueue()
         decision = queue.enqueue(self.signal(), owner="system")
         queue.decide(decision.id, approved=True)
         console = LiveOperatingConsole(
             date="2026-10-20",
-            primary_objective="Execution without trusted receipt adapter",
+            primary_objective="Execution without trusted provider adapter",
         )
+        runtime = LiveRuntimeBridge(console)
         memory = OperatingMemory()
         learning_service = TrustedDecisionLearningService(
             classifier=FakeOutcomeClassifier(),
@@ -132,10 +129,7 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             memory=memory,
         )
         result = GovernedDecisionOrchestrator(
-            queue,
-            console,
-            runtime_bridge=LiveRuntimeBridge(console),
-            learning_service=learning_service,
+            queue, console, runtime_bridge=runtime, learning_service=learning_service
         ).execute_approved(
             decision.id,
             expected_output="quality review completed",
@@ -148,7 +142,6 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         self.assertIsNone(result.learning_feedback.memory)
         self.assertIsNone(result.learning_feedback.adaptation)
         self.assertEqual(memory.recent(), ())
-
 
     def test_caller_outcome_boolean_is_not_forwarded_on_trusted_learning_path(self):
         class RecordingRuntimeBridge:
