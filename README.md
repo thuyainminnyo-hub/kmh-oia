@@ -106,3 +106,24 @@ print(decision.status, decision.reason)
 The decision is `ALLOW` only when a PASS verdict refers to the same evidence, artifact/digest references exist, the evidence revision matches both the expected and actual runtime revision (and is not `unresolved`), and a named approver plus approval record are supplied with authorization. Any missing/mismatched gate yields `BLOCK`. The decision record is separate and does not promote EvidenceObject state.
 
 **Important trust boundary:** this helper does not authenticate users, discover the live Git revision, or query an approval service itself. The caller must supply those values from trusted sources; a client-controlled `approver_authorized=True` is not authentication. This is a testable policy seam, not a deployed release enforcement point. Production readiness remains **UNVERIFIED**.
+
+
+## Release enforcement adapter (controlled prototype)
+
+The governance helper produces a decision record. A separate enforcement seam can be used at the point immediately before a protected action:
+
+```python
+from src.release_enforcer import require_release_allowed, ReleaseBlocked
+
+# Obtain this decision from trusted, integrity-protected decision storage.
+try:
+    require_release_allowed(decision)
+except ReleaseBlocked:
+    # Abort release/deployment. Do not run the protected action.
+    raise
+# Invoke the protected action only after require_release_allowed returns.
+```
+
+The adapter raises when the decision is `BLOCK`, its input is not a ReleaseDecision, or its decision checks are empty or not all passing. Tests ensure a BLOCK decision raises before a sample protected-action marker can run.
+
+This is still a local enforcement seam: it does not deploy, authenticate the decision author, verify a signature, or retrieve a tamper-protected decision from trusted storage. A production action must load the decision from trusted storage and enforce the gate in the deployment/job entrypoint with least privilege. A constructed `ALLOW` object alone is not trusted authorization.
