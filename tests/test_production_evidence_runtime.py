@@ -52,6 +52,15 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cannot use SQLite :memory:"):
             ProductionEvidenceRuntimeConfig(":memory:", ("test-provider",)).validate()
 
+
+    def test_rejects_uri_in_memory_sqlite_path(self):
+        with self.assertRaisesRegex(ValueError, "in-memory SQLite"):
+            ProductionEvidenceRuntimeConfig("file::memory:?cache=shared", ("test-provider",)).validate()
+
+    def test_requires_provider_allowlist_to_be_explicit_tuple(self):
+        with self.assertRaisesRegex(ValueError, "explicit tuple"):
+            ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", ["test-provider"]).validate()
+
     def test_requires_explicit_provider_allowlist(self):
         with self.assertRaisesRegex(ValueError, "at least one explicit"):
             ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", ()).validate()
