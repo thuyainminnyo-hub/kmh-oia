@@ -49,7 +49,10 @@ This is an integration pattern, not a drop-in application entry point: instantia
 
 - [ ] Persistent store path is explicit and writable by the service account.
 - [ ] Store health check passes during startup.
-- [ ] Restart test proves replay claims survive process recreation.
+- [ ] Configuration rejects both `:memory:` and all `file:` SQLite URI paths; the runtime factory accepts ordinary file paths only.
+- [ ] Repository deployment preflight verifies that the production runtime factory and this runbook exist, and that core safety-contract markers remain present.
+- [ ] Automated replay regression builds two fresh runtime instances against the same retained SQLite file and rejects the repeated receipt.
+- [ ] A real OS-process restart test proves replay claims survive process termination and recreation in the target deployment environment.
 - [ ] Duplicate receipt test is rejected across independent connections to the same store.
 - [ ] Provider-specific verification uses the provider's actual supported authenticity mechanism.
 - [ ] Provider record is explicitly and verifiably attributed to the KMH OIA execution.
