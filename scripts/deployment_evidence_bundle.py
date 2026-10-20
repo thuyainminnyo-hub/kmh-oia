@@ -1,9 +1,8 @@
 """Build a deployment evidence bundle without pretending unobserved gates passed.
 
-The bundle is a handoff checklist: repository/CI facts supplied by the operator
-are recorded separately from evidence collected on the target host. It never
-queries GitHub or a deployment environment itself; callers must supply verified
-run metadata and actual smoke-test JSON.
+CI metadata is supplied by the workflow that ran the checks. This module validates
+its shape and commit/conclusion fields; it does not independently query GitHub.
+Target-host evidence is separately supplied and fail-closed validated.
 """
 from __future__ import annotations
 
@@ -32,6 +31,7 @@ REQUIRED_SMOKE_FIELDS = (
     "result",
 )
 EXPECTED_SMOKE_TEST = "sqlite_replay_across_independent_os_processes"
+REQUIRED_CI_FIELDS = ("name", "url", "head_sha", "conclusion", "is_required_check")
 
 
 def validate_target_evidence(target: dict[str, Any], commit_sha: str) -> tuple[bool, list[str]]:
@@ -93,6 +93,77 @@ def validate_target_evidence(target: dict[str, Any], commit_sha: str) -> tuple[b
     return not errors, errors
 
 
+def validate_ci_runs(commit_sha: str, ci_runs: list[Any]) -> tuple[list[dict[str, Any]], bool, list[str]]:
+    """Normalize CI run rows and require explicit identity, URL, conclusion and SHA."""
+    normalized: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for index, run in enumerate(ci_runs):
+        row_errors: list[str] = []
+        if not isinstance(run, dict):
+            errors.append(f"CI row {index} must be a JSON object")
+            normalized.append({
+                "name": "invalid",
+                "url": "",
+                "head_sha": "",
+                "conclusion": "NOT_VERIFIED",
+                "matches_bundle_commit": False,
+                "is_required_check": True,
+                "validation_errors": ["row must be an object"],
+            })
+            continue
+
+        missing = [key for key in REQUIRED_CI_FIELDS if key not in run]
+        for key in missing:
+            row_errors.append(f"missing {key}")
+        name = run.get("name", "")
+        url = run.get("url", "")
+        head_sha = run.get("head_sha", "")
+        conclusion = run.get("conclusion", "NOT_VERIFIED")
+        required_flag = run.get("is_required_check")
+        if not isinstance(name, str) or not name.strip():
+            row_errors.append("name must be a non-empty string")
+        if not isinstance(url, str) or not url.startswith("https://github.com/"):
+            row_errors.append("url must be a GitHub HTTPS run URL")
+        if not isinstance(head_sha, str) or not head_sha.strip():
+            row_errors.append("head_sha must be a non-empty string")
+        if not isinstance(conclusion, str) or not conclusion.strip():
+            row_errors.append("conclusion must be a non-empty string")
+        if not isinstance(required_flag, bool):
+            row_errors.append("is_required_check must be a boolean")
+
+        matches = isinstance(head_sha, str) and bool(head_sha) and head_sha == commit_sha
+        is_required = required_flag is True
+        if is_required and conclusion != "success":
+            row_errors.append("required CI check conclusion must be success")
+        if is_required and not matches:
+            row_errors.append("required CI check head_sha must match bundle commit")
+        normalized.append({
+            "name": name if isinstance(name, str) else "invalid",
+            "url": url if isinstance(url, str) else "",
+            "head_sha": head_sha if isinstance(head_sha, str) else "",
+            "conclusion": conclusion if isinstance(conclusion, str) else "NOT_VERIFIED",
+            "matches_bundle_commit": matches,
+            "is_required_check": is_required,
+            "validation_errors": row_errors,
+        })
+        if row_errors:
+            errors.extend(f"CI row {index}: {error}" for error in row_errors)
+
+    required_checks = [row for row in normalized if row["is_required_check"]]
+    required_green = bool(required_checks) and all(
+        not row["validation_errors"]
+        and row["conclusion"] == "success"
+        and row["matches_bundle_commit"]
+        for row in required_checks
+    ) and not any(
+        row["is_required_check"] and row["validation_errors"]
+        for row in normalized
+    )
+    # Malformed optional rows do not pass as evidence; they also don't gate
+    # required checks. Preserve their errors so reviewers can see the issue.
+    return normalized, required_green, errors
+
+
 def build_bundle(
     *,
     commit_sha: str,
@@ -106,44 +177,16 @@ def build_bundle(
         if field not in target or target[field] in (None, "")
     ]
     target_valid, target_errors = validate_target_evidence(target, commit_sha)
-
-    normalized_runs = []
-    for run in ci_runs:
-        if not isinstance(run, dict):
-            normalized_runs.append({
-                "name": "invalid",
-                "url": "",
-                "head_sha": "",
-                "conclusion": "NOT_VERIFIED",
-                "matches_bundle_commit": False,
-                "is_required_check": True,
-            })
-            continue
-        head_sha = run.get("head_sha", "")
-        conclusion = run.get("conclusion", "NOT_VERIFIED")
-        normalized_runs.append({
-            "name": run.get("name", "unknown"),
-            "url": run.get("url", ""),
-            "head_sha": head_sha,
-            "conclusion": conclusion,
-            "matches_bundle_commit": head_sha == commit_sha,
-            "is_required_check": run.get("is_required_check", True) is True,
-        })
-    required_checks = [
-        row for row in normalized_runs if row["is_required_check"]
-    ]
-    required_green = bool(required_checks) and all(
-        row["conclusion"] == "success" and row["matches_bundle_commit"]
-        for row in required_checks
-    )
+    normalized_runs, required_green, ci_errors = validate_ci_runs(commit_sha, ci_runs)
 
     gates = [
         {
             "gate": "repository_ci_for_bundle_commit",
             "status": "PASS" if required_green else "NOT_VERIFIED",
             "evidence": normalized_runs,
+            "validation_errors": ci_errors,
             "next_action": "Keep exact-SHA required checks green." if required_green else
-                "Supply successful required CI runs for this exact commit SHA.",
+                "Supply complete CI run metadata (name, GitHub HTTPS URL, exact head SHA, conclusion, and required-check flag) for successful required checks.",
         },
         {
             "gate": "target_host_persistent_storage_and_process_replay",
@@ -181,7 +224,7 @@ def build_bundle(
         "READY_FOR_REVIEW" if all(gate["status"] == "PASS" for gate in gates) else "NOT_VERIFIED"
     )
     return {
-        "schema_version": "1.2",
+        "schema_version": "1.3",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "bundle_commit_sha": commit_sha,
         "assessment_scope": "deployment evidence handoff; not self-attestation of deployment",
@@ -189,7 +232,7 @@ def build_bundle(
         "gates": gates,
         "limitations": [
             "CI success is not a production deployment.",
-            "Only checks marked is_required_check contribute to repository CI gate.",
+            "CI metadata is validated for completeness and exact-SHA consistency but is not independently fetched from the GitHub API by this script.",
             "Operator-provided volume confirmation must correspond to the actual target environment.",
             "Target-host replay passes only when the full smoke receipt matches the claimed database path and commit.",
             "A local SQLite process-boundary test does not prove multi-host behavior.",
