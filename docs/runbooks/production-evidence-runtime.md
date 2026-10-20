@@ -89,6 +89,24 @@ Copy `docs/runbooks/target-host-evidence.template.json` to a private deployment 
 
 Never commit host identifiers, internal addresses, secrets, provider credentials, or real sensitive receipt payloads into a public repository. Keep the populated evidence JSON in the approved private release evidence store and share only redacted status/result summaries where appropriate.
 
+## Capture target-host evidence receipt
+
+Run this on the intended deployment host, from the exact git checkout you intend to validate. First confirm the database file is on the actual persistent mount, and initialize/health-check the replay database through the normal service configuration.
+
+```bash
+python -m scripts.capture_target_host_evidence \
+  --db-path /var/lib/kmh-oia/evidence-replay.sqlite3 \
+  --environment-id staging-or-production \
+  --host-or-service-id host-or-service-identifier \
+  --expected-commit-sha "$(git rev-parse HEAD)" \
+  --confirm-persistent-volume \
+  --output /secure/private-release-evidence/target-host-evidence.json
+```
+
+Only pass `--confirm-persistent-volume` after independently inspecting the mount/volume configuration on that host. The helper checks that the current checkout SHA exactly matches the supplied expected SHA, runs the independent-OS-process replay smoke test, and writes a gate-compatible receipt only when the smoke test passes. It records the UTC capture timestamp itself. It does not independently validate the platform mount configuration, authenticate an external provider, prove business success, or prove multi-host behavior.
+
+If the target checkout lacks Git metadata, use a full clone or a release image/build process that can verify the immutable source SHA; do not fabricate or manually override the SHA.
+
 ## Evidence Status Matrix
 
 The following matrix separates repository-level evidence from environment/provider evidence so a passing CI run cannot be mistaken for a production release.
