@@ -168,5 +168,37 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         self.assertTrue(ci["evidence"][1]["validation_errors"])
 
 
+def test_release_decision_never_promotes_with_missing_target_evidence(self):
+    result = build_bundle(
+        commit_sha="abc123",
+        ci_runs=[{
+            "name": "Tests",
+            "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1",
+            "head_sha": "abc123",
+            "conclusion": "success",
+            "is_required_check": True,
+        }],
+    )
+    self.assertEqual(result["release_decision"], "HOLD")
+    target = target_gate(result)
+    self.assertEqual(target["status"], "NOT_VERIFIED")
+
+def test_target_evidence_with_wrong_sha_cannot_pass_even_with_green_ci(self):
+    result = build_bundle(
+        commit_sha="new-sha",
+        ci_runs=[{
+            "name": "Tests",
+            "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1",
+            "head_sha": "new-sha",
+            "conclusion": "success",
+            "is_required_check": True,
+        }],
+        target_evidence=passing_target(commit_sha="old-sha"),
+    )
+    self.assertEqual(next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")["status"], "PASS")
+    self.assertEqual(target_gate(result)["status"], "NOT_VERIFIED")
+    self.assertEqual(result["release_decision"], "HOLD")
+
+
 if __name__ == "__main__":
     unittest.main()
