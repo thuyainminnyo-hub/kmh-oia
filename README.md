@@ -155,3 +155,20 @@ decision = require_trusted_release_allowed(envelope_dict)
 ```
 
 It rejects envelopes whose decision body does not match the stored checksum, reconstructs the decision record, and then applies the release enforcement check. This still does not authenticate the issuer: trusted storage or a digital signature remains required. A checksum is integrity detection, not proof of who produced the decision.
+
+
+## HMAC-authenticated release decision envelope
+
+`src/signed_release_envelope.py` wraps the decision envelope checksum in HMAC-SHA256. The protected action path can require a valid HMAC before it enforces the release decision:
+
+```python
+from src.signed_release_envelope import require_signed_release_allowed
+
+# Load a signed envelope from controlled storage.
+# Obtain HMAC_KEY from a trusted secret manager; never hard-code it.
+decision = require_signed_release_allowed(signed_envelope, HMAC_KEY)
+```
+
+The key must be supplied by a trusted secret manager or protected runtime configuration; do not commit it to source control, put it in the envelope, or log it. The verifier rejects missing/short keys, wrong-key signatures, envelope body changes, and non-ALLOW decisions.
+
+**Security boundary:** HMAC authenticates the envelope relative to holders of the shared key. It does not establish independent reviewer identity if the same service can both approve and sign; it does not implement key rotation or hardware-backed protection. Production deployment must isolate signing authority, store keys outside the repository, and enforce this gate at the actual release entrypoint. Tests use a test-only key string and are not production key material.
