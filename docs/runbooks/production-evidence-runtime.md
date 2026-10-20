@@ -45,6 +45,22 @@ This is an integration pattern, not a drop-in application entry point: instantia
 8. An internal QA PASS or runtime LEARNED state is not proof of external business success.
 9. Keep `EXEC-SUN-TRAVEL-005` on HOLD until a real measurement channel, record, execution attribution, and verification receipt are connected and checked.
 
+## Evidence Status Matrix
+
+The following matrix separates repository-level evidence from environment/provider evidence so a passing CI run cannot be mistaken for a production release.
+
+| Gate | Evidence type | Current status | What closes the gate |
+| --- | --- | --- | --- |
+| Source compiles and repository preflight passes | Automated CI | Verified on last green commit | Re-run on exact release SHA |
+| Runtime factory requires a durable replay store | Unit/integration tests + static preflight contract | Verified in repository | Preserve guard and rerun CI |
+| Same receipt rejected after runtime recreation using retained SQLite file | Automated test with fake adapter | Verified in test fixture | Add real OS-process restart test in target environment |
+| Persistent path and SQLite health in deployment | Environment/runtime evidence | Not yet externally verified | Deploy on persistent host path and capture startup/health results |
+| Provider authenticity and execution attribution | External provider evidence | Not integrated | Implement and review provider-specific verification |
+| Actual business outcome | External source/measurement receipt | Not verified | Capture source record with execution attribution and independent verification |
+| Multi-host duplicate protection | Shared transactional backend | Not implemented | Deploy shared store with atomic unique claims and concurrency test |
+
+Never mark the external-provider, live-deployment, business-outcome, or multi-host rows complete based only on unit tests, fake adapters, static checks, or repository-level CI.
+
 ## Release checklist
 
 - [ ] Persistent store path is explicit and writable by the service account.
