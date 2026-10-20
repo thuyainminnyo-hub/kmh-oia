@@ -4,6 +4,7 @@ from pathlib import Path
 
 WORKFLOW_PATH = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "validation.yml"
 PREREQUISITE_CHECK_PATH = Path(__file__).resolve().parents[1] / "scripts" / "check_prerequisite_results.py"
+NEGATIVE_WORKFLOW_PATH = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "validation-negative-path.yml"
 
 
 class ValidationWorkflowContractTests(unittest.TestCase):
@@ -11,6 +12,7 @@ class ValidationWorkflowContractTests(unittest.TestCase):
     def setUpClass(cls):
         cls.workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
         cls.prerequisite_check = PREREQUISITE_CHECK_PATH.read_text(encoding="utf-8")
+        cls.negative_workflow = NEGATIVE_WORKFLOW_PATH.read_text(encoding="utf-8")
 
     def test_deployment_bundle_runs_after_all_prerequisites_even_on_failure(self):
         self.assertRegex(
@@ -39,6 +41,14 @@ class ValidationWorkflowContractTests(unittest.TestCase):
         self.assertIn('result != "success"', self.prerequisite_check)
         self.assertIn("return 1", self.prerequisite_check)
         self.assertIn("All required prerequisite jobs succeeded.", self.prerequisite_check)
+
+    def test_manual_negative_path_workflow_uses_real_scheduler_result_and_preserves_receipt(self):
+        self.assertIn("workflow_dispatch:", self.negative_workflow)
+        self.assertIn("exit 1", self.negative_workflow)
+        self.assertIn("needs.prerequisite-probe.result", self.negative_workflow)
+        self.assertIn("if: ${{ always() }}", self.negative_workflow)
+        self.assertIn("kmh-oia-negative-path-receipt", self.negative_workflow)
+        self.assertIn("Assert fail-closed helper matches actual scheduler result", self.negative_workflow)
 
     def test_receipt_generator_does_not_use_quoted_json_heredoc(self):
         self.assertNotIn("<<'JSON'", self.workflow)
