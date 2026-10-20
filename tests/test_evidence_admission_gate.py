@@ -52,7 +52,7 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
         self.assertEqual(result.decision, "NOT_ADMITTED")
         self.assertFalse(result.learning_admitted)
 
-    def test_outcome_linked_evidence_with_required_fields_is_admitted(self):
+    def test_claimed_authentication_without_trusted_receipt_is_rejected(self):
         result = self.gate.evaluate(
             EvidenceAdmissionRequest(
                 execution_id="exec:1",
@@ -69,6 +69,24 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
         self.assertFalse(result.learning_admitted)
         self.assertEqual(result.missing_fields, ())
         self.assertTrue(any("trusted source receipt" in reason.lower() for reason in result.reasons))
+
+    def test_verified_trusted_receipt_can_be_admitted(self):
+        result = self.gate.evaluate(
+            EvidenceAdmissionRequest(
+                execution_id="exec:1",
+                source="booking_system:record-42",
+                raw_observation="booking_id=record-42",
+                interpretation="booking attributed to execution",
+                verification_status="OUTCOME_LINKED",
+                outcome_linked=True,
+                source_authenticated=True,
+                attribution_verified=True,
+                trusted_receipt_verified=True,
+            )
+        )
+        self.assertEqual(result.decision, "ADMITTED")
+        self.assertTrue(result.learning_admitted)
+        self.assertEqual(result.missing_fields, ())
 
     def test_outcome_linked_status_without_source_authentication_is_rejected(self):
         result = self.gate.evaluate(
