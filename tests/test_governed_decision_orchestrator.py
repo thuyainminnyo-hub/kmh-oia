@@ -86,6 +86,7 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         memory = OperatingMemory()
         learning_service = TrustedDecisionLearningService(
             classifier=FakeOutcomeClassifier(),
+            receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
         )
         runtime = LiveRuntimeBridge(
@@ -127,6 +128,7 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         memory = OperatingMemory()
         learning_service = TrustedDecisionLearningService(
             classifier=FakeOutcomeClassifier(),
+            receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
         )
         result = GovernedDecisionOrchestrator(
