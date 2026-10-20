@@ -66,10 +66,11 @@ jobs:
           cat > deployment-ci-runs.json <<'JSON'
           [
             {
-              "name": "KMH OIA Tests",
+              "name": "KMH OIA Validation",
               "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
               "head_sha": "${GITHUB_SHA}",
-              "conclusion": "success"
+              "conclusion": "${{ job.status }}",
+              "is_required_check": true
             }
           ]
           JSON
