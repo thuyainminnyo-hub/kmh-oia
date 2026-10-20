@@ -85,3 +85,23 @@ The schema and model are intended to stay aligned. CI must pass on the exact pul
 - [ ] Replace local prototype with storage meeting durability, concurrency, access-control, backup, and recovery requirements.
 - [ ] Implement separate learning-admission and decision-change services.
 - [ ] Verify a controlled Studio workflow with inspectable execution and QA evidence.
+
+
+## Controlled execution evidence pilot
+
+`src/pilot.py` runs the deterministic local runtime, checks trace integrity,
+writes a JSON artifact containing the response and ordered trace events, hashes
+that artifact, and appends an `OBSERVED` EvidenceObject to the local JSONL store.
+Run it with:
+
+```bash
+python -m src.pilot "controlled pilot hello"
+```
+
+This is a controlled integration pilot only. It does not independently validate
+the output quality, create a QA verdict, resolve the source revision automatically,
+or prove an outcome. The pilot intentionally leaves `source_revision` as
+`working-tree-unresolved`; callers must replace that value with a trustworthy
+revision identifier before using the record as release evidence. It must not
+promote evidence to `VERIFIED` or `OUTCOME_LINKED` without separate review and
+outcome records.
