@@ -56,6 +56,7 @@ Replace every placeholder and NOT_RUN value with observed values. The boolean va
   "host_or_service_id": "<stable non-secret host/service identifier>",
   "commit_sha": "<full deployed commit SHA>",
   "database_path": "<observed configured state/database path>",
+  "persistent_volume_evidence_ref": "<sanitized volume/mount evidence reference>",
   "persistent_volume_confirmed": false,
   "smoke_tested_at_utc": "<RFC3339 UTC timestamp>",
   "smoke_test_report": {
@@ -74,9 +75,9 @@ Replace every placeholder and NOT_RUN value with observed values. The boolean va
       "evidence_ref": "<sanitized evidence reference>"
     },
     "result": "NOT_RUN",
-    "test_marker_written": "NOT_RUN",
-    "marker_survived_process_restart": "NOT_RUN",
-    "post_restart_health_check": "NOT_RUN",
+    "test_marker_written": false,
+    "marker_survived_process_restart": false,
+    "post_restart_health_check": false,
     "evidence_refs": []
   },
   "operator_notes": "No secrets or customer data."
@@ -89,10 +90,11 @@ The target-host gate may be considered for **PASS** only when all of the followi
 
 - All required fields are present and reflect observed values.
 - The target's deployed full SHA exactly matches the evidence bundle's `bundle_commit_sha`.
-- Persistent volume confirmation is `true` and supported by evidence.
+- Persistent volume confirmation is `true` and `persistent_volume_evidence_ref` points to inspectable evidence.
 - The test marker survives a process restart and the service is healthy afterward.
 - The smoke-test report follows the exact validator schema: `schema_version`, `test`, `db_path`, `first_process`, `second_process`, and `result`.
 - For a PASS, `test` is `sqlite_replay_across_independent_os_processes`; `first_process.healthy` and `first_process.accepted` are true; `second_process.healthy` is true, `second_process.accepted` is false, and `second_process.reason` identifies replay; `db_path` exactly matches `database_path`; `result` is `PASS`.
+- `test_marker_written`, `marker_survived_process_restart`, and `post_restart_health_check` are true based on observed results; `evidence_refs` is a non-empty list of inspectable evidence references.
 - The report includes a timestamp and inspectable supporting evidence.
 - A reviewer confirms the evidence is from the claimed target environment.
 
