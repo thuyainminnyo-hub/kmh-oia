@@ -1,5 +1,6 @@
 """Bridge the live operating console to the executable OIA runtime."""
 from dataclasses import dataclass
+from uuid import uuid4
 
 from src.components import OIARuntime
 from src.live_operating_console import Command, LiveOperatingConsole
@@ -12,9 +13,9 @@ from src.standard_runtime_bridge import StandardRuntimeBridge
 from src.runtime_revalidation_pipeline import RuntimeRevalidationPipeline, AutomaticRevalidationResult
 from src.execution_telemetry import ExecutionTelemetry, ExecutionTelemetryCollector
 from src.operating_loop_record import OperatingLoopRecord
+from src.evidence_admission_gate import EvidenceAdmissionGate, EvidenceAdmissionRequest, EvidenceAdmissionResult
 from src.execution_identity import ExecutionIdentity, ExecutionIdentityContext
 from src.real_execution_verification import RealExecutionVerificationEngine, VerificationResult
-from uuid import uuid4
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,7 @@ class ExecutionRecord:
     operating_loop: OperatingLoopRecord | None = None
     execution_identity: ExecutionIdentityContext | None = None
     verification: VerificationResult | None = None
+    admission: EvidenceAdmissionResult | None = None
 
 
 class LiveRuntimeBridge:
@@ -48,6 +50,7 @@ class LiveRuntimeBridge:
         standard_runtime_bridge: StandardRuntimeBridge | None = None,
         revalidation_pipeline: RuntimeRevalidationPipeline | None = None,
         telemetry_collector: ExecutionTelemetryCollector | None = None,
+        evidence_admission_gate: EvidenceAdmissionGate | None = None,
     ) -> None:
         self.console = console
         self.runtime = runtime or OIARuntime()
@@ -63,6 +66,7 @@ class LiveRuntimeBridge:
             self.control_plane
         )
         self.telemetry_collector = telemetry_collector or ExecutionTelemetryCollector()
+        self.evidence_admission_gate = evidence_admission_gate or EvidenceAdmissionGate()
 
     def execute(
         self,
@@ -75,6 +79,11 @@ class LiveRuntimeBridge:
         outcome_positive: bool | None = None,
         context_id: str | None = None,
         execution_identity: ExecutionIdentity | None = None,
+        evidence_source: str = "",
+        raw_observation: str = "",
+        interpretation: str = "",
+        verification_status: str = "OBSERVED",
+        outcome_linked: bool = False,
     ) -> ExecutionRecord:
         command = self._get_command(command_id)
         selected_standard = standard
@@ -155,8 +164,58 @@ class LiveRuntimeBridge:
                     outcome_positive=outcome_positive,
                 )
 
-        learning = "Runtime observation recorded: governed execution passed QA with trace evidence."
-        telemetry = ExecutionTelemetry(
+        learning = "Runtime observation recorded: governed execution passed internal QA; external outcome not established."
+        execution_id = f"exec:{uuid4()}"
+        identity_context = (
+            ExecutionIdentityContext(execution_identity, command.id, execution_id)
+            if execution_identity is not None else None
+        )
+        status_text = verification_status if verification_status in {
+            "UNKNOWN", "OBSERVED", "VERIFIED", "OUTCOME_LINKED"
+        } else "UNKNOWN"
+        admission = self.evidence_admission_gate.evaluate(
+            EvidenceAdmissionRequest(
+                execution_id=execution_id,
+                source=evidence_source,
+                raw_observation=raw_observation,
+                interpretation=interpretation,
+                verification_status=status_text,
+                outcome_linked=outcome_linked,
+            )
+        )
+        loop_record = OperatingLoopRecord(
+            context_id=context_id or f"runtime:{command.id}",
+            decision_id=command.source_decision_id or "UNLINKED",
+            command_id=command.id,
+            execution_id=execution_id,
+            trace_id=trace_id,
+            qa_status=command.qa_status,
+            evidence_status=admission.evidence_status,
+            learning_status="ADMITTED" if admission.learning_admitted else "NOT_ADMITTED",
+            source_decision_id=command.source_decision_id,
+        )
+        memory_verified = (
+            "External outcome-linked evidence admitted; source authenticity remains externally dependent."
+            if admission.learning_admitted
+            else "Internal runtime trace/QA observed only; external outcome verification not established."
+        )
+        memory_learned = (
+            "Outcome-linked evidence passed admission; eligible for governed learning review."
+            if admission.learning_admitted
+            else learning + " Learning admission blocked: " + "; ".join(admission.reasons)
+        )
+        self.memory.record(
+            command_id=command.id,
+            wanted=command.expected_output,
+            did=command.objective,
+            actual=response,
+            verified=memory_verified,
+            decision="Accept internal runtime execution; external outcome requires admitted evidence.",
+            learned=memory_learned,
+            changed="Carry evidence-first verification into the next command.",
+            next_command=command.next_action or "Select the next highest-leverage command.",
+        )
+        self.telemetry_collector.record(ExecutionTelemetry(
             command_id=command.id,
             qa_passed=command.qa_status == "PASS",
             blocked=False,
@@ -176,68 +235,23 @@ class LiveRuntimeBridge:
             revalidation_verdict=(
                 revalidation.control_result.revalidation.revalidation.verdict
                 if revalidation is not None
-                and revalidation.control_result.revalidation is not None
-                else None
+                and revalidation.control_result.revalidation is not None else None
             ),
-        )
-        self.telemetry_collector.record(telemetry)
+        ))
         self.console.record_learning(command.id, learning)
-        execution_id = f"exec:{uuid4()}"
-        identity_context = (ExecutionIdentityContext(execution_identity, command.id, execution_id) if execution_identity is not None else None)
-        loop_record = OperatingLoopRecord(
-            context_id=context_id or f"runtime:{command.id}",
-            decision_id=command.source_decision_id or "UNLINKED",
-            command_id=command.id,
-            execution_id=execution_id,
-            trace_id=trace_id,
-            qa_status=command.qa_status,
-            evidence_status="OBSERVED",
-            learning_status="NOT_ADMITTED",
-            source_decision_id=command.source_decision_id,
-        )
-        self.memory.record(
-            command_id=command.id,
-            wanted=command.expected_output,
-            did=command.objective,
-            actual=response,
-            verified="Runtime trace and evaluation passed QA.",
-            decision="Accept governed execution.",
-            learned=learning,
-            changed="Carry evidence-first verification into the next command.",
-            next_command=command.next_action or "Select the next highest-leverage command.",
-        )
 
         record = ExecutionRecord(
-            command.id,
-            response,
-            tuple(stages),
-            tuple(evidence),
-            command.qa_status,
-            command.status,
-            standard_feedback,
-            selected_standard.id if selected_standard else None,
-            revalidation,
-            telemetry,
-            command.source_decision_id,
-            loop_record,
-            identity_context,
+            command.id, response, tuple(stages), tuple(evidence), command.qa_status,
+            command.status, standard_feedback, selected_standard.id if selected_standard else None,
+            revalidation, self.telemetry_collector.snapshot().recent[-1] if self.telemetry_collector.snapshot().recent else None,
+            command.source_decision_id, loop_record, identity_context, None, admission,
         )
         verification = RealExecutionVerificationEngine().verify(record)
         return ExecutionRecord(
-            record.command_id,
-            record.response,
-            record.trace_stages,
-            record.evidence,
-            record.qa_status,
-            record.final_status,
-            record.standard_feedback,
-            record.standard_id,
-            record.revalidation,
-            record.telemetry,
-            record.source_decision_id,
-            record.operating_loop,
-            record.execution_identity,
-            verification,
+            record.command_id, record.response, record.trace_stages, record.evidence,
+            record.qa_status, record.final_status, record.standard_feedback, record.standard_id,
+            record.revalidation, record.telemetry, record.source_decision_id,
+            record.operating_loop, record.execution_identity, verification, admission,
         )
 
     def _get_command(self, command_id: str) -> Command:
