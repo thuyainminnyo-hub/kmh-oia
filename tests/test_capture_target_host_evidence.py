@@ -91,6 +91,50 @@ class TargetHostEvidenceCaptureTests(unittest.TestCase):
                     )
                 smoke.assert_not_called()
 
+    def test_rejects_smoke_report_for_different_database_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            db_path = root / "expected.sqlite3"
+            with patch("scripts.capture_target_host_evidence.resolve_checkout_sha", return_value=VALID_SHA), patch(
+                "scripts.capture_target_host_evidence.smoke_test",
+                return_value={
+                    "result": "PASS",
+                    "test": "sqlite_replay_across_independent_os_processes",
+                    "db_path": str(root / "different.sqlite3"),
+                },
+            ):
+                with self.assertRaisesRegex(RuntimeError, "database path"):
+                    capture_target_evidence(
+                        db_path=db_path,
+                        environment_id="staging",
+                        host_or_service_id="host-1",
+                        persistent_volume_confirmed=True,
+                        expected_commit_sha=VALID_SHA,
+                        repo_root=root,
+                    )
+
+    def test_rejects_smoke_report_for_unexpected_test_identifier(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            db_path = root / "expected.sqlite3"
+            with patch("scripts.capture_target_host_evidence.resolve_checkout_sha", return_value=VALID_SHA), patch(
+                "scripts.capture_target_host_evidence.smoke_test",
+                return_value={
+                    "result": "PASS",
+                    "test": "fake-pass",
+                    "db_path": str(db_path),
+                },
+            ):
+                with self.assertRaisesRegex(RuntimeError, "unexpected test identifier"):
+                    capture_target_evidence(
+                        db_path=db_path,
+                        environment_id="staging",
+                        host_or_service_id="host-1",
+                        persistent_volume_confirmed=True,
+                        expected_commit_sha=VALID_SHA,
+                        repo_root=root,
+                    )
+
     def test_smoke_failure_never_returns_pass_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
