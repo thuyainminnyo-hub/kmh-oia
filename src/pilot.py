@@ -26,6 +26,8 @@ def run_pilot(
     source_revision: str | None = None,
 ) -> tuple[str, EvidenceObject, dict]:
     """Execute the runtime and persist the output, trace metadata, and evidence."""
+    if source_revision is not None and (not isinstance(source_revision, str) or not source_revision.strip()):
+        raise ValueError("source_revision must be a nonblank verified revision when supplied")
     tracer = InMemoryTracer()
     output, trace = run(goal, session_id=session_id, tracer=tracer)
     tracer.validate_integrity()
