@@ -114,6 +114,59 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
         self.assertEqual(ci["status"], "NOT_VERIFIED")
 
+    def test_required_ci_row_needs_complete_metadata_and_github_run_url(self):
+        result = build_bundle(
+            commit_sha="sha-1",
+            ci_runs=[{
+                "name": "Tests",
+                "url": "not-a-url",
+                "head_sha": "sha-1",
+                "conclusion": "success",
+                "is_required_check": True,
+            }],
+        )
+        ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
+        self.assertEqual(ci["status"], "NOT_VERIFIED")
+        self.assertTrue(any("GitHub HTTPS run URL" in error for error in ci["validation_errors"]))
+
+    def test_missing_required_ci_check_flag_does_not_default_to_required_pass(self):
+        result = build_bundle(
+            commit_sha="sha-1",
+            ci_runs=[{
+                "name": "Tests",
+                "url": "https://github.com/example/repo/actions/runs/1",
+                "head_sha": "sha-1",
+                "conclusion": "success",
+            }],
+        )
+        ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
+        self.assertEqual(ci["status"], "NOT_VERIFIED")
+        self.assertIn("missing is_required_check", ci["validation_errors"][0])
+
+    def test_malformed_optional_check_is_visible_but_does_not_block_valid_required_check(self):
+        result = build_bundle(
+            commit_sha="sha-1",
+            ci_runs=[
+                {
+                    "name": "Tests",
+                    "url": "https://github.com/example/repo/actions/runs/1",
+                    "head_sha": "sha-1",
+                    "conclusion": "success",
+                    "is_required_check": True,
+                },
+                {
+                    "name": "",
+                    "url": "invalid",
+                    "head_sha": "old-sha",
+                    "conclusion": "failure",
+                    "is_required_check": False,
+                },
+            ],
+        )
+        ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
+        self.assertEqual(ci["status"], "PASS")
+        self.assertTrue(ci["evidence"][1]["validation_errors"])
+
 
 if __name__ == "__main__":
     unittest.main()
