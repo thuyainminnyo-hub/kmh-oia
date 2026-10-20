@@ -219,6 +219,21 @@ def test_target_evidence_with_wrong_sha_cannot_pass_even_with_green_ci(self):
         self.assertEqual(gates["multi_host_replay"]["status"], "NOT_VERIFIED")
         self.assertEqual(result["release_decision"], "HOLD")
 
+    def test_unresolved_workflow_placeholders_cannot_pass_required_ci_gate(self):
+        result = build_bundle(
+            commit_sha="sha-1",
+            ci_runs=[{
+                "name": "Tests",
+                "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+                "head_sha": "${GITHUB_SHA}",
+                "conclusion": "${{ needs.tests.result }}",
+                "is_required_check": True,
+            }],
+        )
+        ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
+        self.assertEqual(ci["status"], "NOT_VERIFIED")
+        self.assertTrue(any("unresolved workflow placeholder" in error for error in ci["validation_errors"]))
+
     def test_no_ci_rows_cannot_make_repository_ci_gate_pass(self):
         result = build_bundle(commit_sha="abc123", ci_runs=[])
         ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
