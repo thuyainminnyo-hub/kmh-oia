@@ -203,6 +203,7 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
             FakeTrustedSourceAdapter(), replay_store=BrokenReplayStore()
         ).verify("booking:42", "exec:1")
         self.assertFalse(result.verified)
+        self.assertIn("Replay store unavailable", result.reasons[0])
         self.assertIn("OSError", result.reasons[0])
 
 
