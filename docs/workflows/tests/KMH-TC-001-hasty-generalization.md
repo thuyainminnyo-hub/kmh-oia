@@ -1,5 +1,7 @@
 # KMH-WF-CRIT-QA-001 — Test Run Record 001
 
+**Project:** KMH Cognitive Intelligence Engine (`KMH-CIE`)  
+**Parent system:** KMH AI Production Studio  
 **Test ID:** KMH-TC-001  
 **Test type:** Manual desk-check / workflow contract validation  
 **Runtime status:** NOT RUN — this record is a documented manual evaluation, not an execution by connected AI agents.  
