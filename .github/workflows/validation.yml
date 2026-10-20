@@ -31,9 +31,11 @@ jobs:
           python -m scripts.performance_validation | tee performance-validation.json
           python scripts/validate_performance_artifact.py performance-validation.json
       - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
         with:
           name: kmh-oia-performance-validation
           path: performance-validation.json
+          if-no-files-found: warn
 
   repository-validation:
     runs-on: ubuntu-latest
@@ -62,11 +64,77 @@ jobs:
             echo "Release readiness is HOLD by design; report artifact will be retained."
           fi
       - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
         with:
           name: kmh-oia-production-readiness-snapshot
           path: production-readiness-snapshot.json
+          if-no-files-found: warn
       - run: git diff --check
       - run: python -m unittest discover -s tests -v
+
+  negative-path-validation:
+    if: ${{ always() }}
+    needs: [tests, performance-evidence, repository-validation]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Simulate a failed prerequisite receipt in an isolated fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import subprocess
+          import sys
+          from pathlib import Path
+          from scripts.capture_ci_evidence import capture_ci_evidence
+          from scripts.deployment_evidence_bundle import build_bundle
+
+          sha = "a" * 40
+          url = "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/12345"
+          values = {
+              "url": url,
+              "head_sha": sha,
+              "bundle_sha": sha,
+              "tests": "success",
+              "performance": "failure",
+              "repository": "success",
+          }
+          receipts, diagnostics = capture_ci_evidence(values)
+          if receipts[1]["conclusion"] != "failure":
+              raise SystemExit("negative-path setup error: failure was not preserved")
+          if diagnostics["capture_status"] != "CAPTURED":
+              raise SystemExit("expected a structurally captured failed-job receipt")
+          bundle = build_bundle(commit_sha=sha, ci_runs=receipts)
+          ci_gate = next(g for g in bundle["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
+          if ci_gate["status"] == "PASS":
+              raise SystemExit("FAIL-CLOSED VIOLATION: failed required prerequisite produced PASS")
+          if bundle["release_decision"] != "HOLD":
+              raise SystemExit("FAIL-CLOSED VIOLATION: failed required prerequisite promoted release")
+          out = Path("negative-path-validation.json")
+          out.write_text(json.dumps({
+              "scenario": "required_performance_job_failure",
+              "input_conclusions": {k: values[k] for k in ("tests", "performance", "repository")},
+              "expected_ci_gate": "NOT_VERIFIED",
+              "actual_ci_gate": ci_gate["status"],
+              "expected_release_decision": "HOLD",
+              "actual_release_decision": bundle["release_decision"],
+              "diagnostics": diagnostics,
+              "result": "PASS",
+          }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(out.read_text(encoding="utf-8"))
+          PY
+      - name: Upload negative-path simulation receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-oia-negative-path-validation
+          path: negative-path-validation.json
+          if-no-files-found: warn
 
   deployment-evidence-bundle:
     if: ${{ always() }}
@@ -78,42 +146,75 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Capture prerequisite job results
+      - name: Capture prerequisite job results and diagnostics
         shell: bash
-        run: |
-          cat > deployment-ci-runs.json <<'JSON'
-          [
-            {
-              "name": "KMH OIA Tests",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.tests.result }}",
-              "is_required_check": true
-            },
-            {
-              "name": "KMH OIA Performance Evidence",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.performance-evidence.result }}",
-              "is_required_check": true
-            },
-            {
-              "name": "KMH OIA Repository Validation",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.repository-validation.result }}",
-              "is_required_check": true
-            }
-          ]
-          JSON
-          cat deployment-ci-runs.json
+        env:
+          CI_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CI_HEAD_SHA: ${{ github.sha }}
+          BUNDLE_COMMIT_SHA: ${{ github.sha }}
+          TESTS_RESULT: ${{ needs.tests.result }}
+          PERFORMANCE_RESULT: ${{ needs.performance-evidence.result }}
+          REPOSITORY_RESULT: ${{ needs.repository-validation.result }}
+        run: python -m scripts.capture_ci_evidence
       - name: Generate deployment evidence handoff bundle
+        env:
+          BUNDLE_COMMIT_SHA: ${{ github.sha }}
         run: |
           python -m scripts.deployment_evidence_bundle \
-            --commit-sha "${GITHUB_SHA}" \
+            --commit-sha "$BUNDLE_COMMIT_SHA" \
             --ci-runs deployment-ci-runs.json \
             --output deployment-evidence-bundle.json
+      - name: Validate generated evidence bundle
+        shell: bash
+        env:
+          EXPECTED_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          bundle = json.loads(Path("deployment-evidence-bundle.json").read_text(encoding="utf-8"))
+          expected_sha = os.environ.get("EXPECTED_SHA", "")
+          expected_url = os.environ.get("EXPECTED_RUN_URL", "")
+          parsed = urlparse(expected_url)
+          if not expected_sha or "$" in expected_sha:
+              raise SystemExit("Missing or unresolved expected commit SHA")
+          if parsed.scheme != "https" or parsed.netloc != "github.com" or not re.fullmatch(r"/[^/]+/[^/]+/actions/runs/[0-9]+", parsed.path):
+              raise SystemExit("Expected an actual GitHub HTTPS Actions run URL")
+          if bundle.get("bundle_commit_sha") != expected_sha:
+              raise SystemExit("Bundle commit SHA does not match workflow SHA")
+          gates = {gate.get("gate"): gate for gate in bundle.get("gates", [])}
+          ci_gate = gates.get("repository_ci_for_bundle_commit", {})
+          if ci_gate.get("status") != "PASS":
+              raise SystemExit("Bundle did not verify required CI for this exact commit SHA")
+          receipts = ci_gate.get("evidence", [])
+          if len(receipts) != 3:
+              raise SystemExit("Expected exactly three required CI receipts")
+          expected_names = {
+              "KMH OIA Tests",
+              "KMH OIA Performance Evidence",
+              "KMH OIA Repository Validation",
+          }
+          if {row.get("name") for row in receipts} != expected_names:
+              raise SystemExit("CI receipts do not match the three required prerequisite jobs")
+          for row in receipts:
+              if row.get("url") != expected_url or "$" in row.get("url", ""):
+                  raise SystemExit(f"Invalid/unresolved Actions URL in receipt: {row.get('name')}")
+              if row.get("head_sha") != expected_sha or row.get("matches_bundle_commit") is not True:
+                  raise SystemExit(f"Commit SHA mismatch in receipt: {row.get('name')}")
+              if row.get("conclusion") != "success" or row.get("validation_errors"):
+                  raise SystemExit(f"Required CI receipt did not validate: {row.get('name')}")
+          print("Verified three required CI receipts against the exact workflow URL and SHA.")
+          PY
       - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
         with:
           name: kmh-oia-deployment-evidence-bundle
-          path: deployment-evidence-bundle.json
+          path: |
+            deployment-evidence-bundle.json
+            validation-diagnostics.json
+          if-no-files-found: warn
