@@ -24,11 +24,39 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python scripts/performance_validation.py | tee performance-validation.json
+      - name: Generate performance validation JSON
+        shell: bash
+        run: |
+          set -o pipefail
+          PYTHONPATH="${GITHUB_WORKSPACE}" python scripts/performance_validation.py | tee performance-validation.json
+          test -s performance-validation.json
+      - name: Validate performance validation artifact
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          data = json.loads(Path("performance-validation.json").read_text(encoding="utf-8"))
+          if not isinstance(data, dict):
+              raise SystemExit("Expected a JSON object")
+          if type(data.get("iterations")) is not int or data["iterations"] != 50:
+              raise SystemExit("Expected exactly 50 validation iterations")
+          metrics = ("min_ms", "median_ms", "mean_ms", "max_ms")
+          for key in metrics:
+              value = data.get(key)
+              if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                  raise SystemExit(f"Invalid metric: {key}")
+          if not data["min_ms"] <= data["median_ms"] <= data["max_ms"]:
+              raise SystemExit("Invalid min/median/max ordering")
+          if not data["min_ms"] <= data["mean_ms"] <= data["max_ms"]:
+              raise SystemExit("Invalid min/mean/max ordering")
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: kmh-oia-performance-validation
           path: performance-validation.json
+          if-no-files-found: error
 
   repository-validation:
     runs-on: ubuntu-latest
@@ -60,55 +88,56 @@ jobs:
         with:
           name: kmh-oia-production-readiness-snapshot
           path: production-readiness-snapshot.json
-      - run: git diff --check
-      - run: python -m unittest discover -s tests -v
-
-  deployment-evidence-bundle:
-    if: ${{ always() }}
-    needs: [tests, performance-evidence, repository-validation]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Capture prerequisite job results
-        shell: bash
-        run: |
-          cat > deployment-ci-runs.json <<'JSON'
-          [
-            {
-              "name": "KMH OIA Tests",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.tests.result }}",
-              "is_required_check": true
-            },
-            {
-              "name": "KMH OIA Performance Evidence",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.performance-evidence.result }}",
-              "is_required_check": true
-            },
-            {
-              "name": "KMH OIA Repository Validation",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.repository-validation.result }}",
-              "is_required_check": true
-            }
-          ]
-          JSON
-          cat deployment-ci-runs.json
+          if-no-files-found: error
       - name: Generate deployment evidence handoff bundle
+        shell: bash
+        env:
+          CI_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CI_HEAD_SHA: ${{ github.sha }}
+          CI_CONCLUSION: ${{ job.status }}
+          BUNDLE_COMMIT_SHA: ${{ github.sha }}
         run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          required = ("CI_RUN_URL", "CI_HEAD_SHA", "CI_CONCLUSION", "BUNDLE_COMMIT_SHA")
+          values = {key: os.environ.get(key, "") for key in required}
+          missing = [key for key, value in values.items() if not value]
+          if missing:
+              raise SystemExit(f"Missing runtime CI metadata: {missing}")
+          if "$" in values["CI_RUN_URL"] or "$" in values["CI_HEAD_SHA"]:
+              raise SystemExit("Unresolved placeholder in CI metadata")
+          if values["CI_HEAD_SHA"] != values["BUNDLE_COMMIT_SHA"]:
+              raise SystemExit("CI run SHA does not match bundle commit SHA")
+          Path("deployment-ci-runs.json").write_text(
+              json.dumps([{
+                  "name": "KMH OIA Validation",
+                  "url": values["CI_RUN_URL"],
+                  "head_sha": values["CI_HEAD_SHA"],
+                  "conclusion": values["CI_CONCLUSION"],
+                  "is_required_check": True,
+              }], indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
           python -m scripts.deployment_evidence_bundle \
-            --commit-sha "${GITHUB_SHA}" \
+            --commit-sha "$BUNDLE_COMMIT_SHA" \
             --ci-runs deployment-ci-runs.json \
             --output deployment-evidence-bundle.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          bundle = json.loads(Path("deployment-evidence-bundle.json").read_text(encoding="utf-8"))
+          if bundle.get("gates", [{}])[0].get("status") != "PASS":
+              raise SystemExit("Bundle did not verify required CI for this exact commit SHA")
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: kmh-oia-deployment-evidence-bundle
           path: deployment-evidence-bundle.json
+          if-no-files-found: error
+      - run: git diff --check
+      - run: python -m unittest discover -s tests -v
