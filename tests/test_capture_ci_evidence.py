@@ -1,4 +1,7 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from scripts.capture_ci_evidence import capture_ci_evidence
 
@@ -53,3 +56,25 @@ class CaptureCIEvidenceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NegativePathArtifactTests(unittest.TestCase):
+    def test_generated_receipt_is_parseable_json(self):
+        receipt = {
+            "scenario": "required_performance_job_failure",
+            "expected_ci_gate": "NOT_VERIFIED",
+            "actual_ci_gate": "NOT_VERIFIED",
+            "expected_release_decision": "HOLD",
+            "actual_release_decision": "HOLD",
+            "result": "PASS",
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "negative-path-validation.json"
+            output.write_text(
+                json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            parsed = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(parsed["result"], "PASS")
+        self.assertEqual(parsed["actual_ci_gate"], "NOT_VERIFIED")
+        self.assertEqual(parsed["actual_release_decision"], "HOLD")
