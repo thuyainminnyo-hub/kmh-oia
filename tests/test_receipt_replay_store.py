@@ -31,6 +31,21 @@ class ReceiptReplayStoreTests(unittest.TestCase):
         result = InMemoryReceiptReplayStore().claim("booking-provider", "record-42", "")
         self.assertFalse(result.accepted)
 
+    def test_sqlite_health_check_passes_for_initialized_store(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SQLiteReceiptReplayStore(str(Path(tmp) / "replay.sqlite3"))
+            self.assertTrue(store.health_check())
+
+    def test_sqlite_health_check_fails_if_database_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SQLiteReceiptReplayStore(str(Path(tmp) / "replay.sqlite3"))
+            store.path = str(Path(tmp) / "missing" / "blocked.sqlite3")
+            self.assertFalse(store.health_check())
+
+    def test_sqlite_store_rejects_empty_path(self):
+        with self.assertRaisesRegex(ValueError, "non-empty file path"):
+            SQLiteReceiptReplayStore("")
+
     def test_sqlite_claim_is_durable_across_store_recreation(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = str(Path(tmp) / "replay.sqlite3")
