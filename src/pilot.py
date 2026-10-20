@@ -50,6 +50,11 @@ def run_pilot(
     artifact_path.write_bytes(encoded)
     digest = hashlib.sha256(encoded).hexdigest()
 
+    # Fail closed if the persisted artifact cannot be read back byte-for-byte.
+    persisted_bytes = artifact_path.read_bytes()
+    if hashlib.sha256(persisted_bytes).hexdigest() != digest:
+        raise RuntimeError("persisted artifact digest mismatch")
+
     evidence = EvidenceObject(
         evidence_id=f"evidence:{uuid.uuid4()}",
         kind="runtime_execution_output",
