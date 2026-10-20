@@ -194,6 +194,24 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         self.assertIn("replay", second.reasons[0].lower())
 
 
+    def test_revalidation_can_skip_second_replay_claim(self):
+        replay_store = InMemoryReceiptReplayStore()
+        verifier = self.verifier(FakeTrustedSourceAdapter(), replay_store=replay_store)
+        first = verifier.verify("booking:42", "exec:1")
+        second = verifier.verify("booking:42", "exec:1", claim_replay=False)
+        self.assertTrue(first.verified)
+        self.assertTrue(second.verified)
+
+    def test_revalidation_still_checks_authenticity_without_replay_claim(self):
+        replay_store = InMemoryReceiptReplayStore()
+        verifier = self.verifier(
+            FakeTrustedSourceAdapter(integrity_ok=False),
+            replay_store=replay_store,
+        )
+        result = verifier.verify("booking:42", "exec:1", claim_replay=False)
+        self.assertFalse(result.verified)
+        self.assertIn("integrity/authenticity", result.reasons[0])
+
     def test_replay_store_exception_fails_closed(self):
         class BrokenReplayStore:
             def claim(self, provider_name, source_record_id, content_hash):
