@@ -26,6 +26,8 @@ class DecisionOutcomeEvaluatorTests(unittest.TestCase):
         )
         self.assertEqual(result.quality, "GOOD")
         self.assertTrue(result.outcome_positive)
+        self.assertIn("external verification is not established", result.reason)
+        self.assertNotIn("verified outcome", result.reason.lower())
 
     def test_negative_outcome_is_poor(self):
         result = DecisionOutcomeEvaluator().evaluate(
