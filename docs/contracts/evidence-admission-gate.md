@@ -15,7 +15,8 @@ Prevent unsupported claims of learning or external success. The gate evaluates s
 ## Admission policy
 - Missing execution ID, source, or raw observation => `NOT_ADMITTED`.
 - `UNKNOWN`, `OBSERVED`, or `VERIFIED` alone => `NOT_ADMITTED` for learning admission.
-- Learning admission requires `OUTCOME_LINKED`, the outcome-linked flag, and all required fields.
+- Learning admission requires `OUTCOME_LINKED`, the outcome-linked flag, all required fields, explicit source authentication, and execution-to-outcome attribution verification.
+- Caller-supplied status alone is insufficient: `source_authenticated=true` and `attribution_verified=true` must also be supplied to the gate. These inputs record an attestation; they are not themselves a cryptographic or provider-side verification mechanism.
 - Invalid status values fail closed as `UNKNOWN`.
 - Interpretation is retained separately and does not substitute for raw observation.
 - Admission evaluates the consistency of supplied metadata. It does not, by itself, establish that a source is genuine or that external attribution is correct.
