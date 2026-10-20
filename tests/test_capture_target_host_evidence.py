@@ -41,9 +41,11 @@ class TargetHostEvidenceCaptureTests(unittest.TestCase):
                 )
             self.assertEqual(result["commit_sha"], VALID_SHA)
             self.assertEqual(result["database_path"], str(db_path))
+            self.assertEqual(result["smoke_test_report"]["db_path"], str(db_path))
             self.assertTrue(result["smoke_tested_at_utc"].endswith("Z"))
             self.assertIs(result["persistent_volume_confirmed"], True)
             self.assertEqual(result["smoke_test_report"]["result"], "PASS")
+            self.assertEqual(result["capture_schema_version"], "1.0")
 
     def test_requires_explicit_volume_confirmation(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -71,6 +73,23 @@ class TargetHostEvidenceCaptureTests(unittest.TestCase):
                         expected_commit_sha=VALID_SHA,
                         repo_root=root,
                     )
+
+    def test_missing_identifiers_are_rejected_before_running_smoke_test(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with patch("scripts.capture_target_host_evidence.resolve_checkout_sha", return_value=VALID_SHA), patch(
+                "scripts.capture_target_host_evidence.smoke_test"
+            ) as smoke:
+                with self.assertRaisesRegex(ValueError, "environment_id"):
+                    capture_target_evidence(
+                        db_path=root / "db.sqlite3",
+                        environment_id=" ",
+                        host_or_service_id="host-1",
+                        persistent_volume_confirmed=True,
+                        expected_commit_sha=VALID_SHA,
+                        repo_root=root,
+                    )
+                smoke.assert_not_called()
 
     def test_smoke_failure_never_returns_pass_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
