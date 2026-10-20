@@ -24,8 +24,10 @@ class ProductionEvidenceRuntimeConfig:
     def validate(self) -> None:
         if not isinstance(self.sqlite_path, str) or not self.sqlite_path.strip():
             raise ValueError("sqlite_path must be a non-empty persistent file path")
-        if self.sqlite_path.strip() == ":memory:":
-            raise ValueError("production evidence runtime cannot use SQLite :memory:")
+        if self.sqlite_path.strip() == ":memory:" or self.sqlite_path.strip().startswith("file::memory:"):
+            raise ValueError("production evidence runtime cannot use an in-memory SQLite database")
+        if not isinstance(self.allowed_source_providers, tuple):
+            raise ValueError("allowed_source_providers must be an explicit tuple")
         providers = tuple(
             provider.strip()
             for provider in self.allowed_source_providers
