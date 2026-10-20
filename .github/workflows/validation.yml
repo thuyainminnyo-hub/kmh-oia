@@ -101,6 +101,16 @@ jobs:
               "performance": os.environ.get("PERFORMANCE_RESULT", ""),
               "repository": os.environ.get("REPOSITORY_RESULT", ""),
           }
+          from urllib.parse import urlparse
+          import re
+
+          parsed_url = urlparse(values["url"])
+          if not values["url"] or parsed_url.scheme != "https" or parsed_url.netloc != "github.com" or not re.fullmatch(r"/[^/]+/[^/]+/actions/runs/[0-9]+", parsed_url.path):
+              raise SystemExit("CI_RUN_URL must be an actual GitHub HTTPS Actions run URL")
+          if not values["head_sha"] or "$" in values["head_sha"] or values["head_sha"] != values["bundle_sha"]:
+              raise SystemExit("CI_HEAD_SHA must be present, expanded, and equal BUNDLE_COMMIT_SHA")
+          if any(not values[key] for key in ("tests", "performance", "repository")):
+              raise SystemExit("All prerequisite job results must be present")
           rows = [
               {"name": "KMH OIA Tests", "url": values["url"], "head_sha": values["head_sha"], "conclusion": values["tests"], "is_required_check": True},
               {"name": "KMH OIA Performance Evidence", "url": values["url"], "head_sha": values["head_sha"], "conclusion": values["performance"], "is_required_check": True},
@@ -170,4 +180,4 @@ jobs:
         with:
           name: kmh-oia-deployment-evidence-bundle
           path: deployment-evidence-bundle.json
-          if-no-files-found: error
+          if-no-files-found: warn
