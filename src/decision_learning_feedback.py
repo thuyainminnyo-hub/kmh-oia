@@ -1,10 +1,15 @@
-"""Feed evaluated outcomes into memory, qualifying learning only with admitted evidence."""
+"""Capture decision feedback as an observation or a verifier-gated learning candidate.
+
+The feedback API intentionally does not accept caller-constructible admission
+objects as proof of verification. The current milestone records caller-supplied
+outcomes as provisional observations only; promotion requires a later trusted
+service integration, not a boolean or dataclass passed by a caller.
+"""
 from dataclasses import dataclass
 
-from src.adaptation_engine import AdaptationEngine, AdaptationProposal
+from src.adaptation_engine import AdaptationProposal
 from src.decision_outcome_evaluator import DecisionOutcome
 from src.operating_memory import OperatingMemory, OperatingMemoryRecord
-from src.verified_learning_admission import VerifiedLearningAdmission
 
 
 @dataclass(frozen=True)
@@ -12,11 +17,11 @@ class DecisionLearningFeedback:
     outcome: DecisionOutcome
     memory: OperatingMemoryRecord
     adaptation: AdaptationProposal | None
-    admission: VerifiedLearningAdmission | None = None
+    admission: None = None
 
 
 class DecisionLearningFeedbackEngine:
-    """Persist observations; create adaptation proposals only after evidence admission."""
+    """Persist observations without allowing caller-controlled admission bypass."""
 
     def capture(
         self,
@@ -27,51 +32,33 @@ class DecisionLearningFeedbackEngine:
         actual: str,
         next_command: str,
         confidence: float = 1.0,
-        adaptation_engine: AdaptationEngine | None = None,
         pattern: str = "",
         proposed_change: str = "",
         expected_effect: str = "",
         next_experiment: str = "",
-        admission: VerifiedLearningAdmission | None = None,
+        admission=None,
     ) -> DecisionLearningFeedback:
+        # This path does not yet possess a durable, non-forgeable admission
+        # service result. Refuse any injected proof instead of trusting a
+        # dataclass instance supplied by the caller.
         if admission is not None:
-            if not isinstance(admission, VerifiedLearningAdmission):
-                raise ValueError("admission must be a VerifiedLearningAdmission")
-            if (
-                admission.decision_id != outcome.decision_id
-                or admission.command_id != outcome.command_id
-            ):
-                raise ValueError("learning admission does not match the decision outcome")
+            raise ValueError(
+                "caller-supplied admission objects are not trusted; "
+                "use the trusted runtime admission service"
+            )
 
-        admitted = admission is not None
-        if admitted:
-            learned = (
-                "Outcome-linked evidence was admitted; retain the result for governed learning review."
-                if outcome.quality == "GOOD"
-                else "Outcome-linked evidence was admitted; investigate the poor result through governed adaptation review."
-            )
-            changed = (
-                "Keep the decision rule unless new admitted evidence contradicts it."
-                if outcome.quality == "GOOD"
-                else "Prepare a governed adaptation proposal; approval is still required before application."
-            )
-            verified = (
-                "Trusted source receipt passed runtime verification and outcome-linked evidence admission; "
-                "this does not independently prove causality beyond the linked records."
-            )
-        else:
-            learned = (
-                "Store as a provisional observation only; trusted external outcome evidence has not been admitted."
-            )
-            changed = (
-                "Do not promote or reinforce a decision rule from this observation alone."
-                if outcome.quality == "GOOD"
-                else "Hold adaptation proposal creation until trusted outcome evidence is admitted."
-            )
-            verified = (
-                "Caller-supplied outcome evaluation only; external source authenticity, attribution, "
-                "and outcome verification are not established."
-            )
+        learned = (
+            "Store as a provisional observation only; trusted external outcome evidence has not been admitted."
+        )
+        changed = (
+            "Do not promote or reinforce a decision rule from this observation alone."
+            if outcome.quality == "GOOD"
+            else "Hold adaptation proposal creation until trusted outcome evidence is admitted."
+        )
+        verified = (
+            "Caller-supplied outcome evaluation only; external source authenticity, attribution, "
+            "and outcome verification are not established."
+        )
 
         record = memory.record(
             command_id=outcome.command_id,
@@ -85,16 +72,6 @@ class DecisionLearningFeedbackEngine:
             next_command=next_command,
             confidence=confidence,
         )
-        adaptation = None
-        if outcome.quality == "POOR" and admitted:
-            if adaptation_engine is None:
-                adaptation_engine = AdaptationEngine()
-            adaptation = adaptation_engine.propose(
-                record,
-                pattern=pattern or f"decision:{outcome.decision_id}",
-                problem=outcome.reason,
-                proposed_change=proposed_change or "Review and improve the decision rule.",
-                expected_effect=expected_effect or "Improve the next decision outcome.",
-                next_experiment=next_experiment or next_command,
-            )
-        return DecisionLearningFeedback(outcome, record, adaptation, admission)
+        # Do not create an adaptation proposal here. Wiring a durable trusted
+        # admission service into this API is a subsequent integration step.
+        return DecisionLearningFeedback(outcome, record, None, None)
