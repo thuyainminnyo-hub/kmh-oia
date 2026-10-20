@@ -1,5 +1,7 @@
 # KMH Workflow — Critical Thinking Agent + QA Agent v1.0
 
+**Approved project:** KMH Cognitive Intelligence Engine (`KMH-CIE`)  
+**Parent system:** KMH AI Production Studio  
 **Workflow ID:** KMH-WF-CRIT-QA-001  
 **Related case study:** KMH-CS-HUMAN-LOVE-LOGIC-001 — Human Love, Logic & the Fallacy of Rational Control  
 **Classification:** Agent workflow / Critical thinking / Narrative QA  
