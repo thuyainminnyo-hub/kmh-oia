@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -35,6 +36,15 @@ class ReceiptReplayStoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store = SQLiteReceiptReplayStore(str(Path(tmp) / "replay.sqlite3"))
             self.assertTrue(store.health_check())
+
+
+    def test_sqlite_health_check_fails_when_expected_table_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "replay.sqlite3")
+            store = SQLiteReceiptReplayStore(path)
+            with sqlite3.connect(path) as connection:
+                connection.execute("DROP TABLE receipt_replay_claims")
+            self.assertFalse(store.health_check())
 
     def test_sqlite_health_check_fails_if_database_is_unavailable(self):
         with tempfile.TemporaryDirectory() as tmp:
