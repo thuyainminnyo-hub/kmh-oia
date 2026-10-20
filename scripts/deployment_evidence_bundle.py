@@ -9,7 +9,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import argparse
 import json
+import re
 from pathlib import Path
+from urllib.parse import urlparse
 from typing import Any
 
 
@@ -18,6 +20,7 @@ REQUIRED_TARGET_FIELDS = (
     "host_or_service_id",
     "persistent_volume_confirmed",
     "database_path",
+    "persistent_volume_evidence_ref",
     "smoke_test_report",
     "smoke_tested_at_utc",
     "commit_sha",
@@ -37,7 +40,7 @@ REQUIRED_CI_FIELDS = ("name", "url", "head_sha", "conclusion", "is_required_chec
 def validate_target_evidence(target: dict[str, Any], commit_sha: str) -> tuple[bool, list[str]]:
     """Fail closed unless target evidence matches the complete smoke receipt contract."""
     errors: list[str] = []
-    for key in ("environment_id", "host_or_service_id", "database_path"):
+    for key in ("environment_id", "host_or_service_id", "database_path", "persistent_volume_evidence_ref"):
         if not isinstance(target.get(key), str) or not target[key].strip():
             errors.append(f"{key} must be a non-empty string")
 
@@ -68,6 +71,14 @@ def validate_target_evidence(target: dict[str, Any], commit_sha: str) -> tuple[b
                 errors.append(f"smoke_test_report missing {key}")
         if report.get("result") != "PASS":
             errors.append("smoke_test_report result must be PASS")
+        for key in ("test_marker_written", "marker_survived_process_restart", "post_restart_health_check"):
+            if report.get(key) is not True:
+                errors.append(f"smoke_test_report {key} must be true")
+        evidence_refs = report.get("evidence_refs")
+        if not isinstance(evidence_refs, list) or not evidence_refs or any(
+            not isinstance(ref, str) or not ref.strip() for ref in evidence_refs
+        ):
+            errors.append("smoke_test_report evidence_refs must be a non-empty list of evidence references")
         if report.get("test") != EXPECTED_SMOKE_TEST:
             errors.append(f"smoke_test_report test must be {EXPECTED_SMOKE_TEST}")
         if not isinstance(report.get("first_process"), dict):
@@ -122,8 +133,16 @@ def validate_ci_runs(commit_sha: str, ci_runs: list[Any]) -> tuple[list[dict[str
         required_flag = run.get("is_required_check")
         if not isinstance(name, str) or not name.strip():
             row_errors.append("name must be a non-empty string")
-        if not isinstance(url, str) or not url.startswith("https://github.com/"):
-            row_errors.append("url must be a GitHub HTTPS run URL")
+        parsed_url = urlparse(url) if isinstance(url, str) else None
+        if (
+            parsed_url is None
+            or parsed_url.scheme != "https"
+            or parsed_url.netloc != "github.com"
+            or not re.fullmatch(r"/[^/]+/[^/]+/actions/runs/[0-9]+", parsed_url.path)
+            or parsed_url.query
+            or parsed_url.fragment
+        ):
+            row_errors.append("url must be a GitHub HTTPS Actions run URL")
         if not isinstance(head_sha, str) or not head_sha.strip():
             row_errors.append("head_sha must be a non-empty string")
         if not isinstance(conclusion, str) or not conclusion.strip():

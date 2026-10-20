@@ -9,6 +9,7 @@ def passing_target(commit_sha="abc123", database_path="/var/lib/kmh-oia/replay.s
         "host_or_service_id": "service-1",
         "persistent_volume_confirmed": True,
         "database_path": database_path,
+        "persistent_volume_evidence_ref": "staging-volume-check-2026-10-20",
         "smoke_test_report": {
             "schema_version": "1.0",
             "test": EXPECTED_SMOKE_TEST,
@@ -16,6 +17,10 @@ def passing_target(commit_sha="abc123", database_path="/var/lib/kmh-oia/replay.s
             "first_process": {"healthy": True, "accepted": True, "reason": "accepted"},
             "second_process": {"healthy": True, "accepted": False, "reason": "replay_detected"},
             "result": "PASS",
+            "test_marker_written": True,
+            "marker_survived_process_restart": True,
+            "post_restart_health_check": True,
+            "evidence_refs": ["staging-smoke-log-2026-10-20"],
         },
         "smoke_tested_at_utc": "2026-10-20T09:00:00Z",
         "commit_sha": commit_sha,
@@ -52,6 +57,26 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         self.assertEqual(gates["real_provider_authenticity_and_execution_attribution"]["status"], "NOT_VERIFIED")
         self.assertEqual(gates["external_business_outcome"]["status"], "HOLD")
         self.assertEqual(result["release_decision"], "HOLD")
+
+
+    def test_target_gate_requires_restart_persistence_and_evidence_references(self):
+        mutations = (
+            ("persistent_volume_evidence_ref", ""),
+            ("smoke_test_report.test_marker_written", False),
+            ("smoke_test_report.marker_survived_process_restart", False),
+            ("smoke_test_report.post_restart_health_check", False),
+            ("smoke_test_report.evidence_refs", []),
+        )
+        for field, value in mutations:
+            with self.subTest(field=field):
+                target = passing_target()
+                if field.startswith("smoke_test_report."):
+                    target["smoke_test_report"][field.split(".", 1)[1]] = value
+                else:
+                    target[field] = value
+                gate = target_gate(build_bundle(commit_sha="abc123", ci_runs=[], target_evidence=target))
+                self.assertEqual(gate["status"], "NOT_VERIFIED")
+                self.assertTrue(gate["validation_errors"])
 
     def test_minimal_fake_pass_receipt_is_rejected(self):
         target = passing_target()
@@ -114,6 +139,28 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
         self.assertEqual(ci["status"], "NOT_VERIFIED")
 
+    def test_required_ci_row_rejects_non_actions_github_urls(self):
+        for url in (
+            "https://github.com.example.invalid/org/repo/actions/runs/1",
+            "https://github.com/org/repo/blob/main/README.md",
+            "https://github.com/org/repo/actions/runs/1?redirect=elsewhere",
+            "https://github.com/org/repo/actions/runs/not-a-number",
+        ):
+            with self.subTest(url=url):
+                result = build_bundle(
+                    commit_sha="sha-1",
+                    ci_runs=[{
+                        "name": "Tests",
+                        "url": url,
+                        "head_sha": "sha-1",
+                        "conclusion": "success",
+                        "is_required_check": True,
+                    }],
+                )
+                ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
+                self.assertEqual(ci["status"], "NOT_VERIFIED")
+                self.assertTrue(any("GitHub HTTPS Actions run URL" in error for error in ci["validation_errors"]))
+
     def test_required_ci_row_needs_complete_metadata_and_github_run_url(self):
         result = build_bundle(
             commit_sha="sha-1",
@@ -127,7 +174,7 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         )
         ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
         self.assertEqual(ci["status"], "NOT_VERIFIED")
-        self.assertTrue(any("GitHub HTTPS run URL" in error for error in ci["validation_errors"]))
+        self.assertTrue(any("GitHub HTTPS Actions run URL" in error for error in ci["validation_errors"]))
 
     def test_missing_required_ci_check_flag_does_not_default_to_required_pass(self):
         result = build_bundle(
@@ -168,36 +215,36 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         self.assertTrue(ci["evidence"][1]["validation_errors"])
 
 
-def test_release_decision_never_promotes_with_missing_target_evidence(self):
-    result = build_bundle(
-        commit_sha="abc123",
-        ci_runs=[{
-            "name": "Tests",
-            "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1",
-            "head_sha": "abc123",
-            "conclusion": "success",
-            "is_required_check": True,
-        }],
-    )
-    self.assertEqual(result["release_decision"], "HOLD")
-    target = target_gate(result)
-    self.assertEqual(target["status"], "NOT_VERIFIED")
+    def test_release_decision_never_promotes_with_missing_target_evidence(self):
+        result = build_bundle(
+            commit_sha="abc123",
+            ci_runs=[{
+                "name": "Tests",
+                "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1",
+                "head_sha": "abc123",
+                "conclusion": "success",
+                "is_required_check": True,
+            }],
+        )
+        self.assertEqual(result["release_decision"], "HOLD")
+        target = target_gate(result)
+        self.assertEqual(target["status"], "NOT_VERIFIED")
 
-def test_target_evidence_with_wrong_sha_cannot_pass_even_with_green_ci(self):
-    result = build_bundle(
-        commit_sha="new-sha",
-        ci_runs=[{
-            "name": "Tests",
-            "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1",
-            "head_sha": "new-sha",
-            "conclusion": "success",
-            "is_required_check": True,
-        }],
-        target_evidence=passing_target(commit_sha="old-sha"),
-    )
-    self.assertEqual(next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")["status"], "PASS")
-    self.assertEqual(target_gate(result)["status"], "NOT_VERIFIED")
-    self.assertEqual(result["release_decision"], "HOLD")
+    def test_target_evidence_with_wrong_sha_cannot_pass_even_with_green_ci(self):
+        result = build_bundle(
+            commit_sha="new-sha",
+            ci_runs=[{
+                "name": "Tests",
+                "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1",
+                "head_sha": "new-sha",
+                "conclusion": "success",
+                "is_required_check": True,
+            }],
+            target_evidence=passing_target(commit_sha="old-sha"),
+        )
+        self.assertEqual(next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")["status"], "PASS")
+        self.assertEqual(target_gate(result)["status"], "NOT_VERIFIED")
+        self.assertEqual(result["release_decision"], "HOLD")
 
     def test_verified_target_host_does_not_clear_unverified_provider_or_outcome(self):
         result = build_bundle(
