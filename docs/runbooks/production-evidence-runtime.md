@@ -45,6 +45,10 @@ This is an integration pattern, not a drop-in application entry point: instantia
 8. An internal QA PASS or runtime LEARNED state is not proof of external business success.
 9. Keep `EXEC-SUN-TRAVEL-005` on HOLD until a real measurement channel, record, execution attribution, and verification receipt are connected and checked.
 
+## Machine-Readable Readiness Snapshot
+
+Run `python -m scripts.production_readiness_snapshot` to emit a JSON status snapshot. Exit code is 0 only when every gate is `PASS`; expected current behavior is exit code 2 with release decision `HOLD`, because live deployment, real-provider evidence, real business outcome and multi-host replay remain unverified. This report reflects repository-observable facts only; it does not query a live deployment.
+
 ## Evidence Status Matrix
 
 The following matrix separates repository-level evidence from environment/provider evidence so a passing CI run cannot be mistaken for a production release.
