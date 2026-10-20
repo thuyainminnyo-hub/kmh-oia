@@ -61,6 +61,8 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
             interpretation="booking attributed to execution",
             verification_status="OUTCOME_LINKED",
             outcome_linked=True,
+            source_authenticated=True,
+            attribution_verified=True,
         )
         self.assertTrue(record.admission.learning_admitted)
         self.assertEqual(record.operating_loop.evidence_status, "OUTCOME_LINKED")
@@ -79,6 +81,19 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
         )
         self.assertFalse(record.admission.learning_admitted)
         self.assertEqual(record.operating_loop.learning_status, "NOT_ADMITTED")
+
+    def test_caller_claimed_outcome_link_without_authentication_is_blocked(self):
+        _, console, applied = self._approved_command()
+        record = LiveRuntimeBridge(console).execute(
+            applied.command_id,
+            evidence_source="booking_system:record-42",
+            raw_observation="booking_id=record-42",
+            verification_status="OUTCOME_LINKED",
+            outcome_linked=True,
+        )
+        self.assertFalse(record.admission.learning_admitted)
+        self.assertEqual(record.operating_loop.learning_status, "NOT_ADMITTED")
+        self.assertTrue(any("authentication" in reason.lower() for reason in record.admission.reasons))
 
     def test_rejected_decision_never_reaches_runtime(self):
         queue = DecisionQueue()
