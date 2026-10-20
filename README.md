@@ -36,6 +36,24 @@ response, trace = run("hello", session_id="session-a", state=state)
 
 The JSON-file store is a local persistence boundary for the current integration stage. It is not a substitute for a production database or distributed state backend.
 
+## Critical Thinking QA adapter
+
+`src.critical_thinking_qa_runtime.CriticalThinkingQARuntime` is an explicit entry
+point for structured QA cases; it is not automatically invoked for ordinary OIA
+runtime tasks and does not call an LLM or independent agent.
+
+A `PASS` means only that this deterministic adapter's structural contract checks
+passed. The adapter does **not** assess whether evidence is relevant to, or actually
+supports, the claim. Trace events record workflow version, the inline input
+reference, output claim, QA verdict, execution status, checks, reason, and a UTC
+timestamp. `conclusion_qualified` is informational only; it cannot replace revised
+claim text or human semantic review.
+
+Repository tests and deterministic runtime smoke tests do not establish live model
+or independent-agent verification. Those remain **NOT VERIFIED** until actual
+model calls and independent QA traces are captured. Production promotion requires
+human review and explicit approval.
+
 ## Security and governed tools
 
 `SecurityPolicy` is the authorization boundary for governed tool calls. `ToolSecurityPolicy` is the default deterministic allowlist implementation. `ToolExecutor` is the execution boundary, with `ToolRegistry` providing the local `echo` implementation.
