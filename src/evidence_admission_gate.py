@@ -6,6 +6,8 @@ signals before admitting learning. It does not itself authenticate a provider.
 from dataclasses import dataclass
 from typing import Literal, Mapping
 
+from src.trusted_source_receipt import ReceiptVerificationResult
+
 
 GateDecision = Literal["ADMITTED", "NOT_ADMITTED"]
 EvidenceStatus = Literal["UNKNOWN", "OBSERVED", "VERIFIED", "OUTCOME_LINKED"]
@@ -19,9 +21,7 @@ class EvidenceAdmissionRequest:
     interpretation: str = ""
     verification_status: EvidenceStatus = "UNKNOWN"
     outcome_linked: bool = False
-    source_authenticated: bool = False
-    attribution_verified: bool = False
-    trusted_receipt_verified: bool = False
+    trusted_receipt_verification: ReceiptVerificationResult | None = None
 
 
 @dataclass(frozen=True)
@@ -58,20 +58,24 @@ class EvidenceAdmissionGate:
             reasons.append("OUTCOME_LINKED status requires explicit outcome linkage.")
         if request.outcome_linked and status != "OUTCOME_LINKED":
             reasons.append("Outcome linkage was asserted without OUTCOME_LINKED verification status.")
-        if status == "OUTCOME_LINKED" and not request.source_authenticated:
-            reasons.append("External source authentication is required for OUTCOME_LINKED admission.")
-        if status == "OUTCOME_LINKED" and not request.attribution_verified:
-            reasons.append("Execution-to-outcome attribution verification is required for admission.")
-        if status == "OUTCOME_LINKED" and not request.trusted_receipt_verified:
-            reasons.append("Trusted source receipt verification did not pass; learning admission remains blocked.")
+        receipt_result = request.trusted_receipt_verification
+        trusted_receipt_verified = (
+            isinstance(receipt_result, ReceiptVerificationResult)
+            and receipt_result.verified
+            and receipt_result.execution_id == request.execution_id
+            and f"{receipt_result.provider_name}:{receipt_result.source_record_id}" == request.source
+            and receipt_result.raw_observation == request.raw_observation
+        )
+        if status == "OUTCOME_LINKED" and not trusted_receipt_verified:
+            reasons.append(
+                "Trusted source receipt verifier result is missing, unverified, or does not match source/execution/raw observation."
+            )
 
         admitted = (
             not missing
             and status == "OUTCOME_LINKED"
             and request.outcome_linked
-            and request.source_authenticated
-            and request.attribution_verified
-            and request.trusted_receipt_verified
+            and trusted_receipt_verified
         )
         if not admitted and not reasons:
             reasons.append(
@@ -79,7 +83,7 @@ class EvidenceAdmissionGate:
             )
         if admitted:
             reasons.append(
-                "Required fields, source authentication, and attribution verification were explicitly supplied."
+                "Required fields match a successful trusted receipt verification and execution-attribution result."
             )
 
         return EvidenceAdmissionResult(
@@ -103,9 +107,7 @@ class EvidenceAdmissionGate:
             interpretation=evidence.get("interpretation", ""),
             verification_status=status,
             outcome_linked=outcome_linked,
-            source_authenticated=evidence.get("source_authenticated", "").strip().lower() == "true",
-            attribution_verified=evidence.get("attribution_verified", "").strip().lower() == "true",
-            trusted_receipt_verified=evidence.get("trusted_receipt_verified", "").strip().lower() == "true",
+            trusted_receipt_verification=None,
         )
         result = self.evaluate(request)
         if status_text in allowed:
