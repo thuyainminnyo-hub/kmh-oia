@@ -56,6 +56,7 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         self.assertEqual(result.source_record_id, "booking:42")
         self.assertEqual(result.execution_id, "exec:1")
         self.assertEqual(result.raw_observation, "booking_id=42;status=confirmed")
+        self.assertEqual(result.content_hash, "sha256:test-fixture")
 
     def test_missing_adapter_fails_closed(self):
         result = self.verifier(None).verify("booking:42", "exec:1")
@@ -201,6 +202,7 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         second = verifier.verify("booking:42", "exec:1", claim_replay=False)
         self.assertTrue(first.verified)
         self.assertTrue(second.verified)
+        self.assertEqual(first.content_hash, second.content_hash)
 
     def test_revalidation_still_checks_authenticity_without_replay_claim(self):
         replay_store = InMemoryReceiptReplayStore()
