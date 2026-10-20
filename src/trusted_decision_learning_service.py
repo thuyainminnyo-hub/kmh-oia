@@ -102,6 +102,8 @@ class TrustedDecisionLearningService:
 
         if decision.status != "APPROVED":
             return blocked("Decision is not approved.")
+        if execution.source_decision_id != decision.id:
+            return blocked("Execution source_decision_id does not match the approved decision.")
         if self._classifier is None:
             return blocked("Trusted provider outcome classifier is not configured.")
         if not isinstance(execution.admission, EvidenceAdmissionResult):
