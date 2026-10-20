@@ -15,12 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Simulate prerequisite failure when requested
-        if: ${{ inputs.simulate_prerequisite_failure }}
+        if: ${{ github.event_name == 'pull_request' || inputs.simulate_prerequisite_failure }}
         run: |
           echo "Intentional negative-path test: prerequisite-probe will fail."
           exit 1
       - name: Success path when failure injection is disabled
-        if: ${{ !inputs.simulate_prerequisite_failure }}
+        if: ${{ github.event_name != 'pull_request' && !inputs.simulate_prerequisite_failure }}
         run: echo "Negative-path injection disabled; prerequisite succeeded."
 
   verify-fail-closed:
@@ -35,7 +35,7 @@ jobs:
       - name: Capture scheduler result as a durable receipt
         env:
           PROBE_RESULT: ${{ needs.prerequisite-probe.result }}
-          INJECT_FAILURE: ${{ inputs.simulate_prerequisite_failure }}
+          INJECT_FAILURE: ${{ github.event_name == 'pull_request' || inputs.simulate_prerequisite_failure }}
         run: |
           python - <<'PY'
           import json
