@@ -5,6 +5,7 @@ from src.trusted_source_receipt import (
     TrustedSourceReceipt,
     TrustedSourceReceiptVerifier,
 )
+from src.receipt_replay_store import InMemoryReceiptReplayStore
 
 
 FIXED_NOW = datetime(2026, 10, 20, 12, 0, tzinfo=timezone.utc)
@@ -39,12 +40,13 @@ class FakeTrustedSourceAdapter:
 
 
 class TrustedSourceReceiptVerifierTests(unittest.TestCase):
-    def verifier(self, adapter=None, allowed=("booking-provider",), max_age=86400):
+    def verifier(self, adapter=None, allowed=("booking-provider",), max_age=86400, replay_store=None):
         return TrustedSourceReceiptVerifier(
             adapter,
             allowed_providers=allowed,
             max_receipt_age_seconds=max_age,
             clock=lambda: FIXED_NOW,
+            replay_store=replay_store,
         )
 
     def test_valid_allowlisted_fresh_receipt_passes(self):
@@ -176,6 +178,21 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         ).verify("booking:42", "exec:1")
         self.assertFalse(result.verified)
         self.assertIn("invalid", result.reasons[0])
+
+
+
+    def test_same_receipt_cannot_be_admitted_twice(self):
+        replay_store = InMemoryReceiptReplayStore()
+        first = self.verifier(
+            FakeTrustedSourceAdapter(), replay_store=replay_store
+        ).verify("booking:42", "exec:1")
+        second = self.verifier(
+            FakeTrustedSourceAdapter(), replay_store=replay_store
+        ).verify("booking:42", "exec:1")
+        self.assertTrue(first.verified)
+        self.assertFalse(second.verified)
+        self.assertIn("replay", second.reasons[0].lower())
+
 
 
 if __name__ == "__main__":
