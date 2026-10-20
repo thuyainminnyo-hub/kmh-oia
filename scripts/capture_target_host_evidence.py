@@ -64,8 +64,14 @@ def capture_target_evidence(
         )
 
     report = smoke_test(db_path)
+    if not isinstance(report, dict):
+        raise RuntimeError("Target-host smoke test did not return a JSON object")
     if report.get("result") != "PASS":
         raise RuntimeError(f"Target-host smoke test did not pass: {report.get('result')}")
+    if report.get("test") != "sqlite_replay_across_independent_os_processes":
+        raise RuntimeError("Target-host smoke report has an unexpected test identifier")
+    if report.get("db_path") != str(db_path):
+        raise RuntimeError("Target-host smoke report database path does not match the requested path")
 
     # Use the end of the smoke run as its timestamp, with explicit UTC offset.
     tested_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
