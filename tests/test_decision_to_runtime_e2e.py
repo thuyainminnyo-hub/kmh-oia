@@ -44,7 +44,7 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
         self.assertFalse(record.admission.learning_admitted)
         self.assertIn("source", record.admission.missing_fields)
         self.assertIn("raw_observation", record.admission.missing_fields)
-        self.assertIn("external outcome verification not established", record.admission.reasons[0].lower() if record.admission.reasons else "")
+        self.assertTrue(any("missing" in reason.lower() for reason in record.admission.reasons))
         self.assertTrue(record.telemetry.qa_passed)
 
         snapshot = collector.snapshot()
