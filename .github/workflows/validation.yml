@@ -40,5 +40,25 @@ jobs:
           python-version: "3.12"
       - run: python -m compileall -q src tests scripts
       - run: python scripts/deployment_preflight.py
+      - name: Generate production readiness snapshot
+        shell: bash
+        run: |
+          set +e
+          python -m scripts.production_readiness_snapshot > production-readiness-snapshot.json
+          snapshot_status=$?
+          set -e
+          if [ "$snapshot_status" -ne 0 ] && [ "$snapshot_status" -ne 2 ]; then
+            echo "Readiness snapshot execution failed with status $snapshot_status"
+            cat production-readiness-snapshot.json
+            exit "$snapshot_status"
+          fi
+          python -c "import json; d=json.load(open('production-readiness-snapshot.json')); print('release_decision=' + d['release_decision'])"
+          if [ "$snapshot_status" -eq 2 ]; then
+            echo "Release readiness is HOLD by design; report artifact will be retained."
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kmh-oia-production-readiness-snapshot
+          path: production-readiness-snapshot.json
       - run: git diff --check
       - run: python -m unittest discover -s tests -v
