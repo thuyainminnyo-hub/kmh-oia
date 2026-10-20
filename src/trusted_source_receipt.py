@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Protocol
 
+from src.receipt_replay_store import InMemoryReceiptReplayStore, ReceiptReplayStore
+
 
 @dataclass(frozen=True)
 class TrustedSourceReceipt:
@@ -59,6 +61,7 @@ class TrustedSourceReceiptVerifier:
         allowed_providers: tuple[str, ...] = (),
         max_receipt_age_seconds: int = 86400,
         clock=None,
+        replay_store: ReceiptReplayStore | None = None,
     ) -> None:
         if max_receipt_age_seconds < 0:
             raise ValueError("max_receipt_age_seconds must be non-negative")
@@ -68,6 +71,7 @@ class TrustedSourceReceiptVerifier:
         )
         self.max_receipt_age_seconds = max_receipt_age_seconds
         self.clock = clock or (lambda: datetime.now(timezone.utc))
+        self.replay_store = replay_store or InMemoryReceiptReplayStore()
 
     def verify(
         self, source_record_id: str, execution_id: str
@@ -113,6 +117,14 @@ class TrustedSourceReceiptVerifier:
             # Avoid returning arbitrary provider exception data that may contain secrets.
             return self._rejected(provider, record_id, execution, f"Receipt verification failed safely ({type(exc).__name__}).")
 
+        replay_claim = self.replay_store.claim(
+            provider,
+            record_id,
+            receipt.content_hash,
+        )
+        if not replay_claim.accepted:
+            return self._rejected(provider, record_id, execution, replay_claim.reason)
+
         return ReceiptVerificationResult(
             verified=True,
             provider_name=provider,
@@ -120,7 +132,7 @@ class TrustedSourceReceiptVerifier:
             execution_id=execution,
             raw_observation=receipt.raw_observation,
             verification_method=receipt.verification_method,
-            reasons=("Trusted provider receipt integrity, freshness, and execution attribution checks passed.",),
+            reasons=("Trusted provider receipt integrity, freshness, attribution, and replay checks passed.",),
         )
 
     def _check_freshness(self, observed_at: str) -> str | None:
