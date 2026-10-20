@@ -31,53 +31,74 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Capture scheduler result as a durable receipt
-        env:
-          PROBE_RESULT: ${{ needs.prerequisite-probe.result }}
-          INJECT_FAILURE: ${{ inputs.simulate_prerequisite_failure }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-          Path("negative-path-receipt.json").write_text(
-              json.dumps({
-                  "test": "github_actions_prerequisite_failure_injection",
-                  "injected_failure": os.environ["INJECT_FAILURE"].lower() == "true",
-                  "prerequisite_result": os.environ["PROBE_RESULT"],
-                  "expected_helper_exit": 1 if os.environ["INJECT_FAILURE"].lower() == "true" else 0,
-              }, indent=2) + "\n",
-              encoding="utf-8",
-          )
-          PY
-      - name: Upload scheduler-level negative-path receipt
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: kmh-oia-negative-path-receipt
-          path: negative-path-receipt.json
-          if-no-files-found: error
-      - name: Assert fail-closed helper matches actual scheduler result
+
+      - name: Run fail-closed helper and capture complete receipt
+        id: capture
         env:
           TESTS_RESULT: ${{ needs.prerequisite-probe.result }}
           PERFORMANCE_RESULT: success
           REPOSITORY_RESULT: success
-          INJECT_FAILURE: ${{ github.event_name == 'pull_request' || inputs.simulate_prerequisite_failure }}
+          INJECT_FAILURE: ${{ inputs.simulate_prerequisite_failure }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+        shell: bash
         run: |
           set +e
           python scripts/check_prerequisite_results.py
           actual_status=$?
           set -e
-          if [ "$INJECT_FAILURE" = "true" ]; then
-            if [ "$actual_status" -ne 1 ] || [ "$TESTS_RESULT" != "failure" ]; then
-              echo "Expected helper exit 1 and scheduler result failure; got exit=$actual_status result=$TESTS_RESULT"
-              exit 1
-            fi
-            echo "PASS: real scheduler failure is detected and fails closed."
-          else
-            if [ "$actual_status" -ne 0 ] || [ "$TESTS_RESULT" != "success" ]; then
-              echo "Expected helper exit 0 and scheduler result success; got exit=$actual_status result=$TESTS_RESULT"
-              exit 1
-            fi
-            echo "PASS: success control path is accepted."
+
+          ACTUAL_HELPER_EXIT="$actual_status" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          injected = os.environ["INJECT_FAILURE"].lower() == "true"
+          scheduler_result = os.environ["TESTS_RESULT"]
+          expected_exit = 1 if injected else 0
+          expected_scheduler_result = "failure" if injected else "success"
+          actual_exit = int(os.environ["ACTUAL_HELPER_EXIT"])
+          assertion_passed = (
+              actual_exit == expected_exit
+              and scheduler_result == expected_scheduler_result
+          )
+          receipt = {
+              "test": "github_actions_prerequisite_failure_injection",
+              "injected_failure": injected,
+              "prerequisite_result": scheduler_result,
+              "expected_prerequisite_result": expected_scheduler_result,
+              "expected_helper_exit": expected_exit,
+              "actual_helper_exit": actual_exit,
+              "assertion_passed": assertion_passed,
+              "run_id": os.environ["RUN_ID"],
+              "run_url": os.environ["RUN_URL"],
+              "commit_sha": os.environ["COMMIT_SHA"],
+          }
+          Path("negative-path-receipt.json").write_text(
+              json.dumps(receipt, indent=2) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(receipt, indent=2))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"actual_helper_exit={actual_exit}\n")
+              output.write(f"assertion_passed={'true' if assertion_passed else 'false'}\n")
+          PY
+
+      - name: Upload complete negative-path receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-oia-negative-path-receipt
+          path: negative-path-receipt.json
+          if-no-files-found: warn
+
+      - name: Enforce receipt assertion
+        if: ${{ always() }}
+        env:
+          ASSERTION_PASSED: ${{ steps.capture.outputs.assertion_passed }}
+        run: |
+          if [ "$ASSERTION_PASSED" != "true" ]; then
+            echo "FAIL: receipt shows the helper did not match the expected scheduler result."
+            exit 1
           fi
+          echo "PASS: helper exit and actual scheduler result are captured and consistent."
