@@ -1,0 +1,88 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from scripts.deployment_evidence_bundle import build_bundle
+
+
+class DeploymentEvidenceBundleTests(unittest.TestCase):
+    def test_missing_target_evidence_never_passes_deployment(self):
+        result = build_bundle(
+            commit_sha="abc123",
+            ci_runs=[{
+                "name": "Tests",
+                "url": "https://example.invalid/run",
+                "head_sha": "abc123",
+                "conclusion": "success",
+            }],
+        )
+        gates = {gate["gate"]: gate for gate in result["gates"]}
+        self.assertEqual(gates["repository_ci_for_bundle_commit"]["status"], "PASS")
+        self.assertEqual(
+            gates["target_host_persistent_storage_and_process_replay"]["status"],
+            "NOT_VERIFIED",
+        )
+        self.assertEqual(gates["external_business_outcome"]["status"], "HOLD")
+        self.assertEqual(result["release_decision"], "HOLD")
+
+    def test_target_gate_requires_existing_smoke_receipt_volume_confirmation_and_same_sha(self):
+        target = {
+            "environment_id": "staging-1",
+            "host_or_service_id": "service-1",
+            "persistent_volume_confirmed": True,
+            "database_path": "/var/lib/kmh-oia/replay.sqlite3",
+            "smoke_test_report": {"result": "PASS"},
+            "smoke_tested_at_utc": "2026-10-20T09:00:00Z",
+            "commit_sha": "abc123",
+        }
+        result = build_bundle(
+            commit_sha="abc123",
+            ci_runs=[{"name": "Tests", "head_sha": "abc123", "conclusion": "success"}],
+            target_evidence=target,
+        )
+        gates = {gate["gate"]: gate for gate in result["gates"]}
+        self.assertEqual(
+            gates["target_host_persistent_storage_and_process_replay"]["status"],
+            "PASS",
+        )
+        # Even a complete local-host handoff must not claim real-provider or
+        # external business-outcome verification.
+        self.assertEqual(
+            gates["real_provider_authenticity_and_execution_attribution"]["status"],
+            "NOT_VERIFIED",
+        )
+        self.assertEqual(gates["external_business_outcome"]["status"], "HOLD")
+        self.assertEqual(result["release_decision"], "HOLD")
+
+    def test_target_evidence_for_a_different_commit_does_not_pass(self):
+        target = {
+            "environment_id": "staging-1",
+            "host_or_service_id": "service-1",
+            "persistent_volume_confirmed": True,
+            "database_path": "/var/lib/kmh-oia/replay.sqlite3",
+            "smoke_test_report": {"result": "PASS"},
+            "smoke_tested_at_utc": "2026-10-20T09:00:00Z",
+            "commit_sha": "old-sha",
+        }
+        result = build_bundle(
+            commit_sha="new-sha",
+            ci_runs=[{"name": "Tests", "head_sha": "new-sha", "conclusion": "success"}],
+            target_evidence=target,
+        )
+        target_gate = next(
+            gate for gate in result["gates"]
+            if gate["gate"] == "target_host_persistent_storage_and_process_replay"
+        )
+        self.assertEqual(target_gate["status"], "NOT_VERIFIED")
+
+    def test_ci_runs_for_another_commit_do_not_pass_ci_gate(self):
+        result = build_bundle(
+            commit_sha="new-sha",
+            ci_runs=[{"name": "Tests", "head_sha": "old-sha", "conclusion": "success"}],
+        )
+        ci = next(gate for gate in result["gates"] if gate["gate"] == "repository_ci_for_bundle_commit")
+        self.assertEqual(ci["status"], "NOT_VERIFIED")
+
+
+if __name__ == "__main__":
+    unittest.main()
