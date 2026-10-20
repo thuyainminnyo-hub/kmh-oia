@@ -1,6 +1,7 @@
 name: KMH OIA Negative-Path Verification
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       simulate_prerequisite_failure:
