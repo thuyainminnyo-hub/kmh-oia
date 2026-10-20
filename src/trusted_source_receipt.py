@@ -105,10 +105,18 @@ class TrustedSourceReceiptVerifier:
                 return self._rejected(provider, record_id, execution, "Provider receipt integrity/authenticity verification failed.")
             if not adapter.match_execution(receipt, execution):
                 return self._rejected(provider, record_id, execution, "Provider attribution check did not match the execution.")
-            replay_claim = self.replay_store.claim(provider, record_id, receipt.content_hash)
         except Exception as exc:
+            # Provider/verification errors fail closed without exposing exception details.
             return self._rejected(provider, record_id, execution, f"Receipt verification failed safely ({type(exc).__name__}).")
 
+        try:
+            replay_claim = self.replay_store.claim(provider, record_id, receipt.content_hash)
+        except Exception as exc:
+            # Replay-store availability is part of the admission boundary.
+            return self._rejected(
+                provider, record_id, execution,
+                f"Replay store unavailable; admission blocked ({type(exc).__name__}).",
+            )
         if not replay_claim.accepted:
             return self._rejected(provider, record_id, execution, replay_claim.reason)
 
