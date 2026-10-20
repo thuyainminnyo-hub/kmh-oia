@@ -215,7 +215,7 @@ class LiveRuntimeBridge:
             changed="Carry evidence-first verification into the next command.",
             next_command=command.next_action or "Select the next highest-leverage command.",
         )
-        self.telemetry_collector.record(ExecutionTelemetry(
+        telemetry = ExecutionTelemetry(
             command_id=command.id,
             qa_passed=command.qa_status == "PASS",
             blocked=False,
@@ -237,14 +237,14 @@ class LiveRuntimeBridge:
                 if revalidation is not None
                 and revalidation.control_result.revalidation is not None else None
             ),
-        ))
+        )
+        self.telemetry_collector.record(telemetry)
         self.console.record_learning(command.id, learning)
 
         record = ExecutionRecord(
             command.id, response, tuple(stages), tuple(evidence), command.qa_status,
             command.status, standard_feedback, selected_standard.id if selected_standard else None,
-            revalidation, self.telemetry_collector.snapshot().recent[-1] if self.telemetry_collector.snapshot().recent else None,
-            command.source_decision_id, loop_record, identity_context, None, admission,
+            revalidation, telemetry, command.source_decision_id, loop_record, identity_context, None, admission,
         )
         verification = RealExecutionVerificationEngine().verify(record)
         return ExecutionRecord(
