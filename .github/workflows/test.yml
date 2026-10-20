@@ -22,8 +22,37 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python scripts/performance_baseline.py | tee performance-baseline.json
+      - name: Run performance baseline
+        shell: bash
+        run: |
+          set -o pipefail
+          PYTHONPATH="${GITHUB_WORKSPACE}" python scripts/performance_baseline.py | tee performance-baseline.json
+          test -s performance-baseline.json
+      - name: Validate performance baseline artifact
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          data = json.loads(Path("performance-baseline.json").read_text(encoding="utf-8"))
+
+          if type(data.get("iterations")) is not int or data["iterations"] != 20:
+              raise SystemExit("Expected exactly 20 baseline iterations")
+
+          keys = ("min_ms", "median_ms", "mean_ms", "max_ms")
+          for key in keys:
+              value = data.get(key)
+              if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                  raise SystemExit(f"Invalid metric: {key}")
+
+          if not data["min_ms"] <= data["median_ms"] <= data["max_ms"]:
+              raise SystemExit("Invalid min/median/max ordering")
+          if not data["min_ms"] <= data["mean_ms"] <= data["max_ms"]:
+              raise SystemExit("Invalid min/mean/max ordering")
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: kmh-oia-performance-baseline
           path: performance-baseline.json
+          if-no-files-found: error
