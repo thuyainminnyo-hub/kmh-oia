@@ -34,11 +34,12 @@ Scope: collect operator-verifiable evidence for the `target_host_persistent_stor
    - Confirm the process is healthy and reports the same tested commit SHA.
    - Read the test marker back through the supported application interface. It must survive the restart.
 
-5. **Test duplicate replay**
-   - Re-submit the same test execution identifier using the application's documented idempotency/replay mechanism, if one exists.
-   - Capture the expected and actual behavior.
-   - If no documented idempotency mechanism exists, record this check as **NOT_VERIFIED**; do not infer duplicate protection from a successful restart test.
-   - This single-host check does not prove cross-host atomicity.
+5. **Test duplicate replay across independent processes**
+   - Run the documented smoke test `sqlite_replay_across_independent_os_processes` against the same test database path using two independent OS processes.
+   - The first process must be healthy and accept the test claim; the second must be healthy and reject the same claim with a reason identifying replay.
+   - Record the observed database path and process outcomes. The second process must use the same persisted state, not an in-memory substitute.
+   - If this mechanism is not implemented or the result cannot be observed, record the check as **NOT_VERIFIED**; do not fabricate a PASS receipt.
+   - This local-file/process-boundary check does not prove cross-host atomicity.
 
 6. **Produce the receipt**
    - Create the JSON receipt below from observed results.
@@ -47,7 +48,7 @@ Scope: collect operator-verifiable evidence for the `target_host_persistent_stor
 
 ## Receipt template
 
-Replace every placeholder with observed values. Do not submit this template unchanged as evidence.
+Replace every placeholder and NOT_RUN value with observed values. The boolean values above are intentionally failing defaults; set them to true/false only when observed. Do not submit this template unchanged as evidence. The `smoke_test_report` field names and accepted values must match `scripts/deployment_evidence_bundle.py` exactly.
 
 ```json
 {
@@ -58,11 +59,24 @@ Replace every placeholder with observed values. Do not submit this template unch
   "persistent_volume_confirmed": false,
   "smoke_tested_at_utc": "<RFC3339 UTC timestamp>",
   "smoke_test_report": {
+    "schema_version": "1.0",
+    "test": "sqlite_replay_across_independent_os_processes",
+    "db_path": "<same observed database path as database_path>",
+    "first_process": {
+      "healthy": false,
+      "accepted": false,
+      "evidence_ref": "<sanitized evidence reference>"
+    },
+    "second_process": {
+      "healthy": false,
+      "accepted": false,
+      "reason": "NOT_RUN",
+      "evidence_ref": "<sanitized evidence reference>"
+    },
+    "result": "NOT_RUN",
     "test_marker_written": "NOT_RUN",
     "marker_survived_process_restart": "NOT_RUN",
     "post_restart_health_check": "NOT_RUN",
-    "duplicate_replay_check": "NOT_RUN",
-    "duplicate_replay_mechanism": "NOT_DOCUMENTED",
     "evidence_refs": []
   },
   "operator_notes": "No secrets or customer data."
@@ -77,6 +91,8 @@ The target-host gate may be considered for **PASS** only when all of the followi
 - The target's deployed full SHA exactly matches the evidence bundle's `bundle_commit_sha`.
 - Persistent volume confirmation is `true` and supported by evidence.
 - The test marker survives a process restart and the service is healthy afterward.
+- The smoke-test report follows the exact validator schema: `schema_version`, `test`, `db_path`, `first_process`, `second_process`, and `result`.
+- For a PASS, `test` is `sqlite_replay_across_independent_os_processes`; `first_process.healthy` and `first_process.accepted` are true; `second_process.healthy` is true, `second_process.accepted` is false, and `second_process.reason` identifies replay; `db_path` exactly matches `database_path`; `result` is `PASS`.
 - The report includes a timestamp and inspectable supporting evidence.
 - A reviewer confirms the evidence is from the claimed target environment.
 
