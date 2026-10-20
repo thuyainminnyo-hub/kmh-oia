@@ -80,7 +80,7 @@ The schema and model are intended to stay aligned. CI must pass on the exact pul
 - [x] Focused model tests cover principal invariants.
 - [x] Local JSONL prototype and focused store tests are present.
 - [x] Repository test and validation workflows passed on commit `9ed59ae9b9808d478a8c47217c2b185f7fd3a646`.
-- [ ] Review schema/model parity with actual JSON Schema validation, not only schema-shape assertions.
+- [x] Add Draft 2020-12 JSON Schema validation and model/schema parity test cases using the pinned `jsonschema[format]` development dependency; CI result for this commit remains pending until Actions completes.
 - [ ] Human review and merge decision.
 - [ ] Replace local prototype with storage meeting durability, concurrency, access-control, backup, and recovery requirements.
 - [ ] Implement separate learning-admission and decision-change services.
