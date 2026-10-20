@@ -141,3 +141,17 @@ assert verify_envelope(envelope)
 ```
 
 A plain checksum is **not** a signature: anyone who can change both the body and digest can recompute it. Therefore, the envelope must be stored in a trusted access-controlled system, or be signed with a key whose private component is unavailable to the decision writer. The current helper does not implement signatures or trusted storage.
+
+
+## Verify decision envelope before enforcement
+
+`src/trusted_release_gate.py` composes checksum verification with the fail-closed enforcer:
+
+```python
+from src.trusted_release_gate import require_trusted_release_allowed
+
+# Load this envelope from trusted, access-controlled storage.
+decision = require_trusted_release_allowed(envelope_dict)
+```
+
+It rejects envelopes whose decision body does not match the stored checksum, reconstructs the decision record, and then applies the release enforcement check. This still does not authenticate the issuer: trusted storage or a digital signature remains required. A checksum is integrity detection, not proof of who produced the decision.
