@@ -102,6 +102,12 @@ class DecisionToRuntimeE2ETests(unittest.TestCase):
         self.assertEqual(record.admission.missing_fields, ())
 
 
+
+    def test_runtime_production_mode_requires_durable_store(self):
+        _, console, _ = self._approved_command()
+        with self.assertRaisesRegex(ValueError, "durable receipt_replay_store is required"):
+            LiveRuntimeBridge(console, require_durable_replay_store=True)
+
     def test_runtime_accepts_configured_sqlite_replay_store(self):
         _, console, applied = self._approved_command()
         with tempfile.TemporaryDirectory() as tmp:
