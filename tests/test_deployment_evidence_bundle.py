@@ -9,6 +9,7 @@ def passing_target(commit_sha="abc123", database_path="/var/lib/kmh-oia/replay.s
         "host_or_service_id": "service-1",
         "persistent_volume_confirmed": True,
         "database_path": database_path,
+        "persistent_volume_evidence_ref": "staging-volume-check-2026-10-20",
         "smoke_test_report": {
             "schema_version": "1.0",
             "test": EXPECTED_SMOKE_TEST,
@@ -16,6 +17,10 @@ def passing_target(commit_sha="abc123", database_path="/var/lib/kmh-oia/replay.s
             "first_process": {"healthy": True, "accepted": True, "reason": "accepted"},
             "second_process": {"healthy": True, "accepted": False, "reason": "replay_detected"},
             "result": "PASS",
+            "test_marker_written": True,
+            "marker_survived_process_restart": True,
+            "post_restart_health_check": True,
+            "evidence_refs": ["staging-smoke-log-2026-10-20"],
         },
         "smoke_tested_at_utc": "2026-10-20T09:00:00Z",
         "commit_sha": commit_sha,
@@ -52,6 +57,26 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         self.assertEqual(gates["real_provider_authenticity_and_execution_attribution"]["status"], "NOT_VERIFIED")
         self.assertEqual(gates["external_business_outcome"]["status"], "HOLD")
         self.assertEqual(result["release_decision"], "HOLD")
+
+
+    def test_target_gate_requires_restart_persistence_and_evidence_references(self):
+        mutations = (
+            ("persistent_volume_evidence_ref", ""),
+            ("smoke_test_report.test_marker_written", False),
+            ("smoke_test_report.marker_survived_process_restart", False),
+            ("smoke_test_report.post_restart_health_check", False),
+            ("smoke_test_report.evidence_refs", []),
+        )
+        for field, value in mutations:
+            with self.subTest(field=field):
+                target = passing_target()
+                if field.startswith("smoke_test_report."):
+                    target["smoke_test_report"][field.split(".", 1)[1]] = value
+                else:
+                    target[field] = value
+                gate = target_gate(build_bundle(commit_sha="abc123", ci_runs=[], target_evidence=target))
+                self.assertEqual(gate["status"], "NOT_VERIFIED")
+                self.assertTrue(gate["validation_errors"])
 
     def test_minimal_fake_pass_receipt_is_rejected(self):
         target = passing_target()
