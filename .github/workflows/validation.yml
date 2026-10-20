@@ -80,40 +80,94 @@ jobs:
           python-version: "3.12"
       - name: Capture prerequisite job results
         shell: bash
+        env:
+          CI_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CI_HEAD_SHA: ${{ github.sha }}
+          BUNDLE_COMMIT_SHA: ${{ github.sha }}
+          TESTS_RESULT: ${{ needs.tests.result }}
+          PERFORMANCE_RESULT: ${{ needs.performance-evidence.result }}
+          REPOSITORY_RESULT: ${{ needs.repository-validation.result }}
         run: |
-          cat > deployment-ci-runs.json <<'JSON'
-          [
-            {
-              "name": "KMH OIA Tests",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.tests.result }}",
-              "is_required_check": true
-            },
-            {
-              "name": "KMH OIA Performance Evidence",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.performance-evidence.result }}",
-              "is_required_check": true
-            },
-            {
-              "name": "KMH OIA Repository Validation",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.repository-validation.result }}",
-              "is_required_check": true
-            }
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          values = {
+              "url": os.environ.get("CI_RUN_URL", ""),
+              "head_sha": os.environ.get("CI_HEAD_SHA", ""),
+              "bundle_sha": os.environ.get("BUNDLE_COMMIT_SHA", ""),
+              "tests": os.environ.get("TESTS_RESULT", ""),
+              "performance": os.environ.get("PERFORMANCE_RESULT", ""),
+              "repository": os.environ.get("REPOSITORY_RESULT", ""),
+          }
+          rows = [
+              {"name": "KMH OIA Tests", "url": values["url"], "head_sha": values["head_sha"], "conclusion": values["tests"], "is_required_check": True},
+              {"name": "KMH OIA Performance Evidence", "url": values["url"], "head_sha": values["head_sha"], "conclusion": values["performance"], "is_required_check": True},
+              {"name": "KMH OIA Repository Validation", "url": values["url"], "head_sha": values["head_sha"], "conclusion": values["repository"], "is_required_check": True},
           ]
-          JSON
-          cat deployment-ci-runs.json
+          Path("deployment-ci-runs.json").write_text(
+              json.dumps(rows, indent=2) + chr(10), encoding="utf-8"
+          )
+          print(json.dumps({"bundle_sha": values["bundle_sha"], "ci_runs": rows}, indent=2))
+          PY
       - name: Generate deployment evidence handoff bundle
+        env:
+          BUNDLE_COMMIT_SHA: ${{ github.sha }}
         run: |
           python -m scripts.deployment_evidence_bundle \
-            --commit-sha "${GITHUB_SHA}" \
+            --commit-sha "$BUNDLE_COMMIT_SHA" \
             --ci-runs deployment-ci-runs.json \
             --output deployment-evidence-bundle.json
+      - name: Validate generated evidence bundle
+        shell: bash
+        env:
+          EXPECTED_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          bundle = json.loads(Path("deployment-evidence-bundle.json").read_text(encoding="utf-8"))
+          expected_sha = os.environ.get("EXPECTED_SHA", "")
+          expected_url = os.environ.get("EXPECTED_RUN_URL", "")
+          parsed = urlparse(expected_url)
+          if not expected_sha or "$" in expected_sha:
+              raise SystemExit("Missing or unresolved expected commit SHA")
+          if parsed.scheme != "https" or parsed.netloc != "github.com" or not re.fullmatch(r"/[^/]+/[^/]+/actions/runs/[0-9]+", parsed.path):
+              raise SystemExit("Expected an actual GitHub HTTPS Actions run URL")
+          if bundle.get("bundle_commit_sha") != expected_sha:
+              raise SystemExit("Bundle commit SHA does not match workflow SHA")
+          gates = {gate.get("gate"): gate for gate in bundle.get("gates", [])}
+          ci_gate = gates.get("repository_ci_for_bundle_commit", {})
+          if ci_gate.get("status") != "PASS":
+              raise SystemExit("Bundle did not verify required CI for this exact commit SHA")
+          receipts = ci_gate.get("evidence", [])
+          if len(receipts) != 3:
+              raise SystemExit("Expected exactly three required CI receipts")
+          expected_names = {
+              "KMH OIA Tests",
+              "KMH OIA Performance Evidence",
+              "KMH OIA Repository Validation",
+          }
+          if {row.get("name") for row in receipts} != expected_names:
+              raise SystemExit("CI receipts do not match the three required prerequisite jobs")
+          for row in receipts:
+              if row.get("url") != expected_url or "$" in row.get("url", ""):
+                  raise SystemExit(f"Invalid/unresolved Actions URL in receipt: {row.get('name')}")
+              if row.get("head_sha") != expected_sha or row.get("matches_bundle_commit") is not True:
+                  raise SystemExit(f"Commit SHA mismatch in receipt: {row.get('name')}")
+              if row.get("conclusion") != "success" or row.get("validation_errors"):
+                  raise SystemExit(f"Required CI receipt did not validate: {row.get('name')}")
+          print("Verified three required CI receipts against the exact workflow URL and SHA.")
+          PY
       - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
         with:
           name: kmh-oia-deployment-evidence-bundle
           path: deployment-evidence-bundle.json
+          if-no-files-found: error
