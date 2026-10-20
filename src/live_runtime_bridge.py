@@ -19,6 +19,7 @@ from src.trusted_source_receipt import (
     TrustedSourceAdapter,
     TrustedSourceReceiptVerifier,
 )
+from src.receipt_replay_store import ReceiptReplayStore
 from src.execution_identity import ExecutionIdentity, ExecutionIdentityContext
 from src.real_execution_verification import RealExecutionVerificationEngine, VerificationResult
 
@@ -59,6 +60,7 @@ class LiveRuntimeBridge:
         evidence_admission_gate: EvidenceAdmissionGate | None = None,
         trusted_source_adapter: TrustedSourceAdapter | None = None,
         allowed_source_providers: tuple[str, ...] = (),
+        receipt_replay_store: ReceiptReplayStore | None = None,
     ) -> None:
         self.console = console
         self.runtime = runtime or OIARuntime()
@@ -78,6 +80,7 @@ class LiveRuntimeBridge:
         self.trusted_source_verifier = TrustedSourceReceiptVerifier(
             trusted_source_adapter,
             allowed_providers=allowed_source_providers,
+            replay_store=receipt_replay_store,
         )
 
     def execute(
