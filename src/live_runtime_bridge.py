@@ -61,7 +61,13 @@ class LiveRuntimeBridge:
         trusted_source_adapter: TrustedSourceAdapter | None = None,
         allowed_source_providers: tuple[str, ...] = (),
         receipt_replay_store: ReceiptReplayStore | None = None,
+        require_durable_replay_store: bool = False,
     ) -> None:
+        if require_durable_replay_store and receipt_replay_store is None:
+            raise ValueError(
+                "A durable receipt_replay_store is required when "
+                "require_durable_replay_store=True."
+            )
         self.console = console
         self.runtime = runtime or OIARuntime()
         self.memory = memory or OperatingMemory()
