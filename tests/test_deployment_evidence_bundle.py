@@ -33,7 +33,7 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
     def test_missing_target_evidence_never_passes_deployment(self):
         result = build_bundle(
             commit_sha="abc123",
-            ci_runs=[{"name": "Tests", "url": "https://example.invalid/run", "head_sha": "abc123", "conclusion": "success"}],
+            ci_runs=[{"name": "Tests", "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1", "head_sha": "abc123", "conclusion": "success", "is_required_check": True}],
         )
         gates = {gate["gate"]: gate for gate in result["gates"]}
         self.assertEqual(gates["repository_ci_for_bundle_commit"]["status"], "PASS")
@@ -44,7 +44,7 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
     def test_complete_smoke_receipt_volume_confirmation_and_same_sha_pass_target_gate(self):
         result = build_bundle(
             commit_sha="abc123",
-            ci_runs=[{"name": "Tests", "head_sha": "abc123", "conclusion": "success"}],
+            ci_runs=[{"name": "Tests", "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1", "head_sha": "abc123", "conclusion": "success", "is_required_check": True}],
             target_evidence=passing_target(),
         )
         gates = {gate["gate"]: gate for gate in result["gates"]}
@@ -92,14 +92,14 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
         self.assertEqual(gate["status"], "NOT_VERIFIED")
 
     def test_ci_runs_for_another_commit_do_not_pass_ci_gate(self):
-        result = build_bundle(commit_sha="new-sha", ci_runs=[{"name": "Tests", "head_sha": "old-sha", "conclusion": "success"}])
+        result = build_bundle(commit_sha="new-sha", ci_runs=[{"name": "Tests", "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1", "head_sha": "old-sha", "conclusion": "success", "is_required_check": True}])
         ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
         self.assertEqual(ci["status"], "NOT_VERIFIED")
 
     def test_optional_non_required_run_does_not_block_required_green_run(self):
         result = build_bundle(commit_sha="sha-1", ci_runs=[
-            {"name": "Tests", "head_sha": "sha-1", "conclusion": "success"},
-            {"name": "Informational check", "head_sha": "sha-old", "conclusion": "failure", "is_required_check": False},
+            {"name": "Tests", "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1", "head_sha": "sha-1", "conclusion": "success", "is_required_check": True},
+            {"name": "Informational check", "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/2", "head_sha": "sha-old", "conclusion": "failure", "is_required_check": False},
         ])
         ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
         self.assertEqual(ci["status"], "PASS")
@@ -108,8 +108,8 @@ class DeploymentEvidenceBundleTests(unittest.TestCase):
 
     def test_failed_required_run_blocks_ci_gate_even_when_another_passes(self):
         result = build_bundle(commit_sha="sha-1", ci_runs=[
-            {"name": "Tests", "head_sha": "sha-1", "conclusion": "success"},
-            {"name": "Validation", "head_sha": "sha-1", "conclusion": "failure"},
+            {"name": "Tests", "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/1", "head_sha": "sha-1", "conclusion": "success", "is_required_check": True},
+            {"name": "Validation", "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/2", "head_sha": "sha-1", "conclusion": "failure", "is_required_check": True},
         ])
         ci = next(g for g in result["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
         self.assertEqual(ci["status"], "NOT_VERIFIED")
