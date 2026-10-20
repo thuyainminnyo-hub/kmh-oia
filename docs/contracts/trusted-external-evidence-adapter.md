@@ -25,6 +25,8 @@ The adapter must return a typed result. A record is eligible for learning admiss
 - Missing provider credentials/configuration: NOT_ADMITTED.
 - Provider unreachable or timeout: NOT_ADMITTED; retry status may be recorded separately.
 - Invalid signature or receipt: NOT_ADMITTED.
+- Stale, future-dated, or timezone-ambiguous receipt timestamp: NOT_ADMITTED.
+- Duplicate/replayed receipts must be rejected by a durable, deployment-supplied idempotency store before any production learning update.
 - Unknown provider/source: NOT_ADMITTED.
 - No attributable execution ID: NOT_ADMITTED.
 - Caller-supplied booleans alone never authenticate a source.
@@ -47,4 +49,4 @@ The adapter must return a typed result. A record is eligible for learning admiss
 6. Keep `EXEC-SUN-TRAVEL-005` on HOLD until a genuine measurement source is selected and verified.
 
 ## Current repository boundary
-A generic `TrustedSourceReceiptVerifier` protocol and deterministic fake-adapter tests exist. The runtime can call an injected adapter and the gate admits only when the verifier result passes. No real provider-specific adapter, production credentials, or provider API integration exists yet. Fake-adapter tests validate code paths, not an actual provider's authenticity mechanisms. The `source_authenticated` and `attribution_verified` runtime arguments are retained only for compatibility and are ignored as proof.
+A generic `TrustedSourceReceiptVerifier` protocol and deterministic fake-adapter tests exist. The verifier now rejects invalid, stale, future-dated, and timezone-free receipt timestamps. The runtime can call an injected adapter and the gate admits only when the typed verification result matches source, execution, and raw observation. No real provider-specific adapter, production credentials, or provider API integration exists yet. A durable replay/idempotency store is still a deployment-level requirement and is not implemented by this verifier. Fake-adapter tests validate code paths, not an actual provider's authenticity mechanisms. The `source_authenticated` and `attribution_verified` runtime arguments are retained only for compatibility and are ignored as proof.
