@@ -23,6 +23,7 @@ def run_pilot(
     artifact_dir: str | Path = "runtime/pilot-artifacts",
     evidence_path: str | Path = "runtime/evidence.jsonl",
     session_id: str = "controlled-pilot",
+    source_revision: str | None = None,
 ) -> tuple[str, EvidenceObject, dict]:
     """Execute the runtime and persist the output, trace metadata, and evidence."""
     tracer = InMemoryTracer()
@@ -53,7 +54,7 @@ def run_pilot(
         source="kmh-oia",
         observed_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         scope="controlled-pilot",
-        source_revision="working-tree-unresolved",
+        source_revision=source_revision or "unresolved",
         artifact_ref=str(artifact_path),
         sha256_digest=digest,
         run_id=run_id,
@@ -71,7 +72,8 @@ if __name__ == "__main__":
     parser.add_argument("goal")
     parser.add_argument("--artifacts", default="runtime/pilot-artifacts")
     parser.add_argument("--evidence", default="runtime/evidence.jsonl")
+    parser.add_argument("--source-revision", default=None, help="verified source revision (for example a full Git commit SHA)")
     args = parser.parse_args()
-    response, evidence, _ = run_pilot(args.goal, args.artifacts, args.evidence)
+    response, evidence, _ = run_pilot(args.goal, args.artifacts, args.evidence, source_revision=args.source_revision)
     print(response)
     print(json.dumps(asdict(evidence), ensure_ascii=False, indent=2))
