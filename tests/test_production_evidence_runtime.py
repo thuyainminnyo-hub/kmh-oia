@@ -124,5 +124,51 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                 )
 
 
+    def test_receipt_replay_is_blocked_after_factory_recreation(self):
+        from datetime import datetime, timezone
+        from src.trusted_source_receipt import TrustedSourceReceipt
+
+        class StableReceiptAdapter:
+            provider_name = "test-provider"
+
+            def fetch_receipt(self, source_record_id, execution_id):
+                return TrustedSourceReceipt(
+                    provider_name=self.provider_name,
+                    source_record_id=source_record_id,
+                    execution_id=execution_id,
+                    raw_observation="external_event=confirmed",
+                    observed_at=datetime.now(timezone.utc).isoformat(),
+                    content_hash="sha256:stable-replay-fixture",
+                    verification_method="fake-test-only",
+                )
+
+            def verify_receipt(self, receipt):
+                return True
+
+            def match_execution(self, receipt, execution_id):
+                return receipt.execution_id == execution_id
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = str(Path(tmp) / "durable-replay.sqlite3")
+            first = build_production_evidence_runtime(
+                LiveOperatingConsole(date="2026-10-20"),
+                config=ProductionEvidenceRuntimeConfig(db_path, ("test-provider",)),
+                trusted_source_adapter=StableReceiptAdapter(),
+            )
+            first_result = first.trusted_source_verifier.verify("record-unique", "execution-unique")
+            self.assertTrue(first_result.verified)
+
+            # Build a fresh factory/runtime to simulate process restart while the
+            # SQLite file is retained. Reuse the same provider record and payload.
+            second = build_production_evidence_runtime(
+                LiveOperatingConsole(date="2026-10-20"),
+                config=ProductionEvidenceRuntimeConfig(db_path, ("test-provider",)),
+                trusted_source_adapter=StableReceiptAdapter(),
+            )
+            second_result = second.trusted_source_verifier.verify("record-unique", "execution-unique")
+            self.assertFalse(second_result.verified)
+            self.assertTrue(any("replay" in reason.lower() for reason in second_result.reasons))
+
+
 if __name__ == "__main__":
     unittest.main()
