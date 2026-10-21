@@ -26,6 +26,7 @@ class VerifiedLearningAdmission:
     provider_name: str
     source_record_id: str
     verification_method: str
+    receipt_content_hash: str
     admission_reasons: tuple[str, ...]
 
     @classmethod
