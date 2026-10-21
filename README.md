@@ -223,3 +223,10 @@ This hash chain is **tamper-evident, not tamper-proof**: an actor who can rewrit
 `src/key_provider.py` defines the minimal `HMACKeyProvider` protocol: retrieve key bytes by key ID and expose the currently accepted key-ID set. The included `InMemoryKeyProvider` is for tests only; use a dedicated secret-manager/KMS adapter for production. `verify_with_provider` checks that the envelope key ID is accepted, obtains its key through the provider, and then verifies the HMAC and inner digest.
 
 This separation allows the signing/verifying logic to remain stable as the underlying key service changes. It is not yet a production secret-manager integration and it does not provide key provisioning, rotation, revocation, or operator authentication. Never commit key material.
+
+
+## Trusted key provider boundary
+
+`src/trusted_key_provider.py` defines a small `TrustedKeyProvider` protocol for active signing-key and accepted verification-key retrieval. Its in-memory implementation is explicitly for controlled tests only. It supports explicit overlap and retirement policies and fails closed if the active key is unavailable or a retired key ID is not accepted.
+
+A production adapter should implement this protocol using a trusted secret manager or KMS, enforce IAM, audit secret access, and never log key material. The repository does not yet contain a production secret-manager implementation; environment or local in-memory key sources must not be treated as production trust boundaries.
