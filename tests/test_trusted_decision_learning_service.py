@@ -263,6 +263,19 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertNotIn("RuntimeError", result.reasons[0])
         self.assertNotIn("private classifier API key detail", result.reasons[0])
 
+    def test_rejected_adaptation_cannot_be_applied(self):
+        result = self.capture()
+        self.assertTrue(result.admitted)
+        self.assertIsNotNone(result.adaptation)
+        self.assertEqual(result.adaptation.status, "PROPOSED")
+        rejected = self.service._adaptation_engine.reject(result.adaptation)
+        self.assertEqual(rejected.status, "REJECTED")
+        with self.assertRaisesRegex(ValueError, "only approved adaptations can be applied"):
+            self.service._adaptation_engine.apply(rejected)
+        with self.assertRaisesRegex(ValueError, "only approved adaptations can be applied"):
+            self.service._adaptation_engine.apply(result.adaptation)
+        self.assertEqual(len(self.memory.recent()), 1)
+
     def test_independent_verifier_failure_fails_closed_without_leaking_exception_details(self):
         class RaisingVerifier:
             def verify(self, source_record_id, execution_id, *, claim_replay=True):
