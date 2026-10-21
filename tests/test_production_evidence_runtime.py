@@ -137,6 +137,33 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                     trusted_source_adapter=adapter,
                 )
 
+
+    def test_factory_rejects_provider_name_property_that_raises(self):
+        class BrokenProviderNameAdapter:
+            @property
+            def provider_name(self):
+                raise RuntimeError("private adapter error detail")
+
+            def fetch_receipt(self, source_record_id, execution_id):
+                return None
+
+            def verify_receipt(self, receipt):
+                return False
+
+            def match_execution(self, receipt, execution_id):
+                return False
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(RuntimeError, "private adapter error detail"):
+                build_production_evidence_runtime(
+                    self.console,
+                    config=ProductionEvidenceRuntimeConfig(
+                        str(Path(tmp) / "evidence-replay.sqlite3"),
+                        ("test-provider",),
+                    ),
+                    trusted_source_adapter=BrokenProviderNameAdapter(),
+                )
+
     def test_rejects_adapter_without_provider_name(self):
         adapter = MinimalAdapter()
         adapter.provider_name = ""
