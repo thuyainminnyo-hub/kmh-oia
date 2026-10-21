@@ -15,7 +15,7 @@ On code/test head `fb2bbd5f834a90f415c7f59c4311fa719dd1b77d`:
 - [KMH OIA Tests #754 — SUCCESS](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39599257017), with the test log reporting 529 tests run.
 - [KMH OIA Validation #673 — SUCCESS](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39599257142); tests, repository-validation, performance-evidence, and deployment-evidence-bundle all passed.
 
-A later documentation-only change requires checking its own latest-head CI before claiming that exact new head is verified.
+The workflows shown above verify the integration code/test head. Every subsequent source or documentation commit remains subject to the PR's required current-head CI checks before merge.
 
 ## Remaining constraints
 - Fingerprinting identifies the classifier by type and optional version string, not by an immutable content-addressed artifact digest. Production should pin and record the exact classifier/policy artifact version.

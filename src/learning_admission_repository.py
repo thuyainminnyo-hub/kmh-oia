@@ -1,7 +1,9 @@
 """SQLite-backed atomic persistence boundary for governed learning admissions.
 
-This is a focused persistence primitive, not a claim that the current runtime
-has been integrated with it.
+TrustedDecisionLearningService uses this repository for atomic admission,
+learning-record, optional proposal, and audit writes. Durability is local to the
+configured filesystem database; this module does not claim shared multi-host
+transactions or production deployment by itself.
 """
 from __future__ import annotations
 
