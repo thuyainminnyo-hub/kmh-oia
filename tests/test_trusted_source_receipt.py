@@ -192,6 +192,20 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         self.assertFalse(rejected.verified)
         self.assertIn("integrity/authenticity", rejected.reasons[0])
 
+
+    def test_provider_returning_wrong_receipt_type_fails_closed(self):
+        class WrongReceiptAdapter(FakeTrustedSourceAdapter):
+            def fetch_receipt(self, source_record_id, execution_id):
+                self.fetch_receipt_calls += 1
+                return {"provider_name": self.provider_name, "execution_id": execution_id}
+
+        adapter = WrongReceiptAdapter()
+        result = self.verifier(adapter).verify("booking:42", "exec:1")
+
+        self.assertFalse(result.verified)
+        self.assertIn("Receipt verification failed safely (AttributeError).", result.reasons)
+        self.assertEqual(adapter.fetch_receipt_calls, 1)
+
     def test_missing_adapter_fails_closed(self):
         result = self.verifier(None).verify("booking:42", "exec:1")
         self.assertFalse(result.verified)
