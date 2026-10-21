@@ -275,3 +275,19 @@ decision = decide_release_with_approval(
 ```
 
 The tests use a fake authority only. The real identity provider and approval storage are not integrated. Do not pass a client-controlled approval boolean as identity proof; the real authority must verify approver identity and policy independently.
+
+
+## Verify source revision against the actual checkout
+
+`src/source_revision.py` obtains the full commit SHA from `git rev-parse HEAD` and inspects `git status --porcelain`. It does not trust a revision string supplied by the request caller. The fail-closed helper only returns the SHA if the expected full SHA matches actual HEAD and the working tree has no modified or untracked files:
+
+```python
+from src.source_revision import require_verified_source_revision
+
+actual_sha = require_verified_source_revision(
+    expected_revision=reviewed_build_sha,
+    root=".",
+)
+```
+
+Tests create temporary Git repositories and cover matching clean HEAD, mismatched revision, modified/untracked files, invalid expected SHA, and a non-Git directory. This helper verifies the current checkout only; production must bind the expected SHA to the reviewed/build artifact and invoke the check in the same execution environment that produces the release.
