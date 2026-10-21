@@ -59,6 +59,18 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
                 self.assertFalse(result.verified)
                 self.assertIn("provider name", result.reasons[0].lower())
 
+
+    def test_adapter_provider_name_property_error_fails_closed_without_raising(self):
+        class RaisingProviderAdapter(FakeTrustedSourceAdapter):
+            @property
+            def provider_name(self):
+                raise RuntimeError("private provider configuration detail")
+
+        result = self.verifier(RaisingProviderAdapter()).verify("booking:42", "exec:1")
+        self.assertFalse(result.verified)
+        self.assertIn("could not be read safely", result.reasons[0])
+        self.assertNotIn("private provider configuration detail", result.reasons[0])
+
     def test_valid_allowlisted_fresh_receipt_passes(self):
         result = self.verifier(FakeTrustedSourceAdapter()).verify("booking:42", "exec:1")
         self.assertTrue(result.verified)
