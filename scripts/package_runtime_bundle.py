@@ -23,6 +23,9 @@ def build_runtime_bundle(source_root: str | Path, source_revision: str, output: 
         raise ValueError('runtime source root must contain src/ and requirements.txt')
     files: dict[str, bytes] = {}
     for path in sorted(source_dir.rglob('*')):
+        rel_parts = path.relative_to(source_dir).parts
+        if '__pycache__' in rel_parts or path.suffix in {'.pyc', '.pyo'}:
+            continue
         if path.is_symlink():
             raise ValueError(f'symlinks are not allowed in runtime source bundle: {path.relative_to(root)}')
         if path.is_dir():

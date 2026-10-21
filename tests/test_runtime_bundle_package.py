@@ -32,8 +32,10 @@ class RuntimeBundlePackageTests(unittest.TestCase):
         bundle = build_runtime_bundle(self.root, self.revision, self.root / 'bundle.tar.gz')
         with self.assertRaisesRegex(ValueError, 'does not match expected source SHA'):
             validate_runtime_bundle(bundle, expected_source_sha='b' * 40)
+        empty = self.root / 'empty.tar.gz'
+        empty.write_bytes(b'')
         with self.assertRaisesRegex(ValueError, 'must not be empty'):
-            validate_runtime_bundle(self.root / 'empty.tar.gz', expected_source_sha=self.revision)
+            validate_runtime_bundle(empty, expected_source_sha=self.revision)
 
     def test_tampered_file_bytes_fail_manifest_check(self):
         bundle = build_runtime_bundle(self.root, self.revision, self.root / 'bundle.tar.gz')

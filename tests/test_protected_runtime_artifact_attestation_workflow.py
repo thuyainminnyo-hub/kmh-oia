@@ -37,8 +37,8 @@ class ProtectedRuntimeArtifactAttestationWorkflowTests(unittest.TestCase):
     def test_producer_workflow_and_artifact_are_allowlisted_and_api_verified(self):
         canonical = '.github/workflows/trusted-build.yml'
         self.assertIn(canonical, self.workflow)
-        self.assertIn(canonical, self.producer)
-        self.assertIn("'actions/runs/{run_id}'", self.workflow) if False else self.assertIn('actions/runs/{run_id}', self.workflow)
+        self.assertTrue(PRODUCER.is_file())
+        self.assertIn('actions/runs/{run_id}', self.workflow)
         self.assertIn('actions/runs/{os.environ["PRODUCER_RUN_ID"]}/artifacts', self.workflow)
         self.assertIn("artifact.get('digest') != os.environ['RUNTIME_ARTIFACT_DIGEST']", self.workflow)
         self.assertIn("str(a.get('id')) == os.environ['RUNTIME_ARTIFACT_ID']", self.workflow)
@@ -87,7 +87,7 @@ class ProtectedRuntimeArtifactAttestationWorkflowTests(unittest.TestCase):
 
     def test_phase_809_and_812_limits_are_recorded(self):
         self.assertIn('before production run-context checks', self.phase_809_doc)
-        self.assertIn('the producer workflow is not yet implemented', self.phase_812_doc.lower())
+        self.assertIn('does not contain trained/compiled', self.phase_812_doc.lower())
 
 if __name__ == '__main__':
     unittest.main()

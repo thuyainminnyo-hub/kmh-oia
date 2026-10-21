@@ -2,7 +2,7 @@
 
 Date: 2026-10-21
 
-Phase 813 changed the manual-only protected signer to verify producer run metadata via GitHub Actions APIs, require an immutable artifact ID/name/digest, download by artifact ID, compare the service ZIP digest and fail closed instead of signing source-tree paths.
+Phase 813 changed the manual-only protected signer to verify producer run metadata via GitHub Actions APIs, require an immutable artifact ID/name/digest, download by artifact ID, compare the service ZIP digest and fail-closed instead of signing source-tree paths.
 
 Phase 814 aligned the canonical producer workflow path. Phase 815 now provides `.github/workflows/trusted-build.yml`, which builds a deterministic source bundle after repository validation and uploads it as `kmh-oia-runtime-bundle`.
 

@@ -172,6 +172,7 @@ jobs:
       - name: Verify artifact service digest and extract one source bundle
         env:
           EXPECTED_ARTIFACT_DIGEST: ${{ inputs.runtime_artifact_digest }}
+          EXPECTED_RELEASE_SHA: ${{ inputs.expected_release_sha }}
         run: |
           set -euo pipefail
           actual="sha256:$(sha256sum runtime-artifact.zip | cut -d ' ' -f1)"
@@ -188,7 +189,7 @@ jobs:
               with open('runtime-source-bundle.tar.gz', 'xb') as handle:
                   handle.write(data)
           PY
-          python scripts/validate_runtime_bundle.py runtime-source-bundle.tar.gz --expected-source-sha '${{ inputs.expected_release_sha }}'
+          python scripts/validate_runtime_bundle.py runtime-source-bundle.tar.gz --expected-source-sha "$EXPECTED_RELEASE_SHA"
       - name: Create signed bundle attestation (private key scoped to this step)
         shell: bash
         env:
@@ -197,6 +198,9 @@ jobs:
           KMH_OIA_ATTESTATION_KEY_ID: ${{ vars.KMH_OIA_ATTESTATION_KEY_ID }}
           KMH_OIA_ATTESTATION_ISSUER: ${{ vars.KMH_OIA_ATTESTATION_ISSUER }}
           KMH_OIA_ATTESTATION_SUBJECT: ${{ vars.KMH_OIA_ATTESTATION_SUBJECT }}
+          BUNDLE_ARTIFACT_ID: ${{ inputs.runtime_artifact_id }}
+          BUNDLE_ARTIFACT_NAME: ${{ inputs.runtime_artifact_name }}
+          BUNDLE_ARTIFACT_DIGEST: ${{ inputs.runtime_artifact_digest }}
           GITHUB_SHA: ${{ inputs.expected_release_sha }}
           GITHUB_RUN_ID: ${{ inputs.producer_run_id }}
           GITHUB_REF: ${{ github.ref }}
@@ -210,9 +214,9 @@ jobs:
             --bundle runtime-source-bundle.tar.gz \
             --source-revision "$GITHUB_SHA" \
             --build-run-id "$GITHUB_RUN_ID" \
-            --artifact-id '${{ inputs.runtime_artifact_id }}' \
-            --artifact-name '${{ inputs.runtime_artifact_name }}' \
-            --artifact-digest '${{ inputs.runtime_artifact_digest }}' \
+            --artifact-id "$BUNDLE_ARTIFACT_ID" \
+            --artifact-name "$BUNDLE_ARTIFACT_NAME" \
+            --artifact-digest "$BUNDLE_ARTIFACT_DIGEST" \
             --output "$output"
       - name: Upload run-scoped attestation evidence
         uses: actions/upload-artifact@v4

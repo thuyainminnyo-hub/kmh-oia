@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import json
 import tempfile
 import unittest
 from dataclasses import replace
@@ -26,7 +27,7 @@ class RuntimeBundleAttestationTests(unittest.TestCase):
         self.private_key = Ed25519PrivateKey.generate()
         self.private_raw = self.private_key.private_bytes_raw()
         self.public_key = self.private_key.public_key().public_bytes(encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw)
-        self.now = datetime(2026, 10, 21, 12, 0, tzinfo=timezone.utc)
+        self.now = datetime.now(timezone.utc)
         self.verifier = Ed25519RuntimeBundleAttestationVerifier(
             {'bundle-key': self.public_key}, allowed_issuers=('kmh-release-signer',),
             allowed_subjects=('repo:thuyainminnyo-hub/kmh-oia:ref:refs/heads/main',),
@@ -97,8 +98,9 @@ class RuntimeBundleAttestationTests(unittest.TestCase):
         write_runtime_bundle_attestation(path, attestation)
         with self.assertRaisesRegex(RuntimeBundleAttestationIOError, 'refusing to overwrite'):
             write_runtime_bundle_attestation(path, attestation)
-        data = path.read_text(encoding='utf-8')
-        path.write_text(data.replace('\\n}', ',"unexpected":"field"\\n}'), encoding='utf-8')
+        data = json.loads(path.read_text(encoding='utf-8'))
+        data['unexpected'] = 'field'
+        path.write_text(json.dumps(data), encoding='utf-8')
         with self.assertRaisesRegex(RuntimeBundleAttestationIOError, 'exactly the supported fields'):
             load_runtime_bundle_attestation(path)
 
