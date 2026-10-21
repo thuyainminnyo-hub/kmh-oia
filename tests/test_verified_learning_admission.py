@@ -143,6 +143,31 @@ class VerifiedLearningAdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "content hash"):
             self.proof(execution=execution)
 
+    def test_gate_receipt_hash_disagreement_is_rejected(self):
+        execution = self.execution()
+        gate = EvidenceAdmissionResult(
+            decision="ADMITTED",
+            evidence_status="OUTCOME_LINKED",
+            learning_admitted=True,
+            missing_fields=(),
+            reasons=("test gate result",),
+            receipt_content_hash="sha256:different-fixture",
+        )
+        execution = ExecutionRecord(
+            command_id=execution.command_id,
+            response=execution.response,
+            trace_stages=execution.trace_stages,
+            evidence=execution.evidence,
+            qa_status=execution.qa_status,
+            final_status=execution.final_status,
+            source_decision_id=execution.source_decision_id,
+            operating_loop=execution.operating_loop,
+            admission=gate,
+            trusted_receipt_verification=execution.trusted_receipt_verification,
+        )
+        with self.assertRaisesRegex(ValueError, "hash does not match"):
+            self.proof(execution=execution)
+
     def test_blank_policy_version_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "policy_version is required"):
             VerifiedLearningAdmission.from_execution(
