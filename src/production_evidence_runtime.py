@@ -31,11 +31,12 @@ class ProductionEvidenceRuntimeConfig:
             raise ValueError("production evidence runtime requires a file-backed SQLite path, not an in-memory/URI database")
         if not isinstance(self.allowed_source_providers, tuple):
             raise ValueError("allowed_source_providers must be an explicit tuple")
-        providers = tuple(
-            provider.strip()
+        if any(
+            not isinstance(provider, str) or not provider.strip()
             for provider in self.allowed_source_providers
-            if isinstance(provider, str) and provider.strip()
-        )
+        ):
+            raise ValueError("provider names must be non-empty strings")
+        providers = tuple(provider.strip() for provider in self.allowed_source_providers)
         if not providers:
             raise ValueError("at least one explicit allowed source provider is required")
         if len(set(providers)) != len(providers):
