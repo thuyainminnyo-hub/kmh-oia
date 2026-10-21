@@ -37,6 +37,7 @@ class VerifiedLearningAdmissionTests(unittest.TestCase):
             learning_admitted=admitted,
             missing_fields=() if admitted else ("trusted_receipt_verification",),
             reasons=("test gate result",),
+            receipt_content_hash="sha256:test-fixture" if admitted else "",
         )
         receipt_result = None
         if receipt:
