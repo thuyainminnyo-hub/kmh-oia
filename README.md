@@ -216,3 +216,10 @@ assert verify_rotation_audit("runtime/security/key-rotation-audit.jsonl")
 ```
 
 This hash chain is **tamper-evident, not tamper-proof**: an actor who can rewrite the entire local file can recompute the chain. Production must export events to independently retained, access-controlled audit storage and verify operator identity through a trusted service. Do not log key bytes, secret-manager payloads, or credentials in rotation events.
+
+
+## Trusted HMAC key-provider boundary
+
+`src/key_provider.py` defines the minimal `HMACKeyProvider` protocol: retrieve key bytes by key ID and expose the currently accepted key-ID set. The included `InMemoryKeyProvider` is for tests only; use a dedicated secret-manager/KMS adapter for production. `verify_with_provider` checks that the envelope key ID is accepted, obtains its key through the provider, and then verifies the HMAC and inner digest.
+
+This separation allows the signing/verifying logic to remain stable as the underlying key service changes. It is not yet a production secret-manager integration and it does not provide key provisioning, rotation, revocation, or operator authentication. Never commit key material.
