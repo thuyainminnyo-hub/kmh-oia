@@ -67,6 +67,42 @@ class LiveRuntimeBridgeTests(unittest.TestCase):
                     console, receipt_replay_store=store, require_durable_replay_store=True
                 )
 
+    def test_outcome_linked_request_without_trusted_adapter_cannot_admit_learning(self):
+        console = LiveOperatingConsole(
+            date="2026-10-21",
+            primary_objective="Admission gate integration",
+        )
+        command = console.add_command(
+            objective="exercise evidence admission",
+            priority="P1",
+            owner="system",
+            expected_output="runtime response",
+        )
+        bridge = LiveRuntimeBridge(console)
+        record = bridge.execute(
+            command.id,
+            evidence_source="caller-supplied-source",
+            raw_observation="caller-supplied outcome=success",
+            verification_status="OUTCOME_LINKED",
+            outcome_linked=True,
+            source_authenticated=True,
+            attribution_verified=True,
+            source_record_id="caller-source-record",
+        )
+
+        self.assertEqual(record.final_status, "LEARNED")
+        self.assertEqual(record.admission.decision, "NOT_ADMITTED")
+        self.assertFalse(record.admission.learning_admitted)
+        self.assertEqual(record.admission.trusted_receipt_content_hash, "")
+        self.assertEqual(record.trusted_receipt_verification, None)
+        self.assertTrue(
+            any("external outcome verification not established" in item for item in record.evidence)
+            or "Internal runtime trace/QA observed only; external outcome verification not established."
+            in record.operating_loop.__dict__.values()
+        )
+        # Runtime may retain an internal observation for audit, but the gate must
+        # not represent caller booleans or metadata as a trusted outcome receipt.
+
     def test_unknown_command_is_rejected(self) -> None:
         console = LiveOperatingConsole(date="2026-10-05")
         bridge = LiveRuntimeBridge(console)
