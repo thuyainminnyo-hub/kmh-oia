@@ -253,3 +253,25 @@ The in-memory provider exists only for controlled tests. A production secret-man
 - positive authorization from the trusted identity/policy adapter.
 
 The repository tests use a mock authority only. This code does not authenticate real users or connect to an approval database/identity provider. In production, the approval authority and key-signing service must be separate principals with least privilege; do not pass unverified caller booleans as proof of authorization.
+
+
+## Release decision with independent approval authority
+
+`src/approval_gated_release.py` composes the QA, source-revision and approval checks. It calls `ApprovalAuthority` to load an approval record tied to the exact evidence ID, QA ID, and source revision; it requires an accepted policy and an approver authorized by the trusted authority; and it rejects an approver who is the signing service identity. Any failed or unavailable check produces `BLOCK`.
+
+```python
+from src.approval_gated_release import decide_release_with_approval
+
+decision = decide_release_with_approval(
+    evidence,
+    qa_verdict,
+    expected_source_revision=expected_sha,
+    actual_source_revision=runtime_sha,
+    approval_authority=trusted_approval_authority,
+    approval_id=approval_record_id,
+    signing_service_id="service:release-signer",
+    accepted_policy_ids={"release-policy:v1"},
+)
+```
+
+The tests use a fake authority only. The real identity provider and approval storage are not integrated. Do not pass a client-controlled approval boolean as identity proof; the real authority must verify approver identity and policy independently.
