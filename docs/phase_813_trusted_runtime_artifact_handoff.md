@@ -13,3 +13,5 @@ The signer now records the producer run ID and source SHA instead of using its o
 ## Verification boundary
 
 Static regression tests cover workflow contracts. They do not prove external GitHub Environment protections, actual production secrets, live GitHub API behavior, or a real deployment. Production remains HOLD and PR #97 remains draft/unmerged pending independent review.
+
+**Release decision: Production HOLD.**

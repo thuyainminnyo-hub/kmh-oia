@@ -24,7 +24,7 @@ class TrustedRuntimeArtifactHandoffContractTests(unittest.TestCase):
         content = DOC.read_text(encoding='utf-8')
         self.assertIn('fail-closed', content.lower())
         self.assertIn('has not been implemented', content.lower())
-        self.assertIn('Production HOLD', content)
+        self.assertIn('Production remains HOLD', content)
 
 if __name__ == '__main__':
     unittest.main()
