@@ -181,8 +181,10 @@ class TrustedSourceReceiptVerifier:
             if now.tzinfo is None:
                 return "Verifier clock must include a timezone."
             age = (now.astimezone(timezone.utc) - observed.astimezone(timezone.utc)).total_seconds()
-        except (TypeError, ValueError, OverflowError):
-            return "Receipt timestamp is invalid."
+        except Exception as exc:
+            # Time sources are injected infrastructure and must fail closed.
+            # Do not leak exception messages or clock implementation details.
+            return f"Receipt timestamp validation failed safely ({type(exc).__name__})."
         if age < 0:
             return "Receipt timestamp is in the future."
         if age > self.max_receipt_age_seconds:
