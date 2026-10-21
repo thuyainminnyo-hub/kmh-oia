@@ -358,3 +358,23 @@ decision, signed_envelope, result = execute_release_pipeline(
 ```
 
 The integration tests prove that a clean checkout, matching evidence revision, passing QA, and matching authorized independent approval can reach the callback; dirty checkout, wrong revision, evidence revision mismatch, or missing approval must prevent the callback. This test uses a fake approval authority and in-memory key provider. The production secret manager/KMS, real approval/identity service, trusted decision storage, and actual deployment entrypoint are still not integrated.
+
+
+## Trusted key-provider interface
+
+`src/key_provider.py` defines the interface between signing/release verification and a secret manager. The repository includes only `InMemoryKeyProvider` for deterministic tests; do not use it for live secrets.
+
+A production adapter should implement `HMACKeyProvider` by reading key bytes from a trusted secret manager/KMS and return only the currently accepted key IDs. The provider exposes one active key ID for new signatures plus an accepted-key allowlist for verification during rotation.
+
+```python
+from src.key_provider import sign_with_provider, require_release_allowed_with_provider
+
+# provider must be backed by a trusted secret manager/KMS in production.
+signed = sign_with_provider(decision, provider)
+# On the protected release path, load signed envelope from trusted storage.
+verified_decision = require_release_allowed_with_provider(signed, provider)
+```
+
+Signing fails closed if there is no unambiguous active key, if that ID is not in the accepted set, or if the key is unavailable/too short. Verification fails closed for retired or unavailable keys and delegates the signed decision to the release enforcement gate.
+
+**Still outstanding:** a real secret-manager/KMS adapter, identity-verified approver source, separation between approval authority and signing authority, key rotation/revocation audit integration, and a real deployment/job entrypoint. The provider interface alone does not make production releases protected.
