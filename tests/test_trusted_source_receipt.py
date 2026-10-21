@@ -124,7 +124,8 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
 
         result = self.verifier(RaisingFetchAdapter()).verify("booking:42", "exec:1")
         self.assertFalse(result.verified)
-        self.assertIn("RuntimeError", result.reasons[0])
+        self.assertEqual(result.reasons, ("Receipt verification failed safely.",))
+        self.assertNotIn("RuntimeError", result.reasons[0])
         self.assertNotIn("private provider token leaked", result.reasons[0])
 
 
