@@ -249,13 +249,44 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertIsNone(result.adaptation)
         self.assertEqual(self.classifier.calls, 0)
 
-    def test_classifier_failure_fails_closed(self):
-        self.classifier.error = RuntimeError("classification unavailable")
+    def test_classifier_failure_fails_closed_without_leaking_exception_details(self):
+        self.classifier.error = RuntimeError("private classifier API key detail")
         result = self.capture()
         self.assertFalse(result.admitted)
         self.assertIsNone(result.memory)
         self.assertIsNone(result.adaptation)
         self.assertEqual(self.memory.recent(), ())
+        self.assertEqual(
+            result.reasons,
+            ("Trusted outcome classification failed closed.",),
+        )
+        self.assertNotIn("RuntimeError", result.reasons[0])
+        self.assertNotIn("private classifier API key detail", result.reasons[0])
+
+    def test_independent_verifier_failure_fails_closed_without_leaking_exception_details(self):
+        class RaisingVerifier:
+            def verify(self, source_record_id, execution_id, *, claim_replay=True):
+                raise RuntimeError("private verifier endpoint/token detail")
+
+        service = TrustedDecisionLearningService(
+            classifier=self.classifier,
+            receipt_verifier=RaisingVerifier(),
+            memory=self.memory,
+        )
+        result = service.capture_execution(
+            self.decision, self.execution(), evidence_id="evidence:1",
+            policy_version="policy:v1", next_command="Hold for verification",
+        )
+        self.assertFalse(result.admitted)
+        self.assertIsNone(result.memory)
+        self.assertIsNone(result.adaptation)
+        self.assertEqual(
+            result.reasons,
+            ("Independent receipt verification failed closed.",),
+        )
+        self.assertNotIn("RuntimeError", result.reasons[0])
+        self.assertNotIn("private verifier endpoint/token detail", result.reasons[0])
+        self.assertEqual(self.classifier.calls, 0)
 
     def test_rejected_decision_fails_closed(self):
         decision = DecisionItem(
