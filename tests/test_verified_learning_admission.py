@@ -48,6 +48,7 @@ class VerifiedLearningAdmissionTests(unittest.TestCase):
                 raw_observation="booking=confirmed",
                 verification_method="test-adapter",
                 reasons=("test receipt accepted",),
+                content_hash="sha256:test-fixture",
             )
         return ExecutionRecord(
             command_id="cmd:1",
@@ -78,6 +79,7 @@ class VerifiedLearningAdmissionTests(unittest.TestCase):
         self.assertEqual(proof.trace_id, "trace:1")
         self.assertEqual(proof.provider_name, "booking-provider")
         self.assertEqual(proof.policy_version, "policy:v1")
+        self.assertEqual(proof.receipt_content_hash, "sha256:test-fixture")
 
     def test_not_admitted_gate_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "must be ADMITTED"):
