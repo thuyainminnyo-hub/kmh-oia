@@ -326,6 +326,25 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         ).verify("booking:42", "exec:1")
         self.assertTrue(result.verified)
 
+
+    def test_falsey_clock_callable_is_not_silently_replaced(self):
+        class FalseyClock:
+            def __bool__(self):
+                return False
+
+            def __call__(self):
+                raise RuntimeError("private injected clock detail")
+
+        result = TrustedSourceReceiptVerifier(
+            FakeTrustedSourceAdapter(),
+            allowed_providers=("booking-provider",),
+            clock=FalseyClock(),
+        ).verify("booking:42", "exec:1")
+
+        self.assertFalse(result.verified)
+        self.assertIn("Verifier clock failed safely (RuntimeError).", result.reasons)
+        self.assertNotIn("private injected clock detail", result.reasons[0])
+
     def test_clock_exception_fails_closed_without_leaking_details(self):
         def broken_clock():
             raise RuntimeError("private clock internals")
