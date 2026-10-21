@@ -125,31 +125,55 @@ def _load_verified(path: Path) -> list[dict]:
     return entries
 
 
-def append_rotation_event(event: KeyRotationEvent, path: str | Path) -> dict:
-    """Append an event after verifying the existing chain and fsync the local file."""
-    if not isinstance(event, KeyRotationEvent):
-        raise TypeError("event must be a KeyRotationEvent")
+def append_rotation_events(events: list[KeyRotationEvent] | tuple[KeyRotationEvent, ...], path: str | Path) -> list[dict]:
+    """Append a batch of events as one local write after verifying the existing chain.
+
+    This reduces partial batches by writing the serialized batch in one stream
+    write, then flush/fsync. It is not a database transaction or multi-process lock.
+    """
+    if not isinstance(events, (list, tuple)) or not events:
+        raise ValueError("events must be a non-empty list or tuple")
+    if any(not isinstance(event, KeyRotationEvent) for event in events):
+        raise TypeError("all events must be KeyRotationEvent instances")
+    event_ids = [event.event_id for event in events]
+    if len(set(event_ids)) != len(event_ids):
+        raise ValueError("duplicate event IDs in rotation batch")
+
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with _LOCK:
         entries = _load_verified(destination)
-        if any(item["event"]["event_id"] == event.event_id for item in entries):
-            raise ValueError(f"duplicate key rotation event ID: {event.event_id}")
+        existing_ids = {item["event"]["event_id"] for item in entries}
+        if any(event_id in existing_ids for event_id in event_ids):
+            raise ValueError("rotation batch contains an event ID already in the audit")
         previous_hash = entries[-1]["entry_hash"] if entries else _GENESIS
         sequence = len(entries) + 1
-        event_data = event.to_dict()
-        entry = {
-            "sequence": sequence,
-            "event": event_data,
-            "previous_hash": previous_hash,
-            "entry_hash": _entry_hash(sequence, event_data, previous_hash),
-        }
+        batch: list[dict] = []
+        for event in events:
+            event_data = event.to_dict()
+            entry = {
+                "sequence": sequence,
+                "event": event_data,
+                "previous_hash": previous_hash,
+                "entry_hash": _entry_hash(sequence, event_data, previous_hash),
+            }
+            batch.append(entry)
+            previous_hash = entry["entry_hash"]
+            sequence += 1
+        encoded = "".join(
+            json.dumps(entry, sort_keys=True, ensure_ascii=False) + "\\n"
+            for entry in batch
+        )
         with destination.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(entry, sort_keys=True, ensure_ascii=False) + "\n")
+            stream.write(encoded)
             stream.flush()
             os.fsync(stream.fileno())
-        return entry
+        return batch
 
+
+def append_rotation_event(event: KeyRotationEvent, path: str | Path) -> dict:
+    """Append one event after verifying the existing chain and fsyncing locally."""
+    return append_rotation_events([event], path)[0]
 
 def verify_rotation_audit(path: str | Path) -> bool:
     """Verify sequence, event IDs, previous hashes, and every entry digest."""
