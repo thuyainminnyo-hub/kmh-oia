@@ -230,3 +230,13 @@ This separation allows the signing/verifying logic to remain stable as the under
 `src/trusted_key_provider.py` defines a small `TrustedKeyProvider` protocol for active signing-key and accepted verification-key retrieval. Its in-memory implementation is explicitly for controlled tests only. It supports explicit overlap and retirement policies and fails closed if the active key is unavailable or a retired key ID is not accepted.
 
 A production adapter should implement this protocol using a trusted secret manager or KMS, enforce IAM, audit secret access, and never log key material. The repository does not yet contain a production secret-manager implementation; environment or local in-memory key sources must not be treated as production trust boundaries.
+
+
+## Trusted key provider + signing integration (controlled prototype)
+
+`src/key_provider_signing.py` combines the provider protocol with HMAC signing and enforcement:
+- `sign_decision_with_provider(provider, decision)` requests the currently active key and refuses to sign if the provider cannot supply a key accepted by its own verification policy.
+- `require_provider_signed_release_allowed(provider, signed)` resolves `key_id` through the provider's accepted-key policy and then verifies the HMAC/checksum before release enforcement.
+- Retired, unknown, or unavailable keys fail closed.
+
+The in-memory provider exists only for controlled tests. A production secret-manager/KMS adapter is still required; it must authenticate callers, enforce least privilege, audit key access, and avoid exposing key bytes. The shared-key HMAC design still does not provide non-repudiation: independent approval and signing authorities should be separated.
