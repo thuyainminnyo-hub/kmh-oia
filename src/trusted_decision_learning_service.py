@@ -46,6 +46,24 @@ class TrustedOutcomeClassifier(Protocol):
 
 
 @dataclass(frozen=True)
+class RuntimeArtifactAttestation:
+    """Identity assertion for artifacts loaded by the current runtime."""
+    classifier_sha256: str
+    policy_sha256: str
+    issuer: str
+    subject: str
+    attestation_id: str
+
+
+class RuntimeArtifactAttestationVerifier(Protocol):
+    """Authenticate attestation and bind it to measured runtime artifact bytes."""
+    def verify(
+        self, attestation: RuntimeArtifactAttestation, *,
+        expected_classifier_sha256: str, expected_policy_sha256: str,
+    ) -> bool: ...
+
+
+@dataclass(frozen=True)
 class TrustedDecisionLearningResult:
     admitted: bool
     decision_id: str
@@ -71,10 +89,14 @@ class TrustedDecisionLearningService:
         adaptation_engine: AdaptationEngine | None = None,
         classifier_artifact_sha256: str | None = None,
         policy_artifact_sha256: str | None = None,
+        artifact_attestation: RuntimeArtifactAttestation | None = None,
+        artifact_attestation_verifier: RuntimeArtifactAttestationVerifier | None = None,
     ) -> None:
         self._classifier = classifier
         self._classifier_artifact_sha256 = self._normalize_artifact_digest(classifier_artifact_sha256)
         self._policy_artifact_sha256 = self._normalize_artifact_digest(policy_artifact_sha256)
+        self._artifact_attestation = artifact_attestation
+        self._artifact_attestation_verifier = artifact_attestation_verifier
         self._receipt_verifier = receipt_verifier
         # Kept as a read-side dependency; transactional repository owns writes.
         self._memory = memory
@@ -173,6 +195,29 @@ class TrustedDecisionLearningService:
             return blocked("Immutable classifier artifact SHA-256 is not configured.")
         if self._policy_artifact_sha256 is None:
             return blocked("Immutable policy artifact SHA-256 is not configured.")
+        if self._artifact_attestation is None:
+            return blocked("Runtime artifact attestation is not configured.")
+        if self._artifact_attestation_verifier is None:
+            return blocked("Trusted runtime artifact attestation verifier is not configured.")
+        attestation = self._artifact_attestation
+        if (
+            not isinstance(attestation, RuntimeArtifactAttestation)
+            or not isinstance(attestation.issuer, str) or not attestation.issuer.strip()
+            or not isinstance(attestation.subject, str) or not attestation.subject.strip()
+            or not isinstance(attestation.attestation_id, str) or not attestation.attestation_id.strip()
+            or self._normalize_artifact_digest(attestation.classifier_sha256) != self._classifier_artifact_sha256
+            or self._normalize_artifact_digest(attestation.policy_sha256) != self._policy_artifact_sha256
+        ):
+            return blocked("Runtime artifact attestation identity is invalid or mismatched.")
+        try:
+            attestation_valid = self._artifact_attestation_verifier.verify(
+                attestation, expected_classifier_sha256=self._classifier_artifact_sha256,
+                expected_policy_sha256=self._policy_artifact_sha256,
+            )
+        except Exception:
+            attestation_valid = False
+        if attestation_valid is not True:
+            return blocked("Runtime artifact attestation verification failed closed.")
 
         # Re-fetch and re-authenticate the provider receipt at the learning
         # boundary. A consumed/replayed receipt fails closed in the replay store.
@@ -316,6 +361,9 @@ class TrustedDecisionLearningService:
             "source_record_id": receipt.source_record_id, "content_hash": receipt.content_hash,
             "classifier_artifact_sha256": self._classifier_artifact_sha256,
             "policy_artifact_sha256": self._policy_artifact_sha256,
+            "artifact_attestation_issuer": self._artifact_attestation.issuer,
+            "artifact_attestation_subject": self._artifact_attestation.subject,
+            "artifact_attestation_id": self._artifact_attestation.attestation_id,
             "outcome_quality": quality,
         }
         try:
@@ -365,6 +413,9 @@ class TrustedDecisionLearningService:
             "confidence": confidence, "classifier": classifier,
             "classifier_artifact_sha256": self._classifier_artifact_sha256,
             "policy_artifact_sha256": self._policy_artifact_sha256,
+            "attestation_issuer": self._artifact_attestation.issuer if self._artifact_attestation else None,
+            "attestation_subject": self._artifact_attestation.subject if self._artifact_attestation else None,
+            "attestation_id": self._artifact_attestation.attestation_id if self._artifact_attestation else None,
         }
         fingerprint = "sha256:" + hashlib.sha256(json.dumps(
             request, sort_keys=True, separators=(",", ":"), ensure_ascii=False
