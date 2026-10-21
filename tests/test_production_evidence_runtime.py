@@ -154,7 +154,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                 return False
 
         with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(RuntimeError, "private adapter error detail"):
+            with self.assertRaisesRegex(ValueError, "provider_name could not be read safely") as error:
                 build_production_evidence_runtime(
                     self.console,
                     config=ProductionEvidenceRuntimeConfig(
@@ -163,6 +163,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                     ),
                     trusted_source_adapter=BrokenProviderNameAdapter(),
                 )
+        self.assertNotIn("private adapter error detail", str(error.exception))
 
     def test_rejects_adapter_without_provider_name(self):
         adapter = MinimalAdapter()
