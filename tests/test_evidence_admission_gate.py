@@ -106,8 +106,6 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
             raw_observation="booking_id=42;status=confirmed",
             verification_method="test-verifier",
             reasons=("test fixture",),
-            content_hash="sha256:test-fixture",
-            content_hash="sha256:test-fixture",
         )
         result = self.gate.evaluate(
             EvidenceAdmissionRequest(
