@@ -1,4 +1,6 @@
 import unittest
+import tempfile
+from pathlib import Path
 from datetime import datetime, timezone
 
 from src.continuous_intelligence_orchestrator import ContinuousIntelligenceOrchestrator
@@ -15,6 +17,7 @@ from src.trusted_decision_learning_service import (
     TrustedOutcomeClassification,
 )
 from src.trusted_source_receipt import TrustedSourceReceipt
+from src.receipt_replay_store import SQLiteReceiptReplayStore
 
 
 class FakeBookingAdapter:
@@ -112,6 +115,55 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         self.assertEqual(result.learning_feedback.outcome.quality, "POOR")
         self.assertEqual(result.learning_feedback.adaptation.status, "PROPOSED")
         self.assertEqual(len(memory.recent()), 1)
+
+    def test_durable_replay_guard_is_shared_by_runtime_and_learning_boundary(self):
+        queue = DecisionQueue()
+        decision = queue.enqueue(self.signal(), owner="system")
+        queue.decide(decision.id, approved=True)
+        console = LiveOperatingConsole(
+            date="2026-10-21",
+            primary_objective="Durable replay guard end-to-end",
+        )
+        memory = OperatingMemory()
+        with tempfile.TemporaryDirectory() as tmp:
+            replay_store = SQLiteReceiptReplayStore(str(Path(tmp) / "replay.sqlite3"))
+            runtime = LiveRuntimeBridge(
+                console,
+                trusted_source_adapter=FakeBookingAdapter(),
+                allowed_source_providers=("booking-provider",),
+                receipt_replay_store=replay_store,
+                require_durable_replay_store=True,
+            )
+            learning_service = TrustedDecisionLearningService(
+                classifier=FakeOutcomeClassifier(),
+                receipt_verifier=runtime.trusted_source_verifier,
+                memory=memory,
+            )
+            result = GovernedDecisionOrchestrator(
+                queue, console, runtime_bridge=runtime, learning_service=learning_service
+            ).execute_approved(
+                decision.id,
+                expected_output="quality review completed",
+                source_record_id="booking:record:durable",
+                learning_evidence_id="evidence:booking-outcome:1",
+                learning_policy_version="policy:v1",
+                learning_next_command="Run a bounded shadow experiment",
+            )
+
+            self.assertTrue(replay_store.health_check())
+            self.assertIs(result.execution.trusted_receipt_verification, not None)
+            self.assertTrue(result.execution.trusted_receipt_verification.verified)
+            self.assertTrue(result.learning_feedback.admitted)
+            self.assertEqual(result.learning_feedback.outcome.quality, "POOR")
+            self.assertEqual(len(memory.recent()), 1)
+            # The learning boundary re-checks the exact receipt but must not
+            # claim the replay key a second time: a subsequent execution-level
+            # claim for that same provider/source/hash must be rejected.
+            duplicate = replay_store.claim(
+                "booking-provider", "booking:record:durable", "sha256:exec:"
+                + result.execution.operating_loop.execution_id.removeprefix("exec:")
+            )
+            self.assertFalse(duplicate.accepted)
 
     def test_missing_runtime_verifier_fails_closed(self):
         queue = DecisionQueue()
