@@ -39,13 +39,11 @@ def verify_with_provider(signed: object, provider: HMACKeyProvider) -> bool:
     """Resolve the envelope's key via the provider, enforcing provider allowlist."""
     from src.signed_release_envelope import verify_signed_envelope
 
-    if not isinstance(provider, HMACKeyProvider):
-        # Runtime-checkable is intentionally not required: support duck-typed
-        # provider adapters while validating both required methods explicitly.
-        if not callable(getattr(provider, "get_key", None)) or not callable(
-            getattr(provider, "accepted_key_ids", None)
-        ):
-            return False
+    # The Protocol is static typing only; validate duck-typed methods explicitly.
+    if not callable(getattr(provider, "get_key", None)) or not callable(
+        getattr(provider, "accepted_key_ids", None)
+    ):
+        return False
     if hasattr(signed, "to_dict"):
         value = signed.to_dict()
     elif isinstance(signed, dict):
