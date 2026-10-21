@@ -79,6 +79,7 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
             raw_observation="booking_id=42;status=confirmed",
             verification_method="test-verifier",
             reasons=("verified for unit test",),
+            content_hash="sha256:test-fixture",
         )
         result = self.gate.evaluate(
             EvidenceAdmissionRequest(
@@ -94,6 +95,7 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
         self.assertEqual(result.decision, "ADMITTED")
         self.assertTrue(result.learning_admitted)
         self.assertEqual(result.missing_fields, ())
+        self.assertEqual(result.receipt_content_hash, "sha256:test-fixture")
 
     def test_verifier_result_for_different_execution_is_rejected(self):
         receipt_result = ReceiptVerificationResult(
