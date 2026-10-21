@@ -238,7 +238,7 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
             policy_version="policy:v1", next_command="Hold",
         )
         self.assertFalse(result.admitted)
-        self.assertIn("attestation verification failed", result.reasons[0])
+        self.assertIn("bundle integrity", result.reasons[0])
         self.assertEqual(self.classifier.calls, 0)
 
     def test_loader_is_not_called_when_signature_is_rejected(self):
