@@ -95,6 +95,10 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
             learning_admitted=admitted,
             missing_fields=() if admitted else ("trusted_receipt_verification",),
             reasons=("test admission result",),
+            execution_id="exec:1",
+            source="booking-provider:record:1",
+            raw_observation="booking outcome=failed",
+            trusted_receipt_content_hash="sha256:receipt-stable",
         )
         result = receipt_result
         if receipt and result is None:
