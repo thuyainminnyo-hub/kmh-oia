@@ -1,16 +1,16 @@
 name: KMH OIA Protected Runtime Artifact Attestation
 
-# Manual-only gate. Repository administrators must configure the production-attestation
-# Environment with required reviewers and an environment-scoped private-key secret.
+# Manual-only signing gate. Administrators must protect the production-attestation
+# Environment with required reviewers and environment-scoped signing configuration.
 on:
   workflow_dispatch:
     inputs:
       classifier_artifact_path:
-        description: Repository-relative path to a built classifier artifact present on main
+        description: Repository-relative path to an approved classifier build artifact checked out at main
         required: true
         type: string
       policy_artifact_path:
-        description: Repository-relative path to a built policy artifact present on main
+        description: Repository-relative path to an approved policy build artifact checked out at main
         required: true
         type: string
 
@@ -43,14 +43,19 @@ jobs:
           python - <<'PY'
           import os
           from pathlib import Path
+
+          root = Path.cwd().resolve()
           for name in ("CLASSIFIER_PATH", "POLICY_PATH"):
               raw = os.environ[name]
               path = Path(raw)
               if not raw.strip() or path.is_absolute() or ".." in path.parts:
                   raise SystemExit(f"{name} must be a safe repository-relative path")
-              if not path.is_file() or path.stat().st_size == 0:
+              resolved = (root / path).resolve()
+              if not resolved.is_relative_to(root):
+                  raise SystemExit(f"{name} must resolve inside the checked-out source tree")
+              if not resolved.is_file() or resolved.stat().st_size == 0:
                   raise SystemExit(f"{name} must exist and be non-empty in this revision")
-          print("Explicit non-empty artifact inputs validated; signing prerequisites only.")
+          print("Source-tree path checks passed only; this does not prove build provenance.")
           PY
           test -f scripts/create_runtime_artifact_attestation.py
           test -f src/runtime_artifact_io.py
@@ -77,7 +82,7 @@ jobs:
           python-version: "3.12"
       - name: Install declared dependencies
         run: python -m pip install -r requirements.txt
-      - name: Revalidate artifact paths
+      - name: Revalidate artifact paths and reject symlink escapes
         shell: bash
         env:
           CLASSIFIER_PATH: ${{ inputs.classifier_artifact_path }}
@@ -87,12 +92,17 @@ jobs:
           python - <<'PY'
           import os
           from pathlib import Path
+
+          root = Path.cwd().resolve()
           for name in ("CLASSIFIER_PATH", "POLICY_PATH"):
               raw = os.environ[name]
               path = Path(raw)
               if not raw.strip() or path.is_absolute() or ".." in path.parts:
                   raise SystemExit(f"{name} must be a safe repository-relative path")
-              if not path.is_file() or path.stat().st_size == 0:
+              resolved = (root / path).resolve()
+              if not resolved.is_relative_to(root):
+                  raise SystemExit(f"{name} must resolve inside the checked-out source tree")
+              if not resolved.is_file() or resolved.stat().st_size == 0:
                   raise SystemExit(f"{name} must exist and be non-empty")
           PY
       - name: Create signed attestation (private key scoped to this step)

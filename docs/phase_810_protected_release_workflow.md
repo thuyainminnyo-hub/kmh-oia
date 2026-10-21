@@ -4,12 +4,12 @@ Date: 2026-10-21
 
 ## Implemented in this source branch
 
-- Manual `workflow_dispatch` trigger only; the workflow condition restricts execution to `refs/heads/main`.
-- Explicit classifier/policy artifact paths are required and validated as safe repository-relative, existing, non-empty files.
+- Manual `workflow_dispatch` trigger only; workflow job conditions restrict signing to `refs/heads/main`.
+- Explicit classifier/policy paths are checked for safe relative paths, non-empty files, and resolution within the checked-out tree (including symlink escape rejection).
 - Signing waits for preflight and targets the GitHub Environment `production-attestation`.
 - The private key is passed only to the signing step from an environment-scoped secret; no private key is committed or printed.
-- Attestation output uses the existing create-only writer and is uploaded as a run-scoped CI artifact, not a deployment receipt.
-- Static regression tests cover the trigger, protected environment, preflight dependency, artifact guards and secret handling.
+- Attestation output uses the create-only writer and is uploaded as a run-scoped CI artifact, not a deployment receipt.
+- Static regression tests check manual-only trigger, main-only guard, environment target, preflight ordering, path confinement, empty input rejection, and secret-scope rules.
 
 ## Repository administrator prerequisites — not verified by this commit
 
@@ -24,19 +24,19 @@ Provision the corresponding public key and exact issuer/subject allowlists separ
 
 ## Remaining production gates
 
-1. A production build artifact contract has not yet been established. The workflow requires explicit paths and does not claim that this repository builds or deploys production classifier/policy artifacts.
-2. Environment reviewers, protection rules and secrets are external settings; this code change cannot prove they exist or are configured correctly.
-3. A successful signature proves only that a trusted key signed measured bytes. It does not prove provider authenticity, runtime deployment, business outcome, rollback readiness or independent review.
+1. The repository does not yet define a trusted immutable build artifact contract. The current inputs point at files in the checked-out `main` tree; path guards and a signature do not prove those files were emitted by a trusted build.
+2. Environment reviewers, protection rules and secrets are external settings; source-controlled YAML cannot prove they exist or are correctly configured.
+3. A successful signature proves only that the configured signing key signed measured bytes. It does not prove provider authenticity, runtime deployment, business outcome, rollback readiness or independent review.
 4. A human reviewer must inspect PR #97 and provide a substantive independent review; automated tests cannot satisfy this requirement.
-5. Run production signing only after administrator prerequisites and the artifact contract are agreed. Keep the release decision on HOLD until target-host evidence, provider authenticity, migration/rollback rehearsal and release sign-off are reviewed.
+5. Run production signing only after administrator prerequisites and an immutable artifact contract are agreed. Keep release on HOLD until target-host evidence, provider authenticity, migration/rollback rehearsal and release sign-off are reviewed.
 
-## Verification record for current source head
+## Verification record
 
-At head `665825487c4a2498b964f7b6d48edb84257c1191`, the repository's Tests and Validation GitHub Actions runs completed successfully. Validation jobs include `tests`, `performance-evidence`, `repository-validation`, and `deployment-evidence-bundle`. These are repository CI results only; the workflow does not prove that the external GitHub Environment has reviewers or secrets configured.
+At head `31f97a0fc244772c3913bd3b742af6ef05c697dc`:
+- [Tests #781 — SUCCESS](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39624060842).
+- [Validation #700 — SUCCESS](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39624060869); tests, performance-evidence, repository-validation, and deployment-evidence-bundle succeeded.
 
-## Phase 809 wording correction
-
-The signer measures and rejects empty artifact bytes before evaluating production run-context checks. The Phase 809 doc now records this order accurately; earlier wording that implied context checks happened before artifact measurement was stale.
+These are repository CI results only; they do not prove GitHub Environment configuration or production deployment.
 
 **Decision: Production HOLD.**
 
