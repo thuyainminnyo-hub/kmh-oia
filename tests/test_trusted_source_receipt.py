@@ -58,6 +58,47 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         self.assertEqual(result.raw_observation, "booking_id=42;status=confirmed")
         self.assertEqual(result.content_hash, "sha256:test-fixture")
 
+
+    def test_content_hash_must_match_recomputed_receipt_payload_digest(self):
+        import hashlib
+
+        class DigestCheckingAdapter(FakeTrustedSourceAdapter):
+            def verify_receipt(self, receipt):
+                expected = "sha256:" + hashlib.sha256(receipt.raw_observation.encode("utf-8")).hexdigest()
+                return receipt.content_hash == expected
+
+        raw = "booking_id=42;status=confirmed"
+        good_hash = "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        valid = TrustedSourceReceipt(
+            provider_name="booking-provider",
+            source_record_id="booking:42",
+            execution_id="exec:1",
+            raw_observation=raw,
+            observed_at="2026-10-20T11:30:00Z",
+            content_hash=good_hash,
+            verification_method="test-sha256-payload-digest",
+        )
+        accepted = self.verifier(
+            DigestCheckingAdapter(receipt=valid)
+        ).verify("booking:42", "exec:1")
+        self.assertTrue(accepted.verified)
+        self.assertEqual(accepted.content_hash, good_hash)
+
+        tampered = TrustedSourceReceipt(
+            provider_name=valid.provider_name,
+            source_record_id=valid.source_record_id,
+            execution_id=valid.execution_id,
+            raw_observation="booking_id=42;status=cancelled",
+            observed_at=valid.observed_at,
+            content_hash=good_hash,
+            verification_method=valid.verification_method,
+        )
+        rejected = self.verifier(
+            DigestCheckingAdapter(receipt=tampered)
+        ).verify("booking:42", "exec:1")
+        self.assertFalse(rejected.verified)
+        self.assertIn("integrity/authenticity", rejected.reasons[0])
+
     def test_missing_adapter_fails_closed(self):
         result = self.verifier(None).verify("booking:42", "exec:1")
         self.assertFalse(result.verified)
