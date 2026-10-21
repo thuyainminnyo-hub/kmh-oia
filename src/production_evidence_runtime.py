@@ -62,7 +62,12 @@ def build_production_evidence_runtime(
         raise ValueError("trusted_source_adapter is required for evidence runtime")
     config.validate()
 
-    adapter_provider = getattr(trusted_source_adapter, "provider_name", "")
+    try:
+        adapter_provider = getattr(trusted_source_adapter, "provider_name", "")
+    except Exception:
+        raise ValueError(
+            "trusted source adapter provider_name could not be read safely"
+        ) from None
     if not isinstance(adapter_provider, str) or not adapter_provider.strip():
         raise ValueError("trusted source adapter must declare a provider_name")
     if adapter_provider.strip() not in {
