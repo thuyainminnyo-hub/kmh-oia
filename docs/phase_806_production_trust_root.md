@@ -19,3 +19,8 @@ The config loader exists, but no real production public key, protected signing w
 **Decision: Production HOLD.**
 
 PR: https://github.com/thuyainminnyo-hub/kmh-oia/pull/97
+
+
+## Phase 807 follow-up
+
+Added `src/production_runtime_assembly.py` to bind the production verified artifact bundle to `TrustedDecisionLearningService` and `GovernedDecisionOrchestrator`, requiring a concrete policy-runtime binder before an assembly is returned. Production artifact paths, format loaders, public keys, and the actual policy binder remain deployment-owned inputs.
