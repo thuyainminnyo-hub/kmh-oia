@@ -121,6 +121,11 @@ class TrustedSourceReceiptVerifier:
             receipt = adapter.fetch_receipt(record_id, execution)
             if receipt is None:
                 return self._rejected(provider, record_id, execution, "Provider did not return a receipt.")
+            if not isinstance(receipt, TrustedSourceReceipt):
+                return self._rejected(
+                    provider, record_id, execution,
+                    "Provider returned a receipt with an unsupported data type.",
+                )
             if receipt.provider_name != provider:
                 return self._rejected(provider, record_id, execution, "Receipt provider does not match the configured adapter.")
             if receipt.source_record_id != record_id:
@@ -140,9 +145,12 @@ class TrustedSourceReceiptVerifier:
                 return self._rejected(provider, record_id, execution, "Provider receipt integrity/authenticity verification failed.")
             if not adapter.match_execution(receipt, execution):
                 return self._rejected(provider, record_id, execution, "Provider attribution check did not match the execution.")
-        except Exception as exc:
+        except Exception:
             # Provider/verification errors fail closed without exposing exception details.
-            return self._rejected(provider, record_id, execution, f"Receipt verification failed safely ({type(exc).__name__}).")
+            return self._rejected(
+                provider, record_id, execution,
+                "Receipt verification failed safely.",
+            )
 
         if claim_replay:
             try:
