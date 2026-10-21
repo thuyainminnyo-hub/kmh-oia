@@ -83,6 +83,8 @@ class VerifiedLearningAdmission:
             raise ValueError("execution source_decision_id does not match the outcome")
         if receipt.execution_id != loop.execution_id:
             raise ValueError("trusted receipt execution_id does not match the trace")
+        if not isinstance(admission.receipt_content_hash, str) or admission.receipt_content_hash != receipt.content_hash:
+            raise ValueError("admission receipt hash does not match trusted receipt")
         if not receipt.provider_name.strip() or not receipt.source_record_id.strip():
             raise ValueError("trusted receipt provider and source record are required")
         if not receipt.raw_observation.strip() or not receipt.verification_method.strip():
