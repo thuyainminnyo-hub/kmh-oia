@@ -77,7 +77,7 @@ class TrustedSourceReceiptVerifier:
         self.adapter = adapter
         self.allowed_providers = frozenset(normalized_providers)
         self.max_receipt_age_seconds = max_receipt_age_seconds
-        self.clock = clock or (lambda: datetime.now(timezone.utc))
+        self.clock = clock if clock is not None else (lambda: datetime.now(timezone.utc))
         self.replay_store = replay_store if replay_store is not None else InMemoryReceiptReplayStore()
 
     def verify(
