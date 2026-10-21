@@ -70,6 +70,23 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "at least one explicit"):
             ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", ()).validate()
 
+
+    def test_rejects_blank_entry_in_provider_allowlist_instead_of_silently_dropping_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "provider names must be non-empty strings"):
+                ProductionEvidenceRuntimeConfig(
+                    str(Path(tmp) / "replay.sqlite3"),
+                    ("test-provider", "   "),
+                ).validate()
+
+    def test_rejects_non_string_entry_in_provider_allowlist(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "provider names must be non-empty strings"):
+                ProductionEvidenceRuntimeConfig(
+                    str(Path(tmp) / "replay.sqlite3"),
+                    ("test-provider", 17),
+                ).validate()
+
     def test_rejects_duplicate_provider_allowlist(self):
         with self.assertRaisesRegex(ValueError, "must be unique"):
             ProductionEvidenceRuntimeConfig(
