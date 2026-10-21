@@ -105,7 +105,10 @@ class RuntimeArtifactAttestationProducerTests(unittest.TestCase):
             create_signed_runtime_attestation(self.classifier_path, self.policy_path, source_revision=self.revision, build_run_id="run", environ=env)
         self.policy_path.write_bytes(b"")
         with self.assertRaisesRegex(RuntimeArtifactAttestationCreationError, "must not be empty"):
-            create_signed_runtime_attestation(self.classifier_path, self.policy_path, source_revision=self.revision, build_run_id="run", environ=self.env)
+            create_signed_runtime_attestation(
+                self.classifier_path, self.policy_path, source_revision=self.revision,
+                build_run_id="run", environ={**self.env, "GITHUB_RUN_ID": "run"},
+            )
 
     def test_production_signer_requires_sha_and_run_id_to_match_github_context(self):
         env = dict(self.env)
