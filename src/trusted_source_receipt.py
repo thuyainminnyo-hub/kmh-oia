@@ -34,6 +34,7 @@ class ReceiptVerificationResult:
     raw_observation: str
     verification_method: str
     reasons: tuple[str, ...]
+    content_hash: str = ""
 
 
 class TrustedSourceAdapter(Protocol):
@@ -128,6 +129,7 @@ class TrustedSourceReceiptVerifier:
             raw_observation=receipt.raw_observation,
             verification_method=receipt.verification_method,
             reasons=("Trusted provider receipt integrity, freshness, attribution, and replay checks passed.",),
+            content_hash=receipt.content_hash,
         )
 
     def _check_freshness(self, observed_at: str) -> str | None:
