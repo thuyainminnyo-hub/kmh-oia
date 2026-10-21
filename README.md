@@ -291,3 +291,25 @@ actual_sha = require_verified_source_revision(
 ```
 
 Tests create temporary Git repositories and cover matching clean HEAD, mismatched revision, modified/untracked files, invalid expected SHA, and a non-Git directory. This helper verifies the current checkout only; production must bind the expected SHA to the reviewed/build artifact and invoke the check in the same execution environment that produces the release.
+
+
+## Release preflight with actual checkout verification
+
+`src/release_preflight.py` composes actual Git checkout verification with the independent approval-gated decision path. It discovers HEAD itself, rejects a dirty checkout, verifies the expected reviewed full SHA, confirms the evidence's source revision matches that actual HEAD, and only then evaluates QA and the injected approval authority.
+
+```python
+from src.release_preflight import preflight_release
+
+decision = preflight_release(
+    evidence,
+    qa_verdict,
+    expected_source_revision=reviewed_build_sha,
+    checkout_root=".",
+    approval_authority=trusted_approval_authority,
+    approval_id=approval_record_id,
+    signing_service_id="service:release-signer",
+    accepted_policy_ids={"release-policy:v1"},
+)
+```
+
+The test suite creates temporary Git checkouts and exercises a clean matching release through HMAC signing/enforcement, then verifies dirty tree, wrong expected SHA, evidence/checkout revision mismatch, and missing approval fail closed. This remains a controlled integration prototype; the expected SHA must still come from a trusted reviewed build/deployment artifact, and the actual production entrypoint must enforce the resulting signed decision before performing the protected action.
