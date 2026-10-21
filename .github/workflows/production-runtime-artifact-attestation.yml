@@ -1,0 +1,131 @@
+name: KMH OIA Protected Runtime Artifact Attestation
+
+# Manual-only gate. Repository administrators must configure the production-attestation
+# Environment with required reviewers and an environment-scoped private-key secret.
+on:
+  workflow_dispatch:
+    inputs:
+      classifier_artifact_path:
+        description: Repository-relative path to a built classifier artifact present on main
+        required: true
+        type: string
+      policy_artifact_path:
+        description: Repository-relative path to a built policy artifact present on main
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kmh-oia-production-attestation
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate protected signing prerequisites
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact requested revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check explicit artifact inputs
+        shell: bash
+        env:
+          CLASSIFIER_PATH: ${{ inputs.classifier_artifact_path }}
+          POLICY_PATH: ${{ inputs.policy_artifact_path }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          for name in ("CLASSIFIER_PATH", "POLICY_PATH"):
+              raw = os.environ[name]
+              path = Path(raw)
+              if not raw.strip() or path.is_absolute() or ".." in path.parts:
+                  raise SystemExit(f"{name} must be a safe repository-relative path")
+              if not path.is_file() or path.stat().st_size == 0:
+                  raise SystemExit(f"{name} must exist and be non-empty in this revision")
+          print("Explicit non-empty artifact inputs validated; signing prerequisites only.")
+          PY
+          test -f scripts/create_runtime_artifact_attestation.py
+          test -f src/runtime_artifact_io.py
+
+  sign:
+    name: Sign measured runtime artifacts
+    needs: [preflight]
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && needs.preflight.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: production-attestation
+    permissions:
+      contents: read
+    steps:
+      - name: Check out exact requested revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install declared dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Revalidate artifact paths
+        shell: bash
+        env:
+          CLASSIFIER_PATH: ${{ inputs.classifier_artifact_path }}
+          POLICY_PATH: ${{ inputs.policy_artifact_path }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          for name in ("CLASSIFIER_PATH", "POLICY_PATH"):
+              raw = os.environ[name]
+              path = Path(raw)
+              if not raw.strip() or path.is_absolute() or ".." in path.parts:
+                  raise SystemExit(f"{name} must be a safe repository-relative path")
+              if not path.is_file() or path.stat().st_size == 0:
+                  raise SystemExit(f"{name} must exist and be non-empty")
+          PY
+      - name: Create signed attestation (private key scoped to this step)
+        shell: bash
+        env:
+          KMH_OIA_ENVIRONMENT: production
+          KMH_OIA_ATTESTATION_PRIVATE_KEY_B64: ${{ secrets.KMH_OIA_ATTESTATION_PRIVATE_KEY_B64 }}
+          KMH_OIA_ATTESTATION_KEY_ID: ${{ vars.KMH_OIA_ATTESTATION_KEY_ID }}
+          KMH_OIA_ATTESTATION_ISSUER: ${{ vars.KMH_OIA_ATTESTATION_ISSUER }}
+          KMH_OIA_ATTESTATION_SUBJECT: ${{ vars.KMH_OIA_ATTESTATION_SUBJECT }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          CLASSIFIER_PATH: ${{ inputs.classifier_artifact_path }}
+          POLICY_PATH: ${{ inputs.policy_artifact_path }}
+        run: |
+          set -euo pipefail
+          test -n "$KMH_OIA_ATTESTATION_PRIVATE_KEY_B64"
+          test -n "$KMH_OIA_ATTESTATION_KEY_ID"
+          test -n "$KMH_OIA_ATTESTATION_ISSUER"
+          test -n "$KMH_OIA_ATTESTATION_SUBJECT"
+          output="runtime-artifact-attestation-${GITHUB_RUN_ID}.json"
+          python -m scripts.create_runtime_artifact_attestation \
+            --classifier "$CLASSIFIER_PATH" \
+            --policy "$POLICY_PATH" \
+            --source-revision "$GITHUB_SHA" \
+            --build-run-id "$GITHUB_RUN_ID" \
+            --output "$output"
+      - name: Upload run-scoped attestation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-artifact-attestation-${{ github.run_id }}
+          path: runtime-artifact-attestation-${{ github.run_id }}.json
+          if-no-files-found: error
+          retention-days: 90
