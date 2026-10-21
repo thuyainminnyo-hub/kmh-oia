@@ -151,7 +151,7 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             )
 
             self.assertTrue(replay_store.health_check())
-            self.assertIs(result.execution.trusted_receipt_verification, not None)
+            self.assertIsNotNone(result.execution.trusted_receipt_verification)
             self.assertTrue(result.execution.trusted_receipt_verification.verified)
             self.assertTrue(result.learning_feedback.admitted)
             self.assertEqual(result.learning_feedback.outcome.quality, "POOR")
