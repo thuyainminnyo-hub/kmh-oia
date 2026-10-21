@@ -277,7 +277,9 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
     def test_rejected_attestation_fails_closed(self):
         service = TrustedDecisionLearningService(
             classifier=self.classifier, receipt_verifier=self.verifier, memory=self.memory, repository=self.repository,
-            classifier_artifact_sha256="a" * 64, policy_artifact_sha256="b" * 64, artifact_attestation=self.attestation,
+            classifier_artifact_sha256=self.attestation.classifier_sha256,
+            policy_artifact_sha256=self.attestation.policy_sha256,
+            artifact_attestation=self.attestation,
             artifact_attestation_verifier=FakeArtifactAttestationVerifier(valid=False),
         )
         result = service.capture_execution(self.decision, self.execution(), evidence_id="evidence:1", policy_version="policy:v1", next_command="Hold")
