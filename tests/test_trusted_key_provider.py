@@ -91,7 +91,7 @@ class TrustedKeyProviderTests(unittest.TestCase):
                 active_key_id="key-missing",
                 accepted_key_ids={"key-v1"},
             )
-        with self.assertRaisesRegex(ValueError, "at least 32"):
+        with self.assertRaisesRegex(ValueError, "too short"):
             InMemoryTrustedKeyProvider(
                 {"key-v1": b"short"},
                 active_key_id="key-v1",
