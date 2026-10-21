@@ -44,7 +44,7 @@ def _csv_allowlist(value: str | None, *, name: str) -> tuple[str, ...]:
     if not isinstance(value, str) or not value.strip():
         raise ProductionArtifactTrustConfigError(f"{name} is required")
     items = tuple(part.strip() for part in value.split(",") if part.strip())
-    if not items or len(set(items) != len(items) or "*" in items:
+    if not items or len(set(items)) != len(items) or "*" in items:
         raise ProductionArtifactTrustConfigError(f"{name} must be an explicit, unique, non-wildcard allowlist")
     if any(item.casefold() in _PLACEHOLDER_IDENTITIES for item in items):
         raise ProductionArtifactTrustConfigError(f"{name} contains a test or placeholder identity")
