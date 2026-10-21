@@ -14,6 +14,6 @@ After preflight and the protected Environment gate, the signer downloads by arti
 
 ## Limits and decision
 
-The expected producer workflow path is `.github/workflows/trusted-runtime-build.yml`; artifact name is `kmh-oia-runtime-bundle`. The producer workflow is not yet implemented, so the signing gate intentionally fails closed until it exists. Static CI does not prove live API behavior, production environment configuration or deployment.
+The expected producer workflow path is `.github/workflows/trusted-runtime-build.yml`; artifact name is `kmh-oia-runtime-bundle`. The producer workflow is not yet implemented. The signer therefore intentionally fails closed until that trusted producer exists. Static CI does not prove live API behavior, production environment configuration or deployment.
 
 PR #97 remains OPEN / DRAFT / UNMERGED pending independent review and production gates. **Production HOLD.**

@@ -22,7 +22,7 @@ class TrustedRuntimeArtifactHandoffContractTests(unittest.TestCase):
 
     def test_phase_document_records_external_prerequisites(self):
         content = DOC.read_text(encoding='utf-8')
-        self.assertIn('fails closed', content)
+        self.assertIn('fail-closed', content.lower())
         self.assertIn('has not been implemented', content.lower())
         self.assertIn('Production HOLD', content)
 

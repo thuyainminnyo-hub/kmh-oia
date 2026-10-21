@@ -37,8 +37,8 @@ class ProtectedRuntimeArtifactAttestationWorkflowTests(unittest.TestCase):
         self.assertIn('actions/runs/{run_id}', self.workflow)
         self.assertIn('run.get(field) != value', self.workflow)
         self.assertIn('actions/runs/{run_id}/artifacts', self.workflow)
-        self.assertIn('artifact.get(\"digest\") != os.environ[\"RUNTIME_ARTIFACT_DIGEST\"]', self.workflow)
-        self.assertIn('str(a.get(\"id\")) == os.environ[\"RUNTIME_ARTIFACT_ID\"]', self.workflow)
+        self.assertIn("artifact.get('digest') != os.environ['RUNTIME_ARTIFACT_DIGEST']", self.workflow)
+        self.assertIn("str(a.get('id')) == os.environ['RUNTIME_ARTIFACT_ID']", self.workflow)
 
     def test_signer_downloads_by_artifact_id_and_checks_real_bytes_digest(self):
         self.assertIn('actions/artifacts/$RUNTIME_ARTIFACT_ID/zip', self.workflow)
@@ -73,7 +73,7 @@ class ProtectedRuntimeArtifactAttestationWorkflowTests(unittest.TestCase):
 
     def test_phase_809_and_812_limits_are_recorded(self):
         self.assertIn('before production run-context checks', self.phase_809_doc)
-        self.assertIn('not connected end-to-end', self.phase_812_doc.lower())
+        self.assertIn('the producer workflow is not yet implemented', self.phase_812_doc.lower())
 
 if __name__ == '__main__':
     unittest.main()
