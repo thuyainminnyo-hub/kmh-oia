@@ -49,6 +49,16 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
             replay_store=replay_store,
         )
 
+
+    def test_malformed_adapter_provider_name_fails_closed_without_raising(self):
+        for malformed_provider in (None, 17, ["booking-provider"]):
+            with self.subTest(provider_name=malformed_provider):
+                adapter = FakeTrustedSourceAdapter()
+                adapter.provider_name = malformed_provider
+                result = self.verifier(adapter).verify("booking:42", "exec:1")
+                self.assertFalse(result.verified)
+                self.assertIn("provider name", result.reasons[0].lower())
+
     def test_valid_allowlisted_fresh_receipt_passes(self):
         result = self.verifier(FakeTrustedSourceAdapter()).verify("booking:42", "exec:1")
         self.assertTrue(result.verified)
