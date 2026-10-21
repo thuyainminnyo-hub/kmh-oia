@@ -19,3 +19,8 @@ This utility is not yet attached to a protected build/release workflow because a
 **Decision: Production HOLD.**
 
 PR: https://github.com/thuyainminnyo-hub/kmh-oia/pull/97
+
+
+## Phase 809 follow-up
+
+When `KMH_OIA_ENVIRONMENT=production`, the signing utility now checks the supplied source revision and build run ID against `GITHUB_SHA` and `GITHUB_RUN_ID`, requires `GITHUB_ACTIONS=true`, restricts signing to `refs/heads/main`, and requires `workflow_dispatch`. These are context consistency checks, not substitutes for protected GitHub Environment approvals, a reviewed release workflow, or secure private-key custody.

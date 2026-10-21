@@ -30,6 +30,10 @@ class RuntimeArtifactAttestationProducerTests(unittest.TestCase):
             "KMH_OIA_ATTESTATION_KEY_ID": "release-key-808",
             "KMH_OIA_ATTESTATION_ISSUER": "kmh-release-signer",
             "KMH_OIA_ATTESTATION_SUBJECT": "repo:thuyainminnyo-hub/kmh-oia:ref:refs/heads/main",
+            "KMH_OIA_ENVIRONMENT": "production",
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_REF": "refs/heads/main",
+            "GITHUB_EVENT_NAME": "workflow_dispatch",
         }
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -41,6 +45,7 @@ class RuntimeArtifactAttestationProducerTests(unittest.TestCase):
         self.classifier_path.write_bytes(self.classifier_bytes)
         self.policy_path.write_bytes(self.policy_bytes)
         self.revision = "a" * 40
+        self.env.update({"GITHUB_SHA": self.revision, "GITHUB_RUN_ID": "run-808-1"})
 
     def test_sign_and_parse_attestation_verifies_against_measured_bytes(self):
         attestation = create_signed_runtime_attestation(
@@ -66,7 +71,7 @@ class RuntimeArtifactAttestationProducerTests(unittest.TestCase):
     def test_changed_artifact_bytes_do_not_match_signed_statement(self):
         attestation = create_signed_runtime_attestation(
             self.classifier_path, self.policy_path,
-            source_revision=self.revision, build_run_id="run-808-2", environ=self.env,
+            source_revision=self.revision, build_run_id="run-808-2", environ={**self.env, "GITHUB_RUN_ID": "run-808-2"},
         )
         self.classifier_path.write_bytes(b"tampered after signing")
         verifier = Ed25519RuntimeArtifactAttestationVerifier(
@@ -102,10 +107,49 @@ class RuntimeArtifactAttestationProducerTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeArtifactAttestationCreationError, "must not be empty"):
             create_signed_runtime_attestation(self.classifier_path, self.policy_path, source_revision=self.revision, build_run_id="run", environ=self.env)
 
+    def test_production_signer_requires_sha_and_run_id_to_match_github_context(self):
+        env = dict(self.env)
+        env["GITHUB_SHA"] = "b" * 40
+        with self.assertRaisesRegex(RuntimeArtifactAttestationCreationError, "must match the trusted GITHUB_SHA"):
+            create_signed_runtime_attestation(
+                self.classifier_path, self.policy_path, source_revision=self.revision,
+                build_run_id="run-808-1", environ=env,
+            )
+        env = dict(self.env)
+        env["GITHUB_RUN_ID"] = "other-run"
+        with self.assertRaisesRegex(RuntimeArtifactAttestationCreationError, "must match the trusted GITHUB_RUN_ID"):
+            create_signed_runtime_attestation(
+                self.classifier_path, self.policy_path, source_revision=self.revision,
+                build_run_id="run-808-1", environ=env,
+            )
+
+    def test_production_signer_rejects_missing_actions_context_branch_and_event(self):
+        env = dict(self.env)
+        env.pop("GITHUB_ACTIONS")
+        with self.assertRaisesRegex(RuntimeArtifactAttestationCreationError, "requires the GitHub Actions runtime context"):
+            create_signed_runtime_attestation(
+                self.classifier_path, self.policy_path, source_revision=self.revision,
+                build_run_id="run-808-1", environ=env,
+            )
+        env = dict(self.env)
+        env["GITHUB_REF"] = "refs/heads/feature"
+        with self.assertRaisesRegex(RuntimeArtifactAttestationCreationError, "only from refs/heads/main"):
+            create_signed_runtime_attestation(
+                self.classifier_path, self.policy_path, source_revision=self.revision,
+                build_run_id="run-808-1", environ=env,
+            )
+        env = dict(self.env)
+        env["GITHUB_EVENT_NAME"] = "pull_request"
+        with self.assertRaisesRegex(RuntimeArtifactAttestationCreationError, "requires a workflow_dispatch"):
+            create_signed_runtime_attestation(
+                self.classifier_path, self.policy_path, source_revision=self.revision,
+                build_run_id="run-808-1", environ=env,
+            )
+
     def test_writer_refuses_overwrite_and_reader_rejects_extra_fields(self):
         attestation = create_signed_runtime_attestation(
             self.classifier_path, self.policy_path,
-            source_revision=self.revision, build_run_id="run-808-3", environ=self.env,
+            source_revision=self.revision, build_run_id="run-808-3", environ={**self.env, "GITHUB_RUN_ID": "run-808-3"},
         )
         write_runtime_artifact_attestation(self.output_path, attestation)
         with self.assertRaisesRegex(RuntimeArtifactAttestationIOError, "refusing to overwrite"):

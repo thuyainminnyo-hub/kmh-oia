@@ -60,6 +60,20 @@ def create_signed_runtime_attestation(
     if len(source_revision) not in (40, 64) or re.fullmatch(r"[0-9a-f]+", source_revision) is None:
         raise RuntimeArtifactAttestationCreationError("source_revision must be a full 40- or 64-character hexadecimal SHA")
 
+    # In production, the statement must be tied to the current GitHub Actions run context.
+    # This is a defensive application check, not a replacement for protected environments or key custody.
+    if env.get("KMH_OIA_ENVIRONMENT", "").strip().casefold() == "production":
+        if env.get("GITHUB_ACTIONS", "").strip().lower() != "true":
+            raise RuntimeArtifactAttestationCreationError("production signing requires the GitHub Actions runtime context")
+        if env.get("GITHUB_SHA", "").strip().lower() != source_revision:
+            raise RuntimeArtifactAttestationCreationError("source_revision must match the trusted GITHUB_SHA")
+        if env.get("GITHUB_RUN_ID", "").strip() != build_run_id.strip():
+            raise RuntimeArtifactAttestationCreationError("build_run_id must match the trusted GITHUB_RUN_ID")
+        if env.get("GITHUB_REF", "").strip() != "refs/heads/main":
+            raise RuntimeArtifactAttestationCreationError("production signing is allowed only from refs/heads/main")
+        if env.get("GITHUB_EVENT_NAME", "").strip() != "workflow_dispatch":
+            raise RuntimeArtifactAttestationCreationError("production signing requires a workflow_dispatch event")
+
     try:
         classifier = measure_artifact(classifier_path)
         policy = measure_artifact(policy_path)
