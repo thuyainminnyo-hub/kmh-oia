@@ -23,3 +23,8 @@ PR: https://github.com/thuyainminnyo-hub/kmh-oia/pull/97
 ## Phase 805 follow-up
 
 A verified loader bundle is now required by the learning service. `src/runtime_artifact_loader.py` measures actual bytes, validates the signed attestation against those byte digests, and only then calls loader callbacks with the measured byte snapshots. Production-specific file formats/loaders and key provisioning are still not supplied; passing CI does not establish deployment.
+
+
+## Phase 805 CI correction
+
+The initial exact-head CI for the producer showed one test-order mismatch: the empty-artifact negative test received the production run-ID mismatch before the intended empty-byte error. The signer now measures and rejects missing/empty artifact bytes before validating the Actions run context, making invalid-input failures deterministic. Production context checks remain strict.

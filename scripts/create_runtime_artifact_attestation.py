@@ -60,6 +60,16 @@ def create_signed_runtime_attestation(
     if len(source_revision) not in (40, 64) or re.fullmatch(r"[0-9a-f]+", source_revision) is None:
         raise RuntimeArtifactAttestationCreationError("source_revision must be a full 40- or 64-character hexadecimal SHA")
 
+    # Measure and validate artifacts before production run-context checks so failures
+    # report the earliest actionable artifact issue deterministically.
+    try:
+        classifier = measure_artifact(classifier_path)
+        policy = measure_artifact(policy_path)
+    except Exception as exc:
+        raise RuntimeArtifactAttestationCreationError("artifact bytes could not be measured") from exc
+    if not classifier.content or not policy.content:
+        raise RuntimeArtifactAttestationCreationError("classifier and policy artifacts must not be empty")
+
     # In production, the statement must be tied to the current GitHub Actions run context.
     # This is a defensive application check, not a replacement for protected environments or key custody.
     if env.get("KMH_OIA_ENVIRONMENT", "").strip().casefold() == "production":
@@ -73,14 +83,6 @@ def create_signed_runtime_attestation(
             raise RuntimeArtifactAttestationCreationError("production signing is allowed only from refs/heads/main")
         if env.get("GITHUB_EVENT_NAME", "").strip() != "workflow_dispatch":
             raise RuntimeArtifactAttestationCreationError("production signing requires a workflow_dispatch event")
-
-    try:
-        classifier = measure_artifact(classifier_path)
-        policy = measure_artifact(policy_path)
-    except Exception as exc:
-        raise RuntimeArtifactAttestationCreationError("artifact bytes could not be measured") from exc
-    if not classifier.content or not policy.content:
-        raise RuntimeArtifactAttestationCreationError("classifier and policy artifacts must not be empty")
 
     statement = RuntimeArtifactAttestation(
         classifier_sha256=classifier.sha256,
