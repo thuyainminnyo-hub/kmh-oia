@@ -19,7 +19,7 @@ from src.runtime_artifact_attestation import RuntimeArtifactAttestation, canonic
 
 class ProductionArtifactTrustTests(unittest.TestCase):
     def setUp(self):
-        self.now = datetime(2026, 10, 21, 14, 0, tzinfo=timezone.utc)
+        self.now = datetime.now(timezone.utc)
         self.private_key = Ed25519PrivateKey.generate()
         self.public_bytes = self.private_key.public_key().public_bytes(
             encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw,
