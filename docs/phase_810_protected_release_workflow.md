@@ -30,6 +30,10 @@ Provision the corresponding public key and exact issuer/subject allowlists separ
 4. A human reviewer must inspect PR #97 and provide a substantive independent review; automated tests cannot satisfy this requirement.
 5. Run production signing only after administrator prerequisites and the artifact contract are agreed. Keep the release decision on HOLD until target-host evidence, provider authenticity, migration/rollback rehearsal and release sign-off are reviewed.
 
+## Verification record for current source head
+
+At head `665825487c4a2498b964f7b6d48edb84257c1191`, the repository's Tests and Validation GitHub Actions runs completed successfully. Validation jobs include `tests`, `performance-evidence`, `repository-validation`, and `deployment-evidence-bundle`. These are repository CI results only; the workflow does not prove that the external GitHub Environment has reviewers or secrets configured.
+
 ## Phase 809 wording correction
 
 The signer measures and rejects empty artifact bytes before evaluating production run-context checks. The Phase 809 doc now records this order accurately; earlier wording that implied context checks happened before artifact measurement was stale.
