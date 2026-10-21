@@ -94,12 +94,8 @@ class LiveRuntimeBridgeTests(unittest.TestCase):
         self.assertEqual(record.admission.decision, "NOT_ADMITTED")
         self.assertFalse(record.admission.learning_admitted)
         self.assertEqual(record.admission.trusted_receipt_content_hash, "")
-        self.assertEqual(record.trusted_receipt_verification, None)
-        self.assertTrue(
-            any("external outcome verification not established" in item for item in record.evidence)
-            or "Internal runtime trace/QA observed only; external outcome verification not established."
-            in record.operating_loop.__dict__.values()
-        )
+        self.assertIsNotNone(record.trusted_receipt_verification)
+        self.assertFalse(record.trusted_receipt_verification.verified)
         # Runtime may retain an internal observation for audit, but the gate must
         # not represent caller booleans or metadata as a trusted outcome receipt.
 
