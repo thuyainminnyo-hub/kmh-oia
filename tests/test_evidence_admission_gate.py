@@ -168,6 +168,56 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
         self.assertFalse(result.learning_admitted)
         self.assertTrue(any("does not match" in reason.lower() for reason in result.reasons))
 
+
+    def test_nonempty_hash_does_not_override_unverified_receipt(self):
+        receipt_result = ReceiptVerificationResult(
+            verified=False,
+            provider_name="booking-provider",
+            source_record_id="record-42",
+            execution_id="exec:1",
+            raw_observation="booking_id=42;status=confirmed",
+            verification_method="test-verifier-rejected",
+            reasons=("provider signature verification failed",),
+            content_hash="sha256:present-but-not-trusted",
+        )
+        result = self.gate.evaluate(
+            EvidenceAdmissionRequest(
+                execution_id="exec:1",
+                source="booking-provider:record-42",
+                raw_observation="booking_id=42;status=confirmed",
+                verification_status="OUTCOME_LINKED",
+                outcome_linked=True,
+                trusted_receipt_verification=receipt_result,
+            )
+        )
+        self.assertEqual(result.decision, "NOT_ADMITTED")
+        self.assertFalse(result.learning_admitted)
+        self.assertTrue(any("unverified" in reason.lower() for reason in result.reasons))
+
+    def test_nonempty_hash_does_not_override_wrong_provider_attribution(self):
+        receipt_result = ReceiptVerificationResult(
+            verified=True,
+            provider_name="unexpected-provider",
+            source_record_id="record-42",
+            execution_id="exec:1",
+            raw_observation="booking_id=42;status=confirmed",
+            verification_method="test-verifier",
+            reasons=("fixture",),
+            content_hash="sha256:present",
+        )
+        result = self.gate.evaluate(
+            EvidenceAdmissionRequest(
+                execution_id="exec:1",
+                source="booking-provider:record-42",
+                raw_observation="booking_id=42;status=confirmed",
+                verification_status="OUTCOME_LINKED",
+                outcome_linked=True,
+                trusted_receipt_verification=receipt_result,
+            )
+        )
+        self.assertEqual(result.decision, "NOT_ADMITTED")
+        self.assertFalse(result.learning_admitted)
+
     def test_outcome_link_flag_without_outcome_linked_status_is_rejected(self):
         result = self.gate.evaluate(
             EvidenceAdmissionRequest(
