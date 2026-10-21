@@ -105,6 +105,8 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
             repository=self.learning_repository,
+            classifier_artifact_sha256="a" * 64,
+            policy_artifact_sha256="b" * 64,
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=learning_service
@@ -170,6 +172,8 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
             repository=self.learning_repository,
+            classifier_artifact_sha256="a" * 64,
+            policy_artifact_sha256="b" * 64,
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=service
@@ -215,6 +219,8 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
                 receipt_verifier=runtime.trusted_source_verifier,
                 memory=memory,
                 repository=self.learning_repository,
+            classifier_artifact_sha256="a" * 64,
+            policy_artifact_sha256="b" * 64,
             )
             result = GovernedDecisionOrchestrator(
                 queue, console, runtime_bridge=runtime, learning_service=learning_service
@@ -258,6 +264,8 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
             repository=self.learning_repository,
+            classifier_artifact_sha256="a" * 64,
+            policy_artifact_sha256="b" * 64,
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=learning_service
@@ -300,6 +308,8 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             receipt_verifier=None,
             memory=OperatingMemory(),
             repository=self.learning_repository,
+            classifier_artifact_sha256="a" * 64,
+            policy_artifact_sha256="b" * 64,
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=learning_service
