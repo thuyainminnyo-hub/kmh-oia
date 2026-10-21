@@ -52,6 +52,50 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         )
 
 
+
+    def test_verifier_rejects_non_tuple_provider_allowlist(self):
+        with self.assertRaisesRegex(ValueError, "explicit tuple"):
+            TrustedSourceReceiptVerifier(
+                FakeTrustedSourceAdapter(),
+                allowed_providers=["booking-provider"],
+                clock=lambda: FIXED_NOW,
+            )
+
+    def test_verifier_rejects_blank_or_non_string_provider_allowlist_entries(self):
+        malformed_allowlists = (
+            ("booking-provider", ""),
+            ("booking-provider", "   "),
+            ("booking-provider", None),
+            ("booking-provider", 17),
+        )
+        for providers in malformed_allowlists:
+            with self.subTest(providers=providers):
+                with self.assertRaisesRegex(ValueError, "non-empty strings"):
+                    TrustedSourceReceiptVerifier(
+                        FakeTrustedSourceAdapter(),
+                        allowed_providers=providers,
+                        clock=lambda: FIXED_NOW,
+                    )
+
+    def test_verifier_rejects_duplicate_normalized_provider_names(self):
+        with self.assertRaisesRegex(ValueError, "must be unique"):
+            TrustedSourceReceiptVerifier(
+                FakeTrustedSourceAdapter(),
+                allowed_providers=("booking-provider", " booking-provider "),
+                clock=lambda: FIXED_NOW,
+            )
+
+    def test_verifier_rejects_invalid_max_receipt_age_type(self):
+        for invalid_age in (True, 1.5, "3600", None):
+            with self.subTest(max_receipt_age_seconds=invalid_age):
+                with self.assertRaisesRegex(ValueError, "non-negative integer"):
+                    TrustedSourceReceiptVerifier(
+                        FakeTrustedSourceAdapter(),
+                        allowed_providers=("booking-provider",),
+                        max_receipt_age_seconds=invalid_age,
+                        clock=lambda: FIXED_NOW,
+                    )
+
     def test_malformed_adapter_provider_name_fails_closed_without_raising(self):
         for malformed_provider in (None, 17, ["booking-provider"]):
             with self.subTest(provider_name=malformed_provider):
