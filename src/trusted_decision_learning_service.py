@@ -23,6 +23,7 @@ from src.trusted_source_receipt import (
     TrustedSourceReceiptVerifier,
 )
 from src.verified_learning_admission import VerifiedLearningAdmission
+from src.runtime_artifact_attestation import RuntimeArtifactAttestation, RuntimeArtifactAttestationVerifier
 
 
 @dataclass(frozen=True)
@@ -44,23 +45,6 @@ class TrustedOutcomeClassifier(Protocol):
         receipt: ReceiptVerificationResult,
     ) -> TrustedOutcomeClassification: ...
 
-
-@dataclass(frozen=True)
-class RuntimeArtifactAttestation:
-    """Identity assertion for artifacts loaded by the current runtime."""
-    classifier_sha256: str
-    policy_sha256: str
-    issuer: str
-    subject: str
-    attestation_id: str
-
-
-class RuntimeArtifactAttestationVerifier(Protocol):
-    """Authenticate attestation and bind it to measured runtime artifact bytes."""
-    def verify(
-        self, attestation: RuntimeArtifactAttestation, *,
-        expected_classifier_sha256: str, expected_policy_sha256: str,
-    ) -> bool: ...
 
 
 @dataclass(frozen=True)
@@ -364,6 +348,14 @@ class TrustedDecisionLearningService:
             "artifact_attestation_issuer": self._artifact_attestation.issuer,
             "artifact_attestation_subject": self._artifact_attestation.subject,
             "artifact_attestation_id": self._artifact_attestation.attestation_id,
+            "artifact_attestation_key_id": self._artifact_attestation.key_id or None,
+            "artifact_attestation_source_revision": self._artifact_attestation.source_revision or None,
+            "artifact_attestation_build_run_id": self._artifact_attestation.build_run_id or None,
+            "artifact_attestation_issued_at": self._artifact_attestation.issued_at or None,
+            "artifact_attestation_signature_sha256": (
+                hashlib.sha256(self._artifact_attestation.signature.encode("utf-8")).hexdigest()
+                if self._artifact_attestation.signature else None
+            ),
             "outcome_quality": quality,
         }
         try:
@@ -416,6 +408,14 @@ class TrustedDecisionLearningService:
             "attestation_issuer": self._artifact_attestation.issuer if self._artifact_attestation else None,
             "attestation_subject": self._artifact_attestation.subject if self._artifact_attestation else None,
             "attestation_id": self._artifact_attestation.attestation_id if self._artifact_attestation else None,
+            "attestation_key_id": self._artifact_attestation.key_id if self._artifact_attestation else None,
+            "attestation_source_revision": self._artifact_attestation.source_revision if self._artifact_attestation else None,
+            "attestation_build_run_id": self._artifact_attestation.build_run_id if self._artifact_attestation else None,
+            "attestation_issued_at": self._artifact_attestation.issued_at if self._artifact_attestation else None,
+            "attestation_signature_sha256": (
+                hashlib.sha256(self._artifact_attestation.signature.encode("utf-8")).hexdigest()
+                if self._artifact_attestation and self._artifact_attestation.signature else None
+            ),
         }
         fingerprint = "sha256:" + hashlib.sha256(json.dumps(
             request, sort_keys=True, separators=(",", ":"), ensure_ascii=False
