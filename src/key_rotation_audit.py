@@ -161,7 +161,7 @@ def append_rotation_events(events: list[KeyRotationEvent] | tuple[KeyRotationEve
             previous_hash = entry["entry_hash"]
             sequence += 1
         encoded = "".join(
-            json.dumps(entry, sort_keys=True, ensure_ascii=False) + "\\n"
+            json.dumps(entry, sort_keys=True, ensure_ascii=False) + "\n"
             for entry in batch
         )
         with destination.open("a", encoding="utf-8") as stream:
