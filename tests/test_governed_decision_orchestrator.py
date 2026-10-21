@@ -115,6 +115,11 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         self.assertEqual(result.learning_feedback.outcome.quality, "POOR")
         self.assertEqual(result.learning_feedback.adaptation.status, "PROPOSED")
         self.assertEqual(len(memory.recent()), 1)
+        # Even the fully admitted end-to-end path creates a proposal only;
+        # application is still blocked until a separate approval is recorded.
+        with self.assertRaisesRegex(ValueError, "only approved adaptations can be applied"):
+            learning_service._adaptation_engine.apply(result.learning_feedback.adaptation)
+        self.assertEqual(result.learning_feedback.adaptation.status, "PROPOSED")
 
     def test_invalid_runtime_admission_provenance_blocks_learning_service(self):
         class MismatchedProvenanceAdapter(FakeBookingAdapter):
