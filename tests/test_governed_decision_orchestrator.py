@@ -11,6 +11,7 @@ from src.live_operating_console import LiveOperatingConsole
 from src.live_runtime_bridge import ExecutionRecord, LiveRuntimeBridge
 from src.execution_telemetry import ExecutionTelemetry, ExecutionTelemetryCollector
 from src.operating_memory import OperatingMemory
+from src.learning_admission_repository import SQLiteLearningAdmissionRepository
 from src.telemetry_signal_engine import IntelligenceSignal
 from src.trusted_decision_learning_service import (
     TrustedDecisionLearningService,
@@ -51,6 +52,13 @@ class FakeOutcomeClassifier:
 
 
 class GovernedDecisionOrchestratorTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tempdir.cleanup)
+        self.learning_repository = SQLiteLearningAdmissionRepository(
+            Path(self.tempdir.name) / "learning.sqlite3"
+        )
+
     def signal(self):
         return IntelligenceSignal(
             "QUALITY_RISK", "HIGH", "qa_pass_rate", 0.5, 0.8,
@@ -96,6 +104,7 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             classifier=FakeOutcomeClassifier(),
             receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
+            repository=self.learning_repository,
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=learning_service
@@ -114,7 +123,8 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         self.assertTrue(result.learning_feedback.admitted)
         self.assertEqual(result.learning_feedback.outcome.quality, "POOR")
         self.assertEqual(result.learning_feedback.adaptation.status, "PROPOSED")
-        self.assertEqual(len(memory.recent()), 1)
+        self.assertEqual(memory.recent(), ())
+        self.assertEqual(self.learning_repository.counts()["learning_records"], 1)
         # Even the fully admitted end-to-end path creates a proposal only;
         # application is still blocked until a separate approval is recorded.
         with self.assertRaisesRegex(ValueError, "only approved adaptations can be applied"):
@@ -159,6 +169,7 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             classifier=FakeOutcomeClassifier(),
             receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
+            repository=self.learning_repository,
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=service
@@ -203,6 +214,7 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
                 classifier=FakeOutcomeClassifier(),
                 receipt_verifier=runtime.trusted_source_verifier,
                 memory=memory,
+                repository=self.learning_repository,
             )
             result = GovernedDecisionOrchestrator(
                 queue, console, runtime_bridge=runtime, learning_service=learning_service
@@ -220,7 +232,8 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             self.assertTrue(result.execution.trusted_receipt_verification.verified)
             self.assertTrue(result.learning_feedback.admitted)
             self.assertEqual(result.learning_feedback.outcome.quality, "POOR")
-            self.assertEqual(len(memory.recent()), 1)
+            self.assertEqual(memory.recent(), ())
+            self.assertEqual(self.learning_repository.counts()["learning_records"], 1)
             # The learning boundary re-checks the exact receipt but must not
             # claim the replay key a second time: a subsequent execution-level
             # claim for that same provider/source/hash must be rejected.
@@ -244,6 +257,7 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             classifier=FakeOutcomeClassifier(),
             receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
+            repository=self.learning_repository,
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=learning_service
@@ -285,6 +299,7 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             classifier=FakeOutcomeClassifier(),
             receipt_verifier=None,
             memory=OperatingMemory(),
+            repository=self.learning_repository,
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=learning_service

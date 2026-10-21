@@ -25,3 +25,9 @@
 - All adaptation proposals remain `PROPOSED`; approval/application are separate governance actions.
 
 **Production remains HOLD** pending exact-head CI, independent review, migration/rollback verification, real provider authenticity, and target deployment evidence.
+
+
+## Phase 798 integration follow-up — orchestrator fixture compatibility
+- Updated every governed-orchestrator test that constructs `TrustedDecisionLearningService` to provide a durable temporary SQLite repository.
+- Successful orchestrator tests now assert the learning record is persisted transactionally in SQLite and is not duplicated in the old JSON memory store.
+- The first exact-head CI run revealed five constructor errors in these upstream integration tests; this follow-up directly addresses that compatibility finding. Re-run results for the new head are required before claiming the fix passed.
