@@ -97,6 +97,51 @@ class VerifiedLearningAdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "decision/command trace"):
             self.proof(execution=self.execution(source_decision_id="decision:other"))
 
+    def test_execution_source_decision_is_checked_independently(self):
+        execution = self.execution()
+        execution = ExecutionRecord(
+            command_id=execution.command_id,
+            response=execution.response,
+            trace_stages=execution.trace_stages,
+            evidence=execution.evidence,
+            qa_status=execution.qa_status,
+            final_status=execution.final_status,
+            source_decision_id="decision:other",
+            operating_loop=execution.operating_loop,
+            admission=execution.admission,
+            trusted_receipt_verification=execution.trusted_receipt_verification,
+        )
+        with self.assertRaisesRegex(ValueError, "execution source_decision_id"):
+            self.proof(execution=execution)
+
+    def test_blank_receipt_hash_is_rejected(self):
+        execution = self.execution()
+        receipt = execution.trusted_receipt_verification
+        invalid_receipt = ReceiptVerificationResult(
+            verified=True,
+            provider_name=receipt.provider_name,
+            source_record_id=receipt.source_record_id,
+            execution_id=receipt.execution_id,
+            raw_observation=receipt.raw_observation,
+            verification_method=receipt.verification_method,
+            reasons=receipt.reasons,
+            content_hash=" ",
+        )
+        execution = ExecutionRecord(
+            command_id=execution.command_id,
+            response=execution.response,
+            trace_stages=execution.trace_stages,
+            evidence=execution.evidence,
+            qa_status=execution.qa_status,
+            final_status=execution.final_status,
+            source_decision_id=execution.source_decision_id,
+            operating_loop=execution.operating_loop,
+            admission=execution.admission,
+            trusted_receipt_verification=invalid_receipt,
+        )
+        with self.assertRaisesRegex(ValueError, "content hash"):
+            self.proof(execution=execution)
+
     def test_blank_policy_version_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "policy_version is required"):
             VerifiedLearningAdmission.from_execution(
