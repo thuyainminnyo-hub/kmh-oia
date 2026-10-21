@@ -24,6 +24,8 @@ def verify_runtime_bundle_release(bundle_path: str | Path, attestation_path: str
     those observed values as expected_* arguments. This function does not make network
     requests or prove deployment; it authenticates a local bundle/attestation pair.
     """
+    if not trusted_public_keys:
+        raise ValueError('at least one trusted Ed25519 public key is required')
     try:
         revision = expected_source_revision.strip().lower() if isinstance(expected_source_revision, str) else ''
         if len(revision) != 40 or any(c not in '0123456789abcdef' for c in revision):
