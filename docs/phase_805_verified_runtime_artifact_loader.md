@@ -18,3 +18,8 @@ This is an application wiring contract, not proof that any production classifier
 **Decision: Production HOLD.**
 
 PR: https://github.com/thuyainminnyo-hub/kmh-oia/pull/97
+
+
+## Phase 806 follow-up
+
+A production trust-root configuration entry point was added in `src/production_artifact_trust.py`. It requires active Ed25519 public keys, explicit issuer/subject allowlists, an exact expected source revision, and positive age/skew policy before the production byte loader runs. Production key provisioning and normal orchestrator wiring remain outstanding.
