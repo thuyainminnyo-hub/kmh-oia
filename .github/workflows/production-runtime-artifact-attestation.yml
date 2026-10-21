@@ -1,21 +1,42 @@
 name: KMH OIA Protected Runtime Artifact Attestation
 
-# Manual-only signing gate. Administrators must protect the production-attestation
-# Environment with required reviewers and environment-scoped signing configuration.
+# Manual-only signer. Verify producer run and artifact metadata against GitHub API.
+# No fallback to source-tree files is allowed.
 on:
   workflow_dispatch:
     inputs:
-      classifier_artifact_path:
-        description: Repository-relative path to an approved classifier build artifact checked out at main
+      producer_run_id:
+        description: Completed successful trusted producer workflow run ID
         required: true
         type: string
-      policy_artifact_path:
-        description: Repository-relative path to an approved policy build artifact checked out at main
+      producer_workflow_path:
+        description: Exact allowlisted producer workflow path
+        required: true
+        type: string
+      producer_source_sha:
+        description: Full source commit SHA from the trusted producer run
+        required: true
+        type: string
+      runtime_artifact_id:
+        description: Immutable numeric GitHub Actions artifact ID
+        required: true
+        type: string
+      runtime_artifact_name:
+        description: Exact runtime bundle artifact name reported by GitHub
+        required: true
+        type: string
+      runtime_artifact_digest:
+        description: GitHub Actions artifact digest in sha256:<64 lowercase hex> form
+        required: true
+        type: string
+      expected_release_sha:
+        description: Full main commit SHA that the release must match
         required: true
         type: string
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: kmh-oia-production-attestation
@@ -23,45 +44,116 @@ concurrency:
 
 jobs:
   preflight:
-    name: Validate protected signing prerequisites
+    name: Validate producer metadata before signing
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Check out exact requested revision
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Check explicit artifact inputs
+      - name: Validate explicit trusted producer allowlist
         shell: bash
         env:
-          CLASSIFIER_PATH: ${{ inputs.classifier_artifact_path }}
-          POLICY_PATH: ${{ inputs.policy_artifact_path }}
+          PRODUCER_RUN_ID: ${{ inputs.producer_run_id }}
+          PRODUCER_WORKFLOW_PATH: ${{ inputs.producer_workflow_path }}
+          PRODUCER_SOURCE_SHA: ${{ inputs.producer_source_sha }}
+          RUNTIME_ARTIFACT_ID: ${{ inputs.runtime_artifact_id }}
+          RUNTIME_ARTIFACT_NAME: ${{ inputs.runtime_artifact_name }}
+          RUNTIME_ARTIFACT_DIGEST: ${{ inputs.runtime_artifact_digest }}
+          EXPECTED_RELEASE_SHA: ${{ inputs.expected_release_sha }}
         run: |
           set -euo pipefail
           python - <<'PY'
-          import os
-          from pathlib import Path
-
-          root = Path.cwd().resolve()
-          for name in ("CLASSIFIER_PATH", "POLICY_PATH"):
-              raw = os.environ[name]
-              path = Path(raw)
-              if not raw.strip() or path.is_absolute() or ".." in path.parts:
-                  raise SystemExit(f"{name} must be a safe repository-relative path")
-              resolved = (root / path).resolve()
-              if not resolved.is_relative_to(root):
-                  raise SystemExit(f"{name} must resolve inside the checked-out source tree")
-              if not resolved.is_file() or resolved.stat().st_size == 0:
-                  raise SystemExit(f"{name} must exist and be non-empty in this revision")
-          print("Source-tree path checks passed only; this does not prove build provenance.")
+          import os, re
+          values = {key: os.environ[key] for key in (
+              'PRODUCER_RUN_ID', 'PRODUCER_WORKFLOW_PATH', 'PRODUCER_SOURCE_SHA',
+              'RUNTIME_ARTIFACT_ID', 'RUNTIME_ARTIFACT_NAME', 'RUNTIME_ARTIFACT_DIGEST',
+              'EXPECTED_RELEASE_SHA',
+          )}
+          if not values['PRODUCER_RUN_ID'].isdigit() or values['PRODUCER_RUN_ID'].startswith('0'):
+              raise SystemExit('producer_run_id must be a canonical positive numeric ID')
+          if not values['RUNTIME_ARTIFACT_ID'].isdigit() or values['RUNTIME_ARTIFACT_ID'].startswith('0'):
+              raise SystemExit('runtime_artifact_id must be a canonical positive numeric ID')
+          if not re.fullmatch(r'[0-9a-f]{40}', values['PRODUCER_SOURCE_SHA']):
+              raise SystemExit('producer_source_sha must be a full lowercase 40-character SHA')
+          if not re.fullmatch(r'[0-9a-f]{40}', values['EXPECTED_RELEASE_SHA']):
+              raise SystemExit('expected_release_sha must be a full lowercase 40-character SHA')
+          if values['PRODUCER_SOURCE_SHA'] != values['EXPECTED_RELEASE_SHA']:
+              raise SystemExit('producer SHA must exactly match expected release SHA')
+          if values['PRODUCER_WORKFLOW_PATH'] != '.github/workflows/trusted-runtime-build.yml':
+              raise SystemExit('producer workflow is not on the exact approved allowlist')
+          if values['RUNTIME_ARTIFACT_NAME'] != 'kmh-oia-runtime-bundle':
+              raise SystemExit('artifact name does not match the exact approved bundle name')
+          if not re.fullmatch(r'sha256:[0-9a-f]{64}', values['RUNTIME_ARTIFACT_DIGEST']):
+              raise SystemExit('artifact digest must use sha256:<64 lowercase hex>')
           PY
-          test -f scripts/create_runtime_artifact_attestation.py
-          test -f src/runtime_artifact_io.py
+      - name: Inspect actual producer run through GitHub API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCER_RUN_ID: ${{ inputs.producer_run_id }}
+          PRODUCER_SOURCE_SHA: ${{ inputs.producer_source_sha }}
+          PRODUCER_WORKFLOW_PATH: ${{ inputs.producer_workflow_path }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          repo = os.environ['GITHUB_REPOSITORY']
+          run_id = os.environ['PRODUCER_RUN_ID']
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/actions/runs/{run_id}',
+              headers={'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+                       'Accept': 'application/vnd.github+json',
+                       'X-GitHub-Api-Version': '2022-11-28'},
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              run = json.load(response)
+          expected = {'status': 'completed', 'conclusion': 'success',
+                      'head_sha': os.environ['PRODUCER_SOURCE_SHA'],
+                      'path': os.environ['PRODUCER_WORKFLOW_PATH'],
+                      'event': 'push', 'head_branch': 'main'}
+          for field, value in expected.items():
+              if run.get(field) != value:
+                  raise SystemExit(f'producer run {field} mismatch; refusing to sign')
+          if run.get('repository', {}).get('full_name') != repo:
+              raise SystemExit('producer run repository mismatch; refusing to sign')
+          print('GitHub API producer-run identity and success checks passed.')
+          PY
+      - name: Inspect immutable artifact ID and digest through GitHub API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCER_RUN_ID: ${{ inputs.producer_run_id }}
+          RUNTIME_ARTIFACT_ID: ${{ inputs.runtime_artifact_id }}
+          RUNTIME_ARTIFACT_NAME: ${{ inputs.runtime_artifact_name }}
+          RUNTIME_ARTIFACT_DIGEST: ${{ inputs.runtime_artifact_digest }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.parse, urllib.request
+          repo = os.environ['GITHUB_REPOSITORY']
+          run_id = os.environ['PRODUCER_RUN_ID']
+          query = urllib.parse.urlencode({'per_page': 100})
+          request = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/actions/runs/{run_id}/artifacts?{query}',
+              headers={'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+                       'Accept': 'application/vnd.github+json',
+                       'X-GitHub-Api-Version': '2022-11-28'},
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              result = json.load(response)
+          matches = [a for a in result.get('artifacts', [])
+                     if str(a.get('id')) == os.environ['RUNTIME_ARTIFACT_ID']]
+          if len(matches) != 1:
+              raise SystemExit('artifact ID not found uniquely under verified producer run')
+          artifact = matches[0]
+          if artifact.get('expired'):
+              raise SystemExit('producer artifact has expired; refusing to sign')
+          if artifact.get('name') != os.environ['RUNTIME_ARTIFACT_NAME']:
+              raise SystemExit('artifact name mismatch; refusing to sign')
+          if artifact.get('digest') != os.environ['RUNTIME_ARTIFACT_DIGEST']:
+              raise SystemExit('artifact digest mismatch; refusing to sign')
+          print('GitHub API artifact ID/name/digest checks passed.')
+          PY
 
   sign:
-    name: Sign measured runtime artifacts
+    name: Sign only the verified immutable producer artifact
     needs: [preflight]
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && needs.preflight.result == 'success' }}
     runs-on: ubuntu-latest
@@ -70,41 +162,53 @@ jobs:
       name: production-attestation
     permissions:
       contents: read
+      actions: read
     steps:
-      - name: Check out exact requested revision
+      - name: Check out exact expected release revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.expected_release_sha }}
           persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
       - name: Install declared dependencies
         run: python -m pip install -r requirements.txt
-      - name: Revalidate artifact paths and reject symlink escapes
-        shell: bash
+      - name: Download the artifact by immutable ID
         env:
-          CLASSIFIER_PATH: ${{ inputs.classifier_artifact_path }}
-          POLICY_PATH: ${{ inputs.policy_artifact_path }}
+          GH_TOKEN: ${{ github.token }}
+          RUNTIME_ARTIFACT_ID: ${{ inputs.runtime_artifact_id }}
         run: |
           set -euo pipefail
+          gh api -H 'Accept: application/vnd.github+json' "/repos/$GITHUB_REPOSITORY/actions/artifacts/$RUNTIME_ARTIFACT_ID/zip" > runtime-artifact.zip
           python - <<'PY'
-          import os
+          import zipfile
           from pathlib import Path
-
-          root = Path.cwd().resolve()
-          for name in ("CLASSIFIER_PATH", "POLICY_PATH"):
-              raw = os.environ[name]
-              path = Path(raw)
-              if not raw.strip() or path.is_absolute() or ".." in path.parts:
-                  raise SystemExit(f"{name} must be a safe repository-relative path")
-              resolved = (root / path).resolve()
-              if not resolved.is_relative_to(root):
-                  raise SystemExit(f"{name} must resolve inside the checked-out source tree")
-              if not resolved.is_file() or resolved.stat().st_size == 0:
-                  raise SystemExit(f"{name} must exist and be non-empty")
+          expected = {'classifier.bin', 'policy.bin'}
+          with zipfile.ZipFile('runtime-artifact.zip') as archive:
+              entries = archive.namelist()
+              if len(entries) != len(expected) or set(entries) != expected:
+                  raise SystemExit('runtime bundle must contain exactly classifier.bin and policy.bin')
+              root = Path('verified-runtime-artifact')
+              root.mkdir(exist_ok=False)
+              for name in sorted(expected):
+                  data = archive.read(name)
+                  if not data:
+                      raise SystemExit(f'{name} is empty; refusing to sign')
+                  (root / name).write_bytes(data)
+          print('Downloaded immutable artifact contains exactly the two non-empty expected files.')
           PY
+      - name: Verify downloaded artifact ZIP digest
+        env:
+          EXPECTED_ARTIFACT_DIGEST: ${{ inputs.runtime_artifact_digest }}
+        run: |
+          set -euo pipefail
+          actual="sha256:$(sha256sum runtime-artifact.zip | cut -d ' ' -f1)"
+          test "$actual" = "$EXPECTED_ARTIFACT_DIGEST" || {
+            echo 'Downloaded artifact ZIP digest mismatch; refusing to sign'
+            exit 1
+          }
       - name: Create signed attestation (private key scoped to this step)
         shell: bash
         env:
@@ -113,12 +217,11 @@ jobs:
           KMH_OIA_ATTESTATION_KEY_ID: ${{ vars.KMH_OIA_ATTESTATION_KEY_ID }}
           KMH_OIA_ATTESTATION_ISSUER: ${{ vars.KMH_OIA_ATTESTATION_ISSUER }}
           KMH_OIA_ATTESTATION_SUBJECT: ${{ vars.KMH_OIA_ATTESTATION_SUBJECT }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SHA: ${{ inputs.expected_release_sha }}
+          GITHUB_RUN_ID: ${{ inputs.producer_run_id }}
           GITHUB_REF: ${{ github.ref }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
-          CLASSIFIER_PATH: ${{ inputs.classifier_artifact_path }}
-          POLICY_PATH: ${{ inputs.policy_artifact_path }}
+          GITHUB_ACTIONS: 'true'
         run: |
           set -euo pipefail
           test -n "$KMH_OIA_ATTESTATION_PRIVATE_KEY_B64"
@@ -127,15 +230,15 @@ jobs:
           test -n "$KMH_OIA_ATTESTATION_SUBJECT"
           output="runtime-artifact-attestation-${GITHUB_RUN_ID}.json"
           python -m scripts.create_runtime_artifact_attestation \
-            --classifier "$CLASSIFIER_PATH" \
-            --policy "$POLICY_PATH" \
+            --classifier 'verified-runtime-artifact/classifier.bin' \
+            --policy 'verified-runtime-artifact/policy.bin' \
             --source-revision "$GITHUB_SHA" \
             --build-run-id "$GITHUB_RUN_ID" \
             --output "$output"
       - name: Upload run-scoped attestation evidence
         uses: actions/upload-artifact@v4
         with:
-          name: runtime-artifact-attestation-${{ github.run_id }}
-          path: runtime-artifact-attestation-${{ github.run_id }}.json
+          name: runtime-artifact-attestation-${{ inputs.producer_run_id }}
+          path: runtime-artifact-attestation-${{ inputs.producer_run_id }}.json
           if-no-files-found: error
           retention-days: 90
