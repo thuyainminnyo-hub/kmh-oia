@@ -18,8 +18,10 @@ class FakeTrustedSourceAdapter:
         self.integrity_ok = integrity_ok
         self.attribution_ok = attribution_ok
         self.receipt_override = receipt
+        self.fetch_receipt_calls = 0
 
     def fetch_receipt(self, source_record_id, execution_id):
+        self.fetch_receipt_calls += 1
         if self.receipt_override is not None:
             return self.receipt_override
         return TrustedSourceReceipt(
@@ -80,6 +82,21 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         self.assertFalse(result.verified)
         self.assertIn("RuntimeError", result.reasons[0])
         self.assertNotIn("private provider token leaked", result.reasons[0])
+
+
+    def test_non_string_source_record_and_execution_ids_fail_closed(self):
+        for source_record_id, execution_id in (
+            (None, "exec:1"),
+            (17, "exec:1"),
+            ("booking:42", None),
+            ("booking:42", ["exec:1"]),
+        ):
+            with self.subTest(source_record_id=source_record_id, execution_id=execution_id):
+                adapter = FakeTrustedSourceAdapter()
+                result = self.verifier(adapter).verify(source_record_id, execution_id)
+                self.assertFalse(result.verified)
+                self.assertIn("required", result.reasons[0])
+                self.assertEqual(adapter.fetch_receipt_calls, 0)
 
     def test_valid_allowlisted_fresh_receipt_passes(self):
         result = self.verifier(FakeTrustedSourceAdapter()).verify("booking:42", "exec:1")
