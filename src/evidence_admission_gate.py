@@ -31,6 +31,12 @@ class EvidenceAdmissionResult:
     learning_admitted: bool
     missing_fields: tuple[str, ...]
     reasons: tuple[str, ...]
+    # Preserve the exact provenance tuple evaluated by the gate so downstream
+    # learning cannot treat an unrelated ADMITTED result as proof for this receipt.
+    execution_id: str = ""
+    source: str = ""
+    raw_observation: str = ""
+    trusted_receipt_content_hash: str = ""
 
 
 class EvidenceAdmissionGate:
@@ -65,6 +71,8 @@ class EvidenceAdmissionGate:
             and receipt_result.execution_id == request.execution_id
             and f"{receipt_result.provider_name}:{receipt_result.source_record_id}" == request.source
             and receipt_result.raw_observation == request.raw_observation
+            and isinstance(receipt_result.content_hash, str)
+            and bool(receipt_result.content_hash.strip())
         )
         if status == "OUTCOME_LINKED" and not trusted_receipt_verified:
             reasons.append(
@@ -92,6 +100,14 @@ class EvidenceAdmissionGate:
             learning_admitted=admitted,
             missing_fields=missing,
             reasons=tuple(reasons),
+            execution_id=request.execution_id if isinstance(request.execution_id, str) else "",
+            source=request.source if isinstance(request.source, str) else "",
+            raw_observation=request.raw_observation if isinstance(request.raw_observation, str) else "",
+            trusted_receipt_content_hash=(
+                receipt_result.content_hash
+                if trusted_receipt_verified and isinstance(receipt_result, ReceiptVerificationResult)
+                else ""
+            ),
         )
 
     def evaluate_mapping(self, evidence: Mapping[str, str]) -> EvidenceAdmissionResult:
@@ -118,4 +134,8 @@ class EvidenceAdmissionGate:
             learning_admitted=result.learning_admitted,
             missing_fields=result.missing_fields,
             reasons=("Unrecognized verification_status; treated as UNKNOWN.",) + result.reasons,
+            execution_id=result.execution_id,
+            source=result.source,
+            raw_observation=result.raw_observation,
+            trusted_receipt_content_hash=result.trusted_receipt_content_hash,
         )

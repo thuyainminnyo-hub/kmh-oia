@@ -78,6 +78,17 @@ class ReceiptReplayStoreTests(unittest.TestCase):
                 results = list(pool.map(claim_once, range(16)))
             self.assertEqual(sum(results), 1)
 
+
+    def test_sqlite_claim_is_atomic_across_independent_store_instances(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "shared-replay.sqlite3")
+            stores = [SQLiteReceiptReplayStore(path) for _ in range(12)]
+            def claim_once(store):
+                return store.claim("booking-provider", "record-shared", "sha256:shared").accepted
+            with ThreadPoolExecutor(max_workers=len(stores)) as pool:
+                accepted = list(pool.map(claim_once, stores))
+            self.assertEqual(sum(accepted), 1)
+
     def test_sqlite_stores_distinct_hashes_as_distinct_claims(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = SQLiteReceiptReplayStore(str(Path(tmp) / "replay.sqlite3"))

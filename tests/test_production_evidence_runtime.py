@@ -70,6 +70,23 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "at least one explicit"):
             ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", ()).validate()
 
+
+    def test_rejects_blank_entry_in_provider_allowlist_instead_of_silently_dropping_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "provider names must be non-empty strings"):
+                ProductionEvidenceRuntimeConfig(
+                    str(Path(tmp) / "replay.sqlite3"),
+                    ("test-provider", "   "),
+                ).validate()
+
+    def test_rejects_non_string_entry_in_provider_allowlist(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "provider names must be non-empty strings"):
+                ProductionEvidenceRuntimeConfig(
+                    str(Path(tmp) / "replay.sqlite3"),
+                    ("test-provider", 17),
+                ).validate()
+
     def test_rejects_duplicate_provider_allowlist(self):
         with self.assertRaisesRegex(ValueError, "must be unique"):
             ProductionEvidenceRuntimeConfig(
@@ -88,6 +105,24 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                     trusted_source_adapter=None,
                 )
 
+
+    def test_provider_name_with_surrounding_whitespace_matches_normalized_allowlist(self):
+        adapter = MinimalAdapter()
+        adapter.provider_name = " test-provider "
+        with tempfile.TemporaryDirectory() as tmp:
+            bridge = build_production_evidence_runtime(
+                self.console,
+                config=ProductionEvidenceRuntimeConfig(
+                    str(Path(tmp) / "evidence-replay.sqlite3"),
+                    ("test-provider",),
+                ),
+                trusted_source_adapter=adapter,
+            )
+            self.assertEqual(
+                bridge.trusted_source_verifier.allowed_providers,
+                frozenset({"test-provider"}),
+            )
+
     def test_rejects_provider_not_in_allowlist(self):
         adapter = MinimalAdapter()
         adapter.provider_name = "other-provider"
@@ -101,6 +136,34 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                     ),
                     trusted_source_adapter=adapter,
                 )
+
+
+    def test_factory_rejects_provider_name_property_that_raises(self):
+        class BrokenProviderNameAdapter:
+            @property
+            def provider_name(self):
+                raise RuntimeError("private adapter error detail")
+
+            def fetch_receipt(self, source_record_id, execution_id):
+                return None
+
+            def verify_receipt(self, receipt):
+                return False
+
+            def match_execution(self, receipt, execution_id):
+                return False
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "provider_name could not be read safely") as error:
+                build_production_evidence_runtime(
+                    self.console,
+                    config=ProductionEvidenceRuntimeConfig(
+                        str(Path(tmp) / "evidence-replay.sqlite3"),
+                        ("test-provider",),
+                    ),
+                    trusted_source_adapter=BrokenProviderNameAdapter(),
+                )
+        self.assertNotIn("private adapter error detail", str(error.exception))
 
     def test_rejects_adapter_without_provider_name(self):
         adapter = MinimalAdapter()

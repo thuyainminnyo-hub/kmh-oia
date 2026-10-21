@@ -31,13 +31,6 @@ class VerifiedLearningAdmissionTests(unittest.TestCase):
             learning_status="ADMITTED" if admitted else "NOT_ADMITTED",
             source_decision_id=source_decision_id,
         )
-        gate = EvidenceAdmissionResult(
-            decision="ADMITTED" if admitted else "NOT_ADMITTED",
-            evidence_status="OUTCOME_LINKED" if admitted else "OBSERVED",
-            learning_admitted=admitted,
-            missing_fields=() if admitted else ("trusted_receipt_verification",),
-            reasons=("test gate result",),
-        )
         receipt_result = None
         if receipt:
             receipt_result = ReceiptVerificationResult(
@@ -48,7 +41,19 @@ class VerifiedLearningAdmissionTests(unittest.TestCase):
                 raw_observation="booking=confirmed",
                 verification_method="test-adapter",
                 reasons=("test receipt accepted",),
+                content_hash="sha256:test-fixture",
             )
+        gate = EvidenceAdmissionResult(
+            decision="ADMITTED" if admitted else "NOT_ADMITTED",
+            evidence_status="OUTCOME_LINKED" if admitted else "OBSERVED",
+            learning_admitted=admitted,
+            missing_fields=() if admitted else ("trusted_receipt_verification",),
+            reasons=("test gate result",),
+            execution_id="exec:1",
+            source="booking-provider:record:1",
+            raw_observation="booking=confirmed",
+            trusted_receipt_content_hash="sha256:test-fixture",
+        )
         return ExecutionRecord(
             command_id="cmd:1",
             response="done",
@@ -94,6 +99,118 @@ class VerifiedLearningAdmissionTests(unittest.TestCase):
     def test_source_decision_mismatch_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "decision/command trace"):
             self.proof(execution=self.execution(source_decision_id="decision:other"))
+
+    def test_admission_for_different_source_is_rejected(self):
+        execution = self.execution()
+        mismatched = EvidenceAdmissionResult(
+            decision="ADMITTED",
+            evidence_status="OUTCOME_LINKED",
+            learning_admitted=True,
+            missing_fields=(),
+            reasons=("unrelated admitted source",),
+            execution_id="exec:1",
+            source="booking-provider:other-record",
+            raw_observation="booking=confirmed",
+            trusted_receipt_content_hash="sha256:test-fixture",
+        )
+        execution = ExecutionRecord(
+            command_id=execution.command_id,
+            response=execution.response,
+            trace_stages=execution.trace_stages,
+            evidence=execution.evidence,
+            qa_status=execution.qa_status,
+            final_status=execution.final_status,
+            source_decision_id=execution.source_decision_id,
+            operating_loop=execution.operating_loop,
+            admission=mismatched,
+            trusted_receipt_verification=execution.trusted_receipt_verification,
+        )
+        with self.assertRaisesRegex(ValueError, "provenance does not match"):
+            self.proof(execution=execution)
+
+    def test_admission_for_different_observation_is_rejected(self):
+        execution = self.execution()
+        mismatched = EvidenceAdmissionResult(
+            decision="ADMITTED",
+            evidence_status="OUTCOME_LINKED",
+            learning_admitted=True,
+            missing_fields=(),
+            reasons=("unrelated admitted observation",),
+            execution_id="exec:1",
+            source="booking-provider:record:1",
+            raw_observation="booking=cancelled",
+            trusted_receipt_content_hash="sha256:test-fixture",
+        )
+        execution = ExecutionRecord(
+            command_id=execution.command_id,
+            response=execution.response,
+            trace_stages=execution.trace_stages,
+            evidence=execution.evidence,
+            qa_status=execution.qa_status,
+            final_status=execution.final_status,
+            source_decision_id=execution.source_decision_id,
+            operating_loop=execution.operating_loop,
+            admission=mismatched,
+            trusted_receipt_verification=execution.trusted_receipt_verification,
+        )
+        with self.assertRaisesRegex(ValueError, "provenance does not match"):
+            self.proof(execution=execution)
+
+    def test_admission_for_different_execution_id_is_rejected(self):
+        execution = self.execution()
+        mismatched = EvidenceAdmissionResult(
+            decision="ADMITTED",
+            evidence_status="OUTCOME_LINKED",
+            learning_admitted=True,
+            missing_fields=(),
+            reasons=("unrelated admitted execution",),
+            execution_id="exec:other",
+            source="booking-provider:record:1",
+            raw_observation="booking=confirmed",
+            trusted_receipt_content_hash="sha256:test-fixture",
+        )
+        execution = ExecutionRecord(
+            command_id=execution.command_id,
+            response=execution.response,
+            trace_stages=execution.trace_stages,
+            evidence=execution.evidence,
+            qa_status=execution.qa_status,
+            final_status=execution.final_status,
+            source_decision_id=execution.source_decision_id,
+            operating_loop=execution.operating_loop,
+            admission=mismatched,
+            trusted_receipt_verification=execution.trusted_receipt_verification,
+        )
+        with self.assertRaisesRegex(ValueError, "provenance does not match"):
+            self.proof(execution=execution)
+
+    def test_admission_for_different_content_hash_is_rejected(self):
+        execution = self.execution()
+        mismatched = EvidenceAdmissionResult(
+            decision="ADMITTED",
+            evidence_status="OUTCOME_LINKED",
+            learning_admitted=True,
+            missing_fields=(),
+            reasons=("unrelated admitted receipt hash",),
+            execution_id="exec:1",
+            source="booking-provider:record:1",
+            raw_observation="booking=confirmed",
+            trusted_receipt_content_hash="sha256:other-fixture",
+        )
+        execution = ExecutionRecord(
+            command_id=execution.command_id,
+            response=execution.response,
+            trace_stages=execution.trace_stages,
+            evidence=execution.evidence,
+            qa_status=execution.qa_status,
+            final_status=execution.final_status,
+            source_decision_id=execution.source_decision_id,
+            operating_loop=execution.operating_loop,
+            admission=mismatched,
+            trusted_receipt_verification=execution.trusted_receipt_verification,
+        )
+        with self.assertRaisesRegex(ValueError, "provenance does not match"):
+            self.proof(execution=execution)
 
     def test_blank_policy_version_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "policy_version is required"):
