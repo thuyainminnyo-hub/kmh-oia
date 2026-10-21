@@ -27,3 +27,7 @@ This change enforces the verifier contract; it does not itself implement a crypt
 **Decision: Production HOLD.**
 
 PR: https://github.com/thuyainminnyo-hub/kmh-oia/pull/97
+
+## Phase 803 follow-up
+
+Byte-level verification is implemented separately in `src/runtime_artifact_measurement.py`. It hashes file or in-memory bytes and rejects digest mismatch. This complements, but does not replace, a trust-root-backed signature/provenance verifier. Production remains HOLD until signed provenance and exact runtime-byte binding are wired and independently checked.
