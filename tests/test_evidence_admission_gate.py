@@ -107,6 +107,7 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
             verification_method="test-verifier",
             reasons=("test fixture",),
             content_hash="sha256:test-fixture",
+            content_hash="sha256:test-fixture",
         )
         result = self.gate.evaluate(
             EvidenceAdmissionRequest(
