@@ -262,7 +262,7 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertEqual(self.memory.recent(), ())
         self.assertEqual(
             result.reasons,
-            ("Trusted outcome classification failed closed.",),
+            ("Learning admission blocked by invalid execution evidence.",),
         )
         self.assertNotIn("RuntimeError", result.reasons[0])
         self.assertNotIn("private classifier API key detail", result.reasons[0])
