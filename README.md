@@ -240,3 +240,16 @@ A production adapter should implement this protocol using a trusted secret manag
 - Retired, unknown, or unavailable keys fail closed.
 
 The in-memory provider exists only for controlled tests. A production secret-manager/KMS adapter is still required; it must authenticate callers, enforce least privilege, audit key access, and avoid exposing key bytes. The shared-key HMAC design still does not provide non-repudiation: independent approval and signing authorities should be separated.
+
+
+## Independent approval policy boundary
+
+`src/approval_policy.py` defines an `ApprovalAuthority` protocol and a validation contract for approval records. Before the signing service treats an approval as valid, the policy check requires:
+- a retrievable `APPROVE` record whose approval ID matches the requested ID;
+- evidence ID, QA verdict ID, and source revision matching the reviewed release;
+- a non-`unresolved` source revision;
+- a policy ID in the explicitly accepted policy set;
+- the approver to be different from the signing service identity; and
+- positive authorization from the trusted identity/policy adapter.
+
+The repository tests use a mock authority only. This code does not authenticate real users or connect to an approval database/identity provider. In production, the approval authority and key-signing service must be separate principals with least privilege; do not pass unverified caller booleans as proof of authorization.
