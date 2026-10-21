@@ -167,8 +167,8 @@ class TrustedDecisionLearningService:
                 loop.execution_id,
                 claim_replay=False,
             )
-        except Exception as exc:
-            return blocked(f"Independent receipt verification failed closed ({type(exc).__name__}).")
+        except Exception:
+            return blocked("Independent receipt verification failed closed.")
         if not isinstance(receipt, ReceiptVerificationResult) or not receipt.verified:
             return blocked("Independent receipt verification failed or receipt was replayed.")
         if (
@@ -204,14 +204,14 @@ class TrustedDecisionLearningService:
                 evidence_id=evidence_id,
                 policy_version=policy_version,
             )
-        except (AttributeError, TypeError, ValueError) as exc:
-            return blocked(f"Learning admission blocked ({type(exc).__name__}).")
+        except (AttributeError, TypeError, ValueError):
+            return blocked("Learning admission blocked by invalid execution evidence.")
 
         try:
             classification = self._classifier.classify(decision, execution, receipt)
-        except Exception as exc:
+        except Exception:
             return blocked(
-                f"Trusted outcome classification failed closed ({type(exc).__name__}).",
+                "Trusted outcome classification failed closed.",
                 admission,
             )
         if not isinstance(classification, TrustedOutcomeClassification):
