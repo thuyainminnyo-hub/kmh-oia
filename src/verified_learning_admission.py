@@ -76,6 +76,10 @@ class VerifiedLearningAdmission:
             raise ValueError("operating-loop trace does not confirm admitted outcome evidence")
         if not isinstance(receipt, ReceiptVerificationResult) or not receipt.verified:
             raise ValueError("trusted receipt verification is required")
+        if not isinstance(receipt.content_hash, str) or not receipt.content_hash.strip():
+            raise ValueError("trusted receipt content hash is required")
+        if execution.source_decision_id != outcome.decision_id:
+            raise ValueError("execution source_decision_id does not match the outcome")
         if receipt.execution_id != loop.execution_id:
             raise ValueError("trusted receipt execution_id does not match the trace")
         if not receipt.provider_name.strip() or not receipt.source_record_id.strip():
@@ -93,5 +97,6 @@ class VerifiedLearningAdmission:
             provider_name=receipt.provider_name,
             source_record_id=receipt.source_record_id,
             verification_method=receipt.verification_method,
+            receipt_content_hash=receipt.content_hash,
             admission_reasons=admission.reasons,
         )
