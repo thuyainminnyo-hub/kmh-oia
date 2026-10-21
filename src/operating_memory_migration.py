@@ -129,7 +129,7 @@ def export_memory_snapshot(target: SQLiteLearningAdmissionRepository, destinatio
     try:
         with destination.open("x", encoding="utf-8") as stream:
             json.dump(values, stream, ensure_ascii=False, indent=2)
-            stream.write("\\n")
+            stream.write("\n")
     except FileExistsError as exc:
         raise MemoryMigrationError("Destination exists; refusing to overwrite backup.") from exc
     return {"exported_record_count": len(values), "exported_record_hashes": [record_hash(v) for v in values]}
