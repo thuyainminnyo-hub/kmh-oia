@@ -69,7 +69,7 @@ class ReleasePreflightTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
             sha=init_repo(root)
-            evidence=self.make_evidence(root / "pilot", sha)
+            evidence=self.make_evidence(root.parent / f"{root.name}-pilot", sha)
             qa=evaluate_evidence(evidence, expected_output="preflight output")
             authority=self.authority_for(evidence, qa, sha)
             decision=preflight_release(
@@ -89,7 +89,7 @@ class ReleasePreflightTests(unittest.TestCase):
             root=Path(directory)
             sha=init_repo(root)
             (root / "app.py").write_text("changed after review\n",encoding="utf-8")
-            evidence=self.make_evidence(root / "pilot",sha)
+            evidence=self.make_evidence(root.parent / f"{root.name}-pilot",sha)
             qa=evaluate_evidence(evidence)
             authority=self.authority_for(evidence,qa,sha)
             with self.assertRaisesRegex(RuntimeError,"working tree"):
@@ -101,7 +101,7 @@ class ReleasePreflightTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
             sha=init_repo(root)
-            evidence=self.make_evidence(root / "pilot",sha)
+            evidence=self.make_evidence(root.parent / f"{root.name}-pilot",sha)
             qa=evaluate_evidence(evidence)
             authority=self.authority_for(evidence,qa,sha)
             with self.assertRaisesRegex(RuntimeError,"does not match"):
