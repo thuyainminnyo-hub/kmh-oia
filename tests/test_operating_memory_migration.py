@@ -1,4 +1,4 @@
-"""Tests for staged, non-destructive legacy memory migration and rollback export."""
+"""Tests for resumable, non-destructive legacy memory migration and rollback."""
 import hashlib
 import json
 import tempfile
@@ -40,6 +40,30 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(result["source_record_hashes"], [record_hash(one), record_hash(one)])
         self.assertEqual(self.repo.counts()["learning_records"], 2)
 
+    def test_interrupted_import_resumes_same_source_without_duplicate_rows(self):
+        def interrupt_after_first(index):
+            if index == 0:
+                raise OSError("simulated process interruption")
+        with self.assertRaises(OSError):
+            import_memory_snapshot(self.source, self.repo, after_record=interrupt_after_first)
+        self.assertEqual(self.repo.counts()["learning_records"], 1)
+        result = import_memory_snapshot(self.source, self.repo)
+        self.assertTrue(result["reconciled"])
+        self.assertEqual(result["resumed_existing_count"], 1)
+        self.assertEqual(self.repo.counts()["learning_records"], 2)
+        self.assertEqual(self.repo.counts()["learning_admissions"], 2)
+        self.assertEqual(self.repo.counts()["admission_audit_events"], 2)
+
+    def test_partial_import_rejects_changed_source_snapshot(self):
+        def interrupt_after_first(index):
+            if index == 0:
+                raise OSError("simulated interruption")
+        with self.assertRaises(OSError):
+            import_memory_snapshot(self.source, self.repo, after_record=interrupt_after_first)
+        self.source.write_text(json.dumps(samples() + [samples()[0]], ensure_ascii=False), encoding="utf-8")
+        with self.assertRaises(MemoryMigrationError):
+            import_memory_snapshot(self.source, self.repo)
+
     def test_rollback_export_hashes_match_original_and_source_remains(self):
         original = samples()
         import_memory_snapshot(self.source, self.repo)
@@ -65,7 +89,7 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(self.repo.counts()["learning_records"], 0)
         self.assertEqual(self.source.read_text(encoding="utf-8"), "{bad")
 
-    def test_nonempty_target_rejected(self):
+    def test_nonempty_unrelated_target_rejected(self):
         self.repo.commit(admission_key="existing", fingerprint="fp",
             learning_record={"command_id":"existing"}, adaptation_proposal=None,
             audit_event={"event_id":"event"}, result={"admitted":True})
