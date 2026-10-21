@@ -282,6 +282,30 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         self.assertFalse(result.verified)
         self.assertIn("future", result.reasons[0])
 
+
+    def test_clock_exception_fails_closed_without_leaking_details(self):
+        def broken_clock():
+            raise RuntimeError("private clock internals")
+
+        result = TrustedSourceReceiptVerifier(
+            FakeTrustedSourceAdapter(),
+            allowed_providers=("booking-provider",),
+            clock=broken_clock,
+        ).verify("booking:42", "exec:1")
+        self.assertFalse(result.verified)
+        self.assertIn("RuntimeError", result.reasons[0])
+        self.assertNotIn("private clock internals", result.reasons[0])
+
+    def test_clock_returning_non_datetime_fails_closed(self):
+        verifier = TrustedSourceReceiptVerifier(
+            FakeTrustedSourceAdapter(),
+            allowed_providers=("booking-provider",),
+            clock=lambda: "2026-10-20T12:00:00Z",
+        )
+        result = verifier.verify("booking:42", "exec:1")
+        self.assertFalse(result.verified)
+        self.assertIn("invalid", result.reasons[0].lower())
+
     def test_timezone_free_timestamp_fails_closed(self):
         no_timezone = TrustedSourceReceipt(
             provider_name="booking-provider",
