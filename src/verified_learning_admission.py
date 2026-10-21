@@ -38,7 +38,12 @@ class VerifiedLearningAdmission:
         evidence_id: str,
         policy_version: str,
     ) -> "VerifiedLearningAdmission":
-        """Create a proof only from a runtime execution already admitted by the gate."""
+        """Build a receipt-bound summary; IDs and policy version remain caller references.
+
+        This factory cannot authenticate evidence_id or policy_version without an
+        authoritative evidence/policy registry. Consumers must not treat those
+        two fields as independently verified by this method.
+        """
         for name, value in (
             ("evidence_id", evidence_id),
             ("policy_version", policy_version),
@@ -83,7 +88,10 @@ class VerifiedLearningAdmission:
             raise ValueError("execution source_decision_id does not match the outcome")
         if receipt.execution_id != loop.execution_id:
             raise ValueError("trusted receipt execution_id does not match the trace")
-        if not isinstance(admission.receipt_content_hash, str) or admission.receipt_content_hash != receipt.content_hash:
+        if (
+            not isinstance(admission.receipt_content_hash, str)
+            or admission.receipt_content_hash != receipt.content_hash
+        ):
             raise ValueError("admission receipt hash does not match trusted receipt")
         if not receipt.provider_name.strip() or not receipt.source_record_id.strip():
             raise ValueError("trusted receipt provider and source record are required")
