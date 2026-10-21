@@ -85,14 +85,21 @@ class TrustedSourceReceiptVerifier:
         if not isinstance(claim_replay, bool):
             return self._rejected("", source_record_id, execution_id, "claim_replay must be boolean.")
         adapter = self.adapter
-        provider = adapter.provider_name.strip() if adapter is not None else ""
         record_id = source_record_id.strip() if isinstance(source_record_id, str) else ""
         execution = execution_id.strip() if isinstance(execution_id, str) else ""
 
         if adapter is None:
             return self._rejected("", record_id, execution, "No trusted source adapter is configured.")
-        if not provider:
+
+        # Treat malformed adapter metadata as an admission failure instead of
+        # allowing an AttributeError/TypeError to escape before fail-closed handling.
+        try:
+            provider_value = adapter.provider_name
+        except Exception:
+            return self._rejected("", record_id, execution, "Adapter provider name could not be read safely.")
+        if not isinstance(provider_value, str) or not provider_value.strip():
             return self._rejected("", record_id, execution, "Adapter provider name is required.")
+        provider = provider_value.strip()
         if not self.allowed_providers or provider not in self.allowed_providers:
             return self._rejected(provider, record_id, execution, "Provider is not allowlisted.")
         if not record_id or not execution:
