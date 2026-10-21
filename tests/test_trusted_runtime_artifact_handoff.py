@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / '.github' / 'workflows' / 'production-runtime-artifact-attestation.yml'
+PRODUCER = ROOT / '.github' / 'workflows' / 'trusted-build.yml'
 DOC = ROOT / 'docs' / 'phase_813_trusted_runtime_artifact_handoff.md'
 
 class TrustedRuntimeArtifactHandoffContractTests(unittest.TestCase):
@@ -12,19 +13,31 @@ class TrustedRuntimeArtifactHandoffContractTests(unittest.TestCase):
         self.assertNotIn('GITHUB_RUN_ID: ${{ github.run_id }}', workflow)
         self.assertIn('--build-run-id "$GITHUB_RUN_ID"', workflow)
 
-    def test_no_source_tree_fallback_and_immutable_download_are_required(self):
+    def test_bundle_contract_is_produced_and_verified(self):
         workflow = WORKFLOW.read_text(encoding='utf-8')
+        producer = PRODUCER.read_text(encoding='utf-8')
         self.assertIn('.github/workflows/trusted-build.yml', workflow)
-        self.assertNotIn('inputs.classifier_artifact_path', workflow)
-        self.assertNotIn('inputs.policy_artifact_path', workflow)
-        self.assertIn('Download the artifact by immutable ID', workflow)
-        self.assertIn('sha256sum runtime-artifact.zip', workflow)
+        self.assertIn('kmh-oia-runtime-bundle', workflow)
+        self.assertIn('kmh-oia-runtime-bundle', producer)
+        self.assertIn('runtime-source-bundle.tar.gz', producer)
+        self.assertIn('runtime-source-bundle.tar.gz', workflow)
+        self.assertIn('scripts/validate_runtime_bundle.py', workflow)
+        self.assertNotIn('classifier.bin', workflow)
+        self.assertNotIn('policy.bin', workflow)
 
-    def test_phase_document_records_external_prerequisites(self):
+    def test_source_bundle_is_deterministic_and_manifest_bound(self):
+        package_script = (ROOT / 'scripts' / 'package_runtime_bundle.py').read_text(encoding='utf-8')
+        validator = (ROOT / 'scripts' / 'validate_runtime_bundle.py').read_text(encoding='utf-8')
+        self.assertIn('mtime=0', package_script)
+        self.assertIn('MANIFEST.json', package_script)
+        self.assertIn('MANIFEST.json', validator)
+        self.assertIn('manifest SHA-256 mismatch', validator)
+
+    def test_external_controls_and_production_hold_remain_explicit(self):
         content = DOC.read_text(encoding='utf-8')
         self.assertIn('fail-closed', content.lower())
-        self.assertIn('has not been implemented', content.lower())
-        self.assertIn('Production remains HOLD', content)
+        self.assertIn('Production HOLD', content)
+        self.assertIn('not proof of deployment', content.lower())
 
 if __name__ == '__main__':
     unittest.main()

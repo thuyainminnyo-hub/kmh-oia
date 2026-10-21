@@ -2,20 +2,8 @@
 
 Date: 2026-10-21
 
-## Implemented
+Unified the signer allowlist and provenance fixture path to `.github/workflows/trusted-build.yml` and added path-drift regression coverage. A recursive repository-tree inspection found no classifier/policy binaries; `src/autonomy_policy.py` is Python source, not a compiled classifier.
 
-- Unified the protected signer allowlist and provenance test fixture on `.github/workflows/trusted-build.yml`.
-- Added a regression test that fails if these workflow paths drift apart again.
-- Updated Phase 812/813 records to identify the remaining blocker explicitly.
+Phase 815 addresses that artifact-shape mismatch by defining the actual release input as a deterministic source bundle built from `src/` and `requirements.txt`, with a source-revision marker and SHA-256 manifest. This is a source release artifact, not a compiled classifier and not evidence of deployment.
 
-## Source evidence
-
-The repository tree was inspected recursively at commit `5435025b5c47241634f8ac9847c9802611c08c8a`. No file named `classifier.bin` or `policy.bin` exists in the repository, and there is no `.github/workflows/trusted-build.yml` producer workflow. `src/autonomy_policy.py` is Python source and must not be relabeled as a compiled classifier or treated as a production binary.
-
-## Next gate
-
-Define the real producer inputs/outputs for the KMH OIA runtime before implementing the producer workflow. Once agreed in code, the producer must emit the exact artifact name `kmh-oia-runtime-bundle`, with documented artifact layout, on the exact source SHA, and upload it via GitHub Actions. The signer already checks run identity, source SHA, run success, artifact ID/name/digest and downloaded ZIP digest.
-
-## Decision
-
-This reconciles the current trust-path contract but does not complete the producer pipeline. No production signing/deployment was run. PR #97 remains OPEN / DRAFT / UNMERGED. **Production HOLD.**
+**Production HOLD** remains unchanged.

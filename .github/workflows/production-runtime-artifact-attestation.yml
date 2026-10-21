@@ -26,7 +26,7 @@ on:
         required: true
         type: string
       runtime_artifact_digest:
-        description: GitHub Actions artifact digest in sha256:<64 lowercase hex> form
+        description: GitHub Actions artifact service digest in sha256:<64 lowercase hex> form
         required: true
         type: string
       expected_release_sha:
@@ -65,17 +65,14 @@ jobs:
           import os, re
           values = {key: os.environ[key] for key in (
               'PRODUCER_RUN_ID', 'PRODUCER_WORKFLOW_PATH', 'PRODUCER_SOURCE_SHA',
-              'RUNTIME_ARTIFACT_ID', 'RUNTIME_ARTIFACT_NAME', 'RUNTIME_ARTIFACT_DIGEST',
-              'EXPECTED_RELEASE_SHA',
-          )}
+              'RUNTIME_ARTIFACT_ID', 'RUNTIME_ARTIFACT_NAME', 'RUNTIME_ARTIFACT_DIGEST', 'EXPECTED_RELEASE_SHA')}
           if not values['PRODUCER_RUN_ID'].isdigit() or values['PRODUCER_RUN_ID'].startswith('0'):
               raise SystemExit('producer_run_id must be a canonical positive numeric ID')
           if not values['RUNTIME_ARTIFACT_ID'].isdigit() or values['RUNTIME_ARTIFACT_ID'].startswith('0'):
               raise SystemExit('runtime_artifact_id must be a canonical positive numeric ID')
-          if not re.fullmatch(r'[0-9a-f]{40}', values['PRODUCER_SOURCE_SHA']):
-              raise SystemExit('producer_source_sha must be a full lowercase 40-character SHA')
-          if not re.fullmatch(r'[0-9a-f]{40}', values['EXPECTED_RELEASE_SHA']):
-              raise SystemExit('expected_release_sha must be a full lowercase 40-character SHA')
+          for key in ('PRODUCER_SOURCE_SHA', 'EXPECTED_RELEASE_SHA'):
+              if not re.fullmatch(r'[0-9a-f]{40}', values[key]):
+                  raise SystemExit(f'{key} must be a full lowercase 40-character SHA')
           if values['PRODUCER_SOURCE_SHA'] != values['EXPECTED_RELEASE_SHA']:
               raise SystemExit('producer SHA must exactly match expected release SHA')
           if values['PRODUCER_WORKFLOW_PATH'] != '.github/workflows/trusted-build.yml':
@@ -100,15 +97,12 @@ jobs:
           request = urllib.request.Request(
               f'https://api.github.com/repos/{repo}/actions/runs/{run_id}',
               headers={'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
-                       'Accept': 'application/vnd.github+json',
-                       'X-GitHub-Api-Version': '2022-11-28'},
+                       'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'},
           )
           with urllib.request.urlopen(request, timeout=20) as response:
               run = json.load(response)
-          expected = {'status': 'completed', 'conclusion': 'success',
-                      'head_sha': os.environ['PRODUCER_SOURCE_SHA'],
-                      'path': os.environ['PRODUCER_WORKFLOW_PATH'],
-                      'event': 'push', 'head_branch': 'main'}
+          expected = {'status': 'completed', 'conclusion': 'success', 'head_sha': os.environ['PRODUCER_SOURCE_SHA'],
+                      'path': os.environ['PRODUCER_WORKFLOW_PATH'], 'event': 'push', 'head_branch': 'main'}
           for field, value in expected.items():
               if run.get(field) != value:
                   raise SystemExit(f'producer run {field} mismatch; refusing to sign')
@@ -128,32 +122,25 @@ jobs:
           python - <<'PY'
           import json, os, urllib.parse, urllib.request
           repo = os.environ['GITHUB_REPOSITORY']
-          run_id = os.environ['PRODUCER_RUN_ID']
           query = urllib.parse.urlencode({'per_page': 100})
           request = urllib.request.Request(
-              f'https://api.github.com/repos/{repo}/actions/runs/{run_id}/artifacts?{query}',
+              f'https://api.github.com/repos/{repo}/actions/runs/{os.environ["PRODUCER_RUN_ID"]}/artifacts?{query}',
               headers={'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
-                       'Accept': 'application/vnd.github+json',
-                       'X-GitHub-Api-Version': '2022-11-28'},
+                       'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'},
           )
           with urllib.request.urlopen(request, timeout=20) as response:
               result = json.load(response)
-          matches = [a for a in result.get('artifacts', [])
-                     if str(a.get('id')) == os.environ['RUNTIME_ARTIFACT_ID']]
+          matches = [a for a in result.get('artifacts', []) if str(a.get('id')) == os.environ['RUNTIME_ARTIFACT_ID']]
           if len(matches) != 1:
               raise SystemExit('artifact ID not found uniquely under verified producer run')
           artifact = matches[0]
-          if artifact.get('expired'):
-              raise SystemExit('producer artifact has expired; refusing to sign')
-          if artifact.get('name') != os.environ['RUNTIME_ARTIFACT_NAME']:
-              raise SystemExit('artifact name mismatch; refusing to sign')
-          if artifact.get('digest') != os.environ['RUNTIME_ARTIFACT_DIGEST']:
-              raise SystemExit('artifact digest mismatch; refusing to sign')
+          if artifact.get('expired') or artifact.get('name') != os.environ['RUNTIME_ARTIFACT_NAME'] or artifact.get('digest') != os.environ['RUNTIME_ARTIFACT_DIGEST']:
+              raise SystemExit('artifact expiry/name/digest mismatch; refusing to sign')
           print('GitHub API artifact ID/name/digest checks passed.')
           PY
 
   sign:
-    name: Sign only the verified immutable producer artifact
+    name: Sign only the verified immutable runtime source bundle
     needs: [preflight]
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && needs.preflight.result == 'success' }}
     runs-on: ubuntu-latest
@@ -175,41 +162,34 @@ jobs:
           python-version: '3.12'
       - name: Install declared dependencies
         run: python -m pip install -r requirements.txt
-      - name: Download the artifact by immutable ID
+      - name: Download artifact by immutable ID
         env:
           GH_TOKEN: ${{ github.token }}
           RUNTIME_ARTIFACT_ID: ${{ inputs.runtime_artifact_id }}
         run: |
           set -euo pipefail
           gh api -H 'Accept: application/vnd.github+json' "/repos/$GITHUB_REPOSITORY/actions/artifacts/$RUNTIME_ARTIFACT_ID/zip" > runtime-artifact.zip
-          python - <<'PY'
-          import zipfile
-          from pathlib import Path
-          expected = {'classifier.bin', 'policy.bin'}
-          with zipfile.ZipFile('runtime-artifact.zip') as archive:
-              entries = archive.namelist()
-              if len(entries) != len(expected) or set(entries) != expected:
-                  raise SystemExit('runtime bundle must contain exactly classifier.bin and policy.bin')
-              root = Path('verified-runtime-artifact')
-              root.mkdir(exist_ok=False)
-              for name in sorted(expected):
-                  data = archive.read(name)
-                  if not data:
-                      raise SystemExit(f'{name} is empty; refusing to sign')
-                  (root / name).write_bytes(data)
-          print('Downloaded immutable artifact contains exactly the two non-empty expected files.')
-          PY
-      - name: Verify downloaded artifact ZIP digest
+      - name: Verify artifact service digest and extract one source bundle
         env:
           EXPECTED_ARTIFACT_DIGEST: ${{ inputs.runtime_artifact_digest }}
         run: |
           set -euo pipefail
           actual="sha256:$(sha256sum runtime-artifact.zip | cut -d ' ' -f1)"
-          test "$actual" = "$EXPECTED_ARTIFACT_DIGEST" || {
-            echo 'Downloaded artifact ZIP digest mismatch; refusing to sign'
-            exit 1
-          }
-      - name: Create signed attestation (private key scoped to this step)
+          test "$actual" = "$EXPECTED_ARTIFACT_DIGEST" || { echo 'Artifact ZIP digest mismatch; refusing to sign'; exit 1; }
+          python - <<'PY'
+          import zipfile
+          with zipfile.ZipFile('runtime-artifact.zip') as archive:
+              names = archive.namelist()
+              if names != ['runtime-source-bundle.tar.gz']:
+                  raise SystemExit('artifact must contain exactly runtime-source-bundle.tar.gz')
+              data = archive.read(names[0])
+              if not data:
+                  raise SystemExit('runtime source bundle is empty; refusing to sign')
+              with open('runtime-source-bundle.tar.gz', 'xb') as handle:
+                  handle.write(data)
+          PY
+          python scripts/validate_runtime_bundle.py runtime-source-bundle.tar.gz --expected-source-sha '${{ inputs.expected_release_sha }}'
+      - name: Create signed bundle attestation (private key scoped to this step)
         shell: bash
         env:
           KMH_OIA_ENVIRONMENT: production
@@ -225,20 +205,19 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$KMH_OIA_ATTESTATION_PRIVATE_KEY_B64"
-          test -n "$KMH_OIA_ATTESTATION_KEY_ID"
-          test -n "$KMH_OIA_ATTESTATION_ISSUER"
-          test -n "$KMH_OIA_ATTESTATION_SUBJECT"
-          output="runtime-artifact-attestation-${GITHUB_RUN_ID}.json"
-          python -m scripts.create_runtime_artifact_attestation \
-            --classifier 'verified-runtime-artifact/classifier.bin' \
-            --policy 'verified-runtime-artifact/policy.bin' \
+          output="runtime-bundle-attestation-${GITHUB_RUN_ID}.json"
+          python -m scripts.create_runtime_bundle_attestation \
+            --bundle runtime-source-bundle.tar.gz \
             --source-revision "$GITHUB_SHA" \
             --build-run-id "$GITHUB_RUN_ID" \
+            --artifact-id '${{ inputs.runtime_artifact_id }}' \
+            --artifact-name '${{ inputs.runtime_artifact_name }}' \
+            --artifact-digest '${{ inputs.runtime_artifact_digest }}' \
             --output "$output"
       - name: Upload run-scoped attestation evidence
         uses: actions/upload-artifact@v4
         with:
-          name: runtime-artifact-attestation-${{ inputs.producer_run_id }}
-          path: runtime-artifact-attestation-${{ inputs.producer_run_id }}.json
+          name: runtime-bundle-attestation-${{ inputs.producer_run_id }}
+          path: runtime-bundle-attestation-${{ inputs.producer_run_id }}.json
           if-no-files-found: error
           retention-days: 90
