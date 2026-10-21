@@ -58,12 +58,24 @@ class TrustedSourceReceiptVerifier:
         clock=None,
         replay_store: ReceiptReplayStore | None = None,
     ) -> None:
-        if max_receipt_age_seconds < 0:
-            raise ValueError("max_receipt_age_seconds must be non-negative")
+        if (
+            not isinstance(max_receipt_age_seconds, int)
+            or isinstance(max_receipt_age_seconds, bool)
+            or max_receipt_age_seconds < 0
+        ):
+            raise ValueError("max_receipt_age_seconds must be a non-negative integer")
+        if not isinstance(allowed_providers, tuple):
+            raise ValueError("allowed_providers must be an explicit tuple")
+        if any(
+            not isinstance(provider, str) or not provider.strip()
+            for provider in allowed_providers
+        ):
+            raise ValueError("allowed provider names must be non-empty strings")
+        normalized_providers = tuple(provider.strip() for provider in allowed_providers)
+        if len(set(normalized_providers)) != len(normalized_providers):
+            raise ValueError("allowed provider names must be unique")
         self.adapter = adapter
-        self.allowed_providers = frozenset(
-            provider.strip() for provider in allowed_providers if provider.strip()
-        )
+        self.allowed_providers = frozenset(normalized_providers)
         self.max_receipt_age_seconds = max_receipt_age_seconds
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.replay_store = replay_store if replay_store is not None else InMemoryReceiptReplayStore()
