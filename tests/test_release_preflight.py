@@ -113,7 +113,7 @@ class ReleasePreflightTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
             sha=init_repo(root)
-            evidence=self.make_evidence(root,"1"*40)
+            evidence=self.make_evidence(root.parent / f"{root.name}-pilot", "1"*40)
             qa=evaluate_evidence(evidence)
             authority=self.authority_for(evidence,qa,sha)
             decision=preflight_release(evidence,qa,expected_source_revision=sha,checkout_root=root,
@@ -125,7 +125,7 @@ class ReleasePreflightTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
             sha=init_repo(root)
-            evidence=self.make_evidence(root,sha)
+            evidence=self.make_evidence(root.parent / f"{root.name}-pilot",sha)
             qa=evaluate_evidence(evidence)
             decision=preflight_release(evidence,qa,expected_source_revision=sha,checkout_root=root,
                 approval_authority=FakeApprovalAuthority(None),approval_id=None,
