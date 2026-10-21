@@ -1,4 +1,6 @@
+import tempfile
 import unittest
+from pathlib import Path
 from datetime import datetime, timezone
 
 from src.decision_queue import DecisionItem
@@ -6,6 +8,7 @@ from src.evidence_admission_gate import EvidenceAdmissionResult
 from src.live_runtime_bridge import ExecutionRecord
 from src.operating_loop_record import OperatingLoopRecord
 from src.operating_memory import OperatingMemory
+from src.learning_admission_repository import SQLiteLearningAdmissionRepository
 from src.trusted_decision_learning_service import (
     TrustedDecisionLearningService,
     TrustedOutcomeClassification,
@@ -66,7 +69,10 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
             problem="Quality issue", recommended_action="Review quality",
             owner="system", status="APPROVED",
         )
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tempdir.cleanup)
         self.memory = OperatingMemory()
+        self.repository = SQLiteLearningAdmissionRepository(Path(self.tempdir.name) / "learning.sqlite3")
         self.classifier = TestClassifier()
         self.adapter = FakeTrustedSourceAdapter()
         self.verifier = TrustedSourceReceiptVerifier(
@@ -77,6 +83,7 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
             classifier=self.classifier,
             receipt_verifier=self.verifier,
             memory=self.memory,
+            repository=self.repository,
         )
 
     def execution(self, *, admitted=True, receipt=True, decision_id="decision:1",
@@ -131,10 +138,36 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertTrue(result.admitted)
         self.assertEqual(result.outcome.quality, "POOR")
         self.assertEqual(result.adaptation.status, "PROPOSED")
-        self.assertEqual(len(self.memory.recent()), 1)
+        self.assertEqual(self.memory.recent(), ())
+        self.assertEqual(self.repository.counts()["learning_records"], 1)
         self.assertEqual(self.adapter.calls, 1)
         with self.assertRaisesRegex(ValueError, "only approved adaptations can be applied"):
             self.service._adaptation_engine.apply(result.adaptation)
+
+    def test_duplicate_capture_returns_stored_result_without_reclassification(self):
+        first = self.capture()
+        calls_after_first = self.classifier.calls
+        second = self.capture()
+        self.assertEqual(second, first)
+        self.assertEqual(self.classifier.calls, calls_after_first)
+        self.assertEqual(self.repository.counts(), {
+            "learning_admissions": 1, "learning_records": 1,
+            "adaptation_proposals": 1, "admission_audit_events": 1,
+        })
+        self.assertEqual(self.memory.recent(), ())
+
+    def test_same_admission_identity_with_changed_policy_is_rejected(self):
+        first = self.capture()
+        self.assertTrue(first.admitted)
+        calls_after_first = self.classifier.calls
+        conflict = self.service.capture_execution(
+            self.decision, self.execution(), evidence_id="evidence:1",
+            policy_version="policy:v2", next_command="Run a bounded shadow experiment",
+        )
+        self.assertFalse(conflict.admitted)
+        self.assertIn("different verified request content", conflict.reasons[0])
+        self.assertEqual(self.classifier.calls, calls_after_first)
+        self.assertEqual(self.repository.counts()["learning_records"], 1)
 
     def test_missing_receipt_fails_closed_without_learning_influence(self):
         result = self.capture(execution=self.execution(receipt=False))
@@ -179,7 +212,8 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
 
     def test_missing_trusted_classifier_fails_closed(self):
         service = TrustedDecisionLearningService(
-            classifier=None, receipt_verifier=self.verifier, memory=self.memory
+            classifier=None, receipt_verifier=self.verifier, memory=self.memory,
+            repository=self.repository
         )
         result = service.capture_execution(
             self.decision, self.execution(), evidence_id="evidence:1",
@@ -191,7 +225,8 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
 
     def test_missing_independent_verifier_fails_closed(self):
         service = TrustedDecisionLearningService(
-            classifier=self.classifier, receipt_verifier=None, memory=self.memory
+            classifier=self.classifier, receipt_verifier=None, memory=self.memory,
+            repository=self.repository
         )
         result = service.capture_execution(
             self.decision, self.execution(), evidence_id="evidence:1",
@@ -242,7 +277,8 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertTrue(runtime_receipt.verified)
         execution = self.execution(receipt_result=runtime_receipt)
         service = TrustedDecisionLearningService(
-            classifier=self.classifier, receipt_verifier=verifier, memory=self.memory
+            classifier=self.classifier, receipt_verifier=verifier, memory=self.memory,
+            repository=self.repository
         )
         result = service.capture_execution(
             self.decision, execution, evidence_id="evidence:1",
@@ -278,7 +314,8 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
             self.service._adaptation_engine.apply(rejected)
         with self.assertRaisesRegex(ValueError, "only approved adaptations can be applied"):
             self.service._adaptation_engine.apply(result.adaptation)
-        self.assertEqual(len(self.memory.recent()), 1)
+        self.assertEqual(self.memory.recent(), ())
+        self.assertEqual(self.repository.counts()["learning_records"], 1)
 
     def test_independent_verifier_failure_fails_closed_without_leaking_exception_details(self):
         class RaisingVerifier:
@@ -289,6 +326,7 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
             classifier=self.classifier,
             receipt_verifier=RaisingVerifier(),
             memory=self.memory,
+            repository=self.repository,
         )
         result = service.capture_execution(
             self.decision, self.execution(), evidence_id="evidence:1",

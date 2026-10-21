@@ -5,14 +5,18 @@ before learning admission. ExecutionRecord and verifier-result dataclasses are
 application contracts, not unforgeable security capabilities; the verifier is
 therefore the trust source rather than a caller-supplied result object's type.
 """
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
+from datetime import datetime, timezone
 from typing import Protocol
+import hashlib
+import json
 
 from src.adaptation_engine import AdaptationEngine, AdaptationProposal
 from src.decision_outcome_evaluator import DecisionOutcome
 from src.decision_queue import DecisionItem
 from src.evidence_admission_gate import EvidenceAdmissionResult
 from src.live_runtime_bridge import ExecutionRecord
+from src.learning_admission_repository import AdmissionConflictError, SQLiteLearningAdmissionRepository
 from src.operating_memory import OperatingMemory, OperatingMemoryRecord
 from src.trusted_source_receipt import (
     ReceiptVerificationResult,
@@ -63,11 +67,14 @@ class TrustedDecisionLearningService:
         classifier: TrustedOutcomeClassifier | None,
         receipt_verifier: TrustedSourceReceiptVerifier | None,
         memory: OperatingMemory,
+        repository: SQLiteLearningAdmissionRepository,
         adaptation_engine: AdaptationEngine | None = None,
     ) -> None:
         self._classifier = classifier
         self._receipt_verifier = receipt_verifier
+        # Kept as a read-side dependency; transactional repository owns writes.
         self._memory = memory
+        self._repository = repository
         self._adaptation_engine = adaptation_engine or AdaptationEngine()
 
     def capture_execution(
@@ -190,6 +197,23 @@ class TrustedDecisionLearningService:
         if not expected_source:
             return blocked("Trusted source attribution is incomplete.")
 
+        admission_key, fingerprint = self._admission_identity(
+            decision, execution, receipt, evidence_id=evidence_id,
+            policy_version=policy_version, next_command=next_command,
+            confidence=float(confidence),
+        )
+        try:
+            stored = self._repository.get(admission_key)
+        except Exception:
+            return blocked("Transactional admission store is unavailable; learning was not admitted.")
+        if stored is not None:
+            if stored.fingerprint != fingerprint:
+                return blocked("Admission identity was reused with different verified request content.")
+            try:
+                return self._restore_result(stored.result)
+            except Exception:
+                return blocked("Persisted admission result could not be restored safely.")
+
         placeholder = DecisionOutcome(
             decision_id=decision.id,
             command_id=execution.command_id,
@@ -235,44 +259,115 @@ class TrustedDecisionLearningService:
             quality=quality,
             reason=reason,
         )
-        memory = self._memory.record(
-            command_id=execution.command_id,
-            wanted=decision.recommended_action,
-            did=execution.response or "Runtime execution completed.",
-            actual=receipt.raw_observation,
-            verified=(
-                f"Receipt independently verified by {receipt.provider_name} using "
-                f"{receipt.verification_method}; evidence admitted under "
-                f"{policy_version.strip()}."
-            ),
-            decision=f"Decision {decision.id}: {quality}",
-            learned=f"Trusted outcome classification admitted: {reason}",
-            changed=(
-                "Create a governed adaptation proposal for review."
-                if quality == "POOR"
-                else "Retain the current rule; no adaptation proposal is required."
-            ),
-            next_command=next_command.strip(),
-            confidence=float(confidence),
-        )
-        adaptation = None
-        if quality == "POOR":
-            adaptation = self._adaptation_engine.propose(
-                memory,
-                pattern=f"decision:{decision.id}",
-                problem=reason,
-                proposed_change=f"Review the decision rule for {decision.signal_kind}.",
-                expected_effect=f"Improve the {decision.signal_kind} outcome under existing guardrails.",
-                next_experiment=next_command.strip(),
+        try:
+            fields = {
+                "wanted": decision.recommended_action,
+                "did": execution.response or "Runtime execution completed.",
+                "actual": receipt.raw_observation,
+                "verified": f"Receipt independently verified by {receipt.provider_name} using {receipt.verification_method}; evidence admitted under {policy_version.strip()}.",
+                "decision": f"Decision {decision.id}: {quality}",
+                "learned": f"Trusted outcome classification admitted: {reason}",
+                "changed": "Create a governed adaptation proposal for review." if quality == "POOR" else "Retain the current rule; no adaptation proposal is required.",
+                "next_command": next_command.strip(),
+            }
+            for name, value in fields.items():
+                if not isinstance(value, str) or not value.strip():
+                    return blocked(f"Learning record field {name} is missing or invalid.", admission)
+            memory = OperatingMemoryRecord(
+                command_id=execution.command_id.strip(), timestamp=datetime.now(timezone.utc).isoformat(),
+                **{name: value.strip() for name, value in fields.items()}, confidence=float(confidence),
             )
-        return TrustedDecisionLearningResult(
-            admitted=True,
-            decision_id=decision.id,
-            command_id=execution.command_id,
-            execution_id=admission.execution_id,
-            admission=admission,
-            outcome=outcome,
-            memory=memory,
-            adaptation=adaptation,
+            adaptation = None
+            if quality == "POOR":
+                adaptation = self._adaptation_engine.propose(
+                    memory, pattern=f"decision:{decision.id}", problem=reason,
+                    proposed_change=f"Review the decision rule for {decision.signal_kind}.",
+                    expected_effect=f"Improve the {decision.signal_kind} outcome under existing guardrails.",
+                    next_experiment=next_command.strip(),
+                )
+                adaptation = replace(adaptation, id=f"adapt:{admission_key.removeprefix('learning:')}", status="PROPOSED")
+        except Exception:
+            return blocked("Learning payload construction failed closed.", admission)
+
+        pending_result = TrustedDecisionLearningResult(
+            admitted=True, decision_id=decision.id, command_id=execution.command_id,
+            execution_id=admission.execution_id, admission=admission, outcome=outcome,
+            memory=memory, adaptation=adaptation,
             reasons=("Independent receipt verification, attribution, evidence admission, and outcome classification passed.",),
+        )
+        key_digest = hashlib.sha256(admission_key.encode("utf-8")).hexdigest()
+        audit = {
+            "event_id": f"audit:{key_digest}", "admission_key": admission_key,
+            "kind": "TRUSTED_LEARNING_ADMITTED", "decision_id": decision.id,
+            "command_id": execution.command_id, "execution_id": admission.execution_id,
+            "trace_id": admission.trace_id, "evidence_id": admission.evidence_id,
+            "policy_version": admission.policy_version, "provider_name": receipt.provider_name,
+            "source_record_id": receipt.source_record_id, "content_hash": receipt.content_hash,
+            "outcome_quality": quality,
+        }
+        try:
+            committed = self._repository.commit(
+                admission_key=admission_key, fingerprint=fingerprint,
+                learning_record=asdict(memory),
+                adaptation_proposal=asdict(adaptation) if adaptation is not None else None,
+                audit_event=audit, result=asdict(pending_result),
+            )
+            return self._restore_result(committed.result)
+        except AdmissionConflictError:
+            return blocked("Admission identity was concurrently reused with different request content.", admission)
+        except Exception:
+            return blocked("Transactional learning persistence failed; admission was not confirmed.", admission)
+
+    def _admission_identity(
+        self, decision: DecisionItem, execution: ExecutionRecord,
+        receipt: ReceiptVerificationResult, *, evidence_id: str,
+        policy_version: str, next_command: str, confidence: float,
+    ) -> tuple[str, str]:
+        loop, gate = execution.operating_loop, execution.admission
+        identity = {"decision_id": decision.id, "execution_id": loop.execution_id, "evidence_id": evidence_id.strip()}
+        admission_key = "learning:" + hashlib.sha256(json.dumps(
+            identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")).hexdigest()
+        classifier_type = type(self._classifier)
+        classifier = f"{classifier_type.__module__}.{classifier_type.__qualname__}"
+        classifier_version = getattr(self._classifier, "version", None)
+        if isinstance(classifier_version, str) and classifier_version.strip():
+            classifier = f"{classifier}@{classifier_version.strip()}"
+        request = {
+            "schema": "trusted-learning-admission-v1", "identity": identity,
+            "decision": asdict(decision),
+            "execution": {"command_id": execution.command_id, "response": execution.response,
+                "final_status": execution.final_status, "qa_status": execution.qa_status,
+                "source_decision_id": execution.source_decision_id,
+                "operating_loop": asdict(loop), "admission": asdict(gate)},
+            "receipt": {"provider_name": receipt.provider_name, "source_record_id": receipt.source_record_id,
+                "execution_id": receipt.execution_id, "raw_observation": receipt.raw_observation,
+                "verification_method": receipt.verification_method, "content_hash": receipt.content_hash},
+            "policy_version": policy_version.strip(), "next_command": next_command.strip(),
+            "confidence": confidence, "classifier": classifier,
+        }
+        fingerprint = "sha256:" + hashlib.sha256(json.dumps(
+            request, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")).hexdigest()
+        return admission_key, fingerprint
+
+    @staticmethod
+    def _restore_result(payload: dict) -> TrustedDecisionLearningResult:
+        if not isinstance(payload, dict):
+            raise TypeError("persisted result must be an object")
+        admission_payload = payload.get("admission")
+        admission = None
+        if admission_payload is not None:
+            admission_payload = dict(admission_payload)
+            admission_payload["admission_reasons"] = tuple(admission_payload["admission_reasons"])
+            admission = VerifiedLearningAdmission(**admission_payload)
+        outcome_payload, memory_payload, adaptation_payload = payload.get("outcome"), payload.get("memory"), payload.get("adaptation")
+        return TrustedDecisionLearningResult(
+            admitted=bool(payload["admitted"]), decision_id=payload["decision_id"],
+            command_id=payload["command_id"], execution_id=payload.get("execution_id"),
+            admission=admission,
+            outcome=DecisionOutcome(**outcome_payload) if outcome_payload is not None else None,
+            memory=OperatingMemoryRecord(**memory_payload) if memory_payload is not None else None,
+            adaptation=AdaptationProposal(**adaptation_payload) if adaptation_payload is not None else None,
+            reasons=tuple(payload["reasons"]),
         )
