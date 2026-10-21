@@ -71,6 +71,16 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         self.assertIn("could not be read safely", result.reasons[0])
         self.assertNotIn("private provider configuration detail", result.reasons[0])
 
+    def test_receipt_fetch_exception_fails_closed_without_leaking_provider_details(self):
+        class RaisingFetchAdapter(FakeTrustedSourceAdapter):
+            def fetch_receipt(self, source_record_id, execution_id):
+                raise RuntimeError("private provider token leaked")
+
+        result = self.verifier(RaisingFetchAdapter()).verify("booking:42", "exec:1")
+        self.assertFalse(result.verified)
+        self.assertIn("RuntimeError", result.reasons[0])
+        self.assertNotIn("private provider token leaked", result.reasons[0])
+
     def test_valid_allowlisted_fresh_receipt_passes(self):
         result = self.verifier(FakeTrustedSourceAdapter()).verify("booking:42", "exec:1")
         self.assertTrue(result.verified)
