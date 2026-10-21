@@ -334,3 +334,27 @@ except ProtectedActionBlocked:
 ```
 
 This remains a local adapter/test boundary, not a deployed CI/CD action. The production entrypoint must load signed decisions from trusted storage, use a production secret manager/KMS provider and independent approval authority, and enforce this check immediately before the protected action with least privilege.
+
+
+## Single release-pipeline orchestration
+
+`src/release_pipeline.py` connects the checkout preflight, QA/evidence checks, independent approval authority, HMAC signing through the key provider, and protected-action callback into one controlled path:
+
+```python
+from src.release_pipeline import execute_release_pipeline
+
+decision, signed_envelope, result = execute_release_pipeline(
+    evidence,
+    qa_verdict,
+    expected_source_revision=reviewed_build_sha,
+    checkout_root=".",
+    approval_authority=trusted_approval_authority,
+    approval_id=approval_record_id,
+    signing_service_id="service:release-signer",
+    accepted_policy_ids={"release-policy:v1"},
+    key_provider=trusted_key_provider,
+    protected_action=deploy_or_execute,
+)
+```
+
+The integration tests prove that a clean checkout, matching evidence revision, passing QA, and matching authorized independent approval can reach the callback; dirty checkout, wrong revision, evidence revision mismatch, or missing approval must prevent the callback. This test uses a fake approval authority and in-memory key provider. The production secret manager/KMS, real approval/identity service, trusted decision storage, and actual deployment entrypoint are still not integrated.
