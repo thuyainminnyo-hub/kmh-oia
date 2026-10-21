@@ -82,6 +82,14 @@ class VerifiedLearningAdmission:
             raise ValueError("trusted receipt provider and source record are required")
         if not receipt.raw_observation.strip() or not receipt.verification_method.strip():
             raise ValueError("trusted receipt observation and verification method are required")
+        expected_source = f"{receipt.provider_name}:{receipt.source_record_id}"
+        if (
+            admission.execution_id != loop.execution_id
+            or admission.source != expected_source
+            or admission.raw_observation != receipt.raw_observation
+            or admission.trusted_receipt_content_hash != receipt.content_hash
+        ):
+            raise ValueError("evidence admission provenance does not match the trusted receipt")
 
         return cls(
             decision_id=outcome.decision_id,
