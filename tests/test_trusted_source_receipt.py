@@ -283,6 +283,35 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         self.assertIn("future", result.reasons[0])
 
 
+
+    def test_future_max_age_configuration_is_rejected(self):
+        invalid_values = (-1, True, 1.5, "86400", None)
+        for max_age in invalid_values:
+            with self.subTest(max_receipt_age_seconds=max_age):
+                with self.assertRaisesRegex(ValueError, "non-negative integer"):
+                    TrustedSourceReceiptVerifier(
+                        FakeTrustedSourceAdapter(),
+                        allowed_providers=("booking-provider",),
+                        max_receipt_age_seconds=max_age,
+                        clock=lambda: FIXED_NOW,
+                    )
+
+    def test_receipt_exactly_at_maximum_age_is_accepted(self):
+        exact_boundary = TrustedSourceReceipt(
+            provider_name="booking-provider",
+            source_record_id="booking:42",
+            execution_id="exec:1",
+            raw_observation="booking_id=42;status=confirmed",
+            observed_at="2026-10-19T12:00:00Z",
+            content_hash="sha256:exact-boundary",
+            verification_method="fake-adapter-test",
+        )
+        result = self.verifier(
+            FakeTrustedSourceAdapter(receipt=exact_boundary),
+            max_age=86400,
+        ).verify("booking:42", "exec:1")
+        self.assertTrue(result.verified)
+
     def test_clock_exception_fails_closed_without_leaking_details(self):
         def broken_clock():
             raise RuntimeError("private clock internals")
