@@ -313,3 +313,24 @@ decision = preflight_release(
 ```
 
 The test suite creates temporary Git checkouts and exercises a clean matching release through HMAC signing/enforcement, then verifies dirty tree, wrong expected SHA, evidence/checkout revision mismatch, and missing approval fail closed. This remains a controlled integration prototype; the expected SHA must still come from a trusted reviewed build/deployment artifact, and the actual production entrypoint must enforce the resulting signed decision before performing the protected action.
+
+
+## Protected action entrypoint (controlled integration prototype)
+
+`src/protected_action.py` is the last guard before a protected callback. It resolves and verifies a signed release decision through the trusted-key-provider path; if signature/key policy verification fails or the decision is not `ALLOW`, it raises `ProtectedActionBlocked` before calling the action. Tests use a callback marker to prove that BLOCK, bad HMAC, retired-key, and provider-unavailable cases do not invoke the action.
+
+```python
+from src.protected_action import execute_protected_action, ProtectedActionBlocked
+
+try:
+    verified_decision, result = execute_protected_action(
+        trusted_key_provider,
+        signed_release_envelope,
+        action=deploy_or_execute,
+    )
+except ProtectedActionBlocked:
+    # Fail closed; protected callback was not invoked.
+    raise
+```
+
+This remains a local adapter/test boundary, not a deployed CI/CD action. The production entrypoint must load signed decisions from trusted storage, use a production secret manager/KMS provider and independent approval authority, and enforce this check immediately before the protected action with least privilege.
