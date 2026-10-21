@@ -106,19 +106,22 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                 )
 
 
-    def test_rejects_provider_name_with_surrounding_whitespace(self):
+    def test_provider_name_with_surrounding_whitespace_matches_normalized_allowlist(self):
         adapter = MinimalAdapter()
         adapter.provider_name = " test-provider "
         with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(ValueError, "not explicitly allowlisted"):
-                build_production_evidence_runtime(
-                    self.console,
-                    config=ProductionEvidenceRuntimeConfig(
-                        str(Path(tmp) / "evidence-replay.sqlite3"),
-                        ("test-provider",),
-                    ),
-                    trusted_source_adapter=adapter,
-                )
+            bridge = build_production_evidence_runtime(
+                self.console,
+                config=ProductionEvidenceRuntimeConfig(
+                    str(Path(tmp) / "evidence-replay.sqlite3"),
+                    ("test-provider",),
+                ),
+                trusted_source_adapter=adapter,
+            )
+            self.assertEqual(
+                bridge.trusted_source_verifier.allowed_providers,
+                frozenset({"test-provider"}),
+            )
 
     def test_rejects_provider_not_in_allowlist(self):
         adapter = MinimalAdapter()
