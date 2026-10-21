@@ -1,4 +1,5 @@
 """Tests for SQLite learning-admission atomicity and idempotency."""
+from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import unittest
 from pathlib import Path
@@ -46,6 +47,18 @@ class SQLiteLearningAdmissionRepositoryTests(unittest.TestCase):
         self.assertEqual(self.repo.counts()["learning_records"], 1)
         self.assertEqual(self.repo.counts()["adaptation_proposals"], 1)
         self.assertEqual(self.repo.counts()["admission_audit_events"], 1)
+
+
+    def test_concurrent_duplicate_requests_persist_one_admission(self):
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            saved = list(pool.map(lambda _: self.repo.commit(**self.payload), range(16)))
+        self.assertTrue(all(item.result == self.payload["result"] for item in saved))
+        self.assertEqual(self.repo.counts(), {
+            "learning_admissions": 1,
+            "learning_records": 1,
+            "adaptation_proposals": 1,
+            "admission_audit_events": 1,
+        })
 
     def test_same_key_different_fingerprint_is_rejected(self):
         self.commit()
