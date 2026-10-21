@@ -6,7 +6,7 @@ Date: 2026-10-21
 
 The current production attestation workflow accepts repository-relative classifier and policy paths and checks that the files exist and are non-empty after checking out the selected `main` source revision. This is a useful safety guard, but it is not a trusted build-artifact contract. It does not fetch an immutable artifact from an independently identified build run, compare a producer run SHA and workflow identity, or prove that the file was emitted by the approved build pipeline.
 
-A signature over measured bytes establishes that the configured private key signed those bytes. It does not independently authenticate the origin of those bytes.
+A signature over measured bytes establishes that the configured private key signed those bytes. It does not establish build provenance or independently authenticate the origin of those bytes.
 
 ## Phase 811 changes
 
