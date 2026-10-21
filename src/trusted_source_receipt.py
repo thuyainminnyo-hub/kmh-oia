@@ -88,6 +88,9 @@ class TrustedSourceReceiptVerifier:
         record_id = source_record_id.strip() if isinstance(source_record_id, str) else ""
         execution = execution_id.strip() if isinstance(execution_id, str) else ""
 
+        if not record_id or not execution:
+            return self._rejected("", record_id, execution, "Source record ID and execution ID are required.")
+
         if adapter is None:
             return self._rejected("", record_id, execution, "No trusted source adapter is configured.")
 
@@ -102,9 +105,6 @@ class TrustedSourceReceiptVerifier:
         provider = provider_value.strip()
         if not self.allowed_providers or provider not in self.allowed_providers:
             return self._rejected(provider, record_id, execution, "Provider is not allowlisted.")
-        if not record_id or not execution:
-            return self._rejected(provider, record_id, execution, "Source record ID and execution ID are required.")
-
         try:
             receipt = adapter.fetch_receipt(record_id, execution)
             if receipt is None:
