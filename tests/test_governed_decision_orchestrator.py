@@ -116,6 +116,59 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         self.assertEqual(result.learning_feedback.adaptation.status, "PROPOSED")
         self.assertEqual(len(memory.recent()), 1)
 
+    def test_invalid_runtime_admission_provenance_blocks_learning_service(self):
+        class MismatchedProvenanceAdapter(FakeBookingAdapter):
+            def fetch_receipt(self, source_record_id, execution_id):
+                receipt = super().fetch_receipt(source_record_id, execution_id)
+                return TrustedSourceReceipt(
+                    provider_name=receipt.provider_name,
+                    source_record_id=receipt.source_record_id,
+                    execution_id=receipt.execution_id,
+                    raw_observation="different observation than runtime admission",
+                    observed_at=receipt.observed_at,
+                    content_hash=receipt.content_hash,
+                    verification_method=receipt.verification_method,
+                )
+
+        queue = DecisionQueue()
+        decision = queue.enqueue(self.signal(), owner="system")
+        queue.decide(decision.id, approved=True)
+        console = LiveOperatingConsole(
+            date="2026-10-21",
+            primary_objective="Provenance mismatch end-to-end",
+        )
+        memory = OperatingMemory()
+        runtime = LiveRuntimeBridge(
+            console,
+            trusted_source_adapter=MismatchedProvenanceAdapter(),
+            allowed_source_providers=("booking-provider",),
+        )
+        service = TrustedDecisionLearningService(
+            classifier=FakeOutcomeClassifier(),
+            receipt_verifier=runtime.trusted_source_verifier,
+            memory=memory,
+        )
+        result = GovernedDecisionOrchestrator(
+            queue, console, runtime_bridge=runtime, learning_service=service
+        ).execute_approved(
+            decision.id,
+            expected_output="quality review completed",
+            source_record_id="booking:record:mismatch",
+            learning_evidence_id="evidence:booking-outcome:1",
+            learning_policy_version="policy:v1",
+            learning_next_command="Hold for evidence review",
+        )
+
+        self.assertTrue(result.execution.trusted_receipt_verification.verified)
+        self.assertEqual(result.execution.admission.decision, "ADMITTED")
+        self.assertFalse(result.learning_feedback.admitted)
+        self.assertIsNone(result.learning_feedback.memory)
+        self.assertIsNone(result.learning_feedback.adaptation)
+        self.assertEqual(memory.recent(), ())
+        self.assertEqual(result.learning_feedback.reasons, (
+            "Independently verified receipt does not match runtime receipt.",
+        ))
+
     def test_durable_replay_guard_is_shared_by_runtime_and_learning_boundary(self):
         queue = DecisionQueue()
         decision = queue.enqueue(self.signal(), owner="system")
