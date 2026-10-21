@@ -69,8 +69,12 @@ class TrustedDecisionLearningService:
         memory: OperatingMemory,
         repository: SQLiteLearningAdmissionRepository,
         adaptation_engine: AdaptationEngine | None = None,
+        classifier_artifact_sha256: str | None = None,
+        policy_artifact_sha256: str | None = None,
     ) -> None:
         self._classifier = classifier
+        self._classifier_artifact_sha256 = self._normalize_artifact_digest(classifier_artifact_sha256)
+        self._policy_artifact_sha256 = self._normalize_artifact_digest(policy_artifact_sha256)
         self._receipt_verifier = receipt_verifier
         # Kept as a read-side dependency; transactional repository owns writes.
         self._memory = memory
@@ -165,6 +169,10 @@ class TrustedDecisionLearningService:
             return blocked("confidence must be between 0 and 1.")
         if self._classifier is None:
             return blocked("Trusted provider outcome classifier is not configured.")
+        if self._classifier_artifact_sha256 is None:
+            return blocked("Immutable classifier artifact SHA-256 is not configured.")
+        if self._policy_artifact_sha256 is None:
+            return blocked("Immutable policy artifact SHA-256 is not configured.")
 
         # Re-fetch and re-authenticate the provider receipt at the learning
         # boundary. A consumed/replayed receipt fails closed in the replay store.
@@ -197,11 +205,14 @@ class TrustedDecisionLearningService:
         if not expected_source:
             return blocked("Trusted source attribution is incomplete.")
 
-        admission_key, fingerprint = self._admission_identity(
-            decision, execution, receipt, evidence_id=evidence_id,
-            policy_version=policy_version, next_command=next_command,
-            confidence=float(confidence),
-        )
+        try:
+            admission_key, fingerprint = self._admission_identity(
+                decision, execution, receipt, evidence_id=evidence_id,
+                policy_version=policy_version, next_command=next_command,
+                confidence=float(confidence),
+            )
+        except (TypeError, ValueError):
+            return blocked("Artifact identity or admission request is invalid.")
         try:
             stored = self._repository.get(admission_key)
         except Exception:
@@ -303,6 +314,8 @@ class TrustedDecisionLearningService:
             "trace_id": admission.trace_id, "evidence_id": admission.evidence_id,
             "policy_version": admission.policy_version, "provider_name": receipt.provider_name,
             "source_record_id": receipt.source_record_id, "content_hash": receipt.content_hash,
+            "classifier_artifact_sha256": self._classifier_artifact_sha256,
+            "policy_artifact_sha256": self._policy_artifact_sha256,
             "outcome_quality": quality,
         }
         try:
@@ -333,6 +346,11 @@ class TrustedDecisionLearningService:
         classifier_version = getattr(self._classifier, "version", None)
         if isinstance(classifier_version, str) and classifier_version.strip():
             classifier = f"{classifier}@{classifier_version.strip()}"
+        # A class name/version is useful metadata, but it is not proof of the
+        # artifact bytes. These externally verified immutable digests are part
+        # of the canonical request fingerprint and audit trail.
+        if self._classifier_artifact_sha256 is None or self._policy_artifact_sha256 is None:
+            raise ValueError("immutable classifier and policy artifact digests are required")
         request = {
             "schema": "trusted-learning-admission-v1", "identity": identity,
             "decision": asdict(decision),
@@ -345,11 +363,25 @@ class TrustedDecisionLearningService:
                 "verification_method": receipt.verification_method, "content_hash": receipt.content_hash},
             "policy_version": policy_version.strip(), "next_command": next_command.strip(),
             "confidence": confidence, "classifier": classifier,
+            "classifier_artifact_sha256": self._classifier_artifact_sha256,
+            "policy_artifact_sha256": self._policy_artifact_sha256,
         }
         fingerprint = "sha256:" + hashlib.sha256(json.dumps(
             request, sort_keys=True, separators=(",", ":"), ensure_ascii=False
         ).encode("utf-8")).hexdigest()
         return admission_key, fingerprint
+
+    @staticmethod
+    def _normalize_artifact_digest(value: str | None) -> str | None:
+        """Accept only a bare or sha256:-prefixed, 64-hex SHA-256 digest."""
+        if not isinstance(value, str):
+            return None
+        candidate = value.strip()
+        if candidate.startswith("sha256:"):
+            candidate = candidate[7:]
+        if len(candidate) != 64 or any(ch not in "0123456789abcdefABCDEF" for ch in candidate):
+            return None
+        return candidate.lower()
 
     @staticmethod
     def _restore_result(payload: dict) -> TrustedDecisionLearningResult:
