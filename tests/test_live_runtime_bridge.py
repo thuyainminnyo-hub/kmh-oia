@@ -3,6 +3,9 @@ import unittest
 from src.live_operating_console import LiveOperatingConsole
 from src.live_runtime_bridge import LiveRuntimeBridge
 from src.standardization_engine import OperatingStandard
+from src.receipt_replay_store import SQLiteReceiptReplayStore
+import tempfile
+from pathlib import Path
 
 
 class LiveRuntimeBridgeTests(unittest.TestCase):
@@ -45,6 +48,24 @@ class LiveRuntimeBridgeTests(unittest.TestCase):
         self.assertIsNotNone(record.standard_feedback)
         self.assertFalse(record.standard_feedback.drift.drifted)
         self.assertIsNone(record.standard_feedback.trigger)
+
+
+    def test_durable_replay_store_required_rejects_missing_store(self):
+        console = LiveOperatingConsole(date="2026-10-21", primary_objective="Replay guard startup")
+        with self.assertRaisesRegex(ValueError, "durable receipt_replay_store is required"):
+            LiveRuntimeBridge(console, require_durable_replay_store=True)
+
+    def test_durable_replay_store_required_rejects_unhealthy_sqlite_schema(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "replay.sqlite3")
+            store = SQLiteReceiptReplayStore(path)
+            with __import__("sqlite3").connect(path) as connection:
+                connection.execute("DROP TABLE receipt_replay_claims")
+            console = LiveOperatingConsole(date="2026-10-21", primary_objective="Replay guard startup")
+            with self.assertRaisesRegex(ValueError, "health check failed"):
+                LiveRuntimeBridge(
+                    console, receipt_replay_store=store, require_durable_replay_store=True
+                )
 
     def test_unknown_command_is_rejected(self) -> None:
         console = LiveOperatingConsole(date="2026-10-05")
