@@ -17,7 +17,7 @@ class FakeAdmissionReceiptAdapter:
             source_record_id=source_record_id,
             execution_id=execution_id,
             raw_observation="booking_id=42;status=confirmed",
-            observed_at="2026-10-22T00:00:00Z",
+            observed_at="2026-10-21T23:30:00Z",
             content_hash="sha256:integration-fixture",
             verification_method="fake-adapter-integration-test",
         )
