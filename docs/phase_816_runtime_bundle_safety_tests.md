@@ -1,15 +1,15 @@
-# Phase 816 — Deterministic Runtime Bundle Safety Regression Tests
+# Phase 816 — Consumer-Side Runtime Bundle Release Gate
 
 Date: 2026-10-21
 
-## Scope
+## Implemented
 
-Added packaging safety regression tests covering deterministic bytes across repeat builds, source revision and manifest digest binding, rejection of symlinked runtime source, duplicate archive entries, archive path escape, and refusal to overwrite an existing artifact.
-
-The trusted build workflow emits a deterministic Python runtime source bundle (`runtime-source-bundle.tar.gz`) containing `SOURCE_REVISION` and `MANIFEST.json`. This is a source package, not a compiled model or proof of production deployment.
+- Added `scripts/verify_runtime_bundle_release.py`, a fail-closed consumer API that validates bundle bytes and the internal manifest, loads strict attestation JSON and checks Ed25519 signature, trusted public key, issuer/subject allowlists, source revision, producer run ID, artifact ID/name/service digest and freshness.
+- Added regression tests that accept a valid signed bundle and reject wrong key/issuer/subject, source SHA, producer run ID, artifact ID/digest, tampered bundle/signature and a missing trust root.
+- The caller must obtain producer run/artifact metadata from a trusted API/source and pass those observations into this gate. Untrusted envelope values alone are not authoritative.
 
 ## Verification boundary
 
-The tests and repository validation must pass on the exact Phase 816 commit before marking it CI-verified. The trusted build workflow needs to execute on `main` to produce a real eligible producer run and immutable artifact for the signer. No production signing is invoked by pull-request CI.
+This consumer gate is standalone and not yet wired into `ProductionEvidenceRuntime` or a deployed bootstrap process. No production public key, GitHub Environment configuration, production signing run or deployment has been verified. The trusted producer workflow must execute on `main` to create a real eligible artifact/run.
 
-PR #97 remains OPEN / DRAFT / UNMERGED pending independent human review. **Production HOLD.**
+PR #97 remains OPEN / DRAFT / UNMERGED. **Production HOLD.**

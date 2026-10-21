@@ -9,20 +9,18 @@ from pathlib import Path
 from scripts.package_runtime_bundle import build_runtime_bundle
 from scripts.validate_runtime_bundle import validate_runtime_bundle
 
-
 class RuntimeBundlePackagingSecurityTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         (self.root / 'src').mkdir()
-        (self.root / 'src' / 'runtime.py').write_text('VALUE = 1\\n', encoding='utf-8')
-        (self.root / 'requirements.txt').write_text('cryptography==50.0.2\\n', encoding='utf-8')
+        (self.root / 'src' / 'runtime.py').write_text('VALUE = 1\n', encoding='utf-8')
+        (self.root / 'requirements.txt').write_text('cryptography==50.0.2\n', encoding='utf-8')
         self.revision = 'a' * 40
 
     def test_bundle_is_byte_for_byte_deterministic_and_manifest_bound(self):
-        first = self.root / 'first.tar.gz'
-        second = self.root / 'second.tar.gz'
+        first, second = self.root / 'first.tar.gz', self.root / 'second.tar.gz'
         build_runtime_bundle(self.root, self.revision, first)
         build_runtime_bundle(self.root, self.revision, second)
         self.assertEqual(first.read_bytes(), second.read_bytes())
@@ -32,14 +30,14 @@ class RuntimeBundlePackagingSecurityTests(unittest.TestCase):
 
     def test_packager_rejects_symlinked_runtime_source(self):
         outside = self.root / 'outside.py'
-        outside.write_text('SECRET = True\\n', encoding='utf-8')
+        outside.write_text('SECRET = True\n', encoding='utf-8')
         (self.root / 'src' / 'linked.py').symlink_to(outside)
         with self.assertRaisesRegex(ValueError, 'symlinks are not allowed'):
             build_runtime_bundle(self.root, self.revision, self.root / 'unsafe.tar.gz')
 
     def test_validator_rejects_duplicate_archive_entries(self):
         bundle = self.root / 'duplicate.tar.gz'
-        with gzip.GzipFile(filename='', mode='wb', fileobj=bundle.open('wb'), mtime=0) as compressed:
+        with bundle.open('wb') as raw, gzip.GzipFile(filename='', mode='wb', fileobj=raw, mtime=0) as compressed:
             with tarfile.open(fileobj=compressed, mode='w') as archive:
                 for _ in range(2):
                     info = tarfile.TarInfo('kmh-oia-runtime-source/src/runtime.py')
@@ -50,7 +48,7 @@ class RuntimeBundlePackagingSecurityTests(unittest.TestCase):
 
     def test_validator_rejects_archive_path_escape(self):
         bundle = self.root / 'escape.tar.gz'
-        with gzip.GzipFile(filename='', mode='wb', fileobj=bundle.open('wb'), mtime=0) as compressed:
+        with bundle.open('wb') as raw, gzip.GzipFile(filename='', mode='wb', fileobj=raw, mtime=0) as compressed:
             with tarfile.open(fileobj=compressed, mode='w') as archive:
                 info = tarfile.TarInfo('../escape.txt')
                 info.size = 1
