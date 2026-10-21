@@ -4,11 +4,15 @@ Date: 2026-10-21
 
 This phase rewires the protected signer to require producer-run and immutable artifact metadata. It queries GitHub Actions APIs to verify the run and artifact, downloads by artifact ID, checks the ZIP digest, then signs the classifier and policy bytes.
 
+## Canonical producer contract
+
+The approved workflow path is `.github/workflows/trusted-build.yml` and the expected artifact name is `kmh-oia-runtime-bundle`. The path must match the provenance validator's allowlist fixture. This is a trust-policy declaration, not evidence the producer exists.
+
 ## Fail-closed condition
 
-The only allowed producer workflow path is `.github/workflows/trusted-runtime-build.yml` and the only expected artifact name is `kmh-oia-runtime-bundle`. These are explicit trust-policy values, not evidence the producer exists. The referenced producer workflow has not been implemented yet, so signing preflight will fail until the producer is added, reviewed, and emits this exact bundle for the pinned source SHA.
+The referenced producer workflow has not been implemented yet, and the repository does not currently contain the promised `classifier.bin` and `policy.bin` outputs. Signing preflight will fail until a reviewed producer actually emits this exact bundle for the pinned source SHA.
 
-The signer now records the producer run ID and source SHA instead of using its own signing run ID as the build run. It no longer accepts source-tree classifier/policy paths.
+The signer records producer run ID/source SHA, queries actual GitHub run and artifact metadata, downloads by immutable artifact ID, checks the digest and only then signs measured artifact bytes. It no longer accepts source-tree classifier/policy paths or labels the signing run as the build run.
 
 ## Verification boundary
 

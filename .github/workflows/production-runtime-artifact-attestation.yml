@@ -78,7 +78,7 @@ jobs:
               raise SystemExit('expected_release_sha must be a full lowercase 40-character SHA')
           if values['PRODUCER_SOURCE_SHA'] != values['EXPECTED_RELEASE_SHA']:
               raise SystemExit('producer SHA must exactly match expected release SHA')
-          if values['PRODUCER_WORKFLOW_PATH'] != '.github/workflows/trusted-runtime-build.yml':
+          if values['PRODUCER_WORKFLOW_PATH'] != '.github/workflows/trusted-build.yml':
               raise SystemExit('producer workflow is not on the exact approved allowlist')
           if values['RUNTIME_ARTIFACT_NAME'] != 'kmh-oia-runtime-bundle':
               raise SystemExit('artifact name does not match the exact approved bundle name')

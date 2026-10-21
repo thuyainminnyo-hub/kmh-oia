@@ -14,7 +14,7 @@ class TrustedRuntimeArtifactHandoffContractTests(unittest.TestCase):
 
     def test_no_source_tree_fallback_and_immutable_download_are_required(self):
         workflow = WORKFLOW.read_text(encoding='utf-8')
-        self.assertIn('.github/workflows/trusted-runtime-build.yml', workflow)
+        self.assertIn('.github/workflows/trusted-build.yml', workflow)
         self.assertNotIn('inputs.classifier_artifact_path', workflow)
         self.assertNotIn('inputs.policy_artifact_path', workflow)
         self.assertIn('Download the artifact by immutable ID', workflow)

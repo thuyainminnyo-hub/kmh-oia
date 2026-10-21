@@ -25,6 +25,13 @@ class ProtectedRuntimeArtifactAttestationWorkflowTests(unittest.TestCase):
             self.assertIn(f'{name}:', triggers)
         self.assertIn('producer SHA must exactly match expected release SHA', self.workflow)
 
+    def test_signer_and_provenance_fixture_share_canonical_workflow_path(self):
+        provenance_test = (ROOT / "tests" / "test_build_artifact_provenance.py").read_text(encoding="utf-8")
+        canonical = ".github/workflows/trusted-build.yml"
+        self.assertIn(canonical, self.workflow)
+        self.assertIn(canonical, provenance_test)
+        self.assertNotIn(".github/workflows/trusted-runtime-build.yml", self.workflow)
+
     def test_signing_requires_manual_main_and_protected_environment(self):
         self.assertGreaterEqual(self.workflow.count("github.ref == 'refs/heads/main'"), 2)
         self.assertGreaterEqual(self.workflow.count("github.event_name == 'workflow_dispatch'"), 2)
@@ -33,7 +40,7 @@ class ProtectedRuntimeArtifactAttestationWorkflowTests(unittest.TestCase):
         self.assertIn("needs.preflight.result == 'success'", self.workflow)
 
     def test_producer_workflow_and_artifact_are_allowlisted_and_api_verified(self):
-        self.assertIn('.github/workflows/trusted-runtime-build.yml', self.workflow)
+        self.assertIn('.github/workflows/trusted-build.yml', self.workflow)
         self.assertIn('actions/runs/{run_id}', self.workflow)
         self.assertIn('run.get(field) != value', self.workflow)
         self.assertIn('actions/runs/{run_id}/artifacts', self.workflow)
