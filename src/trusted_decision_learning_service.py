@@ -24,6 +24,7 @@ from src.trusted_source_receipt import (
 )
 from src.verified_learning_admission import VerifiedLearningAdmission
 from src.runtime_artifact_attestation import RuntimeArtifactAttestation, RuntimeArtifactAttestationVerifier
+from src.runtime_artifact_loader import VerifiedRuntimeArtifacts
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,16 @@ class TrustedDecisionLearningService:
         policy_artifact_sha256: str | None = None,
         artifact_attestation: RuntimeArtifactAttestation | None = None,
         artifact_attestation_verifier: RuntimeArtifactAttestationVerifier | None = None,
+        runtime_artifacts: VerifiedRuntimeArtifacts | None = None,
     ) -> None:
+        self._runtime_artifacts = runtime_artifacts
+        if runtime_artifacts is not None:
+            # Use identities derived from the verified byte bundle, never caller-only digest strings.
+            classifier = runtime_artifacts.classifier
+            classifier_artifact_sha256 = runtime_artifacts.classifier_sha256
+            policy_artifact_sha256 = runtime_artifacts.policy_sha256
+            artifact_attestation = runtime_artifacts.attestation
+            artifact_attestation_verifier = runtime_artifacts.verifier
         self._classifier = classifier
         self._classifier_artifact_sha256 = self._normalize_artifact_digest(classifier_artifact_sha256)
         self._policy_artifact_sha256 = self._normalize_artifact_digest(policy_artifact_sha256)
@@ -202,6 +212,18 @@ class TrustedDecisionLearningService:
             attestation_valid = False
         if attestation_valid is not True:
             return blocked("Runtime artifact attestation verification failed closed.")
+        if self._runtime_artifacts is None:
+            return blocked("Verified runtime artifact loader bundle is not configured.")
+        if self._runtime_artifacts.classifier is not self._classifier:
+            return blocked("Loaded classifier object does not match the verified artifact bundle.")
+        if (
+            self._runtime_artifacts.attestation != self._artifact_attestation
+            or self._runtime_artifacts.verifier is not self._artifact_attestation_verifier
+            or self._runtime_artifacts.classifier_sha256 != self._classifier_artifact_sha256
+            or self._runtime_artifacts.policy_sha256 != self._policy_artifact_sha256
+            or self._runtime_artifacts.verify_integrity() is not True
+        ):
+            return blocked("Verified runtime artifact bundle integrity or provenance validation failed.")
 
         # Re-fetch and re-authenticate the provider receipt at the learning
         # boundary. A consumed/replayed receipt fails closed in the replay store.

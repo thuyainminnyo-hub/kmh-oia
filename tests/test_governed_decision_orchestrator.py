@@ -1,3 +1,4 @@
+import hashlib
 import unittest
 import tempfile
 from pathlib import Path
@@ -13,6 +14,7 @@ from src.execution_telemetry import ExecutionTelemetry, ExecutionTelemetryCollec
 from src.operating_memory import OperatingMemory
 from src.learning_admission_repository import SQLiteLearningAdmissionRepository
 from src.telemetry_signal_engine import IntelligenceSignal
+from src.runtime_artifact_loader import verify_and_load_runtime_artifacts_from_bytes
 from src.trusted_decision_learning_service import (
     RuntimeArtifactAttestation,
     TrustedDecisionLearningService,
@@ -51,6 +53,20 @@ class FakeArtifactAttestationVerifier:
             and attestation.policy_sha256 == expected_policy_sha256
         )
 
+
+def build_test_runtime_artifacts(classifier, *, classifier_bytes=b"phase805-test-classifier", policy_bytes=b"phase805-test-policy"):
+    classifier_digest = hashlib.sha256(classifier_bytes).hexdigest()
+    policy_digest = hashlib.sha256(policy_bytes).hexdigest()
+    attestation = RuntimeArtifactAttestation(
+        classifier_sha256=classifier_digest, policy_sha256=policy_digest,
+        issuer="test-ci", subject="unit-test-runtime", attestation_id="test-attestation",
+    )
+    verifier = FakeArtifactAttestationVerifier()
+    return verify_and_load_runtime_artifacts_from_bytes(
+        classifier_bytes, policy_bytes, attestation=attestation, verifier=verifier,
+        classifier_loader=lambda payload: classifier if payload == classifier_bytes else None,
+        policy_loader=lambda payload: {"sha256": hashlib.sha256(payload).hexdigest()} if payload == policy_bytes else None,
+    )
 
 class FakeOutcomeClassifier:
     def classify(self, decision, execution, receipt):
@@ -110,11 +126,13 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             trusted_source_adapter=FakeBookingAdapter(),
             allowed_source_providers=("booking-provider",),
         )
+        artifact_bundle = build_test_runtime_artifacts(FakeOutcomeClassifier())
         learning_service = TrustedDecisionLearningService(
-            classifier=FakeOutcomeClassifier(),
+            classifier=artifact_bundle.classifier,
             receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
             repository=self.learning_repository,
+            runtime_artifacts=artifact_bundle,
             classifier_artifact_sha256="a" * 64,
             policy_artifact_sha256="b" * 64,
             artifact_attestation=RuntimeArtifactAttestation(
@@ -182,11 +200,13 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             trusted_source_adapter=MismatchedProvenanceAdapter(),
             allowed_source_providers=("booking-provider",),
         )
+        artifact_bundle = build_test_runtime_artifacts(FakeOutcomeClassifier())
         service = TrustedDecisionLearningService(
-            classifier=FakeOutcomeClassifier(),
+            classifier=artifact_bundle.classifier,
             receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
             repository=self.learning_repository,
+            runtime_artifacts=artifact_bundle,
             classifier_artifact_sha256="a" * 64,
             policy_artifact_sha256="b" * 64,
             artifact_attestation=RuntimeArtifactAttestation(
@@ -234,11 +254,13 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
                 receipt_replay_store=replay_store,
                 require_durable_replay_store=True,
             )
+            artifact_bundle = build_test_runtime_artifacts(FakeOutcomeClassifier())
             learning_service = TrustedDecisionLearningService(
-                classifier=FakeOutcomeClassifier(),
+                classifier=artifact_bundle.classifier,
                 receipt_verifier=runtime.trusted_source_verifier,
                 memory=memory,
                 repository=self.learning_repository,
+                runtime_artifacts=artifact_bundle,
             classifier_artifact_sha256="a" * 64,
             policy_artifact_sha256="b" * 64,
             artifact_attestation=RuntimeArtifactAttestation(
@@ -284,11 +306,13 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
         )
         runtime = LiveRuntimeBridge(console)
         memory = OperatingMemory()
+        artifact_bundle = build_test_runtime_artifacts(FakeOutcomeClassifier())
         learning_service = TrustedDecisionLearningService(
-            classifier=FakeOutcomeClassifier(),
+            classifier=artifact_bundle.classifier,
             receipt_verifier=runtime.trusted_source_verifier,
             memory=memory,
             repository=self.learning_repository,
+            runtime_artifacts=artifact_bundle,
             classifier_artifact_sha256="a" * 64,
             policy_artifact_sha256="b" * 64,
             artifact_attestation=RuntimeArtifactAttestation(

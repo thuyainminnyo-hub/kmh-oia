@@ -18,3 +18,8 @@ The verifier code is implemented and tested but production key provisioning, sig
 **Decision: Production HOLD.**
 
 PR: https://github.com/thuyainminnyo-hub/kmh-oia/pull/97
+
+
+## Phase 805 follow-up
+
+A verified loader bundle is now required by the learning service. `src/runtime_artifact_loader.py` measures actual bytes, validates the signed attestation against those byte digests, and only then calls loader callbacks with the measured byte snapshots. Production-specific file formats/loaders and key provisioning are still not supplied; passing CI does not establish deployment.

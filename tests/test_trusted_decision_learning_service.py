@@ -1,3 +1,4 @@
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +15,7 @@ from src.trusted_decision_learning_service import (
     TrustedDecisionLearningService,
     TrustedOutcomeClassification,
 )
+from src.runtime_artifact_loader import verify_and_load_runtime_artifacts_from_bytes
 from src.trusted_source_receipt import (
     ReceiptVerificationResult,
     TrustedSourceReceipt,
@@ -56,6 +58,25 @@ class FakeArtifactAttestationVerifier:
         return self.valid and attestation.classifier_sha256 == expected_classifier_sha256 and attestation.policy_sha256 == expected_policy_sha256
 
 
+TEST_CLASSIFIER_BYTES = b"test-classifier-runtime-blob-phase805"
+TEST_POLICY_BYTES = b"test-policy-runtime-blob-phase805"
+
+
+def make_runtime_artifacts(classifier, *, classifier_bytes=TEST_CLASSIFIER_BYTES, policy_bytes=TEST_POLICY_BYTES):
+    classifier_digest = hashlib.sha256(classifier_bytes).hexdigest()
+    policy_digest = hashlib.sha256(policy_bytes).hexdigest()
+    attestation = RuntimeArtifactAttestation(
+        classifier_sha256=classifier_digest, policy_sha256=policy_digest,
+        issuer="test-ci", subject="test-loaded-runtime",
+        attestation_id="attestation:phase-805-test",
+    )
+    verifier = FakeArtifactAttestationVerifier()
+    return verify_and_load_runtime_artifacts_from_bytes(
+        classifier_bytes, policy_bytes, attestation=attestation, verifier=verifier,
+        classifier_loader=lambda payload: classifier if payload == classifier_bytes else None,
+        policy_loader=lambda payload: {"policy_bytes_sha256": hashlib.sha256(payload).hexdigest()} if payload == policy_bytes else None,
+    )
+
 class TestClassifier:
     def __init__(self, result=None, error=None):
         self.result = result or TrustedOutcomeClassification(
@@ -90,12 +111,9 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
             self.adapter,
             allowed_providers=("booking-provider",),
         )
-        self.attestation = RuntimeArtifactAttestation(
-            classifier_sha256="a" * 64, policy_sha256="b" * 64,
-            issuer="test-ci", subject="test-loaded-runtime",
-            attestation_id="attestation:test-801",
-        )
-        self.attestation_verifier = FakeArtifactAttestationVerifier()
+        self.runtime_artifacts = make_runtime_artifacts(self.classifier)
+        self.attestation = self.runtime_artifacts.attestation
+        self.attestation_verifier = self.runtime_artifacts.verifier
         self.service = TrustedDecisionLearningService(
             classifier=self.classifier,
             receipt_verifier=self.verifier,
@@ -105,6 +123,7 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
             policy_artifact_sha256="b" * 64,
             artifact_attestation=self.attestation,
             artifact_attestation_verifier=self.attestation_verifier,
+            runtime_artifacts=self.runtime_artifacts,
         )
 
     def execution(self, *, admitted=True, receipt=True, decision_id="decision:1",
@@ -191,6 +210,49 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertEqual(self.repository.counts()["learning_records"], 1)
 
 
+    def test_admission_fails_closed_without_verified_loader_bundle(self):
+        service = TrustedDecisionLearningService(
+            classifier=self.classifier, receipt_verifier=self.verifier, memory=self.memory,
+            repository=self.repository, classifier_artifact_sha256=self.runtime_artifacts.classifier_sha256,
+            policy_artifact_sha256=self.runtime_artifacts.policy_sha256,
+            artifact_attestation=self.runtime_artifacts.attestation,
+            artifact_attestation_verifier=self.runtime_artifacts.verifier,
+        )
+        result = service.capture_execution(
+            self.decision, self.execution(), evidence_id="evidence:1",
+            policy_version="policy:v1", next_command="Hold",
+        )
+        self.assertFalse(result.admitted)
+        self.assertIn("Verified runtime artifact loader bundle", result.reasons[0])
+        self.assertEqual(self.classifier.calls, 0)
+
+    def test_bundle_bytes_must_match_signed_digests_before_admission(self):
+        from dataclasses import replace
+        bad_bundle = replace(self.runtime_artifacts, classifier_bytes=b"mutated bytes")
+        service = TrustedDecisionLearningService(
+            classifier=self.classifier, receipt_verifier=self.verifier, memory=self.memory,
+            repository=self.repository, runtime_artifacts=bad_bundle,
+        )
+        result = service.capture_execution(
+            self.decision, self.execution(), evidence_id="evidence:1",
+            policy_version="policy:v1", next_command="Hold",
+        )
+        self.assertFalse(result.admitted)
+        self.assertIn("attestation verification failed", result.reasons[0])
+        self.assertEqual(self.classifier.calls, 0)
+
+    def test_loader_is_not_called_when_signature_is_rejected(self):
+        from src.runtime_artifact_loader import RuntimeArtifactLoadError, verify_and_load_runtime_artifacts_from_bytes
+        calls = {"classifier": 0, "policy": 0}
+        rejected = FakeArtifactAttestationVerifier(valid=False)
+        with self.assertRaises(RuntimeArtifactLoadError):
+            verify_and_load_runtime_artifacts_from_bytes(
+                TEST_CLASSIFIER_BYTES, TEST_POLICY_BYTES, attestation=self.attestation, verifier=rejected,
+                classifier_loader=lambda payload: calls.__setitem__("classifier", calls["classifier"] + 1),
+                policy_loader=lambda payload: calls.__setitem__("policy", calls["policy"] + 1),
+            )
+        self.assertEqual(calls, {"classifier": 0, "policy": 0})
+
     def test_missing_runtime_attestation_fails_closed(self):
         service = TrustedDecisionLearningService(
             classifier=self.classifier, receipt_verifier=self.verifier, memory=self.memory,
@@ -270,16 +332,11 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
     def test_classifier_artifact_change_conflicts_with_same_admission_identity(self):
         first = self.capture()
         self.assertTrue(first.admitted)
+        changed_bundle = make_runtime_artifacts(self.classifier, classifier_bytes=b"different-classifier-runtime-blob", policy_bytes=TEST_POLICY_BYTES)
         changed = TrustedDecisionLearningService(
             classifier=self.classifier, receipt_verifier=self.verifier,
             memory=self.memory, repository=self.repository,
-            classifier_artifact_sha256="c" * 64,
-            policy_artifact_sha256="b" * 64,
-            artifact_attestation=RuntimeArtifactAttestation(
-                classifier_sha256="c" * 64, policy_sha256="b" * 64,
-                issuer="test-ci", subject="test-loaded-runtime", attestation_id="attestation:changed-classifier",
-            ),
-            artifact_attestation_verifier=self.attestation_verifier,
+            runtime_artifacts=changed_bundle,
         )
         calls = self.classifier.calls
         result = changed.capture_execution(
@@ -294,16 +351,11 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
     def test_policy_artifact_change_conflicts_with_same_admission_identity(self):
         first = self.capture()
         self.assertTrue(first.admitted)
+        changed_bundle = make_runtime_artifacts(self.classifier, classifier_bytes=TEST_CLASSIFIER_BYTES, policy_bytes=b"different-policy-runtime-blob")
         changed = TrustedDecisionLearningService(
             classifier=self.classifier, receipt_verifier=self.verifier,
             memory=self.memory, repository=self.repository,
-            classifier_artifact_sha256="a" * 64,
-            policy_artifact_sha256="c" * 64,
-            artifact_attestation=RuntimeArtifactAttestation(
-                classifier_sha256="a" * 64, policy_sha256="c" * 64,
-                issuer="test-ci", subject="test-loaded-runtime", attestation_id="attestation:changed-policy",
-            ),
-            artifact_attestation_verifier=self.attestation_verifier,
+            runtime_artifacts=changed_bundle,
         )
         calls = self.classifier.calls
         result = changed.capture_execution(
@@ -439,9 +491,9 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         service = TrustedDecisionLearningService(
             classifier=self.classifier, receipt_verifier=verifier, memory=self.memory,
             repository=self.repository,
-            classifier_artifact_sha256="a" * 64, policy_artifact_sha256="b" * 64,
             artifact_attestation=self.attestation,
             artifact_attestation_verifier=self.attestation_verifier,
+            runtime_artifacts=self.runtime_artifacts,
         )
         result = service.capture_execution(
             self.decision, execution, evidence_id="evidence:1",
@@ -494,6 +546,7 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
             policy_artifact_sha256="b" * 64,
             artifact_attestation=self.attestation,
             artifact_attestation_verifier=self.attestation_verifier,
+            runtime_artifacts=self.runtime_artifacts,
         )
         result = service.capture_execution(
             self.decision, self.execution(), evidence_id="evidence:1",
@@ -504,7 +557,7 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertIsNone(result.adaptation)
         self.assertEqual(
             result.reasons,
-            ("Independent receipt verification failed closed.",),
+            ("Independent receipt verification failed closed.",)
         )
         self.assertNotIn("RuntimeError", result.reasons[0])
         self.assertNotIn("private verifier endpoint/token detail", result.reasons[0])
