@@ -14,6 +14,7 @@ from src.operating_memory import OperatingMemory
 from src.learning_admission_repository import SQLiteLearningAdmissionRepository
 from src.telemetry_signal_engine import IntelligenceSignal
 from src.trusted_decision_learning_service import (
+    RuntimeArtifactAttestation,
     TrustedDecisionLearningService,
     TrustedOutcomeClassification,
 )
@@ -40,6 +41,15 @@ class FakeBookingAdapter:
 
     def match_execution(self, receipt, execution_id):
         return receipt.execution_id == execution_id
+
+
+class FakeArtifactAttestationVerifier:
+    def verify(self, attestation, *, expected_classifier_sha256, expected_policy_sha256):
+        return (
+            attestation.issuer == "test-ci"
+            and attestation.classifier_sha256 == expected_classifier_sha256
+            and attestation.policy_sha256 == expected_policy_sha256
+        )
 
 
 class FakeOutcomeClassifier:
@@ -107,6 +117,11 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             repository=self.learning_repository,
             classifier_artifact_sha256="a" * 64,
             policy_artifact_sha256="b" * 64,
+            artifact_attestation=RuntimeArtifactAttestation(
+                classifier_sha256="a" * 64, policy_sha256="b" * 64,
+                issuer="test-ci", subject="unit-test-runtime", attestation_id="test-attestation",
+            ),
+            artifact_attestation_verifier=FakeArtifactAttestationVerifier(),
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=learning_service
@@ -174,6 +189,11 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             repository=self.learning_repository,
             classifier_artifact_sha256="a" * 64,
             policy_artifact_sha256="b" * 64,
+            artifact_attestation=RuntimeArtifactAttestation(
+                classifier_sha256="a" * 64, policy_sha256="b" * 64,
+                issuer="test-ci", subject="unit-test-runtime", attestation_id="test-attestation",
+            ),
+            artifact_attestation_verifier=FakeArtifactAttestationVerifier(),
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=service
@@ -221,6 +241,11 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
                 repository=self.learning_repository,
             classifier_artifact_sha256="a" * 64,
             policy_artifact_sha256="b" * 64,
+            artifact_attestation=RuntimeArtifactAttestation(
+                classifier_sha256="a" * 64, policy_sha256="b" * 64,
+                issuer="test-ci", subject="unit-test-runtime", attestation_id="test-attestation",
+            ),
+            artifact_attestation_verifier=FakeArtifactAttestationVerifier(),
             )
             result = GovernedDecisionOrchestrator(
                 queue, console, runtime_bridge=runtime, learning_service=learning_service
@@ -266,6 +291,11 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             repository=self.learning_repository,
             classifier_artifact_sha256="a" * 64,
             policy_artifact_sha256="b" * 64,
+            artifact_attestation=RuntimeArtifactAttestation(
+                classifier_sha256="a" * 64, policy_sha256="b" * 64,
+                issuer="test-ci", subject="unit-test-runtime", attestation_id="test-attestation",
+            ),
+            artifact_attestation_verifier=FakeArtifactAttestationVerifier(),
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=learning_service
@@ -310,6 +340,11 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
             repository=self.learning_repository,
             classifier_artifact_sha256="a" * 64,
             policy_artifact_sha256="b" * 64,
+            artifact_attestation=RuntimeArtifactAttestation(
+                classifier_sha256="a" * 64, policy_sha256="b" * 64,
+                issuer="test-ci", subject="unit-test-runtime", attestation_id="test-attestation",
+            ),
+            artifact_attestation_verifier=FakeArtifactAttestationVerifier(),
         )
         result = GovernedDecisionOrchestrator(
             queue, console, runtime_bridge=runtime, learning_service=learning_service
