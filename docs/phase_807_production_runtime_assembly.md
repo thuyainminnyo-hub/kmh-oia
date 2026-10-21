@@ -19,3 +19,8 @@ A production application must supply its actual immutable classifier/policy arti
 **Decision: Production HOLD.**
 
 PR: https://github.com/thuyainminnyo-hub/kmh-oia/pull/97
+
+
+## Phase 808 follow-up
+
+Added `scripts/create_runtime_artifact_attestation.py` and `src/runtime_artifact_io.py` for signed attestation production and strict JSON parsing. The producer uses a protected environment-provided Ed25519 seed and never stores it in source. A protected release workflow and real signing/trust keys are still deployment prerequisites.
