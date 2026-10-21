@@ -18,6 +18,6 @@ The repository currently contains no `classifier.bin` or `policy.bin` output and
 
 ## Limits and decision
 
-The canonical `.github/workflows/trusted-build.yml` producer workflow is still not implemented. The signer intentionally fails closed until the project defines/builds its real classifier and policy outputs and a reviewed producer emits the exact expected bundle. Static CI does not prove live API behavior, production environment configuration or deployment.
+The producer workflow is not yet implemented: `.github/workflows/trusted-build.yml` is the canonical approved path but no file currently exists at that path. The signer intentionally fails closed until the project defines/builds its real classifier and policy outputs and a reviewed producer emits the exact expected bundle. Static CI does not prove live API behavior, production environment configuration or deployment.
 
 PR #97 remains OPEN / DRAFT / UNMERGED pending independent review and production gates. **Production HOLD.**
