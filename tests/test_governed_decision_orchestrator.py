@@ -118,16 +118,23 @@ class GovernedDecisionOrchestratorTests(unittest.TestCase):
 
     def test_invalid_runtime_admission_provenance_blocks_learning_service(self):
         class MismatchedProvenanceAdapter(FakeBookingAdapter):
+            def __init__(self):
+                self.fetch_count = 0
+
             def fetch_receipt(self, source_record_id, execution_id):
-                receipt = super().fetch_receipt(source_record_id, execution_id)
+                self.fetch_count += 1
                 return TrustedSourceReceipt(
-                    provider_name=receipt.provider_name,
-                    source_record_id=receipt.source_record_id,
-                    execution_id=receipt.execution_id,
-                    raw_observation="different observation than runtime admission",
-                    observed_at=receipt.observed_at,
-                    content_hash=receipt.content_hash,
-                    verification_method=receipt.verification_method,
+                    provider_name=self.provider_name,
+                    source_record_id=source_record_id,
+                    execution_id=execution_id,
+                    raw_observation=(
+                        "status=failed;reason=booking_not_completed"
+                        if self.fetch_count == 1
+                        else "different observation on learning re-check"
+                    ),
+                    observed_at=datetime.now(timezone.utc).isoformat(),
+                    content_hash=f"sha256:{execution_id}",
+                    verification_method="test-provider-signature-and-attribution",
                 )
 
         queue = DecisionQueue()
