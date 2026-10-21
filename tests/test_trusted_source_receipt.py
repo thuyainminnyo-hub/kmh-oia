@@ -203,7 +203,8 @@ class TrustedSourceReceiptVerifierTests(unittest.TestCase):
         result = self.verifier(adapter).verify("booking:42", "exec:1")
 
         self.assertFalse(result.verified)
-        self.assertIn("Receipt verification failed safely (AttributeError).", result.reasons)
+        self.assertIn("unsupported data type", result.reasons[0])
+        self.assertNotIn("AttributeError", result.reasons[0])
         self.assertEqual(adapter.fetch_receipt_calls, 1)
 
     def test_missing_adapter_fails_closed(self):
