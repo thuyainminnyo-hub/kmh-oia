@@ -81,10 +81,15 @@ def init_db() -> None:
                 updated_at TEXT NOT NULL,
                 confirmed_at TEXT,
                 confirmed_by TEXT,
-                admin_note TEXT
+                admin_note TEXT,
+                evidence_reference TEXT
             )
             """
         )
+        # Lightweight migration for a database created by an earlier prototype version.
+        payment_columns = {row[1] for row in conn.execute("PRAGMA table_info(payments)").fetchall()}
+        if "evidence_reference" not in payment_columns:
+            conn.execute("ALTER TABLE payments ADD COLUMN evidence_reference TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS payment_events (
@@ -98,6 +103,17 @@ def init_db() -> None:
             )
             """
         )
+
+
+def require_api_token(
+    x_api_token: str | None = Header(default=None, alias="X-API-Token"),
+) -> None:
+    """Shared-service token for the localhost MVP; not production user RBAC."""
+    expected = os.environ.get("EDUAUTOMATE_API_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="API authentication is not configured")
+    if x_api_token is None or not __import__("hmac").compare_digest(x_api_token, expected):
+        raise HTTPException(status_code=401, detail="API authentication failed")
 
 
 def require_configured_admin(
@@ -140,6 +156,7 @@ class PaymentOut(BaseModel):
     confirmed_at: str | None
     confirmed_by: str | None
     admin_note: str | None
+    evidence_reference: str | None
 
 
 class AdminDecision(BaseModel):
@@ -147,6 +164,14 @@ class AdminDecision(BaseModel):
 
     decision: Literal["confirm", "reject"]
     note: str = Field(min_length=3, max_length=500)
+    evidence_reference: str | None = Field(default=None, min_length=3, max_length=300)
+
+    @field_validator("evidence_reference")
+    @classmethod
+    def evidence_reference_must_be_opaque(cls, value: str | None) -> str | None:
+        if value and value.lower().startswith(("http://", "https://")):
+            raise ValueError("evidence_reference must be an opaque reference ID, not a URL")
+        return value
 
 
 app = FastAPI(
@@ -178,6 +203,7 @@ def healthz() -> dict[str, str]:
 def create_payment(
     payload: PaymentCreate,
     idempotency_key: str = Header(alias="Idempotency-Key", min_length=8, max_length=200),
+    _api_auth: None = Depends(require_api_token),
 ) -> PaymentOut:
     init_db()
     now = utc_now()
@@ -221,7 +247,7 @@ def create_payment(
 
 
 @app.get("/v1/payments/{payment_id}", response_model=PaymentOut)
-def get_payment(payment_id: str) -> PaymentOut:
+def get_payment(payment_id: str, _api_auth: None = Depends(require_api_token)) -> PaymentOut:
     init_db()
     with connect_db() as conn:
         row = conn.execute("SELECT * FROM payments WHERE payment_id=?", (payment_id,)).fetchone()
@@ -239,6 +265,8 @@ def admin_decision(
     init_db()
     now = utc_now()
     target = "confirmed" if payload.decision == "confirm" else "rejected"
+    if target == "confirmed" and not payload.evidence_reference:
+        raise HTTPException(status_code=422, detail="Admin confirmation requires an opaque evidence reference ID")
     # This changes internal workflow status only; it is not bank/provider verification.
     with connect_db() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -249,10 +277,10 @@ def admin_decision(
             raise HTTPException(status_code=409, detail="Only pending payment records can receive an admin decision")
         conn.execute(
             """
-            UPDATE payments SET status=?, updated_at=?, confirmed_at=?, confirmed_by=?, admin_note=?
+            UPDATE payments SET status=?, updated_at=?, confirmed_at=?, confirmed_by=?, admin_note=?, evidence_reference=?
             WHERE payment_id=? AND status='pending'
             """,
-            (target, now, now if target == "confirmed" else None, actor_id, payload.note, payment_id),
+            (target, now, now if target == "confirmed" else None, actor_id if target == "confirmed" else None, payload.note, payload.evidence_reference, payment_id),
         )
         event_payload = {
             "payment_id": payment_id,
@@ -260,6 +288,7 @@ def admin_decision(
             "actor_id": actor_id,
             "occurred_at": now,
             "note": payload.note,
+            "evidence_reference": payload.evidence_reference,
             "evidence_class": "internal_admin_attestation",
         }
         conn.execute(
@@ -270,7 +299,7 @@ def admin_decision(
             """,
             (
                 "evt_" + uuid.uuid4().hex, payment_id, "admin_" + payload.decision,
-                actor_id, now, payload.note, _canonical_hash(event_payload),
+                actor_id, now, payload.note + ("; evidence_reference=" + payload.evidence_reference if payload.evidence_reference else ""), _canonical_hash(event_payload),
             ),
         )
         updated = conn.execute("SELECT * FROM payments WHERE payment_id=?", (payment_id,)).fetchone()
