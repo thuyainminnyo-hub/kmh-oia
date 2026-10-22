@@ -240,6 +240,12 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             "Idempotency-Key": "identity-mode-001", "X-API-Token": "test-api-secret"
         }, json={"student_id":"stu-a","amount_minor":100,"currency":"MMK","purpose":"course_fee"})
         self.assertEqual(response.status_code, 503)
+        with connect_db() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM payments WHERE idempotency_key=?",
+                ("identity-mode-001",),
+            ).fetchone()[0]
+        self.assertEqual(count, 0)
 
     def test_identity_mode_disables_reads_until_tenant_scope_is_persisted(self):
         created = self.create().json()
@@ -298,6 +304,12 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             json={"decision":"confirm","note":"Checked transfer reference against records",
                   "evidence_reference":"private-evidence-ref-001"})
         self.assertEqual(response.status_code, 503)
+        with connect_db() as conn:
+            row = conn.execute(
+                "SELECT status FROM payments WHERE payment_id=?",
+                (created["payment_id"],),
+            ).fetchone()
+        self.assertEqual(row["status"], "pending")
 
 
 if __name__ == "__main__":
