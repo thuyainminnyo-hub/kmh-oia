@@ -136,7 +136,8 @@ def require_api_token(
         or not token_to_student
         or any(
             not isinstance(token, str)
-            or not token
+            or not token.strip()
+            or len(token) > 512
             or not isinstance(student_id, str)
             or not student_id.strip()
             or len(student_id) > 128
