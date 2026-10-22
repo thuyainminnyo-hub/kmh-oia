@@ -155,6 +155,31 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 422)
         self.assertEqual(self.get(created["payment_id"]).json()["status"], "pending")
 
+    def test_admin_confirm_rejects_public_url_as_evidence_reference(self):
+        created = self.create().json()
+        result = self.admin_decide(
+            created["payment_id"],
+            evidence_reference="https://example.invalid/public-slip.jpg",
+        )
+        self.assertEqual(result.status_code, 422)
+        self.assertEqual(self.get(created["payment_id"]).json()["status"], "pending")
+
+    def test_admin_decision_requires_server_configured_actor(self):
+        created = self.create().json()
+        os.environ["EDUAUTOMATE_ADMIN_TOKEN"] = "test-admin-secret"
+        os.environ.pop("EDUAUTOMATE_ADMIN_ACTOR_ID", None)
+        result = self.client.post(
+            "/v1/payments/{}/admin-decision".format(created["payment_id"]),
+            headers={"X-Admin-Token": "test-admin-secret"},
+            json={
+                "decision": "confirm",
+                "note": "Checked transfer reference against records",
+                "evidence_reference": "private-evidence-ref-001",
+            },
+        )
+        self.assertEqual(result.status_code, 503)
+        self.assertEqual(self.get(created["payment_id"]).json()["status"], "pending")
+
     def test_confirm_only_pending_and_audits_actor_and_reference(self):
         created = self.create().json()
         decided = self.admin_decide(created["payment_id"])
