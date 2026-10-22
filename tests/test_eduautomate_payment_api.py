@@ -293,6 +293,27 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             ).fetchone()
         self.assertEqual(row["status"], "pending")
 
+    def test_identity_mode_admin_denial_happens_before_database_access(self):
+        created = self.create(key="identity-admin-no-db").json()
+        os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
+        with patch("src.eduautomate_payment_api.init_db") as init_db, patch(
+            "src.eduautomate_payment_api.connect_db"
+        ) as connect_db:
+            response = self.client.post(
+                f"/v1/payments/{created['payment_id']}/admin-decision",
+                headers=self.identity_headers(
+                    "admin-subject", "admin-1", "tenant-a", "payment_admin"
+                ),
+                json={
+                    "decision": "confirm",
+                    "note": "synthetic test",
+                    "evidence_reference": "private-evidence-ref-002",
+                },
+            )
+        self.assertEqual(response.status_code, 503)
+        init_db.assert_not_called()
+        connect_db.assert_not_called()
+
     def test_identity_mode_admin_decisions_fail_closed_until_verified_adapter_and_schema_exist(self):
         created = self.create().json()
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
