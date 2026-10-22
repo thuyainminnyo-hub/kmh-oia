@@ -7,6 +7,7 @@ import tempfile
 import time
 import unittest
 from fastapi.testclient import TestClient
+from unittest.mock import patch
 
 from src.eduautomate_payment_api import app
 
@@ -207,6 +208,16 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
                     headers=self.identity_headers("subject-1", student_id, tenant_id, role),
                 )
                 self.assertEqual(response.status_code, 503)
+
+    def test_identity_mode_denies_before_payment_lookup(self):
+        os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
+        with patch("src.eduautomate_payment_api._get_record_by_id") as record_lookup:
+            response = self.client.get(
+                "/v1/payments/pay_synthetic",
+                headers=self.identity_headers("subject-1", "stu-test", "tenant-a", "student"),
+            )
+        self.assertEqual(response.status_code, 503)
+        record_lookup.assert_not_called()
 
     def test_identity_mode_rejects_invalid_or_expired_assertion_for_reads(self):
         created = self.create().json()
