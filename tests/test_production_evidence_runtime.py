@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from src.live_operating_console import LiveOperatingConsole
 from src.production_evidence_runtime import (
@@ -8,6 +9,24 @@ from src.production_evidence_runtime import (
     build_production_evidence_runtime,
 )
 from src.trusted_source_receipt import TrustedSourceReceipt
+
+
+def make_test_config(sqlite_path, allowed_source_providers=("test-provider",)):
+    """Build a fully specified test-only config; never a production trust fixture."""
+    return ProductionEvidenceRuntimeConfig(
+        sqlite_path=sqlite_path,
+        allowed_source_providers=allowed_source_providers,
+        runtime_bundle_path="test-only/runtime-bundle.zip",
+        runtime_attestation_path="test-only/runtime-attestation.json",
+        runtime_source_revision="test-source-revision",
+        runtime_build_run_id="test-build-run",
+        runtime_artifact_id="test-artifact-id",
+        runtime_artifact_name="test-runtime-bundle.zip",
+        runtime_artifact_digest="a" * 64,
+        runtime_trusted_public_keys={"test-key": b"test-only-public-key"},
+        runtime_allowed_issuers=("test-issuer",),
+        runtime_allowed_subjects=("test-subject",),
+    )
 
 
 class MinimalAdapter:
@@ -27,16 +46,35 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
     def setUp(self):
         self.console = LiveOperatingConsole(date="2026-10-20")
         self.adapter = MinimalAdapter()
+        # Factory integration tests exercise configuration wiring, not signature
+        # authenticity. Real bundle verification is tested in its own suite.
+        self._release_verifier_patch = patch(
+            "src.production_evidence_runtime.verify_runtime_bundle_release", autospec=True
+        )
+        self.release_verifier = self._release_verifier_patch.start()
+        self.addCleanup(self._release_verifier_patch.stop)
 
     def test_builds_runtime_with_explicit_durable_sqlite_store(self):
         with tempfile.TemporaryDirectory() as tmp:
             bridge = build_production_evidence_runtime(
                 self.console,
-                config=ProductionEvidenceRuntimeConfig(
+                config=make_test_config(
                     sqlite_path=str(Path(tmp) / "evidence-replay.sqlite3"),
                     allowed_source_providers=("test-provider",),
                 ),
                 trusted_source_adapter=self.adapter,
+            )
+            self.release_verifier.assert_called_once_with(
+                "test-only/runtime-bundle.zip",
+                "test-only/runtime-attestation.json",
+                expected_source_revision="test-source-revision",
+                expected_build_run_id="test-build-run",
+                expected_artifact_id="test-artifact-id",
+                expected_artifact_name="test-runtime-bundle.zip",
+                expected_artifact_digest="a" * 64,
+                trusted_public_keys={"test-key": b"test-only-public-key"},
+                allowed_issuers=("test-issuer",),
+                allowed_subjects=("test-subject",),
             )
             self.assertTrue(bridge.trusted_source_verifier.replay_store.health_check())
             self.assertEqual(
@@ -46,35 +84,35 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
 
     def test_rejects_empty_sqlite_path(self):
         with self.assertRaisesRegex(ValueError, "non-empty"):
-            ProductionEvidenceRuntimeConfig("", ("test-provider",)).validate()
+            make_test_config("", ("test-provider",)).validate()
 
     def test_rejects_memory_sqlite_path(self):
         with self.assertRaisesRegex(ValueError, "file-backed SQLite path"):
-            ProductionEvidenceRuntimeConfig(":memory:", ("test-provider",)).validate()
+            make_test_config(":memory:", ("test-provider",)).validate()
 
 
     def test_rejects_uri_in_memory_sqlite_path(self):
         with self.assertRaisesRegex(ValueError, "file-backed SQLite path"):
-            ProductionEvidenceRuntimeConfig("file::memory:?cache=shared", ("test-provider",)).validate()
+            make_test_config("file::memory:?cache=shared", ("test-provider",)).validate()
 
 
     def test_rejects_sqlite_uri_even_when_it_looks_file_backed(self):
         with self.assertRaisesRegex(ValueError, "file-backed SQLite path"):
-            ProductionEvidenceRuntimeConfig("file:/var/lib/kmh-oia/replay.sqlite3?mode=rw", ("test-provider",)).validate()
+            make_test_config("file:/var/lib/kmh-oia/replay.sqlite3?mode=rw", ("test-provider",)).validate()
 
     def test_requires_provider_allowlist_to_be_explicit_tuple(self):
         with self.assertRaisesRegex(ValueError, "explicit tuple"):
-            ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", ["test-provider"]).validate()
+            make_test_config("/tmp/receipts.sqlite3", ["test-provider"]).validate()
 
     def test_requires_explicit_provider_allowlist(self):
         with self.assertRaisesRegex(ValueError, "at least one explicit"):
-            ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", ()).validate()
+            make_test_config("/tmp/receipts.sqlite3", ()).validate()
 
 
     def test_rejects_blank_entry_in_provider_allowlist_instead_of_silently_dropping_it(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(ValueError, "provider names must be non-empty strings"):
-                ProductionEvidenceRuntimeConfig(
+                make_test_config(
                     str(Path(tmp) / "replay.sqlite3"),
                     ("test-provider", "   "),
                 ).validate()
@@ -82,14 +120,14 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
     def test_rejects_non_string_entry_in_provider_allowlist(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(ValueError, "provider names must be non-empty strings"):
-                ProductionEvidenceRuntimeConfig(
+                make_test_config(
                     str(Path(tmp) / "replay.sqlite3"),
                     ("test-provider", 17),
                 ).validate()
 
     def test_rejects_duplicate_provider_allowlist(self):
         with self.assertRaisesRegex(ValueError, "must be unique"):
-            ProductionEvidenceRuntimeConfig(
+            make_test_config(
                 "/tmp/receipts.sqlite3", ("test-provider", "test-provider")
             ).validate()
 
@@ -98,7 +136,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "adapter is required"):
                 build_production_evidence_runtime(
                     self.console,
-                    config=ProductionEvidenceRuntimeConfig(
+                    config=make_test_config(
                         str(Path(tmp) / "evidence-replay.sqlite3"),
                         ("test-provider",),
                     ),
@@ -112,7 +150,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             bridge = build_production_evidence_runtime(
                 self.console,
-                config=ProductionEvidenceRuntimeConfig(
+                config=make_test_config(
                     str(Path(tmp) / "evidence-replay.sqlite3"),
                     ("test-provider",),
                 ),
@@ -130,7 +168,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "not explicitly allowlisted"):
                 build_production_evidence_runtime(
                     self.console,
-                    config=ProductionEvidenceRuntimeConfig(
+                    config=make_test_config(
                         str(Path(tmp) / "evidence-replay.sqlite3"),
                         ("test-provider",),
                     ),
@@ -157,7 +195,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "provider_name could not be read safely") as error:
                 build_production_evidence_runtime(
                     self.console,
-                    config=ProductionEvidenceRuntimeConfig(
+                    config=make_test_config(
                         str(Path(tmp) / "evidence-replay.sqlite3"),
                         ("test-provider",),
                     ),
@@ -172,7 +210,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "declare a provider_name"):
                 build_production_evidence_runtime(
                     self.console,
-                    config=ProductionEvidenceRuntimeConfig(
+                    config=make_test_config(
                         str(Path(tmp) / "evidence-replay.sqlite3"),
                         ("test-provider",),
                     ),
@@ -184,7 +222,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             with self.assertRaisesRegex(TypeError, "LiveOperatingConsole"):
                 build_production_evidence_runtime(
                     object(),
-                    config=ProductionEvidenceRuntimeConfig(
+                    config=make_test_config(
                         str(Path(tmp) / "evidence-replay.sqlite3"),
                         ("test-provider",),
                     ),
@@ -220,7 +258,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             db_path = str(Path(tmp) / "durable-replay.sqlite3")
             first = build_production_evidence_runtime(
                 LiveOperatingConsole(date="2026-10-20"),
-                config=ProductionEvidenceRuntimeConfig(db_path, ("test-provider",)),
+                config=make_test_config(db_path, ("test-provider",)),
                 trusted_source_adapter=StableReceiptAdapter(),
             )
             first_result = first.trusted_source_verifier.verify("record-unique", "execution-unique")
@@ -230,7 +268,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             # SQLite file is retained. Reuse the same provider record and payload.
             second = build_production_evidence_runtime(
                 LiveOperatingConsole(date="2026-10-20"),
-                config=ProductionEvidenceRuntimeConfig(db_path, ("test-provider",)),
+                config=make_test_config(db_path, ("test-provider",)),
                 trusted_source_adapter=StableReceiptAdapter(),
             )
             second_result = second.trusted_source_verifier.verify("record-unique", "execution-unique")
