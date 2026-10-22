@@ -67,6 +67,15 @@ class KarmicTailRegistryTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             get_card(23, self.registry)
 
+    def test_boolean_card_id_is_rejected(self):
+        # bool is a subclass of int in Python; True must not silently select card 1.
+        with self.assertRaises(KeyError):
+            get_card(True, self.registry)
+
+    def test_non_integer_card_id_is_rejected(self):
+        with self.assertRaises(KeyError):
+            get_card("1", self.registry)
+
 
 if __name__ == "__main__":
     unittest.main()
