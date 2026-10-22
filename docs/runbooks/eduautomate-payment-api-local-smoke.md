@@ -17,6 +17,7 @@ Generate one-time development tokens in the current shell and use a temporary SQ
 
 ```bash
 export EDUAUTOMATE_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED="true"  # localhost synthetic smoke only
 export EDUAUTOMATE_ADMIN_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 export EDUAUTOMATE_ADMIN_ACTOR_ID="local-smoke-admin"
 SMOKE_DIR="$(mktemp -d)"
