@@ -38,6 +38,7 @@ class ProductionEvidenceRuntimeConfig:
     allowed_release_issuers: tuple[str, ...] = ()
     allowed_release_subjects: tuple[str, ...] = ()
     release_attestation_max_age_seconds: int = 3600
+    runtime_environment: str = "production"
     # Secure default: production startup requires verified signed release provenance.
     # Only isolated local/unit-test setups should explicitly disable this gate.
     require_signed_release_bundle: bool = True
@@ -58,8 +59,13 @@ class ProductionEvidenceRuntimeConfig:
         if len(set(providers)) != len(providers):
             raise ValueError("allowed source providers must be unique")
 
+        if not isinstance(self.runtime_environment, str) or self.runtime_environment.strip().lower() not in {"production", "staging", "test", "development", "local"}:
+            raise ValueError("runtime_environment must be one of production, staging, test, development, or local")
+        environment = self.runtime_environment.strip().lower()
         if not isinstance(self.require_signed_release_bundle, bool):
             raise ValueError("require_signed_release_bundle must be an explicit boolean")
+        if environment in {"production", "staging"} and not self.require_signed_release_bundle:
+            raise ValueError("signed release provenance cannot be disabled for production or staging runtime")
 
         release_fields = (
             self.runtime_bundle_path, self.runtime_source_root, self.runtime_attestation_path, self.expected_source_revision,
