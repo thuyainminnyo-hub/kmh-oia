@@ -30,6 +30,8 @@ from urllib.parse import urlsplit
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.tenant_identity import is_canonical_tenant_id
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -202,6 +204,8 @@ def _verify_identity_token(authorization: str | None) -> dict[str, object]:
         raise HTTPException(status_code=401, detail="Identity subject missing")
     if not isinstance(claims.get("tenant_id"), str) or not claims["tenant_id"].strip():
         raise HTTPException(status_code=401, detail="Identity tenant missing")
+    if not is_canonical_tenant_id(claims["tenant_id"]):
+        raise HTTPException(status_code=401, detail="Identity tenant identifier is not canonical")
     if not isinstance(claims.get("role"), str) or not claims["role"].strip():
         raise HTTPException(status_code=401, detail="Identity role missing")
     return claims
