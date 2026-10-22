@@ -117,5 +117,28 @@ class VerifiedProductionRuntimeIntegrationTests(unittest.TestCase):
             self.build()
 
 
+
+    def test_verified_release_metadata_is_forwarded_into_production_startup_gate(self):
+        from unittest.mock import patch
+
+        with patch(
+            "src.verified_production_evidence_runtime.build_production_evidence_runtime",
+            return_value="constructed",
+        ) as inner:
+            result = self.build()
+        self.assertEqual(result, "constructed")
+        config = inner.call_args.kwargs["config"]
+        self.assertTrue(config.require_signed_release_bundle)
+        self.assertEqual(config.runtime_bundle_path, str(self.bundle))
+        self.assertEqual(config.runtime_attestation_path, str(self.attestation_path))
+        self.assertEqual(config.expected_source_revision, self.revision)
+        self.assertEqual(config.expected_build_run_id, self.run_id)
+        self.assertEqual(config.expected_artifact_id, self.artifact_id)
+        self.assertEqual(config.expected_artifact_name, self.artifact_name)
+        self.assertEqual(config.expected_artifact_digest, self.artifact_digest)
+        self.assertEqual(config.trusted_release_public_keys, {self.key_id: self.public_key})
+        self.assertEqual(config.allowed_release_issuers, (self.issuer,))
+        self.assertEqual(config.allowed_release_subjects, (self.subject,))
+
 if __name__ == "__main__":
     unittest.main()
