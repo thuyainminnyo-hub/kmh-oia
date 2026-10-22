@@ -46,9 +46,9 @@ curl -fsS http://127.0.0.1:8000/healthz
 
 Keep the service bound to `127.0.0.1`; do not change it to `0.0.0.0` or expose the port publicly. The `trap` stops the local server and removes the temporary directory when the shell exits.
 
-## 3. Check health and create one synthetic payment record
+## 3. Check liveness and create one synthetic payment record
 
-Health was checked in step 2.
+`/healthz` is a liveness-only check. It must not initialize the database and does not prove database readiness, persistence, provider connectivity, or payment settlement. The API creates/initializes the local SQLite schema through its normal database operations.
 
 Create a pending record with synthetic IDs and a placeholder integer amount. The meaning of `amount_minor` for MMK has not been approved; this value is **only a smoke-test fixture**, not a real currency amount:
 
