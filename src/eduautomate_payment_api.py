@@ -382,6 +382,13 @@ def get_payment(
             status_code=503,
             detail="Identity-mode reads are disabled until tenant-scoped persistence and authorization are implemented",
         )
+    # Shared-token reads are local synthetic-prototype behavior only.
+    # The shared token does not establish student ownership or tenant scope.
+    if os.environ.get("EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED", "").strip().lower() != "true":
+        raise HTTPException(
+            status_code=503,
+            detail="Shared-token reads are disabled unless local prototype mode is explicitly enabled",
+        )
     expected = os.environ.get("EDUAUTOMATE_API_TOKEN", "").strip()
     if not expected:
         raise HTTPException(status_code=503, detail="API authentication is not configured")
