@@ -145,6 +145,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             '{"token-value":""}',
             '{"token-value":"   "}',
             '{"token-value":"' + ("s" * 129) + '"}',
+            '{"duplicate-token":"stu_test","duplicate-token":"stu_other"}',
         )
         for mapping in invalid_mappings:
             with self.subTest(mapping_kind="invalid-scoped-token-mapping"):
