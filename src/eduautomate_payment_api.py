@@ -126,6 +126,21 @@ def require_api_token(
         raise HTTPException(status_code=401, detail="API authentication failed")
 
 
+def require_configured_admin(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> str:
+    """Shared-token admin gate for isolated prototype mode only."""
+    expected = os.environ.get("EDUAUTOMATE_ADMIN_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="Admin approval is not configured")
+    if x_admin_token is None or not hmac.compare_digest(x_admin_token, expected):
+        raise HTTPException(status_code=401, detail="Admin authentication failed")
+    actor = os.environ.get("EDUAUTOMATE_ADMIN_ACTOR_ID", "").strip()
+    if not actor or len(actor) > 128:
+        raise HTTPException(status_code=503, detail="Admin actor identity is not configured")
+    return actor
+
+
 def _b64url_decode(value: str) -> bytes:
     try:
         return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
@@ -347,9 +362,19 @@ def create_payment(
 @app.get("/v1/payments/{payment_id}", response_model=PaymentOut)
 def get_payment(
     payment_id: str,
-    _api_auth: None = Depends(require_api_token),
-    claims: dict[str, object] | None = Depends(require_api_identity) if os.environ.get("EDUAUTOMATE_AUTH_MODE", "shared_token").strip().lower() == "identity" else None,
+    x_api_token: str | None = Header(default=None, alias="X-API-Token"),
+    authorization: str | None = Header(default=None, alias="Authorization"),
 ) -> PaymentOut:
+    mode = _identity_mode()
+    claims: dict[str, object] | None = None
+    if mode == "identity":
+        claims = _verify_identity_token(authorization)
+    else:
+        expected = os.environ.get("EDUAUTOMATE_API_TOKEN", "").strip()
+        if not expected:
+            raise HTTPException(status_code=503, detail="API authentication is not configured")
+        if x_api_token is None or not hmac.compare_digest(x_api_token, expected):
+            raise HTTPException(status_code=401, detail="API authentication failed")
     row = _get_record_by_id(payment_id)
     _authorize_record_read(row, claims)
     return _to_payment(row)
@@ -359,10 +384,12 @@ def get_payment(
 def admin_decision(
     payment_id: str,
     payload: AdminDecision,
-    actor_id: str = Depends(require_configured_admin),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+    authorization: str | None = Header(default=None, alias="Authorization"),
 ) -> PaymentOut:
     if _identity_mode() == "identity":
         raise HTTPException(status_code=503, detail="Identity-mode admin decisions require the reviewed identity adapter and schema migration")
+    actor_id = require_configured_admin(x_admin_token)
     init_db()
     now = utc_now()
     target = "confirmed" if payload.decision == "confirm" else "rejected"
