@@ -79,12 +79,12 @@ Never store API tokens or admin tokens in the database, logs, GitHub, or Notion.
 
 ## Prototype access gates (Phase 838)
 
-- `POST /v1/payments` returns HTTP 503 unless `EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED=true` is explicitly set.
+- `POST /v1/payments`, shared-token `GET /v1/payments/{payment_id}`, and shared-token admin decisions return HTTP 503 unless `EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED=true` is explicitly set.
 - This opt-in exists only for disposable localhost development/synthetic smoke tests. It does not bind a shared token to a student or tenant and is not an authorization mechanism.
 - Never set this opt-in in a public, shared, production, or untrusted multi-user environment. Do not use real student/payment data under the prototype path.
 - Identity mode fails closed for creates, reads and admin decisions until persisted tenant scope and a reviewed identity-provider adapter are implemented.
 - In identity mode, the read route validates the assertion and returns HTTP 503 before querying payment storage; a regression test asserts `_get_record_by_id` is not called.
-- Shared-token read and admin routes remain prototype-only. The write guard does not make those operations tenant-safe.
+- Shared-token read and admin routes remain prototype-only. The opt-in gate is a containment switch for local synthetic tests, not tenant authorization and not suitable for public/shared deployments. A regression test asserts an unconfigured read gate returns 503 before payment lookup.
 - Shared-token mode has no per-caller student/tenant scope. It is not suitable for public or untrusted multi-user access, even when the local prototype write opt-in is enabled.
 
 ## Security limitations and requirements
