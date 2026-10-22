@@ -56,7 +56,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
                 os.environ[key] = value
         self.tmp.cleanup()
 
-    def identity_headers(self, sub, student_id, tenant_id="tenant-a", role="student", exp=None):
+    def identity_headers(self, sub, student_id, tenant_id="tn_f47ac10b-58cc-4372-a567-0e02b2c3d479", role="student", exp=None):
         claims = {
             "iss": "https://issuer.test", "aud": "eduautomate-test",
             "sub": sub, "student_id": student_id, "tenant_id": tenant_id,
@@ -235,7 +235,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         response = self.client.post("/v1/payments", headers={
             "Authorization": "Bearer " + make_identity_token({
                 "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
-                "student_id":"stu-a","tenant_id":"tenant-a","role":"student","exp":int(time.time())+300
+                "student_id":"stu-a","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"student","exp":int(time.time())+300
             }),
             "Idempotency-Key": "identity-mode-001", "X-API-Token": "test-api-secret"
         }, json={"student_id":"stu-a","amount_minor":100,"currency":"MMK","purpose":"course_fee"})
@@ -247,13 +247,35 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             ).fetchone()[0]
         self.assertEqual(count, 0)
 
+    def test_identity_mode_rejects_noncanonical_tenant_claim_before_payment_storage_access(self):
+        os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
+        invalid_tenant_ids = (
+            "tenant-a",
+            "tn_F47AC10B-58CC-4372-A567-0E02B2C3D479",
+            "tn_f47ac10b-58cc-1372-a567-0e02b2c3d479",
+            "tn_not-a-uuid",
+        )
+        for tenant_id in invalid_tenant_ids:
+            with self.subTest(tenant_id=tenant_id):
+                headers = self.identity_headers(
+                    "subject-1", "stu-test", tenant_id=tenant_id, role="student"
+                )
+                with patch("src.eduautomate_payment_api._get_record_by_id") as record_lookup, patch(
+                    "src.eduautomate_payment_api.init_db"
+                ) as init_db, patch("src.eduautomate_payment_api.connect_db") as connect_db:
+                    response = self.client.get("/v1/payments/pay_synthetic", headers=headers)
+                self.assertEqual(response.status_code, 401)
+                record_lookup.assert_not_called()
+                init_db.assert_not_called()
+                connect_db.assert_not_called()
+
     def test_identity_mode_disables_reads_until_tenant_scope_is_persisted(self):
         created = self.create().json()
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
         for tenant_id, student_id, role in (
-            ("tenant-a", "stu_test", "student"),
-            ("tenant-b", "stu-other", "student"),
-            ("tenant-a", "admin-1", "payment_admin"),
+            ("tn_f47ac10b-58cc-4372-a567-0e02b2c3d479", "stu_test", "student"),
+            ("tn_123e4567-e89b-42d3-a456-426614174000", "stu-other", "student"),
+            ("tn_f47ac10b-58cc-4372-a567-0e02b2c3d479", "admin-1", "payment_admin"),
         ):
             with self.subTest(tenant_id=tenant_id, student_id=student_id, role=role):
                 response = self.client.get(
@@ -267,7 +289,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         with patch("src.eduautomate_payment_api._get_record_by_id") as record_lookup:
             response = self.client.get(
                 "/v1/payments/pay_synthetic",
-                headers=self.identity_headers("subject-1", "stu-test", "tenant-a", "student"),
+                headers=self.identity_headers("subject-1", "stu-test", "tn_f47ac10b-58cc-4372-a567-0e02b2c3d479", "student"),
             )
         self.assertEqual(response.status_code, 503)
         record_lookup.assert_not_called()
@@ -277,7 +299,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
         headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + make_identity_token({
             "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
-            "student_id":"stu-a","tenant_id":"tenant-a","role":"student","exp":int(time.time())-10
+            "student_id":"stu-a","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"student","exp":int(time.time())-10
         })}
         with patch("src.eduautomate_payment_api._get_record_by_id") as record_lookup, patch(
             "src.eduautomate_payment_api.init_db"
@@ -304,7 +326,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
         token = make_identity_token({
             "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
-            "student_id":"stu-a","tenant_id":"tenant-a","role":"student",
+            "student_id":"stu-a","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"student",
             "exp":int(time.time())+300
         }, secret="attacker-controlled-secret")
         headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + token}
@@ -321,7 +343,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
         token = make_identity_token({
             "iss":"https://untrusted-issuer.test","aud":"eduautomate-test","sub":"stu-a",
-            "student_id":"stu-a","tenant_id":"tenant-a","role":"student",
+            "student_id":"stu-a","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"student",
             "exp":int(time.time())+300
         })
         headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + token}
@@ -339,7 +361,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
         token = make_identity_token({
             "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
-            "student_id":"stu-a","tenant_id":"tenant-a","role":"student",
+            "student_id":"stu-a","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"student",
             "exp":int(time.time())+300,"nbf":int(time.time())+600
         })
         headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + token}
@@ -357,7 +379,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
         token = make_identity_token({
             "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
-            "student_id":"stu-a","tenant_id":"tenant-a","role":"student",
+            "student_id":"stu-a","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"student",
             "exp":int(time.time())+300,"iat":int(time.time())+600
         })
         headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + token}
@@ -375,7 +397,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
         token = make_identity_token({
             "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
-            "student_id":"stu-a","tenant_id":"tenant-a","role":"student","exp":True
+            "student_id":"stu-a","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"student","exp":True
         })
         headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + token}
         with patch("src.eduautomate_payment_api._get_record_by_id") as record_lookup, patch(
@@ -392,7 +414,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
         token = make_identity_token({
             "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
-            "student_id":"stu-a","tenant_id":"tenant-a","role":"student",
+            "student_id":"stu-a","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"student",
             "exp":int(time.time())+300,"nbf":"later"
         })
         headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + token}
@@ -410,7 +432,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
         token = make_identity_token({
             "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
-            "student_id":"stu-a","tenant_id":"tenant-a","role":"student",
+            "student_id":"stu-a","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"student",
             "exp":int(time.time())+300,"iat":True
         })
         headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + token}
@@ -428,7 +450,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
         token = make_identity_token({
             "iss":"https://issuer.test","aud":"different-service","sub":"stu-a",
-            "student_id":"stu-a","tenant_id":"tenant-a","role":"student",
+            "student_id":"stu-a","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"student",
             "exp":int(time.time())+300
         })
         headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + token}
@@ -449,7 +471,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             response = self.client.post(
                 f"/v1/payments/{created['payment_id']}/admin-decision",
                 headers=self.identity_headers(
-                    "admin-subject", "admin-1", "tenant-a", "payment_admin"
+                    "admin-subject", "admin-1", "tn_f47ac10b-58cc-4372-a567-0e02b2c3d479", "payment_admin"
                 ),
                 json={
                     "decision": "confirm",
@@ -467,7 +489,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         response = self.client.post(f"/v1/payments/{created['payment_id']}/admin-decision",
             headers={"Authorization":"Bearer " + make_identity_token({
                 "iss":"https://issuer.test","aud":"eduautomate-test","sub":"admin-1",
-                "student_id":"admin-1","tenant_id":"tenant-a","role":"payment_admin","exp":int(time.time())+300
+                "student_id":"admin-1","tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","role":"payment_admin","exp":int(time.time())+300
             })},
             json={"decision":"confirm","note":"Checked transfer reference against records",
                   "evidence_reference":"private-evidence-ref-001"})
