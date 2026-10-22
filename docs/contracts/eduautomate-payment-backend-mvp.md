@@ -13,6 +13,7 @@ Admin review is an **internal admin attestation**. It records that a permitted E
 - `src/eduautomate_payment_api.py`: prototype FastAPI service and SQLite persistence.
 - `tests/test_eduautomate_payment_api.py`: focused API tests.
 - `requirements-eduautomate-mvp.txt`: FastAPI, Uvicorn and HTTPX test/runtime dependencies.
+- `docs/runbooks/eduautomate-payment-api-local-smoke.md`: disposable localhost-only smoke-test instructions using synthetic data; not proof of deployment or bank settlement.
 - `/healthz`: local prototype health endpoint.
 - `POST /v1/payments`: create a `pending` record with `Idempotency-Key`.
 - `GET /v1/payments/{payment_id}`: retrieve a record.
