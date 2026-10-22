@@ -29,6 +29,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         self.previous_env = {key: os.environ.get(key) for key in (
             "EDUAUTOMATE_DB_PATH", "EDUAUTOMATE_ADMIN_TOKEN", "EDUAUTOMATE_API_TOKEN",
             "EDUAUTOMATE_ADMIN_ACTOR_ID", "EDUAUTOMATE_AUTH_MODE",
+            "EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED",
             "EDUAUTOMATE_IDENTITY_HS256_SECRET", "EDUAUTOMATE_IDENTITY_ISSUER",
             "EDUAUTOMATE_IDENTITY_AUDIENCE",
         )}
@@ -37,6 +38,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_API_TOKEN"] = "test-api-secret"
         os.environ["EDUAUTOMATE_ADMIN_TOKEN"] = "test-admin-secret"
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "shared_token"
+        os.environ["EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED"] = "true"
         os.environ["EDUAUTOMATE_IDENTITY_HS256_SECRET"] = "identity-test-secret"
         os.environ["EDUAUTOMATE_IDENTITY_ISSUER"] = "https://issuer.test"
         os.environ["EDUAUTOMATE_IDENTITY_AUDIENCE"] = "eduautomate-test"
@@ -182,6 +184,17 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         self.assertEqual(rejected.status_code, 200)
         self.assertEqual(rejected.json()["status"], "rejected")
         self.assertIsNone(rejected.json()["confirmed_by"])
+
+    def test_shared_token_writes_fail_closed_without_explicit_prototype_opt_in(self):
+        os.environ.pop("EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED", None)
+        response = self.create(key="prototype-opt-in-required")
+        self.assertEqual(response.status_code, 503)
+        with connect_db() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM payments WHERE idempotency_key=?",
+                ("prototype-opt-in-required",),
+            ).fetchone()[0]
+        self.assertEqual(count, 0)
 
     def test_identity_mode_fails_closed_for_unsafe_create_without_tenant_schema(self):
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
