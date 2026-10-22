@@ -22,17 +22,17 @@ Never convert NOT RUN or BLOCKED to PASS based on design notes, a previous commi
 
 | ID | Scenario | Current status | Evidence required |
 |---|---|---|---|
-| REG-01 | Missing API token fails closed | NOT RUN for this phase | Exact-commit unit-test result and assertion output |
-| REG-02 | Wrong API token is rejected | NOT RUN for this phase | Exact-commit unit-test result and assertion output |
+| REG-01 | Missing API token fails closed | PASS — exact-commit CI #899 | `test_payment_read_requires_api_token`; see exact-commit test log below |
+| REG-02 | Wrong API token is rejected | PASS — exact-commit CI #899 | `test_api_requires_configured_token_and_rejects_bad_token`; see exact-commit test log below |
 | REG-03 | Missing shared-token prototype opt-in blocks writes before persistence | NOT RUN for this phase | Test output plus database row-count assertion |
-| REG-04 | Identity mode rejects invalid signature before payment lookup | NOT RUN for this phase | Test output showing lookup mock was not called |
-| REG-05 | Wrong issuer/audience and invalid time claims fail closed | NOT RUN for this phase | Exact-commit test output |
-| REG-06 | Identity-mode read remains blocked until tenant scope is persisted | NOT RUN for this phase | HTTP response assertion and lookup mock not called |
+| REG-04 | Identity mode rejects invalid signature before payment lookup | PASS — exact-commit CI #899 | `test_identity_mode_rejects_bad_signature_before_payment_storage_access`; see exact-commit test log below |
+| REG-05 | Wrong issuer/audience and invalid time claims fail closed | PASS — existing claim-validation tests in CI #899 | Named issuer, audience, `exp`, `nbf`, and `iat` regression tests are listed below; this is prototype-verifier coverage, not production IdP validation |
+| REG-06 | Identity-mode read remains blocked until tenant scope is persisted | PASS — exact-commit CI #899 | `test_identity_mode_disables_reads_until_tenant_scope_is_persisted` and `test_identity_mode_denies_before_payment_lookup`; see exact-commit test log below |
 | REG-07 | Registry timeout/unavailable/malformed response | BLOCKED | Registry adapter and contract must exist first |
 | REG-08 | Cross-tenant read/write/admin denial | BLOCKED | Approved tenant source, persisted tenant scope, and tenant-aware authorization |
 | REG-09 | Same idempotency key in different tenants is independent | BLOCKED | Tenant-scoped schema and uniqueness contract |
 | REG-10 | Legacy row with unknown owner is quarantined | BLOCKED | Approved legacy-data policy and migration tooling |
-| REG-11 | Existing API regression suite | NOT RUN for this phase | CI run URL, exact head SHA, final job status |
+| REG-11 | Existing API regression suite | PASS — 495 tests in CI #899 | Exact head SHA, run URL, final output and limitations recorded in the post-authoring evidence section below |
 | REG-12 | Migration/rollback rehearsal | BLOCKED | Owner decisions, disposable database fixture, backup/restore and rollback plan |
 
 ## Required evidence bundle for each executed test
@@ -67,3 +67,29 @@ Do not include secrets, tokens, student personal information, raw bank-slip data
 ## Current disposition
 
 No tests were run as part of authoring this document. The historical CI successes for a prior candidate are not proof of a new run or of tenant isolation. D-01 and dependent owner decisions remain unresolved in the currently verified evidence. No schema migration, tenant backfill, authorization broadening, merge, or deployment is authorized by this phase.
+
+
+## Post-authoring CI evidence update (2026-10-22)
+
+This update records CI that ran **after** the original document commit was authored. It does not change the original statement that no tests were run as part of authoring the initial document.
+
+- Exact tested commit: `859183dfc78c00220e2a9799b95f56a4f23d6097`
+- Tests workflow #899: SUCCESS — https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39871981366
+- Validation workflow #818: SUCCESS — https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39871981364
+- Test job output: `Ran 495 tests`; final output `OK`.
+- Validation job steps completed successfully: `compileall`, `scripts/deployment_preflight.py`, readiness snapshot generation, `git diff --check`, and unittest discovery.
+
+Observed passing API test names in the exact-commit log include:
+- `test_payment_read_requires_api_token`
+- `test_api_requires_configured_token_and_rejects_bad_token`
+- `test_identity_mode_rejects_bad_signature_before_payment_storage_access`
+- `test_identity_mode_rejects_wrong_issuer_before_payment_storage_access`
+- `test_identity_mode_rejects_wrong_audience_before_payment_storage_access`
+- `test_identity_mode_rejects_boolean_exp_before_payment_storage_access`
+- `test_identity_mode_rejects_future_not_before_before_payment_storage_access`
+- `test_identity_mode_rejects_future_issued_at_before_payment_storage_access`
+- `test_identity_mode_rejects_malformed_not_before_before_payment_storage_access`
+- `test_identity_mode_disables_reads_until_tenant_scope_is_persisted`
+- `test_identity_mode_denies_before_payment_lookup`
+
+REG-03 remains NOT RUN for this evidence register because the required explicit database row-count/side-effect evidence has not been separately recorded here. REG-07 through REG-10 and REG-12 remain BLOCKED. Passing existing prototype tests does not implement or prove tenant isolation, a Registry integration, production identity/RBAC, real settlement verification, migration safety, or deployment readiness.
