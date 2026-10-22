@@ -15,6 +15,7 @@ Admin review is an **internal admin attestation**. It records that a permitted E
 - `requirements-eduautomate-mvp.txt`: FastAPI, Uvicorn and HTTPX test/runtime dependencies.
 - `docs/runbooks/eduautomate-payment-api-local-smoke.md`: disposable localhost-only smoke-test instructions using synthetic data; not proof of deployment or bank settlement.
 - `docs/decisions/phase-848-tenant-isolation-migration.md`: evidence-based tenant isolation and legacy-data migration plan; schema migration remains blocked on authoritative owner decisions.
+- `docs/decisions/phase-849-production-owner-decisions.md`: explicit owner-decision register for tenant authority, identity, legacy rows, idempotency, MMK units, settlement evidence, and recovery; unresolved decisions keep release on HOLD.
 - `/healthz`: liveness-only endpoint; it must not initialize or open the database and does not assert database readiness. Configure a separate readiness check only when its operational semantics are defined for the target host.
 - `POST /v1/payments`: create a `pending` record with `Idempotency-Key`.
 - `GET /v1/payments/{payment_id}`: retrieve a record.
