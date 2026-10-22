@@ -118,6 +118,14 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         created = self.create().json()
         self.assertEqual(self.client.get(f"/v1/payments/{created['payment_id']}").status_code, 401)
 
+    def test_shared_token_read_fails_closed_without_explicit_prototype_opt_in(self):
+        created = self.create().json()
+        os.environ.pop("EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED", None)
+        with patch("src.eduautomate_payment_api._get_record_by_id") as record_lookup:
+            response = self.get(created["payment_id"])
+        self.assertEqual(response.status_code, 503)
+        record_lookup.assert_not_called()
+
     def test_api_requires_configured_token_and_rejects_bad_token(self):
         os.environ.pop("EDUAUTOMATE_API_TOKEN", None)
         missing = self.client.post("/v1/payments", headers={"Idempotency-Key": "missing-api-1"},
