@@ -367,17 +367,20 @@ def get_payment(
     authorization: str | None = Header(default=None, alias="Authorization"),
 ) -> PaymentOut:
     mode = _identity_mode()
-    claims: dict[str, object] | None = None
     if mode == "identity":
-        claims = _verify_identity_token(authorization)
-    else:
-        expected = os.environ.get("EDUAUTOMATE_API_TOKEN", "").strip()
-        if not expected:
-            raise HTTPException(status_code=503, detail="API authentication is not configured")
-        if x_api_token is None or not hmac.compare_digest(x_api_token, expected):
-            raise HTTPException(status_code=401, detail="API authentication failed")
+        # Validate the assertion, then deny before touching payment storage.
+        # Tenant scope is not persisted and identity-mode reads are not enabled.
+        _verify_identity_token(authorization)
+        raise HTTPException(
+            status_code=503,
+            detail="Identity-mode reads are disabled until tenant-scoped persistence and authorization are implemented",
+        )
+    expected = os.environ.get("EDUAUTOMATE_API_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="API authentication is not configured")
+    if x_api_token is None or not hmac.compare_digest(x_api_token, expected):
+        raise HTTPException(status_code=401, detail="API authentication failed")
     row = _get_record_by_id(payment_id)
-    _authorize_record_read(row, claims)
     return _to_payment(row)
 
 
