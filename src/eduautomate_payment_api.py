@@ -73,7 +73,7 @@ def init_db() -> None:
                 currency TEXT NOT NULL CHECK (length(currency) = 3),
                 purpose TEXT NOT NULL,
                 status TEXT NOT NULL CHECK (status IN (
-                    'pending', 'confirmed', 'rejected', 'refunded'
+                    'pending', 'confirmed', 'rejected'
                 )),
                 payment_method TEXT NOT NULL CHECK (payment_method = 'manual_bank_transfer'),
                 execution_id TEXT,
