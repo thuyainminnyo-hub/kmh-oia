@@ -28,6 +28,8 @@ export EDUAUTOMATE_DB_PATH="$SMOKE_DIR/payments.sqlite3"
 
 These tokens are for this local smoke test only. Never commit them, paste them into GitHub/Notion, or reuse them in production.
 
+For an explicit local-development setting, you may set `export EDUAUTOMATE_ENV=development`. The API documentation routes are disabled only when `EDUAUTOMATE_ENV=production` is set before the server process starts. Production mode disabling these routes is not a substitute for network/gateway policy or authentication controls.
+
 ## 2. Start on localhost only
 
 Start Uvicorn in the background from the same shell so the disposable test variables are shared by the later commands:
