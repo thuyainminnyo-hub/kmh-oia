@@ -47,6 +47,8 @@ def verify_runtime_bundle_release(
         if bundle_result["bundle_sha256"] != actual_bundle_sha:
             raise RuntimeBundleReleaseRejected("bundle digest changed while validating the release")
         attestation = load_runtime_bundle_attestation(attestation_path)
+        if not trusted_public_keys:
+            raise RuntimeBundleReleaseRejected('at least one trusted Ed25519 public key is required')
         verifier = Ed25519RuntimeBundleAttestationVerifier(
             trusted_public_keys, allowed_issuers=allowed_issuers, allowed_subjects=allowed_subjects,
             max_age_seconds=max_age_seconds, max_clock_skew_seconds=max_clock_skew_seconds,
