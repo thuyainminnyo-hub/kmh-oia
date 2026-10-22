@@ -9,7 +9,7 @@ import unittest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
-from src.eduautomate_payment_api import app
+from src.eduautomate_payment_api import app, connect_db
 
 
 def make_identity_token(claims, secret="identity-test-secret"):
