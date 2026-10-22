@@ -283,6 +283,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                 sqlite_path=str(root / "replay.sqlite3"),
                 allowed_source_providers=("test-provider",),
                 runtime_bundle_path=str(bundle),
+                runtime_source_root=str(root),
                 runtime_attestation_path=str(attestation),
                 expected_source_revision="a" * 40,
                 expected_build_run_id="12345",
@@ -351,6 +352,18 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             )
             self.assertTrue(bridge.trusted_source_verifier.replay_store.health_check())
             self.assertTrue((root / "runtime-evidence.sqlite3").exists())
+
+    def test_runtime_source_mismatch_fails_before_evidence_store_creation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "src").mkdir()
+            (root / "src" / "runtime.py").write_text("VALUE = 817\\n", encoding="utf-8")
+            (root / "requirements.txt").write_text("cryptography==50.0.2\\n", encoding="utf-8")
+            config, bundle, attestation = self._signed_release_config(root)
+            (root / "src" / "runtime.py").write_text("VALUE = replaced after signing\\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "configured runtime release bundle or provenance did not verify"):
+                build_production_evidence_runtime(self.console, config=config, trusted_source_adapter=self.adapter)
+            self.assertFalse((root / "runtime-evidence.sqlite3").exists())
 
     def test_bad_release_signature_fails_before_evidence_store_creation(self):
         with tempfile.TemporaryDirectory() as tmp:

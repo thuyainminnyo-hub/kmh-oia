@@ -4,12 +4,13 @@ Date: 2026-10-22
 
 ## Implemented
 
-- Added `scripts/verify_runtime_bundle_release.py`, a fail-closed consumer API that validates the actual bundle bytes and internal manifest, computes the content digest, loads a strict attestation, and verifies Ed25519 signature, trusted key, exact issuer/subject allowlists, source revision, producer run ID, artifact ID/name/service digest and freshness.
-- Added tests proving a valid statement passes and wrong keys/issuer/subject, source SHA, producer run ID, artifact ID/digest, tampered bundle/signature and missing trust root are rejected.
-- Producer run/artifact metadata must be fetched independently from a trusted API/source; untrusted attestation fields are not authoritative expected values.
+- Added `scripts/verify_runtime_bundle_release.py`, a fail-closed consumer API that validates bundle bytes and the internal manifest, computes the content digest, loads a strict attestation, and verifies the Ed25519 signature, trusted key, issuer/subject allowlists, source revision, producer run ID, artifact ID/name/service digest and freshness.
+- Producer run/artifact expected fields must be fetched independently from a trusted source; fields copied only from an untrusted attestation are not authoritative.
 
-## Integration boundary
+## Follow-up integration
 
-The existing LiveRuntimeBridge/ProductionEvidenceRuntimeConfig handles provider receipts and execution evidence; it does not load release bundles into the deployed OIA runtime. This is a standalone release verification API, not proof the deployed service invokes it. Production integration still requires a reviewed deployment/bootstrap entrypoint and provisioned public trust-root material.
+- `ProductionEvidenceRuntimeConfig` and `build_production_evidence_runtime` already call release validation before constructing the bridge or opening the SQLite replay store.
+- Phase 819 tightens that integration: the configured runtime source tree must match the signed bundle’s `src/` files and `requirements.txt` byte-for-byte (excluding generated Python bytecode/cache). A mismatch rejects startup before creating the store.
+- The factory verifies the deployed source tree on disk; it does not dynamically install or execute the source bundle, and the check does not prove a real production deployment occurred.
 
-**Production HOLD.** PR #97 remains OPEN / DRAFT / UNMERGED pending independent review and production evidence gates.
+**Production HOLD.** PR #97 remains OPEN / DRAFT / UNMERGED pending independent human review, external trust configuration and release evidence gates.

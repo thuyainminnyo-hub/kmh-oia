@@ -27,6 +27,7 @@ class ProductionEvidenceRuntimeConfig:
     sqlite_path: str
     allowed_source_providers: tuple[str, ...]
     runtime_bundle_path: str | None = None
+    runtime_source_root: str | None = None
     runtime_attestation_path: str | None = None
     expected_source_revision: str | None = None
     expected_build_run_id: str | None = None
@@ -61,7 +62,7 @@ class ProductionEvidenceRuntimeConfig:
             raise ValueError("require_signed_release_bundle must be an explicit boolean")
 
         release_fields = (
-            self.runtime_bundle_path, self.runtime_attestation_path, self.expected_source_revision,
+            self.runtime_bundle_path, self.runtime_source_root, self.runtime_attestation_path, self.expected_source_revision,
             self.expected_build_run_id, self.expected_artifact_id, self.expected_artifact_name,
             self.expected_artifact_digest,
         )
@@ -95,6 +96,7 @@ class ProductionEvidenceRuntimeConfig:
                 expected_artifact_id=self.expected_artifact_id or "",
                 expected_artifact_name=self.expected_artifact_name or "",
                 expected_artifact_digest=self.expected_artifact_digest or "",
+                runtime_source_root=self.runtime_source_root or "",
                 trusted_public_keys=self.trusted_release_public_keys or {},
                 allowed_issuers=self.allowed_release_issuers,
                 allowed_subjects=self.allowed_release_subjects,
@@ -114,8 +116,9 @@ def build_production_evidence_runtime(
 ) -> LiveRuntimeBridge:
     """Construct a fail-closed evidence runtime for local/single-host use.
 
-    If release metadata is supplied, the exact bundle/attestation must verify
-    before the bridge is created. A provider adapter must separately perform
+    The configured on-disk runtime source tree must match the signed release bundle,
+    and the attestation must verify before the bridge or replay store is created.
+    A provider adapter must separately perform
     real provider authenticity and execution-attribution checks.
     """
     if not isinstance(console, LiveOperatingConsole):

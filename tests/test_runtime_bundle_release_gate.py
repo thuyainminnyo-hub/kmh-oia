@@ -45,7 +45,8 @@ class RuntimeBundleReleaseGateTests(unittest.TestCase):
         args = {
             "expected_source_revision": self.revision, "expected_build_run_id": self.run_id,
             "expected_artifact_id": self.artifact_id, "expected_artifact_name": "kmh-oia-runtime-bundle",
-            "expected_artifact_digest": self.artifact_digest, "trusted_public_keys": {self.key_id: self.public_key},
+            "expected_artifact_digest": self.artifact_digest, "runtime_source_root": self.root,
+            "trusted_public_keys": {self.key_id: self.public_key},
             "allowed_issuers": (self.issuer,), "allowed_subjects": (self.subject,),
             "max_age_seconds": 3600, "max_clock_skew_seconds": 60,
         }
@@ -84,6 +85,11 @@ class RuntimeBundleReleaseGateTests(unittest.TestCase):
         data = self.attestation_path.read_text(encoding="utf-8")
         self.attestation_path.write_text(data.replace('"signature":"', '"signature":"AAAA'), encoding="utf-8")
         with self.assertRaises(RuntimeBundleReleaseRejected):
+            self.verify()
+
+    def test_runtime_source_tree_must_match_attested_bundle(self):
+        (self.root / "src" / "runtime.py").write_text("VALUE = changed after packaging\\n", encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeBundleReleaseRejected, "does not match the attested release bundle"):
             self.verify()
 
     def test_missing_public_trust_root_fails_closed(self):

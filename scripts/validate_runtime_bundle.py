@@ -75,8 +75,9 @@ def validate_runtime_bundle(path: str | Path, *, expected_source_sha: str) -> di
     for rel, data in actual_files.items():
         if hashlib.sha256(data).hexdigest() != manifest_files[rel]:
             raise ValueError(f'manifest SHA-256 mismatch for {rel}')
+    file_sha256 = {rel: hashlib.sha256(data).hexdigest() for rel, data in sorted(actual_files.items())}
     return {'source_revision': expected, 'bundle_sha256': hashlib.sha256(content).hexdigest(),
-            'files_verified': len(actual_files)}
+            'files_verified': len(actual_files), 'files_sha256': file_sha256}
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)

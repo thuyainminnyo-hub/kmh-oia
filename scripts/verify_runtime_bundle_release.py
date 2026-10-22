@@ -14,6 +14,7 @@ def verify_runtime_bundle_release(
     bundle_path: str | Path, attestation_path: str | Path, *,
     expected_source_revision: str, expected_build_run_id: str, expected_artifact_id: str,
     expected_artifact_name: str, expected_artifact_digest: str,
+    runtime_source_root: str | Path,
     trusted_public_keys: Mapping[str, bytes], allowed_issuers: tuple[str, ...],
     allowed_subjects: tuple[str, ...], max_age_seconds: int = 3600,
     max_clock_skew_seconds: int = 60,
@@ -22,6 +23,8 @@ def verify_runtime_bundle_release(
 
     This function does not fetch GitHub metadata or prove deployment; the caller supplies
     expected fields obtained independently from the trusted producer-run/artifact API.
+    It also requires the configured runtime source tree on disk to match every packaged
+    src/ file and requirements.txt byte-for-byte. It does not dynamically install the bundle.
     """
     try:
         if not isinstance(expected_source_revision, str):
@@ -46,6 +49,27 @@ def verify_runtime_bundle_release(
         bundle_result = validate_runtime_bundle(bundle_path, expected_source_sha=expected_sha)
         if bundle_result["bundle_sha256"] != actual_bundle_sha:
             raise RuntimeBundleReleaseRejected("bundle digest changed while validating the release")
+        root = Path(runtime_source_root)
+        source_dir = root / "src"
+        requirements = root / "requirements.txt"
+        if not source_dir.is_dir() or not requirements.is_file():
+            raise RuntimeBundleReleaseRejected("runtime source root must contain src/ and requirements.txt")
+        runtime_files: dict[str, str] = {}
+        for path in sorted(source_dir.rglob("*")):
+            parts = path.relative_to(source_dir).parts
+            if "__pycache__" in parts or path.suffix in {".pyc", ".pyo"}:
+                continue
+            if path.is_symlink():
+                raise RuntimeBundleReleaseRejected("runtime source tree contains a forbidden symlink")
+            if path.is_dir():
+                continue
+            if not path.is_file():
+                raise RuntimeBundleReleaseRejected("runtime source tree contains a non-regular file")
+            relative = path.relative_to(root).as_posix()
+            runtime_files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+        runtime_files["requirements.txt"] = hashlib.sha256(requirements.read_bytes()).hexdigest()
+        if runtime_files != bundle_result["files_sha256"]:
+            raise RuntimeBundleReleaseRejected("runtime source tree does not match the attested release bundle")
         attestation = load_runtime_bundle_attestation(attestation_path)
         if not trusted_public_keys:
             raise RuntimeBundleReleaseRejected('at least one trusted Ed25519 public key is required')
@@ -65,6 +89,7 @@ def verify_runtime_bundle_release(
             "artifact_name": expected_artifact_name, "artifact_digest": expected_artifact_digest,
             "issuer": attestation.issuer, "subject": attestation.subject,
             "files_verified": int(bundle_result["files_verified"]),
+            "runtime_tree_match": "true",
         }
     except RuntimeBundleReleaseRejected:
         raise
