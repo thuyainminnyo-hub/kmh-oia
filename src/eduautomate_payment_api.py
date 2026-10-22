@@ -400,6 +400,11 @@ def admin_decision(
 ) -> PaymentOut:
     if _identity_mode() == "identity":
         raise HTTPException(status_code=503, detail="Identity-mode admin decisions require the reviewed identity adapter and schema migration")
+    if os.environ.get("EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED", "").strip().lower() != "true":
+        raise HTTPException(
+            status_code=503,
+            detail="Shared-token admin decisions are disabled unless local prototype mode is explicitly enabled",
+        )
     actor_id = require_configured_admin(x_admin_token)
     init_db()
     now = utc_now()
