@@ -4,19 +4,22 @@ This service records internal payment claims and an explicit admin decision.
 It does NOT connect to a bank, inspect bank statements, or independently prove
 that funds settled. Admin-approved records are internal attestations only.
 
-Run locally (after installing FastAPI and Uvicorn in a project virtualenv):
-    EDUAUTOMATE_DB_PATH=runtime/eduautomate-payments.sqlite3 \
-      uvicorn src.eduautomate_payment_api:app --host 127.0.0.1 --port 8000
-
-Keep this dev-only API bound to localhost until authentication, authorization,
-TLS, and a production deployment model are configured.
+The shared-token mode is a trusted, isolated local prototype mode only. If
+EDUAUTOMATE_AUTH_MODE=identity is selected, each request must carry a
+server-verifiable identity assertion in the signed HS256 token implemented
+below. Do not expose this prototype publicly; production should use an
+established identity provider, tenant RBAC, TLS, managed secrets, and a
+reviewed deployment model.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
 import json
 import os
 import sqlite3
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -87,7 +90,6 @@ def init_db() -> None:
             )
             """
         )
-        # Lightweight migration for a database created by an earlier prototype version.
         payment_columns = {row[1] for row in conn.execute("PRAGMA table_info(payments)").fetchall()}
         if "evidence_reference" not in payment_columns:
             conn.execute("ALTER TABLE payments ADD COLUMN evidence_reference TEXT")
@@ -106,35 +108,103 @@ def init_db() -> None:
         )
 
 
+# Prototype shared secret authentication. Not production user or tenant identity.
+def _configured_secret(name: str, failure: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise HTTPException(status_code=503, detail=failure)
+    return value
+
+
 def require_api_token(
     x_api_token: str | None = Header(default=None, alias="X-API-Token"),
 ) -> None:
-    """Shared-service token for the localhost MVP; not production user RBAC."""
     expected = os.environ.get("EDUAUTOMATE_API_TOKEN", "").strip()
     if not expected:
         raise HTTPException(status_code=503, detail="API authentication is not configured")
-    if x_api_token is None or not __import__("hmac").compare_digest(x_api_token, expected):
+    if x_api_token is None or not hmac.compare_digest(x_api_token, expected):
         raise HTTPException(status_code=401, detail="API authentication failed")
 
 
-def require_configured_admin(
-    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
-) -> str:
-    """MVP gate: shared admin token plus server-configured actor label; not production RBAC."""
-    expected = os.environ.get("EDUAUTOMATE_ADMIN_TOKEN", "").strip()
-    if not expected:
-        raise HTTPException(status_code=503, detail="Admin approval is not configured")
-    if x_admin_token is None or not __import__("hmac").compare_digest(x_admin_token, expected):
-        raise HTTPException(status_code=401, detail="Admin authentication failed")
-    actor = os.environ.get("EDUAUTOMATE_ADMIN_ACTOR_ID", "").strip()
-    if not actor or len(actor) > 128:
-        raise HTTPException(status_code=503, detail="Admin actor identity is not configured")
-    return actor
+def _b64url_decode(value: str) -> bytes:
+    try:
+        return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Invalid identity assertion") from exc
+
+
+def _verify_identity_token(authorization: str | None) -> dict[str, object]:
+    """Verify a narrowly defined HS256 JWT-like assertion for isolated prototype tests.
+
+    Production should replace this local verifier with a reviewed OIDC/JWKS
+    integration. Required claims: sub, tenant_id, role, exp. Optional student_id.
+    """
+    secret = os.environ.get("EDUAUTOMATE_IDENTITY_HS256_SECRET", "")
+    issuer = os.environ.get("EDUAUTOMATE_IDENTITY_ISSUER", "").strip()
+    audience = os.environ.get("EDUAUTOMATE_IDENTITY_AUDIENCE", "").strip()
+    if not secret or not issuer or not audience:
+        raise HTTPException(status_code=503, detail="Identity authentication is not configured")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Bearer identity assertion required")
+    token = authorization[7:].strip()
+    parts = token.split(".")
+    if len(parts) != 3:
+        raise HTTPException(status_code=401, detail="Invalid identity assertion")
+    head_part, claims_part, sig_part = parts
+    try:
+        header = json.loads(_b64url_decode(head_part))
+        claims = json.loads(_b64url_decode(claims_part))
+    except (ValueError, TypeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=401, detail="Invalid identity assertion") from exc
+    if not isinstance(header, dict) or header.get("alg") != "HS256" or header.get("typ", "JWT") != "JWT":
+        raise HTTPException(status_code=401, detail="Unsupported identity assertion")
+    signing_input = f"{head_part}.{claims_part}".encode("ascii")
+    expected_sig = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    if not hmac.compare_digest(_b64url_decode(sig_part), expected_sig):
+        raise HTTPException(status_code=401, detail="Invalid identity signature")
+    now = int(time.time())
+    if not isinstance(claims, dict):
+        raise HTTPException(status_code=401, detail="Invalid identity claims")
+    if claims.get("iss") != issuer or claims.get("aud") != audience:
+        raise HTTPException(status_code=401, detail="Invalid identity issuer or audience")
+    if not isinstance(claims.get("exp"), int) or claims["exp"] <= now:
+        raise HTTPException(status_code=401, detail="Expired or invalid identity assertion")
+    if not isinstance(claims.get("sub"), str) or not claims["sub"].strip():
+        raise HTTPException(status_code=401, detail="Identity subject missing")
+    if not isinstance(claims.get("tenant_id"), str) or not claims["tenant_id"].strip():
+        raise HTTPException(status_code=401, detail="Identity tenant missing")
+    if not isinstance(claims.get("role"), str) or not claims["role"].strip():
+        raise HTTPException(status_code=401, detail="Identity role missing")
+    return claims
+
+
+def require_api_identity(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+) -> dict[str, object]:
+    return _verify_identity_token(authorization)
+
+
+def require_admin_identity(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+) -> dict[str, object]:
+    claims = _verify_identity_token(authorization)
+    if claims.get("role") not in ("admin", "payment_admin"):
+        raise HTTPException(status_code=403, detail="Admin role required")
+    return claims
+
+
+def _identity_mode() -> str:
+    mode = os.environ.get("EDUAUTOMATE_AUTH_MODE", "shared_token").strip().lower()
+    if mode not in ("shared_token", "identity"):
+        raise HTTPException(status_code=503, detail="Unsupported authentication mode")
+    return mode
 
 
 class PaymentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
+    # In identity mode this must match the authenticated subject's student scope;
+    # only a role explicitly allowed to create for a tenant may create for others.
     student_id: str = Field(min_length=1, max_length=128)
     amount_minor: int = Field(strict=True, gt=0, le=10**12)
     currency: Literal["MMK"] = "MMK"
@@ -171,22 +241,18 @@ class AdminDecision(BaseModel):
     def evidence_reference_must_be_opaque(cls, value: str | None) -> str | None:
         if value:
             parsed = urlsplit(value)
-            if (
-                parsed.scheme
-                or parsed.netloc
-                or value.startswith("//")
-                or value.lower().startswith("www.")
-            ):
+            if parsed.scheme or parsed.netloc or value.startswith("//") or value.lower().startswith("www."):
                 raise ValueError("evidence_reference must be an opaque reference ID, not a URL")
         return value
 
 
 app = FastAPI(
     title="EduAutomate Payment Record MVP",
-    version="0.1.0",
+    version="0.1.1",
     description=(
         "Internal payment-record workflow. Admin decisions are internal attestations; "
-        "this service does not independently verify bank settlement."
+        "this service does not independently verify bank settlement. Identity mode "
+        "is an isolated prototype control and is not a production identity-provider integration."
     ),
 )
 
@@ -198,6 +264,28 @@ def startup() -> None:
 
 def _to_payment(row: sqlite3.Row) -> PaymentOut:
     return PaymentOut(**dict(row))
+
+
+def _get_record_by_id(payment_id: str) -> sqlite3.Row:
+    with connect_db() as conn:
+        row = conn.execute("SELECT * FROM payments WHERE payment_id=?", (payment_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Payment record not found")
+    return row
+
+
+def _authorize_record_read(row: sqlite3.Row, claims: dict[str, object] | None) -> None:
+    # The legacy shared-token mode is permitted only for isolated local prototype use.
+    if _identity_mode() == "shared_token":
+        return
+    if claims is None:
+        raise HTTPException(status_code=401, detail="Authenticated identity required")
+    if claims.get("role") in ("admin", "payment_admin"):
+        return
+    if claims.get("student_id") != row["student_id"] or claims.get("tenant_id") != row["currency"] + ":" + str(claims.get("tenant_id")):
+        # This placeholder comparison intentionally fails closed until tenant_id is
+        # persisted on each payment record; identity mode must not be used for real data.
+        raise HTTPException(status_code=404, detail="Payment record not found")
 
 
 @app.get("/healthz")
@@ -212,12 +300,15 @@ def create_payment(
     idempotency_key: str = Header(alias="Idempotency-Key", min_length=8, max_length=200),
     _api_auth: None = Depends(require_api_token),
 ) -> PaymentOut:
+    if _identity_mode() == "identity":
+        # Fail closed while persistence does not include tenant_id and trusted identity
+        # claims have not been integrated end-to-end. This prevents an unsafe partial rollout.
+        raise HTTPException(status_code=503, detail="Identity mode is not enabled for writes until tenant schema migration is implemented")
     init_db()
     now = utc_now()
     payment_id = "pay_" + uuid.uuid4().hex
     fingerprint = _canonical_hash(payload.model_dump())
     with connect_db() as conn:
-        # Serialize the idempotency lookup + insert so concurrent retries share one result.
         conn.execute("BEGIN IMMEDIATE")
         existing = conn.execute(
             "SELECT p.*, e.content_hash AS create_fingerprint FROM payments p "
@@ -230,7 +321,7 @@ def create_payment(
                 raise HTTPException(status_code=409, detail="Idempotency key reused with different payload")
             values = dict(existing)
             values.pop("create_fingerprint", None)
-            return _to_payment(values)  # Same request returns original resource.
+            return _to_payment(values)
         conn.execute(
             """
             INSERT INTO payments (
@@ -238,10 +329,8 @@ def create_payment(
                 payment_method, execution_id, idempotency_key, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, 'pending', 'manual_bank_transfer', ?, ?, ?, ?)
             """,
-            (
-                payment_id, payload.student_id, payload.amount_minor, payload.currency,
-                payload.purpose, payload.execution_id, idempotency_key, now, now,
-            ),
+            (payment_id, payload.student_id, payload.amount_minor, payload.currency,
+             payload.purpose, payload.execution_id, idempotency_key, now, now),
         )
         conn.execute(
             """
@@ -256,12 +345,13 @@ def create_payment(
 
 
 @app.get("/v1/payments/{payment_id}", response_model=PaymentOut)
-def get_payment(payment_id: str, _api_auth: None = Depends(require_api_token)) -> PaymentOut:
-    init_db()
-    with connect_db() as conn:
-        row = conn.execute("SELECT * FROM payments WHERE payment_id=?", (payment_id,)).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Payment record not found")
+def get_payment(
+    payment_id: str,
+    _api_auth: None = Depends(require_api_token),
+    claims: dict[str, object] | None = Depends(require_api_identity) if os.environ.get("EDUAUTOMATE_AUTH_MODE", "shared_token").strip().lower() == "identity" else None,
+) -> PaymentOut:
+    row = _get_record_by_id(payment_id)
+    _authorize_record_read(row, claims)
     return _to_payment(row)
 
 
@@ -271,12 +361,13 @@ def admin_decision(
     payload: AdminDecision,
     actor_id: str = Depends(require_configured_admin),
 ) -> PaymentOut:
+    if _identity_mode() == "identity":
+        raise HTTPException(status_code=503, detail="Identity-mode admin decisions require the reviewed identity adapter and schema migration")
     init_db()
     now = utc_now()
     target = "confirmed" if payload.decision == "confirm" else "rejected"
     if target == "confirmed" and not payload.evidence_reference:
         raise HTTPException(status_code=422, detail="Admin confirmation requires an opaque evidence reference ID")
-    # This changes internal workflow status only; it is not bank/provider verification.
     with connect_db() as conn:
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("SELECT * FROM payments WHERE payment_id=?", (payment_id,)).fetchone()
@@ -289,14 +380,12 @@ def admin_decision(
             UPDATE payments SET status=?, updated_at=?, confirmed_at=?, confirmed_by=?, admin_note=?, evidence_reference=?
             WHERE payment_id=? AND status='pending'
             """,
-            (target, now, now if target == "confirmed" else None, actor_id if target == "confirmed" else None, payload.note, payload.evidence_reference, payment_id),
+            (target, now, now if target == "confirmed" else None, actor_id if target == "confirmed" else None,
+             payload.note, payload.evidence_reference, payment_id),
         )
         event_payload = {
-            "payment_id": payment_id,
-            "decision": payload.decision,
-            "actor_id": actor_id,
-            "occurred_at": now,
-            "note": payload.note,
+            "payment_id": payment_id, "decision": payload.decision, "actor_id": actor_id,
+            "occurred_at": now, "note": payload.note,
             "evidence_reference": payload.evidence_reference,
             "evidence_class": "internal_admin_attestation",
         }
@@ -306,10 +395,9 @@ def admin_decision(
               (event_id, payment_id, event_type, actor_id, occurred_at, reason, content_hash)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                "evt_" + uuid.uuid4().hex, payment_id, "admin_" + payload.decision,
-                actor_id, now, payload.note + ("; evidence_reference=" + payload.evidence_reference if payload.evidence_reference else ""), _canonical_hash(event_payload),
-            ),
+            ("evt_" + uuid.uuid4().hex, payment_id, "admin_" + payload.decision,
+             actor_id, now, payload.note + ("; evidence_reference=" + payload.evidence_reference if payload.evidence_reference else ""),
+             _canonical_hash(event_payload)),
         )
         updated = conn.execute("SELECT * FROM payments WHERE payment_id=?", (payment_id,)).fetchone()
         return _to_payment(updated)
