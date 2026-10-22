@@ -48,6 +48,10 @@ This is a structural example only, not a recommendation about MMK units or a rea
 
 Only pending records accept an admin decision. The create idempotency key is unique. The backend records an audit event for creation and admin decision. A true production deployment needs formal database migrations, backup/restore procedures, concurrency testing and monitoring.
 
+
+
+Refund scope: `refunded` is not an available state in this MVP. No refund endpoint, refund audit contract, or reconciliation flow is implemented. A refund must not be represented by manually editing this payment record; design and review a separate explicit refund flow before supporting refunds.
+
 ## Minimal schema
 
 ### `payments`
