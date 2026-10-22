@@ -105,7 +105,16 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
 
     def test_admin_decision_fails_closed_without_configured_token(self):
         created = self.create().json()
-        result = self.admin_decide(created["payment_id"])
+        os.environ.pop("EDUAUTOMATE_ADMIN_TOKEN", None)
+        result = self.client.post(
+            "/v1/payments/{}/admin-decision".format(created["payment_id"]),
+            headers={"X-Admin-Token": "test-admin-secret", "X-Actor-Id": "admin-test-1"},
+            json={
+                "decision": "confirm",
+                "note": "Checked transfer reference against records",
+                "evidence_reference": "private-evidence-ref-001",
+            },
+        )
         self.assertEqual(result.status_code, 503)
         self.assertEqual(self.get(created["payment_id"]).json()["status"], "pending")
 
