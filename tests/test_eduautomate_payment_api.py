@@ -155,14 +155,21 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 422)
         self.assertEqual(self.get(created["payment_id"]).json()["status"], "pending")
 
-    def test_admin_confirm_rejects_public_url_as_evidence_reference(self):
+    def test_admin_confirm_rejects_url_like_evidence_references(self):
         created = self.create().json()
-        result = self.admin_decide(
-            created["payment_id"],
-            evidence_reference="https://example.invalid/public-slip.jpg",
-        )
-        self.assertEqual(result.status_code, 422)
-        self.assertEqual(self.get(created["payment_id"]).json()["status"], "pending")
+        for evidence_reference in (
+            "https://example.invalid/public-slip.jpg",
+            "ftp://example.invalid/public-slip.jpg",
+            "//example.invalid/public-slip.jpg",
+            "www.example.invalid/public-slip.jpg",
+        ):
+            with self.subTest(evidence_reference=evidence_reference):
+                result = self.admin_decide(
+                    created["payment_id"],
+                    evidence_reference=evidence_reference,
+                )
+                self.assertEqual(result.status_code, 422)
+                self.assertEqual(self.get(created["payment_id"]).json()["status"], "pending")
 
     def test_admin_decision_requires_server_configured_actor(self):
         created = self.create().json()
