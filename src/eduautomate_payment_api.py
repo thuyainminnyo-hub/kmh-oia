@@ -316,6 +316,13 @@ def create_payment(
     idempotency_key: str = Header(alias="Idempotency-Key", min_length=8, max_length=200),
     _api_auth: None = Depends(require_api_token),
 ) -> PaymentOut:
+    # The single shared API token does not identify a student or tenant.
+    # Fail closed by default; explicitly opt in only for isolated local prototype use.
+    if os.environ.get("EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED", "").strip().lower() != "true":
+        raise HTTPException(
+            status_code=503,
+            detail="Shared-token writes are disabled until a scoped identity adapter is configured",
+        )
     if _identity_mode() == "identity":
         # Fail closed while persistence does not include tenant_id and trusted identity
         # claims have not been integrated end-to-end. This prevents an unsafe partial rollout.
