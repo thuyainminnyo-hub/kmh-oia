@@ -8,8 +8,10 @@ Date: 2026-10-22
 - Added tests proving valid statements pass and wrong key/issuer/subject, source SHA, producer run ID, artifact ID/digest, tampered bundle/signature and missing trust root are rejected.
 - The gate requires the caller to provide producer run/artifact metadata obtained independently from a trusted API/source; data copied only from the attestation JSON is not authoritative.
  
-## Not yet connected to production evidence runtime
+## Production startup integration and remaining gate
 
-This is a standalone release-verification API and is not proof that a deployed service invokes it. Production integration requires a reviewed deployment/bootstrap entrypoint, provisioned public trust-root material, actual signing key configuration, and a release/deployment rehearsal.
+`ProductionEvidenceRuntimeConfig` calls the release-verification API before creating the replay store or execution bridge. Phase 817 makes this verification required by default; no-bundle startup must explicitly set `require_signed_release_bundle=False`, which is intended only for isolated local/unit-test setups. Release fields are all-or-nothing and require a provisioned trusted public-key map and issuer/subject allowlists.
+
+This factory-level startup check is tested, but no live production service has been shown invoking this factory with the actual production bundle or provisioned trust root. Actual signing secrets, protected Environment reviewer rules, real provider authenticity, deployment/release rehearsal and rollback evidence remain unverified. The signed release attestation is not proof of deployment.
 
 PR #97 remains OPEN / DRAFT / UNMERGED pending independent review and remaining production gates. **Production HOLD.**

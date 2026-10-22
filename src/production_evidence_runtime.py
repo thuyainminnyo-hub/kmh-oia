@@ -37,6 +37,9 @@ class ProductionEvidenceRuntimeConfig:
     allowed_release_issuers: tuple[str, ...] = ()
     allowed_release_subjects: tuple[str, ...] = ()
     release_attestation_max_age_seconds: int = 3600
+    # Secure default: production startup requires verified signed release provenance.
+    # Only isolated local/unit-test setups should explicitly disable this gate.
+    require_signed_release_bundle: bool = True
 
     def validate(self) -> None:
         if not isinstance(self.sqlite_path, str) or not self.sqlite_path.strip():
@@ -54,12 +57,17 @@ class ProductionEvidenceRuntimeConfig:
         if len(set(providers)) != len(providers):
             raise ValueError("allowed source providers must be unique")
 
+        if not isinstance(self.require_signed_release_bundle, bool):
+            raise ValueError("require_signed_release_bundle must be an explicit boolean")
+
         release_fields = (
             self.runtime_bundle_path, self.runtime_attestation_path, self.expected_source_revision,
             self.expected_build_run_id, self.expected_artifact_id, self.expected_artifact_name,
             self.expected_artifact_digest,
         )
         any_release_configured = any(value is not None for value in release_fields) or self.trusted_release_public_keys is not None or bool(self.allowed_release_issuers) or bool(self.allowed_release_subjects)
+        if self.require_signed_release_bundle and not any_release_configured:
+            raise ValueError("production startup requires a signed runtime release bundle and attestation")
         if any_release_configured:
             if any(not isinstance(value, str) or not value.strip() for value in release_fields):
                 raise ValueError("release bundle activation requires every bundle, attestation, source SHA and producer/artifact metadata field")
