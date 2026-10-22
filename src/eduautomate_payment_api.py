@@ -290,17 +290,18 @@ def _get_record_by_id(payment_id: str) -> sqlite3.Row:
 
 
 def _authorize_record_read(row: sqlite3.Row, claims: dict[str, object] | None) -> None:
-    # The legacy shared-token mode is permitted only for isolated local prototype use.
+    # Shared-token reads are an isolated local prototype path only.
     if _identity_mode() == "shared_token":
         return
     if claims is None:
         raise HTTPException(status_code=401, detail="Authenticated identity required")
-    if claims.get("role") in ("admin", "payment_admin"):
-        return
-    if claims.get("student_id") != row["student_id"] or claims.get("tenant_id") != row["currency"] + ":" + str(claims.get("tenant_id")):
-        # This placeholder comparison intentionally fails closed until tenant_id is
-        # persisted on each payment record; identity mode must not be used for real data.
-        raise HTTPException(status_code=404, detail="Payment record not found")
+    # Tenant scope is not persisted in the payment schema yet. Do not guess or
+    # infer tenant ownership from currency/student_id. Only deny all identity-mode
+    # reads until a reviewed tenant schema migration and authorization tests exist.
+    raise HTTPException(
+        status_code=503,
+        detail="Identity-mode reads are disabled until tenant-scoped persistence and authorization are implemented",
+    )
 
 
 @app.get("/healthz")
