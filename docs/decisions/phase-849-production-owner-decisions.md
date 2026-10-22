@@ -44,3 +44,17 @@ Until the relevant decisions are approved:
 ## Exit criteria
 
 The worksheet is not complete until every applicable decision has an accountable owner, cited source/evidence, approved value, and corresponding test or operational verification. Only then may implementation proceed through a reviewed migration, cross-tenant negative tests, recovery rehearsal, independent human review, and exact-commit CI verification.
+
+
+## Phase 860 — JWT Time-Claim Boundary Test Record
+
+Status: TESTED IN CI — PROTOTYPE ONLY — RELEASE HOLD
+
+The prototype verifier now rejects optional `nbf` values that are malformed or in the future, optional `iat` values that are malformed or in the future, and Boolean values supplied for `exp`. Regression tests assert HTTP 401 before payment-storage access for future `nbf`, future `iat`, malformed `nbf`, Boolean `iat`, and Boolean `exp`.
+
+Exact candidate commit: `b9388a33bd3a5ada85fca9cc38442bd98d52f511`
+
+- Tests #892: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39783608452 — SUCCESS
+- Validation #811: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/39783608749 — SUCCESS
+
+This record is regression evidence for the isolated local verifier only. It is not approval of a production token-validation design. The production identity provider, OIDC/JWKS integration, key rotation, authoritative tenant/student membership, tenant-scoped persistence, and independent review remain unresolved. Do not treat these tests as proof of tenant isolation or production readiness.
