@@ -306,7 +306,8 @@ def _authorize_record_read(row: sqlite3.Row, claims: dict[str, object] | None) -
 
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
-    init_db()
+    # Liveness only: do not create/open the database as a health-check side effect.
+    # This endpoint does not claim database readiness or payment-provider health.
     return {"status": "ok", "service": "eduautomate-payment-record-mvp"}
 
 
