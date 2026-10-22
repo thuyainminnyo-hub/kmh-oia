@@ -241,6 +241,13 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         })}
         self.assertEqual(self.client.get(f"/v1/payments/{created['payment_id']}",headers=headers).status_code, 401)
 
+    def test_shared_token_admin_decision_fails_closed_without_explicit_prototype_opt_in(self):
+        created = self.create(key="admin-prototype-opt-in").json()
+        os.environ.pop("EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED", None)
+        response = self.admin_decide(created["payment_id"])
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(self.get(created["payment_id"]).json()["status"], "pending")
+
     def test_identity_mode_admin_decisions_fail_closed_until_verified_adapter_and_schema_exist(self):
         created = self.create().json()
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
