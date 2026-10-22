@@ -22,6 +22,7 @@ def build_verified_production_evidence_runtime(
     trusted_source_adapter: TrustedSourceAdapter,
     bundle_path: str | Path,
     attestation_path: str | Path,
+    runtime_source_root: str | Path,
     expected_source_revision: str,
     expected_build_run_id: str,
     expected_artifact_id: str,
@@ -53,6 +54,7 @@ def build_verified_production_evidence_runtime(
         expected_artifact_id=expected_artifact_id,
         expected_artifact_name=expected_artifact_name,
         expected_artifact_digest=expected_artifact_digest,
+        runtime_source_root=runtime_source_root,
         trusted_public_keys=trusted_public_keys,
         allowed_issuers=allowed_issuers,
         allowed_subjects=allowed_subjects,
@@ -62,6 +64,7 @@ def build_verified_production_evidence_runtime(
     verified_config = replace(
         config,
         runtime_bundle_path=str(bundle_path),
+        runtime_source_root=str(runtime_source_root),
         runtime_attestation_path=str(attestation_path),
         expected_source_revision=expected_source_revision,
         expected_build_run_id=expected_build_run_id,

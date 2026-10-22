@@ -80,6 +80,7 @@ class VerifiedProductionRuntimeIntegrationTests(unittest.TestCase):
             "trusted_source_adapter": MinimalAdapter(),
             "bundle_path": self.bundle,
             "attestation_path": self.attestation_path,
+            "runtime_source_root": self.root,
             "expected_source_revision": self.revision,
             "expected_build_run_id": self.run_id,
             "expected_artifact_id": self.artifact_id,
@@ -130,7 +131,8 @@ class VerifiedProductionRuntimeIntegrationTests(unittest.TestCase):
         config = inner.call_args.kwargs["config"]
         self.assertTrue(config.require_signed_release_bundle)
         self.assertEqual(config.runtime_bundle_path, str(self.bundle))
-        self.assertEqual(config.runtime_attestation_path, str(self.attestation_path))
+        self.assertEqual(config.runtime_source_root, str(self.root))
+        self.assertEqual(config.runtime_attestation_path, str(self.attestation_path)
         self.assertEqual(config.expected_source_revision, self.revision)
         self.assertEqual(config.expected_build_run_id, self.run_id)
         self.assertEqual(config.expected_artifact_id, self.artifact_id)

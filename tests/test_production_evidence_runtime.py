@@ -326,7 +326,7 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
         config = ProductionEvidenceRuntimeConfig(
             sqlite_path=str(root / "runtime-evidence.sqlite3"),
             allowed_source_providers=("test-provider",),
-            runtime_bundle_path=str(bundle), runtime_attestation_path=str(attestation),
+            runtime_bundle_path=str(bundle), runtime_source_root=str(root), runtime_attestation_path=str(attestation),
             expected_source_revision=revision, expected_build_run_id="12345",
             expected_artifact_id="67890", expected_artifact_name="kmh-oia-runtime-bundle",
             expected_artifact_digest=artifact_digest,

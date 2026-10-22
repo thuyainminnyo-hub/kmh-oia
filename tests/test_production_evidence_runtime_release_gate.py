@@ -62,6 +62,7 @@ class ReleaseAwareProductionFactoryTests(unittest.TestCase):
             sqlite_path=str(self.root / "replay.sqlite3"),
             allowed_source_providers=("test-provider",),
             runtime_bundle_path=str(self.bundle),
+            runtime_source_root=str(self.root),
             runtime_attestation_path=str(self.attestation_path),
             expected_source_revision=self.revision,
             expected_build_run_id=self.run_id,
