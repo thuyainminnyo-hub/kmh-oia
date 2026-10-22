@@ -135,7 +135,7 @@ class PaymentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     student_id: str = Field(min_length=1, max_length=128)
-    amount_minor: int = Field(gt=0, le=10**12)
+    amount_minor: int = Field(strict=True, gt=0, le=10**12)
     currency: Literal["MMK"] = "MMK"
     purpose: str = Field(min_length=1, max_length=120)
     execution_id: str | None = Field(default=None, max_length=128)
