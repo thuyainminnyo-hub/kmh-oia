@@ -182,8 +182,22 @@ def _verify_identity_token(authorization: str | None) -> dict[str, object]:
         raise HTTPException(status_code=401, detail="Invalid identity claims")
     if claims.get("iss") != issuer or claims.get("aud") != audience:
         raise HTTPException(status_code=401, detail="Invalid identity issuer or audience")
-    if not isinstance(claims.get("exp"), int) or claims["exp"] <= now:
+    if not isinstance(claims.get("exp"), int) or isinstance(claims.get("exp"), bool) or claims["exp"] <= now:
         raise HTTPException(status_code=401, detail="Expired or invalid identity assertion")
+    # Honor optional JWT time claims when supplied; malformed or not-yet-valid
+    # assertions must not be accepted by this prototype verifier.
+    if "nbf" in claims and (
+        not isinstance(claims["nbf"], int)
+        or isinstance(claims["nbf"], bool)
+        or claims["nbf"] > now
+    ):
+        raise HTTPException(status_code=401, detail="Identity assertion is not yet valid")
+    if "iat" in claims and (
+        not isinstance(claims["iat"], int)
+        or isinstance(claims["iat"], bool)
+        or claims["iat"] > now
+    ):
+        raise HTTPException(status_code=401, detail="Identity assertion issued in the future")
     if not isinstance(claims.get("sub"), str) or not claims["sub"].strip():
         raise HTTPException(status_code=401, detail="Identity subject missing")
     if not isinstance(claims.get("tenant_id"), str) or not claims["tenant_id"].strip():
