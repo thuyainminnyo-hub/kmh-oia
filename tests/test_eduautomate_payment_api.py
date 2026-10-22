@@ -334,6 +334,42 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         init_db.assert_not_called()
         connect_db.assert_not_called()
 
+    def test_identity_mode_rejects_future_not_before_before_payment_storage_access(self):
+        created = self.create().json()
+        os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
+        token = make_identity_token({
+            "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
+            "student_id":"stu-a","tenant_id":"tenant-a","role":"student",
+            "exp":int(time.time())+300,"nbf":int(time.time())+600
+        })
+        headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + token}
+        with patch("src.eduautomate_payment_api._get_record_by_id") as record_lookup, patch(
+            "src.eduautomate_payment_api.init_db"
+        ) as init_db, patch("src.eduautomate_payment_api.connect_db") as connect_db:
+            response = self.client.get("/v1/payments/" + created["payment_id"], headers=headers)
+        self.assertEqual(response.status_code, 401)
+        record_lookup.assert_not_called()
+        init_db.assert_not_called()
+        connect_db.assert_not_called()
+
+    def test_identity_mode_rejects_future_issued_at_before_payment_storage_access(self):
+        created = self.create().json()
+        os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
+        token = make_identity_token({
+            "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
+            "student_id":"stu-a","tenant_id":"tenant-a","role":"student",
+            "exp":int(time.time())+300,"iat":int(time.time())+600
+        })
+        headers = {"X-API-Token":"test-api-secret","Authorization":"Bearer " + token}
+        with patch("src.eduautomate_payment_api._get_record_by_id") as record_lookup, patch(
+            "src.eduautomate_payment_api.init_db"
+        ) as init_db, patch("src.eduautomate_payment_api.connect_db") as connect_db:
+            response = self.client.get("/v1/payments/" + created["payment_id"], headers=headers)
+        self.assertEqual(response.status_code, 401)
+        record_lookup.assert_not_called()
+        init_db.assert_not_called()
+        connect_db.assert_not_called()
+
     def test_identity_mode_rejects_wrong_audience_before_payment_storage_access(self):
         created = self.create().json()
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
