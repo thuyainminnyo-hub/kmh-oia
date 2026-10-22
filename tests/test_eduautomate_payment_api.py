@@ -90,8 +90,22 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         result = self.create(amount=0)
         self.assertEqual(result.status_code, 422)
 
+    def test_create_rejects_boolean_amount(self):
+        result = self.client.post(
+            "/v1/payments",
+            headers={"Idempotency-Key": "boolean-amount-1", "X-API-Token": "test-api-secret"},
+            json={"student_id": "stu_test", "amount_minor": True, "currency": "MMK", "purpose": "course_fee"},
+        )
+        self.assertEqual(result.status_code, 422)
+
     def test_unknown_payment_is_not_found(self):
         self.assertEqual(self.get("pay_unknown").status_code, 404)
+
+
+    def test_payment_read_requires_api_token(self):
+        created = self.create().json()
+        response = self.client.get("/v1/payments/{}".format(created["payment_id"]))
+        self.assertEqual(response.status_code, 401)
 
     def test_api_requires_configured_token_and_rejects_bad_token(self):
         os.environ.pop("EDUAUTOMATE_API_TOKEN", None)
