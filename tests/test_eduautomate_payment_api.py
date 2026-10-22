@@ -138,12 +138,24 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_scoped_api_auth_fails_closed_for_invalid_mapping(self):
-        os.environ["EDUAUTOMATE_API_TOKENS_JSON"] = "not-json"
-        response = self.client.get(
-            "/v1/payments/pay_unknown",
-            headers={"X-API-Token": "test-api-secret"},
+        invalid_mappings = (
+            "not-json",
+            "[]",
+            "{}",
+            '{"token-value":""}',
+            '{"token-value":"   "}',
+            '{"token-value":"' + ("s" * 129) + '"}',
         )
-        self.assertEqual(response.status_code, 503)
+        for mapping in invalid_mappings:
+            with self.subTest(mapping_kind="invalid-scoped-token-mapping"):
+                os.environ["EDUAUTOMATE_API_TOKENS_JSON"] = mapping
+                response = self.client.get(
+                    "/v1/payments/pay_unknown",
+                    headers={"X-API-Token": "test-api-secret"},
+                )
+                self.assertEqual(response.status_code, 503)
+                self.assertNotIn("test-api-secret", response.text)
+                self.assertNotIn(mapping, response.text)
 
     def test_unknown_payment_is_not_found(self):
         self.assertEqual(self.get("pay_unknown").status_code, 404)
