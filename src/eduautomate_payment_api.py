@@ -118,17 +118,16 @@ def require_api_token(
 
 def require_configured_admin(
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
-    x_actor_id: str | None = Header(default=None, alias="X-Actor-Id"),
 ) -> str:
-    """MVP gate: one configured admin token; production needs identity/RBAC."""
+    """MVP gate: shared admin token plus server-configured actor label; not production RBAC."""
     expected = os.environ.get("EDUAUTOMATE_ADMIN_TOKEN", "").strip()
     if not expected:
         raise HTTPException(status_code=503, detail="Admin approval is not configured")
     if x_admin_token is None or not __import__("hmac").compare_digest(x_admin_token, expected):
         raise HTTPException(status_code=401, detail="Admin authentication failed")
-    actor = (x_actor_id or "").strip()
+    actor = os.environ.get("EDUAUTOMATE_ADMIN_ACTOR_ID", "").strip()
     if not actor or len(actor) > 128:
-        raise HTTPException(status_code=401, detail="Authenticated actor ID is required")
+        raise HTTPException(status_code=503, detail="Admin actor identity is not configured")
     return actor
 
 
