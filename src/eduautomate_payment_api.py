@@ -209,6 +209,8 @@ def create_payment(
     payment_id = "pay_" + uuid.uuid4().hex
     fingerprint = _canonical_hash(payload.model_dump())
     with connect_db() as conn:
+        # Serialize the idempotency lookup + insert so concurrent retries share one result.
+        conn.execute("BEGIN IMMEDIATE")
         existing = conn.execute(
             "SELECT p.*, e.content_hash AS create_fingerprint FROM payments p "
             "LEFT JOIN payment_events e ON e.payment_id=p.payment_id AND e.event_type='created' "
