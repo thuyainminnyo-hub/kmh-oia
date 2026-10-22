@@ -96,7 +96,7 @@ class RuntimeBundleReleaseGateTests(unittest.TestCase):
             self.verify()
 
     def test_missing_public_trust_root_fails_closed(self):
-        with self.assertRaisesRegex(ValueError, "at least one trusted"):
+        with self.assertRaisesRegex(RuntimeBundleReleaseRejected, "could not be validated"):
             self.verify(trusted_public_keys={})
 
 
