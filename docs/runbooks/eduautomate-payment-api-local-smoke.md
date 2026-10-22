@@ -27,21 +27,25 @@ These tokens are for this local smoke test only. Never commit them, paste them i
 
 ## 2. Start on localhost only
 
-In the same shell:
+Start Uvicorn in the background from the same shell so the disposable test variables are shared by the later commands:
 
 ```bash
-uvicorn src.eduautomate_payment_api:app --host 127.0.0.1 --port 8000
+uvicorn src.eduautomate_payment_api:app --host 127.0.0.1 --port 8000 >"$SMOKE_DIR/uvicorn.log" 2>&1 &
+API_PID="$!"
+trap 'kill "$API_PID" 2>/dev/null || true; wait "$API_PID" 2>/dev/null || true; rm -rf "$SMOKE_DIR"' EXIT
+
+for attempt in $(seq 1 30); do
+  if curl -fsS http://127.0.0.1:8000/healthz >/dev/null; then break; fi
+  sleep 1
+done
+curl -fsS http://127.0.0.1:8000/healthz
 ```
 
-Keep this process bound to `127.0.0.1`; do not change it to `0.0.0.0` or expose the port publicly. In a second terminal, set the three token/actor variables to the values from the first terminal and set `EDUAUTOMATE_DB_PATH` to the same temporary file path. Then run the following checks.
+Keep the service bound to `127.0.0.1`; do not change it to `0.0.0.0` or expose the port publicly. The `trap` stops the local server and removes the temporary directory when the shell exits.
 
 ## 3. Check health and create one synthetic payment record
 
-Health endpoint:
-
-```bash
-curl -fsS http://127.0.0.1:8000/healthz
-```
+Health was checked in step 2.
 
 Create a pending record with synthetic IDs and a placeholder integer amount. The meaning of `amount_minor` for MMK has not been approved; this value is **only a smoke-test fixture**, not a real currency amount:
 
@@ -75,7 +79,28 @@ curl -fsS "http://127.0.0.1:8000/v1/payments/$PAYMENT_ID" \
   -H "X-API-Token: $EDUAUTOMATE_API_TOKEN"
 ```
 
-Repeat the create call from step 3 using the **same** `IDEMPOTENCY_KEY` and same `CREATE_BODY`. It should return the same `payment_id`. Reusing the key with a different payload should return HTTP 409.
+Repeat the create call with the same `IDEMPOTENCY_KEY` and same `CREATE_BODY`; it should return the same `payment_id`:
+
+```bash
+RETRY_RESPONSE="$(curl -fsS -X POST http://127.0.0.1:8000/v1/payments \
+  -H "X-API-Token: $EDUAUTOMATE_API_TOKEN" \
+  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -H "Content-Type: application/json" \
+  --data "$CREATE_BODY")"
+RETRY_ID="$(printf '%s' "$RETRY_RESPONSE" | python -c 'import json,sys; print(json.load(sys.stdin)["payment_id"])')"
+test "$PAYMENT_ID" = "$RETRY_ID" && echo "PASS: idempotent retry reused payment ID"
+```
+
+Reusing the same key with a different payload should return HTTP 409:
+
+```bash
+CONFLICT_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8000/v1/payments \
+  -H "X-API-Token: $EDUAUTOMATE_API_TOKEN" \
+  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -H "Content-Type: application/json" \
+  --data '{"student_id":"smoke-student-placeholder","amount_minor":101,"currency":"MMK","purpose":"smoke_test_only","execution_id":null}')"
+test "$CONFLICT_STATUS" = "409" && echo "PASS: changed payload was rejected"
+```
 
 ## 5. Exercise the internal admin decision path (synthetic only)
 
@@ -92,10 +117,9 @@ Expected: HTTP 200 and `status: "confirmed"` with the configured actor label. He
 
 ## 6. Stop and capture the result
 
-- Stop Uvicorn with Ctrl+C.
+- The shell's `trap` stops the Uvicorn process and deletes the temporary test directory at exit.
 - Record the smoke-test date/time, commit SHA, Python version, and pass/fail result in the implementation notes.
 - Do not attach the temporary database, token values, real student information, or real bank documents to the repository.
-- The disposable test directory may be removed after the server is stopped: `rm -rf "$SMOKE_DIR"`.
 
 ## What this does and does not prove
 
