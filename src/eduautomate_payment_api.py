@@ -119,9 +119,17 @@ def require_api_token(
     raw_mapping = os.environ.get("EDUAUTOMATE_API_TOKENS_JSON", "").strip()
     if not raw_mapping:
         raise HTTPException(status_code=503, detail="Scoped API authentication is not configured")
+    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        parsed: dict[str, object] = {}
+        for key, value in pairs:
+            if key in parsed:
+                raise ValueError("Duplicate key in scoped API authentication configuration")
+            parsed[key] = value
+        return parsed
+
     try:
-        token_to_student = json.loads(raw_mapping)
-    except json.JSONDecodeError:
+        token_to_student = json.loads(raw_mapping, object_pairs_hook=reject_duplicate_keys)
+    except (json.JSONDecodeError, ValueError):
         raise HTTPException(status_code=503, detail="Scoped API authentication configuration is invalid")
     if (
         not isinstance(token_to_student, dict)
