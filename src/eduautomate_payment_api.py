@@ -108,13 +108,52 @@ def init_db() -> None:
 
 def require_api_token(
     x_api_token: str | None = Header(default=None, alias="X-API-Token"),
-) -> None:
-    """Shared-service token for the localhost MVP; not production user RBAC."""
-    expected = os.environ.get("EDUAUTOMATE_API_TOKEN", "").strip()
-    if not expected:
-        raise HTTPException(status_code=503, detail="API authentication is not configured")
-    if x_api_token is None or not __import__("hmac").compare_digest(x_api_token, expected):
+) -> str:
+    """Resolve a prototype caller to one server-configured student scope.
+
+    EDUAUTOMATE_API_TOKENS_JSON must be a JSON object mapping distinct opaque
+    API tokens to student IDs, for example {"token-value":"stu_123"}.
+    This is a localhost/prototype control, not a replacement for production
+    identity, tenant RBAC, token rotation, or a managed identity provider.
+    """
+    raw_mapping = os.environ.get("EDUAUTOMATE_API_TOKENS_JSON", "").strip()
+    if not raw_mapping:
+        raise HTTPException(status_code=503, detail="Scoped API authentication is not configured")
+    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        parsed: dict[str, object] = {}
+        for key, value in pairs:
+            if key in parsed:
+                raise ValueError("Duplicate key in scoped API authentication configuration")
+            parsed[key] = value
+        return parsed
+
+    try:
+        token_to_student = json.loads(raw_mapping, object_pairs_hook=reject_duplicate_keys)
+    except (json.JSONDecodeError, ValueError):
+        raise HTTPException(status_code=503, detail="Scoped API authentication configuration is invalid")
+    if (
+        not isinstance(token_to_student, dict)
+        or not token_to_student
+        or any(
+            not isinstance(token, str)
+            or not token.strip()
+            or len(token) > 512
+            or not isinstance(student_id, str)
+            or not student_id.strip()
+            or len(student_id) > 128
+            for token, student_id in token_to_student.items()
+        )
+    ):
+        raise HTTPException(status_code=503, detail="Scoped API authentication configuration is invalid")
+    if x_api_token is None:
         raise HTTPException(status_code=401, detail="API authentication failed")
+    matched_student_id = None
+    for expected_token, student_id in token_to_student.items():
+        if __import__("hmac").compare_digest(x_api_token, expected_token):
+            matched_student_id = student_id
+    if matched_student_id is None:
+        raise HTTPException(status_code=401, detail="API authentication failed")
+    return matched_student_id
 
 
 def require_configured_admin(
@@ -210,8 +249,10 @@ def healthz() -> dict[str, str]:
 def create_payment(
     payload: PaymentCreate,
     idempotency_key: str = Header(alias="Idempotency-Key", min_length=8, max_length=200),
-    _api_auth: None = Depends(require_api_token),
+    authenticated_student_id: str = Depends(require_api_token),
 ) -> PaymentOut:
+    if payload.student_id != authenticated_student_id:
+        raise HTTPException(status_code=403, detail="Caller is not authorized for this student")
     init_db()
     now = utc_now()
     payment_id = "pay_" + uuid.uuid4().hex
@@ -256,11 +297,15 @@ def create_payment(
 
 
 @app.get("/v1/payments/{payment_id}", response_model=PaymentOut)
-def get_payment(payment_id: str, _api_auth: None = Depends(require_api_token)) -> PaymentOut:
+def get_payment(
+    payment_id: str,
+    authenticated_student_id: str = Depends(require_api_token),
+) -> PaymentOut:
     init_db()
     with connect_db() as conn:
         row = conn.execute("SELECT * FROM payments WHERE payment_id=?", (payment_id,)).fetchone()
-    if row is None:
+    # Use the same non-disclosing response for missing and out-of-scope records.
+    if row is None or row["student_id"] != authenticated_student_id:
         raise HTTPException(status_code=404, detail="Payment record not found")
     return _to_payment(row)
 

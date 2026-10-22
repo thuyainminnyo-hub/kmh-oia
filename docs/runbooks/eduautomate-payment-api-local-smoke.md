@@ -16,14 +16,15 @@ python -m pip install -r requirements-eduautomate-mvp.txt
 Generate one-time development tokens in the current shell and use a temporary SQLite file outside the repository:
 
 ```bash
-export EDUAUTOMATE_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export SMOKE_STUDENT_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export EDUAUTOMATE_API_TOKENS_JSON="$(SMOKE_STUDENT_TOKEN="$SMOKE_STUDENT_TOKEN" python -c 'import json,os; print(json.dumps({os.environ["SMOKE_STUDENT_TOKEN"]:"smoke-student-placeholder"}))')"
 export EDUAUTOMATE_ADMIN_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 export EDUAUTOMATE_ADMIN_ACTOR_ID="local-smoke-admin"
 SMOKE_DIR="$(mktemp -d)"
 export EDUAUTOMATE_DB_PATH="$SMOKE_DIR/payments.sqlite3"
 ```
 
-These tokens are for this local smoke test only. Never commit them, paste them into GitHub/Notion, or reuse them in production.
+These tokens are for this local smoke test only. The prototype API mapping binds the generated student token to the synthetic `smoke-student-placeholder` ID. Never commit them, paste them into GitHub/Notion, or reuse them in production.
 
 ## 2. Start on localhost only
 
@@ -53,7 +54,7 @@ Create a pending record with synthetic IDs and a placeholder integer amount. The
 IDEMPOTENCY_KEY="smoke-$(python -c 'import secrets; print(secrets.token_hex(12))')"
 CREATE_BODY='{"student_id":"smoke-student-placeholder","amount_minor":100,"currency":"MMK","purpose":"smoke_test_only","execution_id":null}'
 CREATE_RESPONSE="$(curl -fsS -X POST http://127.0.0.1:8000/v1/payments \
-  -H "X-API-Token: $EDUAUTOMATE_API_TOKEN" \
+  -H "X-API-Token: $SMOKE_STUDENT_TOKEN" \
   -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
   -H "Content-Type: application/json" \
   --data "$CREATE_BODY")"
@@ -76,14 +77,14 @@ Read with the token; expected HTTP 200:
 
 ```bash
 curl -fsS "http://127.0.0.1:8000/v1/payments/$PAYMENT_ID" \
-  -H "X-API-Token: $EDUAUTOMATE_API_TOKEN"
+  -H "X-API-Token: $SMOKE_STUDENT_TOKEN"
 ```
 
 Repeat the create call with the same `IDEMPOTENCY_KEY` and same `CREATE_BODY`; it should return the same `payment_id`:
 
 ```bash
 RETRY_RESPONSE="$(curl -fsS -X POST http://127.0.0.1:8000/v1/payments \
-  -H "X-API-Token: $EDUAUTOMATE_API_TOKEN" \
+  -H "X-API-Token: $SMOKE_STUDENT_TOKEN" \
   -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
   -H "Content-Type: application/json" \
   --data "$CREATE_BODY")"
@@ -95,7 +96,7 @@ Reusing the same key with a different payload should return HTTP 409:
 
 ```bash
 CONFLICT_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8000/v1/payments \
-  -H "X-API-Token: $EDUAUTOMATE_API_TOKEN" \
+  -H "X-API-Token: $SMOKE_STUDENT_TOKEN" \
   -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
   -H "Content-Type: application/json" \
   --data '{"student_id":"smoke-student-placeholder","amount_minor":101,"currency":"MMK","purpose":"smoke_test_only","execution_id":null}')"
