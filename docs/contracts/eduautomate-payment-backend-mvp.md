@@ -77,6 +77,14 @@ Refund scope: refunds are **not implemented** in this MVP. There is no refund en
 
 Never store API tokens or admin tokens in the database, logs, GitHub, or Notion. Do not store card numbers, security codes, bank passwords, or raw credentials. Minimize student PII in the payment evidence trail.
 
+## Shared-token prototype write gate (Phase 837)
+
+- `POST /v1/payments` returns HTTP 503 unless `EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED=true` is explicitly set.
+- This opt-in exists only for disposable localhost development/synthetic smoke tests. It does not bind a shared token to a student or tenant and is not an authorization mechanism.
+- Never set this opt-in in a public, shared, production, or untrusted multi-user environment. Do not use real student/payment data under the prototype path.
+- Identity mode continues to fail closed until persisted tenant scope and a reviewed identity-provider adapter are implemented.
+- `GET /v1/payments/{payment_id}` shared-token mode and shared-token admin decisions are still prototype-only. A write guard does not make the remaining operations tenant-safe.
+
 ## Security limitations and requirements
 
 Prototype controls:
