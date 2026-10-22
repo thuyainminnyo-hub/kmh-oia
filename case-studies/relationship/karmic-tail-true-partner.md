@@ -25,10 +25,10 @@ Use the 22 Major Arcana archetypes as optional reflection prompts about relation
 Run from the repository root:
 
 ```bash
-python -m unittest tests.test_karmic_tail_registry -v
+python -m unittest discover -s tests -v
 ```
 
-The test suite covers the 22-card inventory, duplicate and missing IDs, required safeguards, and user-confirmation handling.
+The test suite covers the 22-card inventory, duplicate and missing IDs, required safeguards, user-confirmation handling, and invalid card-ID types.
 
 ## Status and limitations
 
