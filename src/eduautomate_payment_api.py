@@ -261,7 +261,12 @@ class AdminDecision(BaseModel):
         return value
 
 
+production_mode = os.environ.get("EDUAUTOMATE_ENV", "").strip().lower() == "production"
+
 app = FastAPI(
+    docs_url=None if production_mode else "/docs",
+    redoc_url=None if production_mode else "/redoc",
+    openapi_url=None if production_mode else "/openapi.json",
     title="EduAutomate Payment Record MVP",
     version="0.1.1",
     description=(
