@@ -279,8 +279,14 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             "iss":"https://issuer.test","aud":"eduautomate-test","sub":"stu-a",
             "student_id":"stu-a","tenant_id":"tenant-a","role":"student","exp":int(time.time())-10
         })}
-        self.assertEqual(self.client.get(f"/v1/payments/{created['payment_id']}",headers=headers).status_code, 401)
-
+        with patch("src.eduautomate_payment_api._get_record_by_id") as record_lookup, patch(
+            "src.eduautomate_payment_api.init_db"
+        ) as init_db, patch("src.eduautomate_payment_api.connect_db") as connect_db:
+            response = self.client.get("/v1/payments/" + created["payment_id"], headers=headers)
+        self.assertEqual(response.status_code, 401)
+        record_lookup.assert_not_called()
+        init_db.assert_not_called()
+        connect_db.assert_not_called()
     def test_shared_token_admin_decision_fails_closed_without_explicit_prototype_opt_in(self):
         created = self.create(key="admin-prototype-opt-in").json()
         os.environ.pop("EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED", None)
