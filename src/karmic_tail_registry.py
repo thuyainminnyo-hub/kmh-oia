@@ -131,6 +131,9 @@ def evaluate_pattern(card: dict[str, Any], user_confirmation: str) -> dict[str, 
 
 def get_card(card_id: int, registry: dict[str, Any] | None = None) -> dict[str, Any]:
     """Return a card by canonical ID or raise KeyError for an unknown ID."""
+    # bool is a subclass of int, but True/False are not valid card IDs.
+    if isinstance(card_id, bool) or not isinstance(card_id, int):
+        raise KeyError(f"Unknown Karmic Tail card ID: {card_id!r}")
     current = registry if registry is not None else load_registry()
     validate_registry(current)
     for card in current["archetypes"]:
