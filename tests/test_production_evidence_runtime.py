@@ -1,6 +1,13 @@
+import base64
 import tempfile
 import unittest
 from pathlib import Path
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from scripts.create_runtime_bundle_attestation import create_signed_runtime_bundle_attestation
+from scripts.package_runtime_bundle import build_runtime_bundle
+from src.runtime_bundle_attestation_io import write_runtime_bundle_attestation
 
 from src.live_operating_console import LiveOperatingConsole
 from src.production_evidence_runtime import (
@@ -35,7 +42,8 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                 config=ProductionEvidenceRuntimeConfig(
                     sqlite_path=str(Path(tmp) / "evidence-replay.sqlite3"),
                     allowed_source_providers=("test-provider",),
-                ),
+                
+                    runtime_environment="test", require_signed_release_bundle=False),
                 trusted_source_adapter=self.adapter,
             )
             self.assertTrue(bridge.trusted_source_verifier.replay_store.health_check())
@@ -46,29 +54,35 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
 
     def test_rejects_empty_sqlite_path(self):
         with self.assertRaisesRegex(ValueError, "non-empty"):
-            ProductionEvidenceRuntimeConfig("", ("test-provider",)).validate()
+            ProductionEvidenceRuntimeConfig("", ("test-provider",),
+                    runtime_environment="test", require_signed_release_bundle=False).validate()
 
     def test_rejects_memory_sqlite_path(self):
         with self.assertRaisesRegex(ValueError, "file-backed SQLite path"):
-            ProductionEvidenceRuntimeConfig(":memory:", ("test-provider",)).validate()
+            ProductionEvidenceRuntimeConfig(":memory:", ("test-provider",),
+                    runtime_environment="test", require_signed_release_bundle=False).validate()
 
 
     def test_rejects_uri_in_memory_sqlite_path(self):
         with self.assertRaisesRegex(ValueError, "file-backed SQLite path"):
-            ProductionEvidenceRuntimeConfig("file::memory:?cache=shared", ("test-provider",)).validate()
+            ProductionEvidenceRuntimeConfig("file::memory:?cache=shared", ("test-provider",),
+                    runtime_environment="test", require_signed_release_bundle=False).validate()
 
 
     def test_rejects_sqlite_uri_even_when_it_looks_file_backed(self):
         with self.assertRaisesRegex(ValueError, "file-backed SQLite path"):
-            ProductionEvidenceRuntimeConfig("file:/var/lib/kmh-oia/replay.sqlite3?mode=rw", ("test-provider",)).validate()
+            ProductionEvidenceRuntimeConfig("file:/var/lib/kmh-oia/replay.sqlite3?mode=rw", ("test-provider",),
+                    runtime_environment="test", require_signed_release_bundle=False).validate()
 
     def test_requires_provider_allowlist_to_be_explicit_tuple(self):
         with self.assertRaisesRegex(ValueError, "explicit tuple"):
-            ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", ["test-provider"]).validate()
+            ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", ["test-provider"],
+                    runtime_environment="test", require_signed_release_bundle=False).validate()
 
     def test_requires_explicit_provider_allowlist(self):
         with self.assertRaisesRegex(ValueError, "at least one explicit"):
-            ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", ()).validate()
+            ProductionEvidenceRuntimeConfig("/tmp/receipts.sqlite3", (),
+                    runtime_environment="test", require_signed_release_bundle=False).validate()
 
 
     def test_rejects_blank_entry_in_provider_allowlist_instead_of_silently_dropping_it(self):
@@ -77,7 +91,8 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                 ProductionEvidenceRuntimeConfig(
                     str(Path(tmp) / "replay.sqlite3"),
                     ("test-provider", "   "),
-                ).validate()
+                
+                    runtime_environment="test", require_signed_release_bundle=False).validate()
 
     def test_rejects_non_string_entry_in_provider_allowlist(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -85,13 +100,15 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                 ProductionEvidenceRuntimeConfig(
                     str(Path(tmp) / "replay.sqlite3"),
                     ("test-provider", 17),
-                ).validate()
+                
+                    runtime_environment="test", require_signed_release_bundle=False).validate()
 
     def test_rejects_duplicate_provider_allowlist(self):
         with self.assertRaisesRegex(ValueError, "must be unique"):
             ProductionEvidenceRuntimeConfig(
                 "/tmp/receipts.sqlite3", ("test-provider", "test-provider")
-            ).validate()
+            ,
+                    runtime_environment="test", require_signed_release_bundle=False).validate()
 
     def test_rejects_missing_provider_adapter(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -101,7 +118,8 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                     config=ProductionEvidenceRuntimeConfig(
                         str(Path(tmp) / "evidence-replay.sqlite3"),
                         ("test-provider",),
-                    ),
+                    
+                    runtime_environment="test", require_signed_release_bundle=False),
                     trusted_source_adapter=None,
                 )
 
@@ -115,7 +133,8 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                 config=ProductionEvidenceRuntimeConfig(
                     str(Path(tmp) / "evidence-replay.sqlite3"),
                     ("test-provider",),
-                ),
+                
+                    runtime_environment="test", require_signed_release_bundle=False),
                 trusted_source_adapter=adapter,
             )
             self.assertEqual(
@@ -133,7 +152,8 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                     config=ProductionEvidenceRuntimeConfig(
                         str(Path(tmp) / "evidence-replay.sqlite3"),
                         ("test-provider",),
-                    ),
+                    
+                    runtime_environment="test", require_signed_release_bundle=False),
                     trusted_source_adapter=adapter,
                 )
 
@@ -160,7 +180,8 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                     config=ProductionEvidenceRuntimeConfig(
                         str(Path(tmp) / "evidence-replay.sqlite3"),
                         ("test-provider",),
-                    ),
+                    
+                    runtime_environment="test", require_signed_release_bundle=False),
                     trusted_source_adapter=BrokenProviderNameAdapter(),
                 )
         self.assertNotIn("private adapter error detail", str(error.exception))
@@ -175,7 +196,8 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                     config=ProductionEvidenceRuntimeConfig(
                         str(Path(tmp) / "evidence-replay.sqlite3"),
                         ("test-provider",),
-                    ),
+                    
+                    runtime_environment="test", require_signed_release_bundle=False),
                     trusted_source_adapter=adapter,
                 )
 
@@ -187,7 +209,8 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
                     config=ProductionEvidenceRuntimeConfig(
                         str(Path(tmp) / "evidence-replay.sqlite3"),
                         ("test-provider",),
-                    ),
+                    
+                    runtime_environment="test", require_signed_release_bundle=False),
                     trusted_source_adapter=self.adapter,
                 )
 
@@ -220,7 +243,8 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             db_path = str(Path(tmp) / "durable-replay.sqlite3")
             first = build_production_evidence_runtime(
                 LiveOperatingConsole(date="2026-10-20"),
-                config=ProductionEvidenceRuntimeConfig(db_path, ("test-provider",)),
+                config=ProductionEvidenceRuntimeConfig(db_path, ("test-provider",),
+                    runtime_environment="test", require_signed_release_bundle=False),
                 trusted_source_adapter=StableReceiptAdapter(),
             )
             first_result = first.trusted_source_verifier.verify("record-unique", "execution-unique")
@@ -230,12 +254,173 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             # SQLite file is retained. Reuse the same provider record and payload.
             second = build_production_evidence_runtime(
                 LiveOperatingConsole(date="2026-10-20"),
-                config=ProductionEvidenceRuntimeConfig(db_path, ("test-provider",)),
+                config=ProductionEvidenceRuntimeConfig(db_path, ("test-provider",),
+                    runtime_environment="test", require_signed_release_bundle=False),
                 trusted_source_adapter=StableReceiptAdapter(),
             )
             second_result = second.trusted_source_verifier.verify("record-unique", "execution-unique")
             self.assertFalse(second_result.verified)
             self.assertTrue(any("replay" in reason.lower() for reason in second_result.reasons))
+
+
+    def test_partial_release_bundle_configuration_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "release bundle activation requires every"):
+                ProductionEvidenceRuntimeConfig(
+                    sqlite_path=str(Path(tmp) / "replay.sqlite3"),
+                    allowed_source_providers=("test-provider",),
+                    runtime_bundle_path=str(Path(tmp) / "bundle.tar.gz"),
+                ).validate()
+
+    def test_invalid_release_bundle_is_rejected_before_bridge_or_store_creation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = root / "bundle.tar.gz"
+            bundle.write_bytes(b"not-a-runtime-bundle")
+            attestation = root / "attestation.json"
+            attestation.write_text("{}", encoding="utf-8")
+            config = ProductionEvidenceRuntimeConfig(
+                sqlite_path=str(root / "replay.sqlite3"),
+                allowed_source_providers=("test-provider",),
+                runtime_bundle_path=str(bundle),
+                runtime_source_root=str(root),
+                runtime_attestation_path=str(attestation),
+                expected_source_revision="a" * 40,
+                expected_build_run_id="12345",
+                expected_artifact_id="67890",
+                expected_artifact_name="kmh-oia-runtime-bundle",
+                expected_artifact_digest="sha256:" + "b" * 64,
+                trusted_release_public_keys={"release-key": b"k" * 32},
+                allowed_release_issuers=("kmh-release-signer",),
+                allowed_release_subjects=("repo:thuyainminnyo-hub/kmh-oia:ref:refs/heads/main",),
+            )
+            with self.assertRaisesRegex(ValueError, "configured runtime release bundle or provenance did not verify"):
+                build_production_evidence_runtime(
+                    self.console,
+                    config=config,
+                    trusted_source_adapter=self.adapter,
+                )
+            self.assertFalse((root / "replay.sqlite3").exists())
+
+    def _signed_release_config(self, root: Path):
+        revision = "a" * 40
+        bundle = build_runtime_bundle(root, revision, root / "runtime-source-bundle.tar.gz")
+        key = Ed25519PrivateKey.generate()
+        public_key = key.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw,
+        )
+        artifact_digest = "sha256:" + "b" * 64
+        env = {
+            "KMH_OIA_ATTESTATION_PRIVATE_KEY_B64": base64.b64encode(key.private_bytes_raw()).decode("ascii"),
+            "KMH_OIA_ATTESTATION_KEY_ID": "release-test-key",
+            "KMH_OIA_ATTESTATION_ISSUER": "kmh-release-signer-test",
+            "KMH_OIA_ATTESTATION_SUBJECT": "repo:thuyainminnyo-hub/kmh-oia:ref:refs/heads/main",
+            "KMH_OIA_ENVIRONMENT": "test",
+        }
+        statement = create_signed_runtime_bundle_attestation(
+            bundle, source_revision=revision, build_run_id="12345", artifact_id="67890",
+            artifact_name="kmh-oia-runtime-bundle", artifact_digest=artifact_digest, environ=env,
+        )
+        attestation = root / "runtime-bundle-attestation.json"
+        write_runtime_bundle_attestation(attestation, statement)
+        config = ProductionEvidenceRuntimeConfig(
+            sqlite_path=str(root / "runtime-evidence.sqlite3"),
+            allowed_source_providers=("test-provider",),
+            runtime_bundle_path=str(bundle), runtime_source_root=str(root), runtime_attestation_path=str(attestation),
+            expected_source_revision=revision, expected_build_run_id="12345",
+            expected_artifact_id="67890", expected_artifact_name="kmh-oia-runtime-bundle",
+            expected_artifact_digest=artifact_digest,
+            trusted_release_public_keys={"release-test-key": public_key},
+            allowed_release_issuers=("kmh-release-signer-test",),
+            allowed_release_subjects=("repo:thuyainminnyo-hub/kmh-oia:ref:refs/heads/main",),
+        )
+        return config, bundle, attestation
+
+    def test_valid_signed_release_bundle_verifies_before_runtime_factory_opens_store(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "src").mkdir()
+            (root / "src" / "runtime.py").write_text("VALUE = 817\n", encoding="utf-8")
+            (root / "requirements.txt").write_text("cryptography==50.0.2\n", encoding="utf-8")
+            config, bundle, attestation = self._signed_release_config(root)
+            evidence = config.validate_release_bundle()
+            self.assertEqual(evidence["source_revision"], "a" * 40)
+            self.assertEqual(evidence["build_run_id"], "12345")
+            self.assertTrue(evidence["files_verified"] >= 2)
+            bridge = build_production_evidence_runtime(
+                self.console, config=config, trusted_source_adapter=self.adapter,
+            )
+            self.assertTrue(bridge.trusted_source_verifier.replay_store.health_check())
+            self.assertTrue((root / "runtime-evidence.sqlite3").exists())
+
+    def test_runtime_source_mismatch_fails_before_evidence_store_creation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "src").mkdir()
+            (root / "src" / "runtime.py").write_text("VALUE = 817\\n", encoding="utf-8")
+            (root / "requirements.txt").write_text("cryptography==50.0.2\\n", encoding="utf-8")
+            config, bundle, attestation = self._signed_release_config(root)
+            (root / "src" / "runtime.py").write_text("VALUE = replaced after signing\\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "configured runtime release bundle or provenance did not verify"):
+                build_production_evidence_runtime(self.console, config=config, trusted_source_adapter=self.adapter)
+            self.assertFalse((root / "runtime-evidence.sqlite3").exists())
+
+    def test_bad_release_signature_fails_before_evidence_store_creation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "src").mkdir()
+            (root / "src" / "runtime.py").write_text("VALUE = 817\n", encoding="utf-8")
+            (root / "requirements.txt").write_text("cryptography==50.0.2\n", encoding="utf-8")
+            config, bundle, attestation = self._signed_release_config(root)
+            attestation.write_text(attestation.read_text(encoding="utf-8").replace("signature", "sigNAture"), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "configured runtime release bundle or provenance did not verify"):
+                build_production_evidence_runtime(self.console, config=config, trusted_source_adapter=self.adapter)
+            self.assertFalse((root / "runtime-evidence.sqlite3").exists())
+
+
+    def test_production_startup_requires_signed_release_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = ProductionEvidenceRuntimeConfig(
+                sqlite_path=str(Path(tmp) / "replay.sqlite3"),
+                allowed_source_providers=("test-provider",),
+            )
+            with self.assertRaisesRegex(ValueError, "production startup requires a signed runtime release bundle"):
+                build_production_evidence_runtime(
+                    self.console, config=config, trusted_source_adapter=self.adapter,
+                )
+            self.assertFalse((Path(tmp) / "replay.sqlite3").exists())
+
+    def test_production_cannot_disable_signed_release_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = ProductionEvidenceRuntimeConfig(
+                sqlite_path=str(Path(tmp) / "replay.sqlite3"),
+                allowed_source_providers=("test-provider",),
+                require_signed_release_bundle=False,
+            )
+            with self.assertRaisesRegex(ValueError, "cannot be disabled for production or staging"):
+                config.validate()
+            self.assertFalse((Path(tmp) / "replay.sqlite3").exists())
+
+    def test_staging_cannot_disable_signed_release_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = ProductionEvidenceRuntimeConfig(
+                sqlite_path=str(Path(tmp) / "replay.sqlite3"),
+                allowed_source_providers=("test-provider",),
+                runtime_environment="staging",
+                require_signed_release_bundle=False,
+            )
+            with self.assertRaisesRegex(ValueError, "cannot be disabled for production or staging"):
+                config.validate()
+
+    def test_unknown_runtime_environment_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = ProductionEvidenceRuntimeConfig(
+                sqlite_path=str(Path(tmp) / "replay.sqlite3"),
+                allowed_source_providers=("test-provider",),
+                runtime_environment="prod-ish",
+            )
+            with self.assertRaisesRegex(ValueError, "runtime_environment must be one of"):
+                config.validate()
 
 
 if __name__ == "__main__":

@@ -5,20 +5,26 @@ before learning admission. ExecutionRecord and verifier-result dataclasses are
 application contracts, not unforgeable security capabilities; the verifier is
 therefore the trust source rather than a caller-supplied result object's type.
 """
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
+from datetime import datetime, timezone
 from typing import Protocol
+import hashlib
+import json
 
 from src.adaptation_engine import AdaptationEngine, AdaptationProposal
 from src.decision_outcome_evaluator import DecisionOutcome
 from src.decision_queue import DecisionItem
 from src.evidence_admission_gate import EvidenceAdmissionResult
 from src.live_runtime_bridge import ExecutionRecord
+from src.learning_admission_repository import AdmissionConflictError, SQLiteLearningAdmissionRepository
 from src.operating_memory import OperatingMemory, OperatingMemoryRecord
 from src.trusted_source_receipt import (
     ReceiptVerificationResult,
     TrustedSourceReceiptVerifier,
 )
 from src.verified_learning_admission import VerifiedLearningAdmission
+from src.runtime_artifact_attestation import RuntimeArtifactAttestation, RuntimeArtifactAttestationVerifier
+from src.runtime_artifact_loader import VerifiedRuntimeArtifacts
 
 
 @dataclass(frozen=True)
@@ -39,6 +45,7 @@ class TrustedOutcomeClassifier(Protocol):
         execution: ExecutionRecord,
         receipt: ReceiptVerificationResult,
     ) -> TrustedOutcomeClassification: ...
+
 
 
 @dataclass(frozen=True)
@@ -63,11 +70,31 @@ class TrustedDecisionLearningService:
         classifier: TrustedOutcomeClassifier | None,
         receipt_verifier: TrustedSourceReceiptVerifier | None,
         memory: OperatingMemory,
+        repository: SQLiteLearningAdmissionRepository,
         adaptation_engine: AdaptationEngine | None = None,
+        classifier_artifact_sha256: str | None = None,
+        policy_artifact_sha256: str | None = None,
+        artifact_attestation: RuntimeArtifactAttestation | None = None,
+        artifact_attestation_verifier: RuntimeArtifactAttestationVerifier | None = None,
+        runtime_artifacts: VerifiedRuntimeArtifacts | None = None,
     ) -> None:
+        self._runtime_artifacts = runtime_artifacts
+        if runtime_artifacts is not None:
+            # Use identities derived from the verified byte bundle, never caller-only digest strings.
+            classifier = runtime_artifacts.classifier
+            classifier_artifact_sha256 = runtime_artifacts.classifier_sha256
+            policy_artifact_sha256 = runtime_artifacts.policy_sha256
+            artifact_attestation = runtime_artifacts.attestation
+            artifact_attestation_verifier = runtime_artifacts.verifier
         self._classifier = classifier
+        self._classifier_artifact_sha256 = self._normalize_artifact_digest(classifier_artifact_sha256)
+        self._policy_artifact_sha256 = self._normalize_artifact_digest(policy_artifact_sha256)
+        self._artifact_attestation = artifact_attestation
+        self._artifact_attestation_verifier = artifact_attestation_verifier
         self._receipt_verifier = receipt_verifier
+        # Kept as a read-side dependency; transactional repository owns writes.
         self._memory = memory
+        self._repository = repository
         self._adaptation_engine = adaptation_engine or AdaptationEngine()
 
     def capture_execution(
@@ -158,6 +185,45 @@ class TrustedDecisionLearningService:
             return blocked("confidence must be between 0 and 1.")
         if self._classifier is None:
             return blocked("Trusted provider outcome classifier is not configured.")
+        if self._classifier_artifact_sha256 is None:
+            return blocked("Immutable classifier artifact SHA-256 is not configured.")
+        if self._policy_artifact_sha256 is None:
+            return blocked("Immutable policy artifact SHA-256 is not configured.")
+        if self._artifact_attestation is None:
+            return blocked("Runtime artifact attestation is not configured.")
+        if self._artifact_attestation_verifier is None:
+            return blocked("Trusted runtime artifact attestation verifier is not configured.")
+        attestation = self._artifact_attestation
+        if (
+            not isinstance(attestation, RuntimeArtifactAttestation)
+            or not isinstance(attestation.issuer, str) or not attestation.issuer.strip()
+            or not isinstance(attestation.subject, str) or not attestation.subject.strip()
+            or not isinstance(attestation.attestation_id, str) or not attestation.attestation_id.strip()
+            or self._normalize_artifact_digest(attestation.classifier_sha256) != self._classifier_artifact_sha256
+            or self._normalize_artifact_digest(attestation.policy_sha256) != self._policy_artifact_sha256
+        ):
+            return blocked("Runtime artifact attestation identity is invalid or mismatched.")
+        try:
+            attestation_valid = self._artifact_attestation_verifier.verify(
+                attestation, expected_classifier_sha256=self._classifier_artifact_sha256,
+                expected_policy_sha256=self._policy_artifact_sha256,
+            )
+        except Exception:
+            attestation_valid = False
+        if attestation_valid is not True:
+            return blocked("Runtime artifact attestation verification failed closed.")
+        if self._runtime_artifacts is None:
+            return blocked("Verified runtime artifact loader bundle is not configured.")
+        if self._runtime_artifacts.classifier is not self._classifier:
+            return blocked("Loaded classifier object does not match the verified artifact bundle.")
+        if (
+            self._runtime_artifacts.attestation != self._artifact_attestation
+            or self._runtime_artifacts.verifier is not self._artifact_attestation_verifier
+            or self._runtime_artifacts.classifier_sha256 != self._classifier_artifact_sha256
+            or self._runtime_artifacts.policy_sha256 != self._policy_artifact_sha256
+            or self._runtime_artifacts.verify_integrity() is not True
+        ):
+            return blocked("Verified runtime artifact bundle integrity or provenance validation failed.")
 
         # Re-fetch and re-authenticate the provider receipt at the learning
         # boundary. A consumed/replayed receipt fails closed in the replay store.
@@ -189,6 +255,26 @@ class TrustedDecisionLearningService:
             return blocked("Runtime raw observation differs from independent receipt.")
         if not expected_source:
             return blocked("Trusted source attribution is incomplete.")
+
+        try:
+            admission_key, fingerprint = self._admission_identity(
+                decision, execution, receipt, evidence_id=evidence_id,
+                policy_version=policy_version, next_command=next_command,
+                confidence=float(confidence),
+            )
+        except (TypeError, ValueError):
+            return blocked("Artifact identity or admission request is invalid.")
+        try:
+            stored = self._repository.get(admission_key)
+        except Exception:
+            return blocked("Transactional admission store is unavailable; learning was not admitted.")
+        if stored is not None:
+            if stored.fingerprint != fingerprint:
+                return blocked("Admission identity was reused with different verified request content.")
+            try:
+                return self._restore_result(stored.result)
+            except Exception:
+                return blocked("Persisted admission result could not be restored safely.")
 
         placeholder = DecisionOutcome(
             decision_id=decision.id,
@@ -235,44 +321,158 @@ class TrustedDecisionLearningService:
             quality=quality,
             reason=reason,
         )
-        memory = self._memory.record(
-            command_id=execution.command_id,
-            wanted=decision.recommended_action,
-            did=execution.response or "Runtime execution completed.",
-            actual=receipt.raw_observation,
-            verified=(
-                f"Receipt independently verified by {receipt.provider_name} using "
-                f"{receipt.verification_method}; evidence admitted under "
-                f"{policy_version.strip()}."
-            ),
-            decision=f"Decision {decision.id}: {quality}",
-            learned=f"Trusted outcome classification admitted: {reason}",
-            changed=(
-                "Create a governed adaptation proposal for review."
-                if quality == "POOR"
-                else "Retain the current rule; no adaptation proposal is required."
-            ),
-            next_command=next_command.strip(),
-            confidence=float(confidence),
-        )
-        adaptation = None
-        if quality == "POOR":
-            adaptation = self._adaptation_engine.propose(
-                memory,
-                pattern=f"decision:{decision.id}",
-                problem=reason,
-                proposed_change=f"Review the decision rule for {decision.signal_kind}.",
-                expected_effect=f"Improve the {decision.signal_kind} outcome under existing guardrails.",
-                next_experiment=next_command.strip(),
+        try:
+            fields = {
+                "wanted": decision.recommended_action,
+                "did": execution.response or "Runtime execution completed.",
+                "actual": receipt.raw_observation,
+                "verified": f"Receipt independently verified by {receipt.provider_name} using {receipt.verification_method}; evidence admitted under {policy_version.strip()}.",
+                "decision": f"Decision {decision.id}: {quality}",
+                "learned": f"Trusted outcome classification admitted: {reason}",
+                "changed": "Create a governed adaptation proposal for review." if quality == "POOR" else "Retain the current rule; no adaptation proposal is required.",
+                "next_command": next_command.strip(),
+            }
+            for name, value in fields.items():
+                if not isinstance(value, str) or not value.strip():
+                    return blocked(f"Learning record field {name} is missing or invalid.", admission)
+            memory = OperatingMemoryRecord(
+                command_id=execution.command_id.strip(), timestamp=datetime.now(timezone.utc).isoformat(),
+                **{name: value.strip() for name, value in fields.items()}, confidence=float(confidence),
             )
-        return TrustedDecisionLearningResult(
-            admitted=True,
-            decision_id=decision.id,
-            command_id=execution.command_id,
-            execution_id=admission.execution_id,
-            admission=admission,
-            outcome=outcome,
-            memory=memory,
-            adaptation=adaptation,
+            adaptation = None
+            if quality == "POOR":
+                adaptation = self._adaptation_engine.propose(
+                    memory, pattern=f"decision:{decision.id}", problem=reason,
+                    proposed_change=f"Review the decision rule for {decision.signal_kind}.",
+                    expected_effect=f"Improve the {decision.signal_kind} outcome under existing guardrails.",
+                    next_experiment=next_command.strip(),
+                )
+                adaptation = replace(adaptation, id=f"adapt:{admission_key.removeprefix('learning:')}", status="PROPOSED")
+        except Exception:
+            return blocked("Learning payload construction failed closed.", admission)
+
+        pending_result = TrustedDecisionLearningResult(
+            admitted=True, decision_id=decision.id, command_id=execution.command_id,
+            execution_id=admission.execution_id, admission=admission, outcome=outcome,
+            memory=memory, adaptation=adaptation,
             reasons=("Independent receipt verification, attribution, evidence admission, and outcome classification passed.",),
+        )
+        key_digest = hashlib.sha256(admission_key.encode("utf-8")).hexdigest()
+        audit = {
+            "event_id": f"audit:{key_digest}", "admission_key": admission_key,
+            "kind": "TRUSTED_LEARNING_ADMITTED", "decision_id": decision.id,
+            "command_id": execution.command_id, "execution_id": admission.execution_id,
+            "trace_id": admission.trace_id, "evidence_id": admission.evidence_id,
+            "policy_version": admission.policy_version, "provider_name": receipt.provider_name,
+            "source_record_id": receipt.source_record_id, "content_hash": receipt.content_hash,
+            "classifier_artifact_sha256": self._classifier_artifact_sha256,
+            "policy_artifact_sha256": self._policy_artifact_sha256,
+            "artifact_attestation_issuer": self._artifact_attestation.issuer,
+            "artifact_attestation_subject": self._artifact_attestation.subject,
+            "artifact_attestation_id": self._artifact_attestation.attestation_id,
+            "artifact_attestation_key_id": self._artifact_attestation.key_id or None,
+            "artifact_attestation_source_revision": self._artifact_attestation.source_revision or None,
+            "artifact_attestation_build_run_id": self._artifact_attestation.build_run_id or None,
+            "artifact_attestation_issued_at": self._artifact_attestation.issued_at or None,
+            "artifact_attestation_signature_sha256": (
+                hashlib.sha256(self._artifact_attestation.signature.encode("utf-8")).hexdigest()
+                if self._artifact_attestation.signature else None
+            ),
+            "outcome_quality": quality,
+        }
+        try:
+            committed = self._repository.commit(
+                admission_key=admission_key, fingerprint=fingerprint,
+                learning_record=asdict(memory),
+                adaptation_proposal=asdict(adaptation) if adaptation is not None else None,
+                audit_event=audit, result=asdict(pending_result),
+            )
+            return self._restore_result(committed.result)
+        except AdmissionConflictError:
+            return blocked("Admission identity was concurrently reused with different request content.", admission)
+        except Exception:
+            return blocked("Transactional learning persistence failed; admission was not confirmed.", admission)
+
+    def _admission_identity(
+        self, decision: DecisionItem, execution: ExecutionRecord,
+        receipt: ReceiptVerificationResult, *, evidence_id: str,
+        policy_version: str, next_command: str, confidence: float,
+    ) -> tuple[str, str]:
+        loop, gate = execution.operating_loop, execution.admission
+        identity = {"decision_id": decision.id, "execution_id": loop.execution_id, "evidence_id": evidence_id.strip()}
+        admission_key = "learning:" + hashlib.sha256(json.dumps(
+            identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")).hexdigest()
+        classifier_type = type(self._classifier)
+        classifier = f"{classifier_type.__module__}.{classifier_type.__qualname__}"
+        classifier_version = getattr(self._classifier, "version", None)
+        if isinstance(classifier_version, str) and classifier_version.strip():
+            classifier = f"{classifier}@{classifier_version.strip()}"
+        # A class name/version is useful metadata, but it is not proof of the
+        # artifact bytes. These externally verified immutable digests are part
+        # of the canonical request fingerprint and audit trail.
+        if self._classifier_artifact_sha256 is None or self._policy_artifact_sha256 is None:
+            raise ValueError("immutable classifier and policy artifact digests are required")
+        request = {
+            "schema": "trusted-learning-admission-v1", "identity": identity,
+            "decision": asdict(decision),
+            "execution": {"command_id": execution.command_id, "response": execution.response,
+                "final_status": execution.final_status, "qa_status": execution.qa_status,
+                "source_decision_id": execution.source_decision_id,
+                "operating_loop": asdict(loop), "admission": asdict(gate)},
+            "receipt": {"provider_name": receipt.provider_name, "source_record_id": receipt.source_record_id,
+                "execution_id": receipt.execution_id, "raw_observation": receipt.raw_observation,
+                "verification_method": receipt.verification_method, "content_hash": receipt.content_hash},
+            "policy_version": policy_version.strip(), "next_command": next_command.strip(),
+            "confidence": confidence, "classifier": classifier,
+            "classifier_artifact_sha256": self._classifier_artifact_sha256,
+            "policy_artifact_sha256": self._policy_artifact_sha256,
+            "attestation_issuer": self._artifact_attestation.issuer if self._artifact_attestation else None,
+            "attestation_subject": self._artifact_attestation.subject if self._artifact_attestation else None,
+            "attestation_id": self._artifact_attestation.attestation_id if self._artifact_attestation else None,
+            "attestation_key_id": self._artifact_attestation.key_id if self._artifact_attestation else None,
+            "attestation_source_revision": self._artifact_attestation.source_revision if self._artifact_attestation else None,
+            "attestation_build_run_id": self._artifact_attestation.build_run_id if self._artifact_attestation else None,
+            "attestation_issued_at": self._artifact_attestation.issued_at if self._artifact_attestation else None,
+            "attestation_signature_sha256": (
+                hashlib.sha256(self._artifact_attestation.signature.encode("utf-8")).hexdigest()
+                if self._artifact_attestation and self._artifact_attestation.signature else None
+            ),
+        }
+        fingerprint = "sha256:" + hashlib.sha256(json.dumps(
+            request, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")).hexdigest()
+        return admission_key, fingerprint
+
+    @staticmethod
+    def _normalize_artifact_digest(value: str | None) -> str | None:
+        """Accept only a bare or sha256:-prefixed, 64-hex SHA-256 digest."""
+        if not isinstance(value, str):
+            return None
+        candidate = value.strip()
+        if candidate.startswith("sha256:"):
+            candidate = candidate[7:]
+        if len(candidate) != 64 or any(ch not in "0123456789abcdefABCDEF" for ch in candidate):
+            return None
+        return candidate.lower()
+
+    @staticmethod
+    def _restore_result(payload: dict) -> TrustedDecisionLearningResult:
+        if not isinstance(payload, dict):
+            raise TypeError("persisted result must be an object")
+        admission_payload = payload.get("admission")
+        admission = None
+        if admission_payload is not None:
+            admission_payload = dict(admission_payload)
+            admission_payload["admission_reasons"] = tuple(admission_payload["admission_reasons"])
+            admission = VerifiedLearningAdmission(**admission_payload)
+        outcome_payload, memory_payload, adaptation_payload = payload.get("outcome"), payload.get("memory"), payload.get("adaptation")
+        return TrustedDecisionLearningResult(
+            admitted=bool(payload["admitted"]), decision_id=payload["decision_id"],
+            command_id=payload["command_id"], execution_id=payload.get("execution_id"),
+            admission=admission,
+            outcome=DecisionOutcome(**outcome_payload) if outcome_payload is not None else None,
+            memory=OperatingMemoryRecord(**memory_payload) if memory_payload is not None else None,
+            adaptation=AdaptationProposal(**adaptation_payload) if adaptation_payload is not None else None,
+            reasons=tuple(payload["reasons"]),
         )
