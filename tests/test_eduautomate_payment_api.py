@@ -193,6 +193,21 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         }, json={"student_id":"stu-a","amount_minor":100,"currency":"MMK","purpose":"course_fee"})
         self.assertEqual(response.status_code, 503)
 
+    def test_identity_mode_disables_reads_until_tenant_scope_is_persisted(self):
+        created = self.create().json()
+        os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
+        for tenant_id, student_id, role in (
+            ("tenant-a", "stu_test", "student"),
+            ("tenant-b", "stu-other", "student"),
+            ("tenant-a", "admin-1", "payment_admin"),
+        ):
+            with self.subTest(tenant_id=tenant_id, student_id=student_id, role=role):
+                response = self.client.get(
+                    f"/v1/payments/{created['payment_id']}",
+                    headers=self.identity_headers("subject-1", student_id, tenant_id, role),
+                )
+                self.assertEqual(response.status_code, 503)
+
     def test_identity_mode_rejects_invalid_or_expired_assertion_for_reads(self):
         created = self.create().json()
         os.environ["EDUAUTOMATE_AUTH_MODE"] = "identity"
