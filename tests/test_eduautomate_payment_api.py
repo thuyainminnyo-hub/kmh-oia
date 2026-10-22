@@ -254,7 +254,12 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ.pop("EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED", None)
         response = self.admin_decide(created["payment_id"])
         self.assertEqual(response.status_code, 503)
-        self.assertEqual(self.get(created["payment_id"]).json()["status"], "pending")
+        with connect_db() as conn:
+            row = conn.execute(
+                "SELECT status FROM payments WHERE payment_id=?",
+                (created["payment_id"],),
+            ).fetchone()
+        self.assertEqual(row["status"], "pending")
 
     def test_identity_mode_admin_decisions_fail_closed_until_verified_adapter_and_schema_exist(self):
         created = self.create().json()
