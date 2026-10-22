@@ -44,13 +44,10 @@ This is a structural example only, not a recommendation about MMK units or a rea
 - `pending`: record created; no payment settlement is asserted.
 - `confirmed`: admin has recorded an internal decision and a reference to supporting material; this is not independently verified bank settlement.
 - `rejected`: admin did not accept the submitted claim.
-- `refunded`: reserved; refund processing has not been implemented.
 
 Only pending records accept an admin decision. The create idempotency key is unique. The backend records an audit event for creation and admin decision. A true production deployment needs formal database migrations, backup/restore procedures, concurrency testing and monitoring.
 
-
-
-Refund scope: `refunded` is not an available state in this MVP. No refund endpoint, refund audit contract, or reconciliation flow is implemented. A refund must not be represented by manually editing this payment record; design and review a separate explicit refund flow before supporting refunds.
+Refund scope: refunds are **not implemented** in this MVP. There is no refund endpoint, refund audit contract, or reconciliation flow. Do not add a `refunded` state or manually edit a payment record to imply a refund. Design and independently review a separate explicit refund workflow before supporting refunds.
 
 ## Minimal schema
 
