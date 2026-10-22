@@ -3,6 +3,8 @@ import hashlib
 import hmac
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -31,7 +33,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             "EDUAUTOMATE_ADMIN_ACTOR_ID", "EDUAUTOMATE_AUTH_MODE",
             "EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED",
             "EDUAUTOMATE_IDENTITY_HS256_SECRET", "EDUAUTOMATE_IDENTITY_ISSUER",
-            "EDUAUTOMATE_IDENTITY_AUDIENCE",
+            "EDUAUTOMATE_IDENTITY_AUDIENCE", "EDUAUTOMATE_ENV",
         )}
         os.environ["EDUAUTOMATE_ADMIN_ACTOR_ID"] = "admin-test-1"
         os.environ["EDUAUTOMATE_DB_PATH"] = os.path.join(self.tmp.name, "payments.sqlite3")
@@ -61,6 +63,23 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             "role": role, "exp": exp or int(time.time()) + 300,
         }
         return {"Authorization": "Bearer " + make_identity_token(claims)}
+
+    def test_production_mode_disables_generated_api_documentation(self):
+        env = dict(os.environ)
+        env["EDUAUTOMATE_ENV"] = "production"
+        code = (
+            "from src.eduautomate_payment_api import app; "
+            "assert app.docs_url is None; "
+            "assert app.redoc_url is None; "
+            "assert app.openapi_url is None; "
+            "assert not any(getattr(route, 'path', None) in "
+            "{'/docs', '/redoc', '/openapi.json'} for route in app.routes)"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            env=env, capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr or result.stdout)
 
     def test_healthz_is_liveness_only_and_does_not_initialize_database(self):
         with patch("src.eduautomate_payment_api.init_db") as initialize_db:
