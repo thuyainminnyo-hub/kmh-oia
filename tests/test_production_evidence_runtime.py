@@ -238,5 +238,44 @@ class ProductionEvidenceRuntimeFactoryTests(unittest.TestCase):
             self.assertTrue(any("replay" in reason.lower() for reason in second_result.reasons))
 
 
+    def test_partial_release_bundle_configuration_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "release bundle activation requires every"):
+                ProductionEvidenceRuntimeConfig(
+                    sqlite_path=str(Path(tmp) / "replay.sqlite3"),
+                    allowed_source_providers=("test-provider",),
+                    runtime_bundle_path=str(Path(tmp) / "bundle.tar.gz"),
+                ).validate()
+
+    def test_invalid_release_bundle_is_rejected_before_bridge_or_store_creation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = root / "bundle.tar.gz"
+            bundle.write_bytes(b"not-a-runtime-bundle")
+            attestation = root / "attestation.json"
+            attestation.write_text("{}", encoding="utf-8")
+            config = ProductionEvidenceRuntimeConfig(
+                sqlite_path=str(root / "replay.sqlite3"),
+                allowed_source_providers=("test-provider",),
+                runtime_bundle_path=str(bundle),
+                runtime_attestation_path=str(attestation),
+                expected_source_revision="a" * 40,
+                expected_build_run_id="12345",
+                expected_artifact_id="67890",
+                expected_artifact_name="kmh-oia-runtime-bundle",
+                expected_artifact_digest="sha256:" + "b" * 64,
+                trusted_release_public_keys={"release-key": b"k" * 32},
+                allowed_release_issuers=("kmh-release-signer",),
+                allowed_release_subjects=("repo:thuyainminnyo-hub/kmh-oia:ref:refs/heads/main",),
+            )
+            with self.assertRaisesRegex(ValueError, "configured runtime release bundle or provenance did not verify"):
+                build_production_evidence_runtime(
+                    self.console,
+                    config=config,
+                    trusted_source_adapter=self.adapter,
+                )
+            self.assertFalse((root / "replay.sqlite3").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
