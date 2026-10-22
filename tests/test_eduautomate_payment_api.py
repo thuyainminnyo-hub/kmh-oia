@@ -62,6 +62,13 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         }
         return {"Authorization": "Bearer " + make_identity_token(claims)}
 
+    def test_healthz_is_liveness_only_and_does_not_initialize_database(self):
+        with patch("src.eduautomate_payment_api.init_db") as initialize_db:
+            response = self.client.get("/healthz")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+        initialize_db.assert_not_called()
+
     def create(self, key="test-key-0001", amount=18000000):
         return self.client.post(
             "/v1/payments",
