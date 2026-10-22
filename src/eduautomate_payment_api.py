@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator, Literal
+from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -168,8 +169,15 @@ class AdminDecision(BaseModel):
     @field_validator("evidence_reference")
     @classmethod
     def evidence_reference_must_be_opaque(cls, value: str | None) -> str | None:
-        if value and value.lower().startswith(("http://", "https://")):
-            raise ValueError("evidence_reference must be an opaque reference ID, not a URL")
+        if value:
+            parsed = urlsplit(value)
+            if (
+                parsed.scheme
+                or parsed.netloc
+                or value.startswith("//")
+                or value.lower().startswith("www.")
+            ):
+                raise ValueError("evidence_reference must be an opaque reference ID, not a URL")
         return value
 
 
