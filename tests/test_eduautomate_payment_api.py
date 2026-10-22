@@ -12,6 +12,8 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         self.old_db = os.environ.get("EDUAUTOMATE_DB_PATH")
         self.old_admin = os.environ.get("EDUAUTOMATE_ADMIN_TOKEN")
         self.old_api = os.environ.get("EDUAUTOMATE_API_TOKEN")
+        self.old_actor = os.environ.get("EDUAUTOMATE_ADMIN_ACTOR_ID")
+        os.environ["EDUAUTOMATE_ADMIN_ACTOR_ID"] = "admin-test-1"
         os.environ["EDUAUTOMATE_DB_PATH"] = os.path.join(self.tmp.name, "payments.sqlite3")
         os.environ["EDUAUTOMATE_API_TOKEN"] = "test-api-secret"
         os.environ.pop("EDUAUTOMATE_ADMIN_TOKEN", None)
@@ -32,6 +34,10 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             os.environ.pop("EDUAUTOMATE_API_TOKEN", None)
         else:
             os.environ["EDUAUTOMATE_API_TOKEN"] = self.old_api
+        if self.old_actor is None:
+            os.environ.pop("EDUAUTOMATE_ADMIN_ACTOR_ID", None)
+        else:
+            os.environ["EDUAUTOMATE_ADMIN_ACTOR_ID"] = self.old_actor
         self.tmp.cleanup()
 
     def create(self, key="test-key-0001", amount=18000000):
@@ -45,7 +51,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_ADMIN_TOKEN"] = token
         return self.client.post(
             "/v1/payments/{}/admin-decision".format(payment_id),
-            headers={"X-Admin-Token": token, "X-Actor-Id": "admin-test-1"},
+            headers={"X-Admin-Token": token},
             json={
                 "decision": decision,
                 "note": "Checked transfer reference against records",
@@ -108,7 +114,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ.pop("EDUAUTOMATE_ADMIN_TOKEN", None)
         result = self.client.post(
             "/v1/payments/{}/admin-decision".format(created["payment_id"]),
-            headers={"X-Admin-Token": "test-admin-secret", "X-Actor-Id": "admin-test-1"},
+            headers={"X-Admin-Token": "test-admin-secret"},
             json={
                 "decision": "confirm",
                 "note": "Checked transfer reference against records",
@@ -123,7 +129,7 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
         os.environ["EDUAUTOMATE_ADMIN_TOKEN"] = "right-secret"
         result = self.client.post(
             "/v1/payments/{}/admin-decision".format(created["payment_id"]),
-            headers={"X-Admin-Token": "wrong-secret", "X-Actor-Id": "admin-test-1"},
+            headers={"X-Admin-Token": "wrong-secret"},
             json={"decision": "confirm", "note": "checked reference", "evidence_reference": "ref-123"},
         )
         self.assertEqual(result.status_code, 401)
