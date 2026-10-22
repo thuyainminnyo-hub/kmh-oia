@@ -68,7 +68,9 @@ Expected: HTTP 201 and a payment response with `status: "pending"`. The `executi
 
 ## 4. Confirm read-authentication and idempotency
 
-A read request without the API token must return HTTP 401:
+First verify that removing the local-only opt-in blocks shared-token reads even when a valid API token is supplied; expected HTTP 503. The opt-in is only for this disposable localhost synthetic test. In a public/shared/untrusted environment, do not set it.
+
+A read request without the API token, while the local prototype opt-in is enabled for this smoke test, must return HTTP 401:
 
 ```bash
 curl -sS -o /dev/null -w '%{http_code}\n' \
