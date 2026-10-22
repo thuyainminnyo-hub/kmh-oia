@@ -144,6 +144,8 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             "{}",
             '{"token-value":""}',
             '{"token-value":"   "}',
+            '{"' + ("t" * 513) + '":"stu_test"}',
+            '{"   ":"stu_test"}',
             '{"token-value":"' + ("s" * 129) + '"}',
             '{"duplicate-token":"stu_test","duplicate-token":"stu_other"}',
         )
