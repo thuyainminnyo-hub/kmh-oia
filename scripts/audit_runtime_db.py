@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_DB_PATH = "runtime/eduautomate-payments.sqlite3"
+KNOWN_PAYMENT_STATUSES = {"pending", "confirmed", "rejected"}
+UNKNOWN_STATUS_LABEL = "other_or_invalid"
 
 
 def audit_database(db_path: str | Path) -> dict[str, Any]:
@@ -65,10 +67,13 @@ def audit_database(db_path: str | Path) -> dict[str, Any]:
                 "SELECT status, COUNT(*) FROM payments "
                 "GROUP BY status ORDER BY status"
             )
-            # Only grouped counts are returned; no payment/student rows are read.
-            result["payment_status_counts"] = {
-                str(status): int(count) for status, count in cursor.fetchall()
-            }
+            # Never echo arbitrary status values from legacy/unconstrained schemas.
+            # Unexpected values are collapsed into one safe bucket to minimize PII leakage.
+            counts: dict[str, int] = {}
+            for status, count in cursor.fetchall():
+                label = status if isinstance(status, str) and status in KNOWN_PAYMENT_STATUSES else UNKNOWN_STATUS_LABEL
+                counts[label] = counts.get(label, 0) + int(count)
+            result["payment_status_counts"] = dict(sorted(counts.items()))
 
     return result
 
