@@ -227,7 +227,7 @@ def require_admin_identity(
 
 
 def _identity_mode() -> str:
-    mode = os.environ.get("EDUAUTOMATE_AUTH_MODE", "shared_token").strip().lower()
+    mode = os.environ.get("EDUAUTOMATE_AUTH_MODE", "identity").strip().lower()
     if mode not in ("shared_token", "identity"):
         raise HTTPException(status_code=503, detail="Unsupported authentication mode")
     return mode
