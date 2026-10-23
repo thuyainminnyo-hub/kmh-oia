@@ -46,7 +46,7 @@ Do not share the database file, raw rows, payment/student identifiers or names, 
 - `COMPLETED_READ_ONLY` means the selected file was inspected read-only; it does not prove the path is the only or active data store unless the runtime owner confirms that.
 - `NOT_RUN_DATABASE_NOT_FOUND` means only that the configured path was not found. It does **not** prove there is no legacy data elsewhere.
 - Missing `tenant_id` means this inspected schema does not contain that column; it does not authorize inferred ownership or backfill.
-- Aggregate row/status counts are inventory evidence only. They do not establish payment-to-tenant ownership.
+- Status counts expose only the known labels `pending`, `confirmed`, and `rejected`; all other/null legacy status values are grouped under `other_or_invalid` to avoid echoing arbitrary database text. Aggregate row/status counts are inventory evidence only. They do not establish payment-to-tenant ownership.
 - If the file is locked, corrupt, inaccessible, or not SQLite, stop and report only the sanitized error type/status; do not attempt repair or migration.
 
 ## Release gates still required
