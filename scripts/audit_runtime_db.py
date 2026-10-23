@@ -8,6 +8,7 @@ confirm the path with the runtime owner before running it.
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import json
 import os
 import sqlite3
@@ -37,7 +38,7 @@ def audit_database(db_path: str | Path) -> dict[str, Any]:
 
     # as_uri() safely encodes spaces and other URI-sensitive path characters.
     uri = path.as_uri() + "?mode=ro"
-    with sqlite3.connect(uri, uri=True, timeout=5) as conn:
+    with closing(sqlite3.connect(uri, uri=True, timeout=5)) as conn:
         conn.execute("PRAGMA query_only=ON")
         cursor = conn.cursor()
         cursor.execute(
@@ -98,7 +99,7 @@ def main() -> int:
             )
         )
         return 2
-    except sqlite3.Error as exc:
+    except (sqlite3.Error, OSError) as exc:
         print(json.dumps({
             "audit_status": "ERROR",
             "error_type": type(exc).__name__,
