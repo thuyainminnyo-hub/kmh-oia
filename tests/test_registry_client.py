@@ -87,7 +87,7 @@ class RegistryClientTests(unittest.TestCase):
 
     def test_tenant_id_must_be_canonical_uuid4(self):
         with self.assertRaises(ValidationError):
-            TenantContext(tenant_id="tn_f47ac10b-58cc-4372-a567-0e02b2c3d478", user_id=USER)
+            TenantContext(tenant_id="tn_f47ac10b-58cc-3372-a567-0e02b2c3d479", user_id=USER)
 
 
 if __name__ == "__main__":
