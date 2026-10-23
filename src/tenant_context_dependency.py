@@ -33,6 +33,16 @@ def get_verified_tenant(
     if not x_tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="TENANT_CONTEXT_MISSING")
 
+    # Validate the caller-supplied tenant selector's syntax before comparing it
+    # with the signed claim, so malformed IDs consistently receive HTTP 400.
+    try:
+        TenantContext(
+            tenant_id=x_tenant_id,
+            user_id="usr_00000000-0000-4000-8000-000000000000",
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_TENANT_ID_FORMAT") from exc
+
     claimed_tenant = claims.get("tenant_id")
     if not isinstance(claimed_tenant, str) or claimed_tenant != x_tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="TENANT_CONTEXT_MISMATCH")
