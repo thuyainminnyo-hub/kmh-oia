@@ -11,7 +11,7 @@ import unittest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
-from src.eduautomate_payment_api import app, connect_db
+from src.eduautomate_payment_api import app, connect_db, _identity_mode
 
 
 def make_identity_token(claims, secret="identity-test-secret"):
@@ -63,6 +63,14 @@ class EduAutomatePaymentApiTests(unittest.TestCase):
             "role": role, "exp": exp or int(time.time()) + 300,
         }
         return {"Authorization": "Bearer " + make_identity_token(claims)}
+
+    def test_auth_mode_defaults_to_identity_when_unset(self):
+        previous = os.environ.pop("EDUAUTOMATE_AUTH_MODE", None)
+        try:
+            self.assertEqual(_identity_mode(), "identity")
+        finally:
+            if previous is not None:
+                os.environ["EDUAUTOMATE_AUTH_MODE"] = previous
 
     def test_production_mode_disables_generated_api_documentation(self):
         env = dict(os.environ)
