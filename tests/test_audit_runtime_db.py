@@ -42,6 +42,22 @@ class ReadOnlyAuditTests(unittest.TestCase):
                 with self.assertRaises(sqlite3.OperationalError):
                     conn.execute("INSERT INTO payments VALUES ('x', 'y', 'z')")
 
+    def test_unexpected_status_values_are_redacted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "legacy.sqlite3"
+            with sqlite3.connect(path) as conn:
+                # Deliberately unconstrained legacy schema with a sensitive-looking status.
+                conn.execute("CREATE TABLE payments (payment_id TEXT, status TEXT)")
+                conn.execute(
+                    "INSERT INTO payments VALUES (?, ?)",
+                    ("private-id", "Private Student Name"),
+                )
+
+            report = audit_database(path)
+            self.assertEqual(report["payment_status_counts"], {"other_or_invalid": 1})
+            self.assertNotIn("Private Student Name", repr(report))
+            self.assertNotIn("private-id", repr(report))
+
     def test_missing_database_raises_instead_of_claiming_clean_slate(self):
         with tempfile.TemporaryDirectory() as tmp:
             missing = Path(tmp) / "missing.sqlite3"
