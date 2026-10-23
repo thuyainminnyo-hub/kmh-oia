@@ -1,0 +1,6 @@
+[
+  {"scenario":"VALID_ACTIVE_TENANT","request":{"tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","user_id":"usr_11111111-2222-3333-4444-555555555555"},"expected_status":200,"expected_result":"ALLOW","synthetic_only":true},
+  {"scenario":"DEACTIVATED_TENANT","request":{"tenant_id":"tn_99999999-0000-4000-8000-000000000999","user_id":"usr_11111111-2222-3333-4444-555555555555"},"expected_status":403,"expected_error_code":"TENANT_DEACTIVATED","expected_result":"DENY","synthetic_only":true},
+  {"scenario":"REVOKED_MEMBERSHIP","request":{"tenant_id":"tn_f47ac10b-58cc-4372-a567-0e02b2c3d479","user_id":"usr_88888888-8888-8888-8888-888888888888"},"expected_status":403,"expected_error_code":"MEMBERSHIP_REVOKED","expected_result":"DENY","synthetic_only":true},
+  {"scenario":"INVALID_TENANT_FORMAT","request":{"tenant_id":"invalid_tenant_12345","user_id":"usr_11111111-2222-3333-4444-555555555555"},"expected_status":400,"expected_error_code":"INVALID_TENANT_ID_FORMAT","expected_result":"DENY","synthetic_only":true}
+]
