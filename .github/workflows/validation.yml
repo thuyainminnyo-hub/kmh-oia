@@ -78,41 +78,57 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Capture prerequisite job results
+      - name: Capture prerequisite job results with real GitHub metadata
         shell: bash
+        env:
+          TESTS_RESULT: ${{ needs.tests.result }}
+          PERFORMANCE_RESULT: ${{ needs.performance-evidence.result }}
+          VALIDATION_RESULT: ${{ needs.repository-validation.result }}
         run: |
-          cat > deployment-ci-runs.json <<'JSON'
-          [
-            {
-              "name": "KMH OIA Tests",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.tests.result }}",
-              "is_required_check": true
-            },
-            {
-              "name": "KMH OIA Performance Evidence",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.performance-evidence.result }}",
-              "is_required_check": true
-            },
-            {
-              "name": "KMH OIA Repository Validation",
-              "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-              "head_sha": "${GITHUB_SHA}",
-              "conclusion": "${{ needs.repository-validation.result }}",
-              "is_required_check": true
-            }
-          ]
-          JSON
+          set -euo pipefail
+          jq -n \
+            --arg server "$GITHUB_SERVER_URL" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg sha "$GITHUB_SHA" \
+            --arg tests_result "$TESTS_RESULT" \
+            --arg performance_result "$PERFORMANCE_RESULT" \
+            --arg validation_result "$VALIDATION_RESULT" \
+            '[
+              {name: "KMH OIA Tests", url: ($server + "/" + $repository + "/actions/runs/" + $run_id), head_sha: $sha, conclusion: $tests_result, is_required_check: true},
+              {name: "KMH OIA Performance Evidence", url: ($server + "/" + $repository + "/actions/runs/" + $run_id), head_sha: $sha, conclusion: $performance_result, is_required_check: true},
+              {name: "KMH OIA Repository Validation", url: ($server + "/" + $repository + "/actions/runs/" + $run_id), head_sha: $sha, conclusion: $validation_result, is_required_check: true}
+            ]' > deployment-ci-runs.json
           cat deployment-ci-runs.json
+          if grep -Eq '\$\{GITHUB_[A-Z_]+\}' deployment-ci-runs.json; then
+            echo "ERROR: unresolved GitHub environment placeholder in CI metadata" >&2
+            exit 1
+          fi
       - name: Generate deployment evidence handoff bundle
         run: |
           python -m scripts.deployment_evidence_bundle \
-            --commit-sha "${GITHUB_SHA}" \
+            --commit-sha "$GITHUB_SHA" \
             --ci-runs deployment-ci-runs.json \
             --output deployment-evidence-bundle.json
+      - name: Enforce evidence bundle CI metadata integrity
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          with open("deployment-evidence-bundle.json", encoding="utf-8") as f:
+              bundle = json.load(f)
+          gate = next(g for g in bundle["gates"] if g["gate"] == "repository_ci_for_bundle_commit")
+          expected_sha = os.environ["GITHUB_SHA"]
+          errors = list(gate.get("validation_errors", []))
+          if bundle.get("bundle_commit_sha") != expected_sha:
+              errors.append("bundle commit SHA does not match GITHUB_SHA")
+          if gate.get("status") != "PASS":
+              errors.append("repository CI evidence gate is not PASS")
+          if errors:
+              print("Evidence bundle CI metadata integrity failed:")
+              print("\n".join(errors))
+              sys.exit(1)
+          print("Evidence bundle CI metadata integrity: PASS")
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: kmh-oia-deployment-evidence-bundle
