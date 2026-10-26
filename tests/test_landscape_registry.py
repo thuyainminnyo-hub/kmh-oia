@@ -92,6 +92,19 @@ class LandscapeRegistryValidationTests(unittest.TestCase):
         report = validate_observation_payload(payload)
         self.assertIn("unsupported_unit", {issue.code for issue in report.issues})
 
+    def test_unit_must_match_observation_category(self):
+        payload = dict(self.fixture["observations"][0], category="topography", unit="C")
+        report = validate_observation_payload(payload)
+        self.assertIn("unit_category_mismatch", {issue.code for issue in report.issues})
+
+    def test_non_string_units_are_rejected_without_crashing(self):
+        site_report = validate_site_payload(dict(self.fixture["site"], area_unit=[]))
+        observation_report = validate_observation_payload(
+            dict(self.fixture["observations"][0], unit=[])
+        )
+        self.assertIn("unsupported_unit", {issue.code for issue in site_report.issues})
+        self.assertIn("unsupported_unit", {issue.code for issue in observation_report.issues})
+
     def test_invalid_observation_date_is_rejected(self):
         payload = dict(self.fixture["observations"][0], observed_at="last Tuesday")
         report = validate_observation_payload(payload)
