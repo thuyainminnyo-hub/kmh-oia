@@ -1,7 +1,0 @@
-{
-  "site_id": "SITE-SYN-002",
-  "area_value": 500.0,
-  "area_unit": "m2",
-  "jurisdiction": "synthetic-demo",
-  "source_refs": ["fixture://site/SITE-SYN-002/brief-v1"]
-}
