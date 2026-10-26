@@ -1,0 +1,2 @@
+dataset_id,available_rooms,occupied_rooms,room_revenue_mmk,labor_cost_mmk,supplies_cost_mmk,utilities_cost_mmk,maintenance_cost_mmk
+sample-v0.1,40,28,2240000,500000,120000,180000,100000
