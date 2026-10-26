@@ -90,6 +90,12 @@ class LandscapeSiteAnalysisTests(unittest.TestCase):
         self.assertEqual(report.status, QAStatus.HOLD)
         self.assertIn("invalid_site_payload", {issue.code for issue in report.validation_issues})
 
+    def test_malformed_source_refs_do_not_crash_analysis(self):
+        site = dict(self.fixture["site"], source_refs=42)
+        report = analyze_site(site, complete_observations())
+        self.assertEqual(report.status, QAStatus.HOLD)
+        self.assertIn("site_registry_invalid", {finding.code for finding in report.findings})
+
     def test_non_mapping_observation_is_reported(self):
         observations = complete_observations()
         observations[0] = None
