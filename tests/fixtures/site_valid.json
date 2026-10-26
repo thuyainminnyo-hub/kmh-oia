@@ -1,0 +1,8 @@
+{
+  "site_id": "SITE-SYN-001",
+  "boundary_ref": "fixture://site/SITE-SYN-001/boundary-v1",
+  "area_value": 1250.0,
+  "area_unit": "m2",
+  "jurisdiction": "synthetic-demo",
+  "source_refs": ["fixture://site/SITE-SYN-001/boundary-v1"]
+}
