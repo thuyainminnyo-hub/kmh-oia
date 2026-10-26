@@ -119,4 +119,11 @@ Record denominator, measurement window, dataset version and exclusions for every
 
 ## 10. Current state
 
-This branch initially contains the pilot specification only. Registry code, analysis logic, QA engine, pilot tests and end-to-end evidence have **not yet been implemented or verified**. This work does not modify PR #103, authorize a merge, or change the existing production HOLD.
+## Current state (P2 update — 2026-10-26)
+
+- **Implemented in this branch:** typed registry dataclasses for project, site, observation, requirement, design option, evidence, QA result and run event; site/observation payload validation; required-field, numeric-range, unit, category-unit compatibility, ISO-date, confidence and provenance checks; synthetic-only fixture; automated negative/positive tests.
+- **Verified:** GitHub Actions `KMH OIA Tests` run [#926](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40331323414) completed successfully for code head `1a17a05dbb76d7d0031c0c0006a704fee50c808a`. `KMH OIA Validation` run [#845](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40331323639) was still running at the time of this update; its unit-test and compile/preflight/diff-check steps had succeeded, but the workflow-level conclusion was not yet final.
+- **Not implemented:** site-analysis engine, QA decision engine, OIA trace integration, stale-source policy, and end-to-end landscape workflow.
+- **Not established:** independent review, merge, deployment, production readiness or professional design sign-off.
+
+This work does not modify PR #103, authorize a merge, or change the existing production HOLD.
