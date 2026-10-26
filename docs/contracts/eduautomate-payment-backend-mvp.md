@@ -1,0 +1,138 @@
+# EduAutomate Payment Backend MVP — Phase 821 Contract
+
+Status: PROTOTYPE IMPLEMENTATION IN DRAFT PR; NOT A PRODUCTION SERVICE; NOT EXTERNAL PAYMENT PROOF
+
+## Purpose
+
+Build the smallest Python FastAPI service for EduAutomate payment records, then later connect genuine source-linked evidence to KMH OIA's existing `TrustedSourceReceiptVerifier`. The first MVP workflow is manual bank transfer plus admin review. No payment-provider integration is assumed.
+
+Admin review is an **internal admin attestation**. It records that a permitted EduAutomate administrator reviewed a referenced record/slip; it does not independently prove bank settlement. Do not name the internal source `EduAutomate-Internal-Bank` as if it were an actual bank/provider. The evidence class must remain explicit and must not be presented as external provider-authenticated proof.
+
+## MVP implementation currently in the draft PR
+
+- `src/eduautomate_payment_api.py`: prototype FastAPI service and SQLite persistence.
+- `tests/test_eduautomate_payment_api.py`: focused API tests.
+- `requirements-eduautomate-mvp.txt`: FastAPI, Uvicorn and HTTPX test/runtime dependencies.
+- `docs/runbooks/eduautomate-payment-api-local-smoke.md`: disposable localhost-only smoke-test instructions using synthetic data; not proof of deployment or bank settlement.
+- `docs/decisions/phase-848-tenant-isolation-migration.md`: evidence-based tenant isolation and legacy-data migration plan; schema migration remains blocked on authoritative owner decisions.
+- `docs/decisions/phase-849-production-owner-decisions.md`: explicit owner-decision register for tenant authority, identity, legacy rows, idempotency, MMK units, settlement evidence, and recovery; unresolved decisions keep release on HOLD.
+- `docs/verification/phase-850-tenant-isolation-verification-matrix.md`: pre-migration safety invariants, blocked cross-tenant/idempotency/migration acceptance tests, and required release evidence bundle.
+- `/healthz`: liveness-only endpoint; it must not initialize or open the database and does not assert database readiness. Configure a separate readiness check only when its operational semantics are defined for the target host.
+- `POST /v1/payments`: create a `pending` record with `Idempotency-Key`.
+- `GET /v1/payments/{payment_id}`: retrieve a record.
+- `POST /v1/payments/{payment_id}/admin-decision`: explicit `confirm` or `reject` decision, requiring separate admin token, actor ID, note, and an opaque evidence reference for confirmation.
+- Generated API documentation is environment-gated: when `EDUAUTOMATE_ENV=production` is set before process startup, FastAPI disables `/docs`, `/redoc`, and `/openapi.json`; other environment values retain the local developer documentation routes. This is defense-in-depth only and does not replace gateway/network policy, authentication, or a production security review.
+- Every create/read route requires `EDUAUTOMATE_API_TOKEN`; admin decisions also require `EDUAUTOMATE_ADMIN_TOKEN` and a server-configured `EDUAUTOMATE_ADMIN_ACTOR_ID`. Missing configuration fails closed. The audited actor label comes from server configuration, not a caller-supplied header. These single shared tokens are prototype controls, not production user identity or role-based authorization.
+- The admin evidence reference must be an opaque private-storage/reference ID, not a public URL or the contents of a bank slip. Store uploaded receipts in an appropriately access-controlled storage system; this prototype does not upload or validate bank slips.
+- Do not expose this prototype to the public internet. Local development should bind to `127.0.0.1`.
+
+## API and state rules
+
+### Create request
+
+```json
+{
+  "student_id": "stu_example",
+  "amount_minor": 18000000,
+  "currency": "MMK",
+  "purpose": "course_fee",
+  "execution_id": null
+}
+```
+
+This is a structural example only, not a recommendation about MMK units or a real student/payment. **Confirm the MMK amount convention before production use.** The existing prototype stores a positive integer; it must not be interpreted as pya/kyat until the product owner confirms the convention. Never use floating-point money.
+
+### Statuses
+
+- `pending`: record created; no payment settlement is asserted.
+- `confirmed`: admin has recorded an internal decision and a reference to supporting material; this is not independently verified bank settlement.
+- `rejected`: admin did not accept the submitted claim.
+
+Only pending records accept an admin decision. The create idempotency key is unique. The backend records an audit event for creation and admin decision. A true production deployment needs formal database migrations, backup/restore procedures, concurrency testing and monitoring.
+
+Refund scope: refunds are **not implemented** in this MVP. There is no refund endpoint, refund audit contract, or reconciliation flow. Do not add a `refunded` state or manually edit a payment record to imply a refund. Design and independently review a separate explicit refund workflow before supporting refunds.
+
+## Minimal schema
+
+### `payments`
+
+- `payment_id` stable ID
+- `student_id` opaque student record ID
+- `amount_minor` positive integer (unit convention unresolved until explicitly confirmed)
+- `currency` currently restricted to MMK for this pilot
+- `purpose`
+- `status`
+- `payment_method` currently `manual_bank_transfer`
+- `execution_id` nullable; only populate from a real correlated OIA execution
+- `idempotency_key` unique
+- `created_at`, `updated_at` UTC
+- `confirmed_at`, `confirmed_by`
+- `admin_note`
+- `evidence_reference` opaque reference to an access-controlled supporting artifact
+
+### `payment_events`
+
+- `event_id` stable internal ID
+- `payment_id` foreign key
+- `event_type`, `actor_id`, `occurred_at`
+- `reason` (sanitized note and evidence reference when available)
+- `content_hash` of canonical event metadata; this hash is integrity metadata only, not independent authenticity proof.
+
+Never store API tokens or admin tokens in the database, logs, GitHub, or Notion. Do not store card numbers, security codes, bank passwords, or raw credentials. Minimize student PII in the payment evidence trail.
+
+## Prototype access gates (Phase 838)
+
+- `POST /v1/payments`, shared-token `GET /v1/payments/{payment_id}`, and shared-token admin decisions return HTTP 503 unless `EDUAUTOMATE_SHARED_TOKEN_PROTOTYPE_ENABLED=true` is explicitly set.
+- This opt-in exists only for disposable localhost development/synthetic smoke tests. It does not bind a shared token to a student or tenant and is not an authorization mechanism.
+- Never set this opt-in in a public, shared, production, or untrusted multi-user environment. Do not use real student/payment data under the prototype path.
+- Identity mode fails closed for creates, reads and admin decisions until persisted tenant scope and a reviewed identity-provider adapter are implemented.
+- In identity mode, the read route validates the assertion and returns HTTP 503 before querying payment storage; a regression test asserts `_get_record_by_id` is not called.
+- Shared-token read and admin routes remain prototype-only. The opt-in gate is a containment switch for local synthetic tests, not tenant authorization and not suitable for public/shared deployments. A regression test asserts an unconfigured read gate returns 503 before payment lookup.
+- Shared-token mode has no per-caller student/tenant scope. It is not suitable for public or untrusted multi-user access, even when the local prototype write opt-in is enabled.
+
+## Security limitations and requirements
+
+Prototype controls:
+- separate configured API and admin tokens; admin actor label is set server-side via `EDUAUTOMATE_ADMIN_ACTOR_ID`;
+- constant-time token comparison;
+- input validation and extra-field rejection;
+- parameterized SQL and SQLite transactions;
+- idempotency for payment creation, with a SQLite immediate transaction covering lookup and insert to serialize concurrent retries on the single local database;
+- opaque evidence reference required for internal confirmation;
+- admin actor and decision audit.
+
+Before production, replace shared tokens with established identity/authentication and role/tenant authorization, keep credentials in a secret manager, require TLS, apply request-size limits/rate limits, configure monitored deployment and backups, perform a security review, and confirm privacy/retention requirements. The current read/create token does not implement per-user/tenant authorization. The admin actor environment variable labels the configured shared-token operator, but does not establish individual human identity or a non-repudiable approval signature.
+
+## Test/CI scope
+
+The focused API test suite covers pending creation and retrieval, same-key retry, different-payload idempotency conflict, invalid amount, unknown ID, missing/wrong API token, missing/wrong admin token, missing confirmation evidence reference, admin actor/reference persistence, rejection and forbidden repeated state transition.
+
+Workflows install the additional dependencies from `requirements-eduautomate-mvp.txt`. The exact commit's Actions run remains the source of truth; do not claim pass until jobs complete successfully.
+
+Passing unit tests only demonstrate prototype behavior under tests. They do not prove live hosting, admin identity suitability, bank transfer settlement, external authenticity, or production readiness.
+
+## OIA integration boundary
+
+Reuse—not reimplement—`src/trusted_source_receipt.py`, `TrustedSourceReceiptVerifier`, the typed `TrustedSourceReceipt`, and replay-store abstraction. Do not add a provider-specific adapter for this internal admin workflow pretending it is a bank provider.
+
+For internal admin decisions, an explicit separate evidence type/issuer should be designed if OIA later consumes it. The current generic verifier's provider-authenticity check cannot be satisfied honestly by a self-generated hash or a self-authored `verified=True`. An independently authenticated administrator attestation may be a different evidence class, but still must not be mislabeled as bank-origin evidence.
+
+A future bank/provider integration requires selecting a real provider and using its official, documented authentication/signature and transaction lookup mechanism. A real receipt must preserve the provider's stable transaction ID, documented timestamp, exact raw observation, integrity/authenticity method, and attributable execution ID. Missing/ambiguous linkage must fail closed. Do not invent provider names, webhook signature headers or authentication semantics.
+
+## Remaining blockers
+
+1. Confirm what the product means by `amount_minor` for MMK before using real payment amounts.
+2. Decide production identity/RBAC and tenant model.
+3. Decide actual database/hosting target and persistent-volume/backup plan.
+4. Decide where bank slip evidence is stored and how an authorized admin references it without exposing public URLs or PII.
+5. Decide how a real payment flow gets a genuine OIA `execution_id`; leave it null when not applicable rather than fabricating correlation.
+6. If independently verified settlement is required, select the actual bank/provider and document the official integration contract before implementing an external provider adapter.
+
+## Release gate
+
+- Backend: prototype code in draft PR; not deployed.
+- Generated OpenAPI: available only when dependencies are installed and the service is running locally.
+- Provider-specific adapter: not implemented.
+- External bank settlement evidence: NOT VERIFIED.
+- `EXEC-SUN-TRAVEL-005`: HOLD.
+- Release: **HOLD**. EduAutomate payment-record work does not, by itself, change or satisfy the separate SUN TRAVEL release gate.
