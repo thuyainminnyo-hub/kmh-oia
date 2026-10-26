@@ -222,7 +222,7 @@ def validate_site_payload(payload: Mapping[str, Any]) -> ValidationReport:
             ))
 
     area_unit = payload.get("area_unit")
-    if area_unit is not None and area_unit not in AREA_UNITS:
+    if area_unit is not None and (not isinstance(area_unit, str) or area_unit not in AREA_UNITS):
         issues.append(ValidationIssue(
             "unsupported_unit", "area_unit",
             f"Unsupported area unit {area_unit!r}; expected one of {sorted(AREA_UNITS)}.",
@@ -300,7 +300,7 @@ def validate_observation_payload(payload: Mapping[str, Any]) -> ValidationReport
             ))
 
     unit = payload.get("unit")
-    if unit is not None and unit not in OBSERVATION_UNITS:
+    if unit is not None and (not isinstance(unit, str) or unit not in OBSERVATION_UNITS):
         issues.append(ValidationIssue(
             "unsupported_unit", "unit",
             f"Unsupported observation unit {unit!r}; expected one of {sorted(OBSERVATION_UNITS)}.",
