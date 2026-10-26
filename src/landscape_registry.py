@@ -159,9 +159,19 @@ AREA_UNITS = frozenset({"m2", "ft2", "ha", "acre"})
 # Deliberately small, explicit unit allowlist. Extend only with tests.
 OBSERVATION_UNITS = frozenset({
     "m", "ft", "cm", "mm", "%", "deg", "h/day", "hours/day",
-    "mm/h", "in/h", "L/s", "m3/s", "C", "F", "mm", "in",
+    "mm/h", "in/h", "L/s", "m3/s", "C", "F", "in",
     "count", "category", "boolean",
 })
+CATEGORY_UNITS = {
+    ObservationCategory.TOPOGRAPHY: frozenset({"m", "ft", "cm", "mm", "%", "deg", "category"}),
+    ObservationCategory.SUN: frozenset({"h/day", "hours/day", "category", "boolean"}),
+    ObservationCategory.DRAINAGE: frozenset({"mm/h", "in/h", "L/s", "m3/s", "category", "boolean"}),
+    ObservationCategory.CLIMATE: frozenset({"C", "F", "mm", "in", "mm/h", "in/h", "category"}),
+    ObservationCategory.VEGETATION: frozenset({"count", "category", "boolean", "m", "ft", "cm"}),
+    ObservationCategory.ACCESS: frozenset({"m", "ft", "category", "boolean"}),
+    ObservationCategory.UTILITIES: frozenset({"m", "ft", "category", "boolean"}),
+    ObservationCategory.HAZARD: frozenset({"category", "boolean", "count"}),
+}
 REQUIRED_SITE_FIELDS = (
     "site_id", "boundary_ref", "area_value", "area_unit", "jurisdiction",
     "source_refs",
@@ -305,6 +315,16 @@ def validate_observation_payload(payload: Mapping[str, Any]) -> ValidationReport
             "unsupported_unit", "unit",
             f"Unsupported observation unit {unit!r}; expected one of {sorted(OBSERVATION_UNITS)}.",
         ))
+    elif unit is not None and category is not None:
+        try:
+            category_enum = ObservationCategory(category)
+        except (ValueError, TypeError):
+            category_enum = None
+        if category_enum is not None and unit not in CATEGORY_UNITS[category_enum]:
+            issues.append(ValidationIssue(
+                "unit_category_mismatch", "unit",
+                f"Unit {unit!r} is not compatible with category {category_enum.value!r}.",
+            ))
 
     confidence = payload.get("confidence")
     if confidence is not None:
