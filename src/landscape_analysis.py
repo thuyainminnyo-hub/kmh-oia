@@ -88,10 +88,16 @@ def analyze_site(
     issues.extend(site_report.issues)
     site_id = site_payload.get("site_id")
     if not site_report.is_valid:
+        raw_source_refs = site_payload.get("source_refs", ())
+        source_refs = (
+            tuple(ref.strip() for ref in raw_source_refs if isinstance(ref, str) and ref.strip())
+            if isinstance(raw_source_refs, (list, tuple))
+            else ()
+        )
         findings.append(AnalysisFinding(
             "site_registry_invalid", "hold",
             "Site registry validation failed; analysis is held until required fields and provenance are corrected.",
-            tuple(str(ref) for ref in site_payload.get("source_refs", ()) if isinstance(ref, str)),
+            source_refs,
         ))
 
     if not isinstance(observation_payloads, Sequence) or isinstance(observation_payloads, (str, bytes)):
