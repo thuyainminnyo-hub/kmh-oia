@@ -48,15 +48,19 @@ class CategorySummary:
 @dataclass(frozen=True)
 class SiteAnalysisReport:
     site_id: str | None
+    # status is the evidence-coverage validation result, not design readiness.
     status: QAStatus
     observed_categories: tuple[ObservationCategory, ...]
     missing_categories: tuple[ObservationCategory, ...]
     category_summaries: tuple[CategorySummary, ...]
     findings: tuple[AnalysisFinding, ...]
     validation_issues: tuple[ValidationIssue, ...]
+    # Design readiness stays HOLD until a separate, human-governed design QA gate.
+    design_readiness: QAStatus = QAStatus.HOLD
 
     @property
     def is_complete(self) -> bool:
+        """Whether required evidence coverage is complete and registry-valid."""
         return not self.missing_categories and not self.validation_issues
 
 
@@ -64,11 +68,12 @@ def analyze_site(
     site_payload: Mapping[str, Any],
     observation_payloads: Sequence[Mapping[str, Any]],
 ) -> SiteAnalysisReport:
-    """Validate supplied records, summarize evidence coverage, and fail closed.
+    """Validate supplied records and summarize evidence coverage conservatively.
 
     Missing categories are reported as gaps, never synthesized. Any validation
-    issue, cross-site reference mismatch, or missing required category keeps the
-    analysis status at HOLD.
+    issue, duplicate observation ID, cross-site mismatch, or missing required
+    category keeps the coverage status at HOLD. Design readiness always remains
+    HOLD here; PASS means evidence coverage only, never design approval.
     """
     findings: list[AnalysisFinding] = []
     issues: list[ValidationIssue] = []
@@ -112,6 +117,7 @@ def analyze_site(
     grouped: dict[ObservationCategory, list[Mapping[str, Any]]] = {
         category: [] for category in ObservationCategory
     }
+    seen_observation_ids: dict[str, int] = {}
     for index, payload in enumerate(observation_payloads):
         if not isinstance(payload, Mapping):
             issues.append(ValidationIssue(
@@ -140,6 +146,22 @@ def analyze_site(
             ))
             continue
 
+        observation_id = payload["observation_id"]
+        if observation_id in seen_observation_ids:
+            first_index = seen_observation_ids[observation_id]
+            issues.append(ValidationIssue(
+                "duplicate_observation_id", f"observations[{index}].observation_id",
+                f"Observation ID {observation_id!r} duplicates observations[{first_index}].observation_id.",
+                "error",
+            ))
+            findings.append(AnalysisFinding(
+                "duplicate_observation_id", "hold",
+                f"Duplicate observation ID {observation_id!r}; duplicate record excluded to preserve traceability.",
+                (payload["source_ref"],),
+            ))
+            continue
+        seen_observation_ids[observation_id] = index
+
         observation_site_id = payload.get("site_id")
         if observation_site_id != site_id:
             issues.append(ValidationIssue(
@@ -148,7 +170,7 @@ def analyze_site(
             ))
             findings.append(AnalysisFinding(
                 "observation_site_mismatch", "hold",
-                f"Observation {payload.get('observation_id', index)!r} belongs to a different site.",
+                f"Observation {observation_id!r} belongs to a different site.",
                 (payload["source_ref"],),
             ))
             continue
@@ -180,7 +202,7 @@ def analyze_site(
             observation_ids=tuple(str(record["observation_id"]) for record in records),
             evidence_refs=tuple(str(record["source_ref"]) for record in records),
             limitations=tuple(
-                str(record.get("limitations", "")).strip()
+                record["limitations"].strip()
                 for record in records
                 if isinstance(record.get("limitations", ""), str) and record.get("limitations", "").strip()
             ),
@@ -219,4 +241,5 @@ def analyze_site(
         category_summaries=tuple(summaries),
         findings=tuple(findings),
         validation_issues=tuple(issues),
+        design_readiness=QAStatus.HOLD,
     )
