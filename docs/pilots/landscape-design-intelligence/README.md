@@ -117,12 +117,10 @@ Record denominator, measurement window, dataset version and exclusions for every
 - [ ] Independent review submitted on exact SHA
 - [ ] Production controls separately evidenced; otherwise HOLD
 
-## 10. Current state
-
-## Current state (P2 update — 2026-10-26)
+## 10. Current state (P2 update — 2026-10-26)
 
 - **Implemented in this branch:** typed registry dataclasses for project, site, observation, requirement, design option, evidence, QA result and run event; site/observation payload validation; required-field, numeric-range, unit, category-unit compatibility, ISO-date, confidence and provenance checks; synthetic-only fixture; automated negative/positive tests.
-- **Verified:** GitHub Actions `KMH OIA Tests` run [#926](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40331323414) completed successfully for code head `1a17a05dbb76d7d0031c0c0006a704fee50c808a`. `KMH OIA Validation` run [#845](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40331323639) was still running at the time of this update; its unit-test and compile/preflight/diff-check steps had succeeded, but the workflow-level conclusion was not yet final.
+- **Verified:** GitHub Actions `KMH OIA Tests` run [#927](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40331422277) completed successfully for branch head `325e9dfe7777d1c2fe55bff74426560accbe9934`. `KMH OIA Validation` run [#846](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40331422331) has passed its compile, preflight, diff-check, performance-evidence and unit-test steps; the deployment-evidence-bundle job is still finishing, so the overall workflow conclusion remains pending.
 - **Not implemented:** site-analysis engine, QA decision engine, OIA trace integration, stale-source policy, and end-to-end landscape workflow.
 - **Not established:** independent review, merge, deployment, production readiness or professional design sign-off.
 
