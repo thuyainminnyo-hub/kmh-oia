@@ -18,7 +18,7 @@ def complete_observations(site_id="SITE-DEMO-001"):
         "vegetation": (3, "count"),
         "access": (5.0, "m"),
         "utilities": ("available", "category"),
-        "hazard": ("not-assessed", "category"),
+        "hazard": ("synthetic-no-known-hazard", "category"),
     }
     return [
         {
