@@ -50,6 +50,11 @@ class LandscapeSiteAnalysisTests(unittest.TestCase):
         self.assertEqual(report.missing_categories, ())
         self.assertIn("evidence_coverage_complete", {finding.code for finding in report.findings})
 
+    def test_design_readiness_remains_hold_even_when_coverage_passes(self):
+        report = analyze_site(self.fixture["site"], complete_observations())
+        self.assertEqual(report.status, QAStatus.PASS)
+        self.assertEqual(report.design_readiness, QAStatus.HOLD)
+
     def test_missing_categories_are_explicit_and_hold(self):
         report = analyze_site(self.fixture["site"], self.fixture["observations"])
         self.assertEqual(report.status, QAStatus.HOLD)
@@ -78,6 +83,46 @@ class LandscapeSiteAnalysisTests(unittest.TestCase):
         finding = next(f for f in report.findings if f.code == "low_confidence_evidence")
         self.assertEqual(finding.severity, "warning")
         self.assertEqual(finding.evidence_refs, ("synthetic://SITE-DEMO-001/topography",))
+        # Coverage PASS is not design readiness; downstream design stays on HOLD.
+        self.assertEqual(report.status, QAStatus.PASS)
+        self.assertEqual(report.design_readiness, QAStatus.HOLD)
+
+    def test_confidence_boundary_below_threshold_warns(self):
+        observations = complete_observations()
+        observations[0] = dict(observations[0], confidence=0.59)
+        report = analyze_site(self.fixture["site"], observations)
+        self.assertIn("low_confidence_evidence", {finding.code for finding in report.findings})
+
+    def test_confidence_boundary_at_threshold_does_not_warn(self):
+        observations = complete_observations()
+        observations[0] = dict(observations[0], confidence=0.60)
+        report = analyze_site(self.fixture["site"], observations)
+        self.assertNotIn("low_confidence_evidence", {finding.code for finding in report.findings})
+
+    def test_confidence_boundary_above_threshold_does_not_warn(self):
+        observations = complete_observations()
+        observations[0] = dict(observations[0], confidence=0.61)
+        report = analyze_site(self.fixture["site"], observations)
+        self.assertNotIn("low_confidence_evidence", {finding.code for finding in report.findings})
+
+    def test_duplicate_observation_id_is_rejected_within_site(self):
+        observations = complete_observations()
+        observations[1] = dict(observations[1], observation_id=observations[0]["observation_id"])
+        report = analyze_site(self.fixture["site"], observations)
+        self.assertEqual(report.status, QAStatus.HOLD)
+        self.assertIn("duplicate_observation_id", {issue.code for issue in report.validation_issues})
+        self.assertNotIn(ObservationCategory.SUN, report.observed_categories)
+
+    def test_duplicate_observation_id_across_categories_is_rejected(self):
+        observations = complete_observations()
+        observations[1] = dict(observations[1], observation_id=observations[0]["observation_id"])
+        observations[1]["category"] = "topography"
+        observations[1]["unit"] = "%"
+        report = analyze_site(self.fixture["site"], observations)
+        self.assertEqual(report.status, QAStatus.HOLD)
+        self.assertIn("duplicate_observation_id", {issue.code for issue in report.validation_issues})
+        topography = next(s for s in report.category_summaries if s.category is ObservationCategory.TOPOGRAPHY)
+        self.assertEqual(len(topography.observation_ids), 1)
 
     def test_report_preserves_provenance_and_limitations(self):
         report = analyze_site(self.fixture["site"], complete_observations())
