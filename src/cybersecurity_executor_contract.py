@@ -49,7 +49,7 @@ class RemediationRequest:
             _require_nonblank(getattr(self, name), name)
         if not isinstance(self.registry_version, int) or isinstance(self.registry_version, bool) or self.registry_version < 1:
             raise ValueError("registry_version must be a positive integer")
-        if self.action not in EXECUTABLE_ACTIONS:
+        if not isinstance(self.action, str) or self.action not in EXECUTABLE_ACTIONS:
             raise ValueError("action is not an allowed cybersecurity action")
         _require_aware(self.requested_at, "requested_at")
 
@@ -83,7 +83,7 @@ class RemediationResult:
             _require_nonblank(getattr(self, name), name)
         if not isinstance(self.registry_version, int) or isinstance(self.registry_version, bool) or self.registry_version < 1:
             raise ValueError("registry_version must be a positive integer")
-        if self.action not in EXECUTABLE_ACTIONS:
+        if not isinstance(self.action, str) or self.action not in EXECUTABLE_ACTIONS:
             raise ValueError("action is not an allowed cybersecurity action")
         if not isinstance(self.status, RemediationStatus):
             raise ValueError("status must be a RemediationStatus value")
