@@ -50,7 +50,7 @@ def main(argv=None):
     try:
         if args.command == "append":
             entry = save_version(args.registry, load_json(args.record))
-            print(json.dumps({"status": "APPENDED", "case_id": entry["case_id"], "version": entry["version"], "entry_hash": entry["entry_hash"}, sort_keys=True))
+            print(json.dumps({"status": "APPENDED", "case_id": entry["case_id"], "version": entry["version"], "entry_hash": entry["entry_hash"]}, sort_keys=True))
             return 0
         if args.command == "verify":
             count = verify_registry(args.registry)
