@@ -6,7 +6,7 @@ from http.server import ThreadingHTTPServer
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from src.http_server import OIARequestHandler
+from src.http_server import MAX_BODY_BYTES, OIARequestHandler
 
 
 class TestHTTPServer(unittest.TestCase):
@@ -34,6 +34,15 @@ class TestHTTPServer(unittest.TestCase):
             return error.code, json.loads(error.read())
         return response.status, json.loads(response.read())
 
+    def request_raw(self, path, data, content_type="application/json"):
+        request = Request(self.base_url + path, data=data, method="POST")
+        request.add_header("Content-Type", content_type)
+        try:
+            response = urlopen(request, timeout=3)
+        except HTTPError as error:
+            return error.code, json.loads(error.read())
+        return response.status, json.loads(response.read())
+
     def test_healthz_is_liveness(self):
         status, body = self.request("/healthz")
         self.assertEqual(status, 200)
@@ -51,6 +60,22 @@ class TestHTTPServer(unittest.TestCase):
         status, body = self.request("/run", "POST", {"goal": "  "})
         self.assertEqual(status, 400)
         self.assertEqual(body["error"], "goal_must_be_non_empty_string")
+
+    def test_invalid_json_fails_closed(self):
+        status, body = self.request_raw("/run", b"{not-json")
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "invalid_json")
+
+    def test_wrong_content_type_is_rejected(self):
+        status, body = self.request("/run", "POST", {"goal": "hello"}, content_type="text/plain")
+        self.assertEqual(status, 415)
+        self.assertEqual(body["error"], "application_json_required")
+
+    def test_oversized_body_is_rejected_before_reading_body(self):
+        oversized = b"x" * (MAX_BODY_BYTES + 1)
+        status, body = self.request_raw("/run", oversized)
+        self.assertEqual(status, 413)
+        self.assertEqual(body["error"], "request_too_large")
 
     def test_unknown_path_is_not_found(self):
         status, body = self.request("/unknown")
