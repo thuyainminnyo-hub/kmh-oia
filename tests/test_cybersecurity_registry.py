@@ -116,6 +116,43 @@ class CybersecurityRegistryPersistenceTests(unittest.TestCase):
         self.assertFalse(allowed)
         self.assertIn("decision", reason)
 
+    def test_authorized_action_wrapper_never_calls_executor_when_denied(self):
+        from scripts.cybersecurity_registry import run_authorized_action
+
+        calls = []
+        executed, reason, result = run_authorized_action(
+            self.record, "remediate", lambda: calls.append("called"),
+            now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
+        )
+        self.assertFalse(executed)
+        self.assertIn("approval", reason)
+        self.assertEqual(calls, [])
+        self.assertIsNone(result)
+
+    def test_authorized_action_wrapper_calls_executor_after_valid_approval(self):
+        from scripts.cybersecurity_registry import run_authorized_action
+
+        calls = []
+        executed, reason, result = run_authorized_action(
+            self.approved_record(), "remediate",
+            lambda: calls.append("executed") or "ok",
+            now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
+        )
+        self.assertTrue(executed, reason)
+        self.assertEqual(calls, ["executed"])
+        self.assertEqual(result, "ok")
+
+    def test_authorized_action_wrapper_rejects_non_callable_executor(self):
+        from scripts.cybersecurity_registry import run_authorized_action
+
+        executed, reason, result = run_authorized_action(
+            self.approved_record(), "remediate", None,
+            now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
+        )
+        self.assertFalse(executed)
+        self.assertIn("callable", reason)
+        self.assertIsNone(result)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
