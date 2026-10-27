@@ -103,6 +103,15 @@ class CybersecurityRegistryPersistenceTests(unittest.TestCase):
         self.assertFalse(allowed)
         self.assertIn("scope", reason)
 
+    def test_denies_approval_scope_that_contains_extra_actions(self):
+        r = self.approved_record()
+        r["approval"]["scope"].append("action:delete")
+        allowed, reason = authorize_execution(
+            r, "remediate", now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc)
+        )
+        self.assertFalse(allowed)
+        self.assertIn("only the exact asset and action", reason)
+
     def test_denies_unknown_applicability_even_with_approval(self):
         r = self.approved_record()
         r["assessment"]["applicability"] = "unknown"
