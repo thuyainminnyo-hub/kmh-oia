@@ -6,6 +6,8 @@ application contracts, not unforgeable security capabilities; the verifier is
 therefore the trust source rather than a caller-supplied result object's type.
 """
 from dataclasses import dataclass
+import hashlib
+import json
 from typing import Protocol
 
 from src.adaptation_engine import AdaptationEngine, AdaptationProposal
@@ -228,6 +230,22 @@ class TrustedDecisionLearningService:
 
         quality = "GOOD" if classification.outcome_positive else "POOR"
         reason = classification.reason.strip()
+        # Stable identity for this exact decision/execution/evidence admission.
+        # The digest is a deduplication key, not a signature or proof of trust.
+        event_identity = {
+            "decision_id": decision.id,
+            "command_id": execution.command_id,
+            "execution_id": loop.execution_id,
+            "trace_id": loop.trace_id,
+            "evidence_id": evidence_id.strip(),
+            "policy_version": policy_version.strip(),
+            "provider_name": receipt.provider_name,
+            "source_record_id": receipt.source_record_id,
+            "receipt_content_hash": receipt.content_hash,
+        }
+        event_id = "learning:" + hashlib.sha256(
+            json.dumps(event_identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
         outcome = DecisionOutcome(
             decision_id=decision.id,
             command_id=execution.command_id,
@@ -254,6 +272,7 @@ class TrustedDecisionLearningService:
             ),
             next_command=next_command.strip(),
             confidence=float(confidence),
+            event_id=event_id,
         )
         adaptation = None
         if quality == "POOR":
