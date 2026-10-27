@@ -54,6 +54,6 @@ def build_authenticated_command_resolver(
         command_id = getattr(command, "id", None)
         if not isinstance(command_id, str) or metadata.command_id != command_id:
             raise ValueError("authenticated metadata command ID mismatch")
-        return metadata.case_id, metadata.registry_version, metadata.action, metadata.asset_id
+        return metadata.case_id, metadata.registry_version, metadata.action, metadata.asset_id, metadata.asset_id
 
     return resolve
