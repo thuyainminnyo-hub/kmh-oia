@@ -26,7 +26,8 @@ class TrustedLearningServiceConfig:
     memory_path: str
     proposal_sqlite_path: str
 
-    def validate(self) -> None:
+    def resolved_paths(self) -> tuple[Path, Path]:
+        paths = []
         for name, value in (
             ("memory_path", self.memory_path),
             ("proposal_sqlite_path", self.proposal_sqlite_path),
@@ -36,8 +37,13 @@ class TrustedLearningServiceConfig:
             normalized = value.strip()
             if normalized == ":memory:" or normalized.lower().startswith("file:"):
                 raise ValueError(f"{name} must be a regular persistent file path")
-        if Path(self.memory_path).resolve() == Path(self.proposal_sqlite_path).resolve():
+            paths.append(Path(normalized).expanduser().resolve())
+        if paths[0] == paths[1]:
             raise ValueError("memory_path and proposal_sqlite_path must be different files")
+        return paths[0], paths[1]
+
+    def validate(self) -> None:
+        self.resolved_paths()
 
 
 def build_trusted_learning_service(
@@ -54,7 +60,7 @@ def build_trusted_learning_service(
     """
     if not isinstance(config, TrustedLearningServiceConfig):
         raise TypeError("config must be a TrustedLearningServiceConfig")
-    config.validate()
+    memory_path, proposal_path = config.resolved_paths()
     if receipt_verifier is None or not callable(
         getattr(receipt_verifier, "verify", None)
     ):
@@ -62,11 +68,8 @@ def build_trusted_learning_service(
     if classifier is None or not callable(getattr(classifier, "classify", None)):
         raise ValueError("a provider-specific classifier with a callable classify method is required")
 
-    memory_path = Path(config.memory_path).expanduser()
-    proposal_path = Path(config.proposal_sqlite_path).expanduser()
     memory_path.parent.mkdir(parents=True, exist_ok=True)
     proposal_path.parent.mkdir(parents=True, exist_ok=True)
-
     memory = OperatingMemory(path=memory_path)
     repository = SQLiteAdaptationProposalRepository(str(proposal_path))
     return TrustedDecisionLearningService(
