@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from threading import RLock
 from typing import Any
 
@@ -134,9 +135,25 @@ class OperatingMemory:
         payload = json.dumps(
             [r.to_dict() for r in self._records], ensure_ascii=False, indent=2
         )
-        temporary = self.path.with_name(f".{self.path.name}.tmp")
-        temporary.write_text(payload, encoding="utf-8")
-        temporary.replace(self.path)
+        temporary_path = None
+        try:
+            # Unique same-directory temporary files avoid name collisions between
+            # independent writers. This is atomic replacement, not a cross-process
+            # transaction; concurrent snapshots can still overwrite one another.
+            with NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=self.path.parent,
+                prefix=f".{self.path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as temporary:
+                temporary.write(payload)
+                temporary_path = Path(temporary.name)
+            temporary_path.replace(self.path)
+        finally:
+            if temporary_path is not None and temporary_path.exists():
+                temporary_path.unlink()
 
     def _load(self) -> None:
         raw = json.loads(self.path.read_text(encoding="utf-8"))
