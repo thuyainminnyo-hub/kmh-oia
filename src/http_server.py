@@ -1,4 +1,4 @@
-"""Minimal HTTP adapter for running KMH OIA on Cloud Run.
+""""Minimal HTTP adapter for running KMH OIA on Cloud Run.
 
 This adapter exposes liveness and a bounded JSON execution endpoint. It does
 not claim dependency readiness, authenticate an external provider, or authorize
@@ -14,6 +14,8 @@ from typing import Any
 from src.main import run
 
 MAX_BODY_BYTES = 64 * 1024
+MAX_GOAL_CHARS = 8 * 1024
+MAX_SESSION_ID_CHARS = 128
 
 
 class OIARequestHandler(BaseHTTPRequestHandler):
@@ -50,6 +52,9 @@ class OIARequestHandler(BaseHTTPRequestHandler):
         if length > MAX_BODY_BYTES:
             self._send_json(413, {"error": "request_too_large"})
             return
+        if self.headers.get("Transfer-Encoding"):
+            self._send_json(400, {"error": "transfer_encoding_not_supported"})
+            return
         if self.headers.get_content_type() != "application/json":
             self._send_json(415, {"error": "application_json_required"})
             return
@@ -66,8 +71,14 @@ class OIARequestHandler(BaseHTTPRequestHandler):
         if not isinstance(goal, str) or not goal.strip():
             self._send_json(400, {"error": "goal_must_be_non_empty_string"})
             return
+        if len(goal) > MAX_GOAL_CHARS:
+            self._send_json(413, {"error": "goal_too_long"})
+            return
         if not isinstance(session_id, str) or not session_id.strip():
             self._send_json(400, {"error": "session_id_must_be_non_empty_string"})
+            return
+        if len(session_id) > MAX_SESSION_ID_CHARS:
+            self._send_json(400, {"error": "session_id_too_long"})
             return
         try:
             response, trace = run(goal, session_id=session_id)
