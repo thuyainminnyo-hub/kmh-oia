@@ -79,6 +79,10 @@ class RemediationResultContractTests(unittest.TestCase):
         self.assertEqual(result.status, RemediationStatus.SUCCEEDED)
         self.assertEqual(result.before_evidence_refs, ("evidence:before-001",))
 
+    def test_success_requires_before_and_after_evidence(self):
+        with self.assertRaisesRegex(ValueError, "before and after evidence"):
+            self.valid_result(before_evidence_refs=(), after_evidence_refs=())
+
     def test_rejects_finished_time_before_start(self):
         with self.assertRaisesRegex(ValueError, "must not precede"):
             self.valid_result(finished_at=datetime(2026, 10, 27, 9, 59, tzinfo=UTC))
