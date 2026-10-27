@@ -136,6 +136,17 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "only approved adaptations can be applied"):
             self.service._adaptation_engine.apply(result.adaptation)
 
+    def test_duplicate_trusted_learning_event_is_recorded_once(self):
+        first = self.capture()
+        second = self.capture()
+        self.assertTrue(first.admitted)
+        self.assertTrue(second.admitted)
+        self.assertEqual(len(self.memory.recent(10)), 1)
+        self.assertEqual(first.memory.event_id, second.memory.event_id)
+        self.assertEqual(first.adaptation.id, second.adaptation.id)
+        self.assertEqual(first.adaptation.status, "PROPOSED")
+        self.assertEqual(second.adaptation.status, "PROPOSED")
+
     def test_missing_receipt_fails_closed_without_learning_influence(self):
         result = self.capture(execution=self.execution(receipt=False))
         self.assertFalse(result.admitted)
