@@ -35,6 +35,10 @@ class AdaptationProposalRepositoryTests(unittest.TestCase):
             next_experiment="shadow test",
         )
 
+    def test_in_memory_database_is_rejected_because_connections_are_independent(self):
+        with self.assertRaisesRegex(ValueError, "file-backed database"):
+            SQLiteAdaptationProposalRepository(":memory:")
+
     def test_proposal_is_durable_across_repository_recreation(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = str(Path(tmp) / "proposals.sqlite3")
@@ -83,6 +87,16 @@ class AdaptationProposalRepositoryTests(unittest.TestCase):
             self.assertTrue(
                 SQLiteAdaptationProposalRepository(path).health_check()
             )
+
+    def test_proposed_status_cannot_be_written_as_a_noop_transition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = SQLiteAdaptationProposalRepository(
+                str(Path(tmp) / "proposals.sqlite3")
+            )
+            engine = AdaptationEngine(repository)
+            proposal = engine.propose(self.record, **self.kwargs)
+            with self.assertRaisesRegex(ValueError, "unsupported or non-transition"):
+                repository.update_status(proposal.id, "PROPOSED")
 
     def test_status_transition_is_durable_and_cannot_be_repeated(self):
         with tempfile.TemporaryDirectory() as tmp:
