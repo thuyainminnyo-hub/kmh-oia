@@ -28,7 +28,11 @@ def build_registry_execution_guard(
         if getattr(command, "source_action_kind", None) != "cybersecurity_remediation":
             return True, "not a cybersecurity remediation command"
         try:
-            case_id, version, action = resolve_request(command)
+            resolved = resolve_request(command)
+            if not isinstance(resolved, tuple) or len(resolved) not in (3, 4):
+                return False, "trusted resolver returned an invalid request tuple"
+            case_id, version, action = resolved[:3]
+            expected_asset_id = resolved[3] if len(resolved) == 4 else None
             if not isinstance(case_id, str) or not case_id:
                 return False, "trusted resolver returned an invalid case ID"
             if not isinstance(version, int) or isinstance(version, bool) or version < 1:
@@ -42,8 +46,15 @@ def build_registry_execution_guard(
             ]
             if len(matches) != 1:
                 return False, "exact registry case/version not found"
+            record = matches[0]["record"]
+            if expected_asset_id is not None:
+                if not isinstance(expected_asset_id, str) or not expected_asset_id.strip():
+                    return False, "trusted resolver returned an invalid asset ID"
+                record_asset_id = (record.get("asset") or {}).get("asset_id")
+                if record_asset_id != expected_asset_id:
+                    return False, "command asset ID does not match registry record"
             now = clock() if clock is not None else datetime.now(timezone.utc)
-            allowed, reason = authorize_execution(matches[0]["record"], action, now=now)
+            allowed, reason = authorize_execution(record, action, now=now)
             return allowed, reason
         except Exception as exc:
             return False, f"cybersecurity registry guard failed closed: {type(exc).__name__}: {exc}"
