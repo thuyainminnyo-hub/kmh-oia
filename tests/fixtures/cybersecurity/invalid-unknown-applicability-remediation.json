@@ -1,0 +1,60 @@
+{
+  "case_id": "KMH-OIA-CYBER-2026-001",
+  "record_type": "threat_assessment",
+  "threat": {
+    "identifiers": ["CVE-2026-109618", "CVE-2026-109619"],
+    "verification_status": "pending",
+    "source_refs": [],
+    "last_verified_at": null,
+    "affected_version_statement": null,
+    "fixed_version_statement": null,
+    "exploitation_status": "unknown"
+  },
+  "asset": {
+    "asset_id": "ASSET-REPLACE-ME",
+    "owner": null,
+    "environment": "unknown",
+    "runtime_name": "PHP",
+    "runtime_version": null,
+    "internet_exposed": null,
+    "evidence_refs": []
+  },
+  "assessment": {
+    "applicability": "unknown",
+    "impact": "unknown",
+    "likelihood": "unknown",
+    "confidence": "low",
+    "decision": "remediate",
+    "rationale": "Applicability and advisory details have not been verified.",
+    "evidence_refs": [],
+    "assessed_at": null,
+    "assessor": null
+  },
+  "approval": {
+    "status": "not_requested",
+    "approver": null,
+    "scope": [],
+    "approved_at": null,
+    "expires_at": null,
+    "rollback_plan_ref": null
+  },
+  "execution": {
+    "status": "not_started",
+    "before_evidence_refs": [],
+    "after_evidence_refs": [],
+    "started_at": null,
+    "finished_at": null,
+    "result": "not_started",
+    "operator": null
+  },
+  "qa": {
+    "status": "not_run",
+    "reviewer": null,
+    "findings": [],
+    "evidence_refs": []
+  },
+  "audit": {
+    "events": [],
+    "integrity_control_ref": null
+  }
+}
