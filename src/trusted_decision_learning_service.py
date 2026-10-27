@@ -11,6 +11,7 @@ import json
 from typing import Protocol
 
 from src.adaptation_engine import AdaptationEngine, AdaptationProposal
+from src.adaptation_proposal_repository import SQLiteAdaptationProposalRepository
 from src.decision_outcome_evaluator import DecisionOutcome
 from src.decision_queue import DecisionItem
 from src.evidence_admission_gate import EvidenceAdmissionResult
@@ -66,11 +67,14 @@ class TrustedDecisionLearningService:
         receipt_verifier: TrustedSourceReceiptVerifier | None,
         memory: OperatingMemory,
         adaptation_engine: AdaptationEngine | None = None,
+        adaptation_proposal_repository: SQLiteAdaptationProposalRepository | None = None,
     ) -> None:
+        if adaptation_engine is not None and adaptation_proposal_repository is not None:
+            raise ValueError("provide adaptation_engine or adaptation_proposal_repository, not both")
         self._classifier = classifier
         self._receipt_verifier = receipt_verifier
         self._memory = memory
-        self._adaptation_engine = adaptation_engine or AdaptationEngine()
+        self._adaptation_engine = adaptation_engine or AdaptationEngine(adaptation_proposal_repository)
 
     def capture_execution(
         self,
