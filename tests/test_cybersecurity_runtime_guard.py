@@ -6,6 +6,7 @@ from pathlib import Path
 
 from src.cybersecurity_runtime_guard import build_registry_execution_guard
 from src.live_operating_console import LiveOperatingConsole
+from src.live_runtime_bridge import LiveRuntimeBridge
 from scripts.cybersecurity_registry import save_version
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +27,22 @@ class RegistryRuntimeGuardTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_registry_guard_blocks_live_runtime_before_side_effect(self):
+        calls = []
+        class RuntimeSpy:
+            def execute_detailed(self, *args, **kwargs):
+                calls.append(True)
+                return ("unexpected", [], [])
+
+        guard = build_registry_execution_guard(
+            self.path, lambda _command: (self.record["case_id"], 1, "remediate"),
+        )
+        bridge = LiveRuntimeBridge(self.console, runtime=RuntimeSpy(), cybersecurity_execution_guard=guard)
+        with self.assertRaisesRegex(PermissionError, "cybersecurity execution blocked"):
+            bridge.execute(self.command.id)
+        self.assertEqual(calls, [])
+        self.assertEqual(self.command.status, "INBOX")
 
     def test_pending_registry_record_is_denied(self):
         guard = build_registry_execution_guard(
