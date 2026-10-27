@@ -28,7 +28,7 @@ class AuthenticatedCybersecurityCommandMetadata:
                 raise ValueError(f"{field_name} must be a non-empty string")
         if not isinstance(self.registry_version, int) or isinstance(self.registry_version, bool) or self.registry_version < 1:
             raise ValueError("registry_version must be a positive integer")
-        if self.action not in EXECUTABLE_ACTIONS:
+        if not isinstance(self.action, str) or self.action not in EXECUTABLE_ACTIONS:
             raise ValueError("action is not an allowed cybersecurity action")
 
 
