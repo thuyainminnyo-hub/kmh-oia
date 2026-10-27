@@ -1,6 +1,9 @@
 import unittest
+import tempfile
+from pathlib import Path
 
 from src.adaptation_engine import AdaptationEngine
+from src.adaptation_proposal_repository import SQLiteAdaptationProposalRepository
 from datetime import datetime, timezone
 
 from src.decision_queue import DecisionItem
@@ -148,6 +151,25 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertEqual(first.adaptation.id, second.adaptation.id)
         self.assertEqual(first.adaptation.status, "PROPOSED")
         self.assertEqual(second.adaptation.status, "PROPOSED")
+
+    def test_service_uses_durable_repository_and_replay_preserves_approval(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repository = SQLiteAdaptationProposalRepository(
+                str(Path(tmp) / "proposals.sqlite3")
+            )
+            self.service = TrustedDecisionLearningService(
+                classifier=self.classifier,
+                receipt_verifier=self.verifier,
+                memory=self.memory,
+                adaptation_proposal_repository=repository,
+            )
+            first = self.capture()
+            approved = self.service._adaptation_engine.approve(first.adaptation)
+            replayed = self.capture()
+            self.assertEqual(approved.status, "APPROVED")
+            self.assertEqual(replayed.adaptation.id, first.adaptation.id)
+            self.assertEqual(replayed.adaptation.status, "APPROVED")
+            self.assertEqual(len(self.memory.recent(10)), 1)
 
     def test_retry_after_adaptation_proposal_failure_reuses_memory_event(self):
         class FailsOnceEngine:
