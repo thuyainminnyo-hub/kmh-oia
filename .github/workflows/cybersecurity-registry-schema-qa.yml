@@ -13,6 +13,7 @@ on:
       - "schemas/cybersecurity-threat-record.schema.json"
       - "scripts/validate_cybersecurity_record.py"
       - "tests/fixtures/cybersecurity/**"
+      - "tests/test_cybersecurity_schema.py"
       - ".github/workflows/cybersecurity-registry-schema-qa.yml"
   workflow_dispatch:
 
