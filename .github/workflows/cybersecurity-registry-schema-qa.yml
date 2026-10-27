@@ -1,0 +1,46 @@
+name: Cybersecurity Registry Schema QA
+
+on:
+  push:
+    paths:
+      - "schemas/cybersecurity-threat-record.schema.json"
+      - "scripts/validate_cybersecurity_record.py"
+      - "tests/fixtures/cybersecurity/**"
+      - ".github/workflows/cybersecurity-registry-schema-qa.yml"
+  pull_request:
+    paths:
+      - "schemas/cybersecurity-threat-record.schema.json"
+      - "scripts/validate_cybersecurity_record.py"
+      - "tests/fixtures/cybersecurity/**"
+      - ".github/workflows/cybersecurity-registry-schema-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  schema-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install schema validator
+        run: python -m pip install --upgrade pip jsonschema
+      - name: Positive fixture must pass
+        run: python scripts/validate_cybersecurity_record.py tests/fixtures/cybersecurity/valid-pending-record.json
+      - name: Fail-closed fixture must be rejected
+        shell: bash
+        run: |
+          set +e
+          python scripts/validate_cybersecurity_record.py tests/fixtures/cybersecurity/invalid-unknown-applicability-remediation.json
+          status=$?
+          set -e
+          if [ "$status" -ne 1 ]; then
+            echo "Expected invalid fixture to exit 1; got $status"
+            exit 1
+          fi
+          echo "PASS: invalid fail-open record was rejected."
+      - name: State test boundary
+        run: echo "Schema validation only; no production asset or remediation is verified."
