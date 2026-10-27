@@ -106,10 +106,105 @@
     }
   },
   "allOf": [
-    {"if": {"properties": {"threat": {"properties": {"verification_status": {"const": "verified"}}, "required": ["verification_status"]}}, "required": ["threat"]}, "then": {"properties": {"threat": {"properties": {"last_verified_at": {"type": "string", "format": "date-time"}, "source_refs": {"minItems": 1}}}}},
-    {"if": {"properties": {"assessment": {"properties": {"applicability": {"const": "unknown"}}, "required": ["applicability"]}}, "required": ["assessment"]}, "then": {"properties": {"assessment": {"properties": {"decision": {"const": "hold"}}}}},
-    {"if": {"properties": {"execution": {"properties": {"status": {"const": "completed"}}, "required": ["status"]}}, "required": ["execution"]}, "then": {"properties": {"execution": {"properties": {"before_evidence_refs": {"minItems": 1}, "after_evidence_refs": {"minItems": 1}, "result": {"const": "succeeded"}}}}},
-    {"if": {"properties": {"qa": {"properties": {"status": {"const": "passed"}}, "required": ["status"]}}, "required": ["qa"]}, "then": {"properties": {"qa": {"properties": {"reviewer": {"type": "string", "minLength": 1}, "evidence_refs": {"minItems": 1}}}}},
-    {"if": {"properties": {"approval": {"properties": {"status": {"const": "approved"}}, "required": ["status"]}}, "required": ["approval"]}, "then": {"properties": {"approval": {"properties": {"approver": {"type": "string", "minLength": 1}, "scope": {"minItems": 1}, "approved_at": {"type": "string", "format": "date-time"}, "expires_at": {"type": "string", "format": "date-time"}, "rollback_plan_ref": {"type": "string", "minLength": 1}}}}}
+    {
+      "if": {
+        "properties": {
+          "threat": {
+            "properties": {"verification_status": {"const": "verified"}},
+            "required": ["verification_status"]
+          }
+        },
+        "required": ["threat"]
+      },
+      "then": {
+        "properties": {
+          "threat": {
+            "properties": {
+              "last_verified_at": {"type": "string", "format": "date-time"},
+              "source_refs": {"minItems": 1}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "assessment": {
+            "properties": {"applicability": {"const": "unknown"}},
+            "required": ["applicability"]
+          }
+        },
+        "required": ["assessment"]
+      },
+      "then": {"properties": {"assessment": {"properties": {"decision": {"const": "hold"}}}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "execution": {
+            "properties": {"status": {"const": "completed"}},
+            "required": ["status"]
+          }
+        },
+        "required": ["execution"]
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "before_evidence_refs": {"minItems": 1},
+              "after_evidence_refs": {"minItems": 1},
+              "result": {"const": "succeeded"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "qa": {
+            "properties": {"status": {"const": "passed"}},
+            "required": ["status"]
+          }
+        },
+        "required": ["qa"]
+      },
+      "then": {
+        "properties": {
+          "qa": {
+            "properties": {
+              "reviewer": {"type": "string", "minLength": 1},
+              "evidence_refs": {"minItems": 1}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "approval": {
+            "properties": {"status": {"const": "approved"}},
+            "required": ["status"]
+          }
+        },
+        "required": ["approval"]
+      },
+      "then": {
+        "properties": {
+          "approval": {
+            "properties": {
+              "approver": {"type": "string", "minLength": 1},
+              "scope": {"minItems": 1},
+              "approved_at": {"type": "string", "format": "date-time"},
+              "expires_at": {"type": "string", "format": "date-time"},
+              "rollback_plan_ref": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    }
   ]
 }
