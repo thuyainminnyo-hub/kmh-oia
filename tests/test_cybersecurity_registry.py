@@ -120,6 +120,20 @@ class CybersecurityRegistryPersistenceTests(unittest.TestCase):
         self.assertFalse(allowed)
         self.assertIn("applicability", reason)
 
+    def test_invalid_record_schema_never_invokes_executor(self):
+        from scripts.cybersecurity_registry import run_authorized_action
+
+        calls = []
+        executed, reason, result = run_authorized_action(
+            {"case_id": "incomplete"}, "remediate",
+            {"remediate": lambda: calls.append("executed")},
+            now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
+        )
+        self.assertFalse(executed)
+        self.assertIn("schema validation", reason)
+        self.assertEqual(calls, [])
+        self.assertIsNone(result)
+
     def test_hold_decision_never_invokes_executor(self):
         from scripts.cybersecurity_registry import run_authorized_action
 
