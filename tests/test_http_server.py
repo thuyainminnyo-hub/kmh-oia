@@ -6,7 +6,7 @@ from http.server import ThreadingHTTPServer
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from src.http_server import MAX_BODY_BYTES, MAX_GOAL_CHARS, MAX_SESSION_ID_CHARS, OIARequestHandler
+from src.http_server import MAX_BODY_BYTES, MAX_GOAL_BYTES, MAX_SESSION_ID_CHARS, OIARequestHandler
 
 
 class TestHTTPServer(unittest.TestCase):
@@ -24,7 +24,7 @@ class TestHTTPServer(unittest.TestCase):
         cls.thread.join(timeout=2)
 
     def request(self, path, method="GET", payload=None, content_type="application/json"):
-        data = None if payload is None else json.dumps(payload).encode("utf-8")
+        data = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
         request = Request(self.base_url + path, data=data, method=method)
         if data is not None:
             request.add_header("Content-Type", content_type)
@@ -82,8 +82,17 @@ class TestHTTPServer(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertEqual(body["error"], "json_object_required")
 
-    def test_goal_length_is_bounded(self):
-        status, body = self.request("/run", "POST", {"goal": "x" * (MAX_GOAL_CHARS + 1)})
+    def test_goal_length_is_bounded_by_utf8_bytes(self):
+        status, body = self.request("/run", "POST", {"goal": "x" * (MAX_GOAL_BYTES + 1)})
+        self.assertEqual(status, 413)
+        self.assertEqual(body["error"], "goal_too_long")
+
+    def test_multibyte_goal_is_bounded_by_utf8_bytes(self):
+        # 3-byte UTF-8 characters: fewer than 8,192 characters can still exceed 8 KiB.
+        goal = "界" * (MAX_GOAL_BYTES // 3 + 1)
+        self.assertLessEqual(len(goal), MAX_GOAL_BYTES)
+        self.assertGreater(len(goal.encode("utf-8")), MAX_GOAL_BYTES)
+        status, body = self.request("/run", "POST", {"goal": goal})
         self.assertEqual(status, 413)
         self.assertEqual(body["error"], "goal_too_long")
 

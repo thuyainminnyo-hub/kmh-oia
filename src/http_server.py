@@ -14,7 +14,7 @@ from typing import Any
 from src.main import run
 
 MAX_BODY_BYTES = 64 * 1024
-MAX_GOAL_CHARS = 8 * 1024
+MAX_GOAL_BYTES = 8 * 1024
 MAX_SESSION_ID_CHARS = 128
 
 
@@ -71,7 +71,7 @@ class OIARequestHandler(BaseHTTPRequestHandler):
         if not isinstance(goal, str) or not goal.strip():
             self._send_json(400, {"error": "goal_must_be_non_empty_string"})
             return
-        if len(goal) > MAX_GOAL_CHARS:
+        if len(goal.encode("utf-8")) > MAX_GOAL_BYTES:
             self._send_json(413, {"error": "goal_too_long"})
             return
         if not isinstance(session_id, str) or not session_id.strip():
