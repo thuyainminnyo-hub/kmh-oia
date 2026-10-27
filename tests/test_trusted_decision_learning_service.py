@@ -1,4 +1,6 @@
 import unittest
+
+from src.adaptation_engine import AdaptationEngine
 from datetime import datetime, timezone
 
 from src.decision_queue import DecisionItem
@@ -146,6 +148,33 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertEqual(first.adaptation.id, second.adaptation.id)
         self.assertEqual(first.adaptation.status, "PROPOSED")
         self.assertEqual(second.adaptation.status, "PROPOSED")
+
+    def test_retry_after_adaptation_proposal_failure_reuses_memory_event(self):
+        class FailsOnceEngine:
+            def __init__(self):
+                self.calls = 0
+                self.delegate = AdaptationEngine()
+
+            def propose(self, record, **kwargs):
+                self.calls += 1
+                if self.calls == 1:
+                    raise RuntimeError("simulated proposal persistence boundary failure")
+                return self.delegate.propose(record, **kwargs)
+
+        engine = FailsOnceEngine()
+        self.service._adaptation_engine = engine
+        with self.assertRaisesRegex(RuntimeError, "simulated proposal persistence boundary failure"):
+            self.capture()
+
+        self.assertEqual(len(self.memory.recent(10)), 1)
+        persisted_event_id = self.memory.recent(1)[0].event_id
+
+        retried = self.capture()
+        self.assertTrue(retried.admitted)
+        self.assertEqual(len(self.memory.recent(10)), 1)
+        self.assertEqual(retried.memory.event_id, persisted_event_id)
+        self.assertEqual(retried.adaptation.status, "PROPOSED")
+        self.assertEqual(engine.calls, 2)
 
     def test_missing_receipt_fails_closed_without_learning_influence(self):
         result = self.capture(execution=self.execution(receipt=False))
