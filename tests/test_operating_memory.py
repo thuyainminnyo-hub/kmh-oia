@@ -27,6 +27,25 @@ class OperatingMemoryTests(unittest.TestCase):
             self.assertEqual(restored.recent(1)[0], record)
             self.assertEqual(len(restored.search("evidence")), 1)
 
+    def test_duplicate_event_id_returns_original_record_and_survives_restart(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "memory.json"
+            memory = OperatingMemory(path)
+            kwargs = dict(
+                command_id="cmd-duplicate",
+                wanted="w", did="d", actual="a", verified="v",
+                decision="decision", learned="learned", changed="changed",
+                next_command="next", event_id="learning:event-1",
+            )
+            first = memory.record(**kwargs)
+            duplicate = memory.record(**kwargs)
+            self.assertEqual(duplicate, first)
+            self.assertEqual(len(memory.recent(10)), 1)
+
+            restored = OperatingMemory(path)
+            self.assertEqual(restored.record(**kwargs), first)
+            self.assertEqual(len(restored.recent(10)), 1)
+
     def test_rejects_invalid_confidence(self) -> None:
         memory = OperatingMemory()
         with self.assertRaises(ValueError):
