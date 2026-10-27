@@ -76,6 +76,16 @@ class TrustedLearningServiceFactoryTests(unittest.TestCase):
                     proposal_sqlite_path=shared,
                 ).validate()
 
+    def test_rejects_tilde_and_absolute_alias_of_same_file(self):
+        shared_name = "kmh-oia-factory-path-collision-test.sqlite3"
+        tilde_path = str(Path("~") / shared_name)
+        absolute_path = str(Path.home() / shared_name)
+        with self.assertRaisesRegex(ValueError, "different files"):
+            TrustedLearningServiceConfig(
+                memory_path=tilde_path,
+                proposal_sqlite_path=absolute_path,
+            ).validate()
+
 
 if __name__ == "__main__":
     unittest.main()
