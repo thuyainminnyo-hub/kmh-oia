@@ -86,10 +86,11 @@ class OperatingMemory:
         ):
             raise ValueError("confidence must be between 0 and 1")
 
+        normalized_event_id = event_id.strip() if event_id is not None else None
         with self._lock:
-            if event_id is not None:
+            if normalized_event_id is not None:
                 for existing in self._records:
-                    if existing.event_id == event_id:
+                    if existing.event_id == normalized_event_id:
                         return existing
 
             record = OperatingMemoryRecord(
@@ -97,7 +98,7 @@ class OperatingMemory:
                 timestamp=datetime.now(timezone.utc).isoformat(),
                 **{name: value.strip() for name, value in fields.items()},
                 confidence=float(confidence),
-                event_id=event_id.strip() if event_id is not None else None,
+                event_id=normalized_event_id,
             )
             self._records.append(record)
             try:
