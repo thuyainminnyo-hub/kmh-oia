@@ -1,4 +1,4 @@
-""""Minimal HTTP adapter for running KMH OIA on Cloud Run.
+"""Minimal HTTP adapter for running KMH OIA on Cloud Run.
 
 This adapter exposes liveness and a bounded JSON execution endpoint. It does
 not claim dependency readiness, authenticate an external provider, or authorize
