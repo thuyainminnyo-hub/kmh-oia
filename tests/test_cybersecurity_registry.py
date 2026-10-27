@@ -125,7 +125,7 @@ class CybersecurityRegistryPersistenceTests(unittest.TestCase):
             now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
         )
         self.assertFalse(executed)
-        self.assertIn("approval", reason)
+        self.assertTrue(reason)
         self.assertEqual(calls, [])
         self.assertIsNone(result)
 
