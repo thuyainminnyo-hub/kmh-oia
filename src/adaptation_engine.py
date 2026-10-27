@@ -48,7 +48,7 @@ class AdaptationEngine:
             if not value.strip():
                 raise ValueError(f"{name} is required")
         return AdaptationProposal(
-            id=f"adapt:{record.command_id}",
+            id=f"adapt:{record.event_id or record.command_id}",
             source_command_id=record.command_id,
             **{name: value.strip() for name, value in values.items()},
             confidence=record.confidence,
