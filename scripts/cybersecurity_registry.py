@@ -105,6 +105,9 @@ def authorize_execution(record, action, *, now=None):
         return False, "threat source is not verified"
     if assessment.get("applicability") != "affected":
         return False, "asset applicability is not confirmed affected"
+    executable_actions = {"mitigate", "remediate", "monitor", "escalate"}
+    if action not in executable_actions:
+        return False, "requested action is not an executable decision"
     if assessment.get("decision") != action:
         return False, "requested action does not match assessment decision"
     if not asset.get("asset_id") or not asset.get("owner"):
