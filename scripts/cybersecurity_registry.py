@@ -114,8 +114,9 @@ def authorize_execution(record, action, *, now=None):
     if not approval.get("approver") or not approval.get("rollback_plan_ref"):
         return False, "approver or rollback plan is missing"
     scope = approval.get("scope")
-    if not isinstance(scope, list) or f"asset:{asset['asset_id']}" not in scope or f"action:{action}" not in scope:
-        return False, "approval scope does not match exact asset and action"
+    expected_scope = {f"asset:{asset['asset_id']}", f"action:{action}"}
+    if not isinstance(scope, list) or len(scope) != len(expected_scope) or set(scope) != expected_scope:
+        return False, "approval scope must contain only the exact asset and action"
     try:
         approved_at = datetime.fromisoformat(approval["approved_at"].replace("Z", "+00:00"))
         expires_at = datetime.fromisoformat(approval["expires_at"].replace("Z", "+00:00"))
