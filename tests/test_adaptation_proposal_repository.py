@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 
 from src.adaptation_engine import AdaptationEngine
 from src.adaptation_proposal_repository import (
@@ -87,6 +88,32 @@ class AdaptationProposalRepositoryTests(unittest.TestCase):
             self.assertTrue(
                 SQLiteAdaptationProposalRepository(path).health_check()
             )
+
+    def test_competing_approve_and_reject_allow_exactly_one_transition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "proposals.sqlite3")
+            initial = AdaptationEngine(SQLiteAdaptationProposalRepository(path)).propose(
+                self.record, **self.kwargs
+            )
+            ready = Barrier(2)
+
+            def transition(action):
+                engine = AdaptationEngine(SQLiteAdaptationProposalRepository(path))
+                ready.wait()
+                try:
+                    return ("won", getattr(engine, action)(initial).status)
+                except ValueError:
+                    return ("lost", action)
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(transition, ("approve", "reject")))
+
+            self.assertEqual(sum(result[0] == "won" for result in results), 1)
+            self.assertEqual(sum(result[0] == "lost" for result in results), 1)
+            stored = SQLiteAdaptationProposalRepository(path).get(initial.id)
+            self.assertIn(stored["status"], {"APPROVED", "REJECTED"})
+            winner = next(result[1] for result in results if result[0] == "won")
+            self.assertEqual(stored["status"], winner)
 
     def test_proposed_status_cannot_be_written_as_a_noop_transition(self):
         with tempfile.TemporaryDirectory() as tmp:
