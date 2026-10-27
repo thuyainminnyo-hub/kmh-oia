@@ -6,6 +6,7 @@ an explicit boundary before a proposal can become an active system change.
 from dataclasses import dataclass
 from typing import Literal
 
+from src.adaptation_proposal_repository import SQLiteAdaptationProposalRepository
 from src.operating_memory import OperatingMemory, OperatingMemoryRecord
 
 AdaptationStatus = Literal["PROPOSED", "APPROVED", "REJECTED", "APPLIED"]
@@ -25,7 +26,18 @@ class AdaptationProposal:
 
 
 class AdaptationEngine:
-    """Generate explicit, reviewable adaptation proposals."""
+    """Generate explicit, reviewable adaptation proposals.
+
+    When a durable repository is configured, proposal identity and governance
+    status are recovered from storage on retries. Without one, behavior remains
+    process-local for backwards compatibility and tests.
+    """
+
+    def __init__(
+        self,
+        repository: SQLiteAdaptationProposalRepository | None = None,
+    ) -> None:
+        self._repository = repository
 
     def propose(
         self,
@@ -47,12 +59,16 @@ class AdaptationEngine:
         for name, value in values.items():
             if not value.strip():
                 raise ValueError(f"{name} is required")
-        return AdaptationProposal(
+        proposal = AdaptationProposal(
             id=f"adapt:{record.event_id or record.command_id}",
             source_command_id=record.command_id,
             **{name: value.strip() for name, value in values.items()},
             confidence=record.confidence,
         )
+        if self._repository is None:
+            return proposal
+        canonical = self._repository.get_or_create(proposal, idempotency_key=proposal.id)
+        return AdaptationProposal(**canonical)
 
     def from_memory(
         self,
@@ -78,17 +94,23 @@ class AdaptationEngine:
             for record in records
         )
 
+    def _transition(self, proposal: AdaptationProposal, status: AdaptationStatus) -> AdaptationProposal:
+        if self._repository is None:
+            return AdaptationProposal(**{**proposal.__dict__, "status": status})
+        canonical = self._repository.update_status(proposal.id, status)
+        return AdaptationProposal(**canonical)
+
     def approve(self, proposal: AdaptationProposal) -> AdaptationProposal:
         if proposal.status != "PROPOSED":
             raise ValueError("only proposed adaptations can be approved")
-        return AdaptationProposal(**{**proposal.__dict__, "status": "APPROVED"})
+        return self._transition(proposal, "APPROVED")
 
     def reject(self, proposal: AdaptationProposal) -> AdaptationProposal:
         if proposal.status != "PROPOSED":
             raise ValueError("only proposed adaptations can be rejected")
-        return AdaptationProposal(**{**proposal.__dict__, "status": "REJECTED"})
+        return self._transition(proposal, "REJECTED")
 
     def apply(self, proposal: AdaptationProposal) -> AdaptationProposal:
         if proposal.status != "APPROVED":
             raise ValueError("only approved adaptations can be applied")
-        return AdaptationProposal(**{**proposal.__dict__, "status": "APPLIED"})
+        return self._transition(proposal, "APPLIED")
