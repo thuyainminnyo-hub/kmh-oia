@@ -24,9 +24,10 @@ class SQLiteAdaptationProposalRepository:
     def __init__(self, path: str) -> None:
         if not isinstance(path, str) or not path.strip():
             raise ValueError("SQLite proposal repository path must be a non-empty file path")
+        if path.strip() == ":memory:":
+            raise ValueError("SQLite proposal repository requires a file-backed database")
         self.path = path
-        if path != ":memory:":
-            Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:
             connection.execute(
                 """
@@ -100,16 +101,19 @@ class SQLiteAdaptationProposalRepository:
         return {**json.loads(row[0]), "status": row[1]}
 
     def update_status(self, proposal_id: str, status: str) -> dict[str, Any]:
-        allowed = {"PROPOSED", "APPROVED", "REJECTED", "APPLIED"}
-        if status not in allowed:
-            raise ValueError("unsupported adaptation proposal status")
+        transitions = {
+            "APPROVED": "PROPOSED",
+            "REJECTED": "PROPOSED",
+            "APPLIED": "APPROVED",
+        }
+        if status not in transitions:
+            raise ValueError("unsupported or non-transition status")
         try:
             with self._connect() as connection:
                 cursor = connection.execute(
                     """UPDATE adaptation_proposals SET status = ?, updated_at = CURRENT_TIMESTAMP
                        WHERE proposal_id = ? AND status = ?""",
-                    (status, proposal_id, {"APPROVED": "PROPOSED", "REJECTED": "PROPOSED",
-                                           "APPLIED": "APPROVED"}.get(status, status)),
+                    (status, proposal_id, transitions[status]),
                 )
                 if cursor.rowcount != 1:
                     raise ValueError("proposal status transition rejected or proposal not found")
