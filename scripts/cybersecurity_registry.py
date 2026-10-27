@@ -58,13 +58,18 @@ def read_entries(path):
     return entries
 
 
-def save_version(path, record, *, stored_at=None):
-    """Append a new version; refuses invalid records and never rewrites old entries."""
+def _record_validation_errors(record):
+    """Return schema errors for a record using the canonical pilot schema."""
     from jsonschema import Draft202012Validator, FormatChecker
 
     schema_path = Path(__file__).resolve().parents[1] / "schemas" / "cybersecurity-threat-record.schema.json"
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(record))
+    return list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(record))
+
+
+def save_version(path, record, *, stored_at=None):
+    """Append a new version; refuses invalid records and never rewrites old entries."""
+    errors = _record_validation_errors(record)
     if errors:
         raise RegistryError("record failed schema validation: " + "; ".join(e.message for e in errors))
     case_id = record["case_id"]
@@ -97,6 +102,12 @@ def authorize_execution(record, action, *, now=None):
         return False, "current time must include timezone"
     if not isinstance(record, dict):
         return False, "record must be an object"
+    try:
+        errors = _record_validation_errors(record)
+    except (ImportError, OSError, ValueError, json.JSONDecodeError) as exc:
+        return False, f"record schema validation unavailable: {exc}"
+    if errors:
+        return False, "record failed schema validation: " + "; ".join(e.message for e in errors)
     asset = record.get("asset") or {}
     threat = record.get("threat") or {}
     assessment = record.get("assessment") or {}
