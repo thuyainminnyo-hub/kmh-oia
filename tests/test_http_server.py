@@ -6,7 +6,7 @@ from http.server import ThreadingHTTPServer
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from src.http_server import MAX_BODY_BYTES, OIARequestHandler
+from src.http_server import MAX_BODY_BYTES, MAX_GOAL_CHARS, MAX_SESSION_ID_CHARS, OIARequestHandler
 
 
 class TestHTTPServer(unittest.TestCase):
@@ -76,6 +76,23 @@ class TestHTTPServer(unittest.TestCase):
         status, body = self.request_raw("/run", oversized)
         self.assertEqual(status, 413)
         self.assertEqual(body["error"], "request_too_large")
+
+    def test_non_object_json_is_rejected(self):
+        status, body = self.request_raw("/run", b'["not", "an", "object"]')
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "json_object_required")
+
+    def test_goal_length_is_bounded(self):
+        status, body = self.request("/run", "POST", {"goal": "x" * (MAX_GOAL_CHARS + 1)})
+        self.assertEqual(status, 413)
+        self.assertEqual(body["error"], "goal_too_long")
+
+    def test_session_id_length_is_bounded(self):
+        status, body = self.request(
+            "/run", "POST", {"goal": "hello", "session_id": "s" * (MAX_SESSION_ID_CHARS + 1)}
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "session_id_too_long")
 
     def test_unknown_path_is_not_found(self):
         status, body = self.request("/unknown")
