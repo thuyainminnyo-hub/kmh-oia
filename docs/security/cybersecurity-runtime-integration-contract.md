@@ -1,19 +1,19 @@
 # Cybersecurity Registry ↔ Live Runtime Integration Contract
 
-**Status:** Design contract only — not an implemented runtime control.  
-**Applies to:** `scripts/cybersecurity_registry.py` and `src/live_runtime_bridge.py`.  
+**Status:** Partial pilot implementation — not production-ready.  
+**Applies to:** cybersecurity registry, command metadata resolver adapter, runtime guard, and `src/live_runtime_bridge.py`.  
 **Release posture:** HOLD until the acceptance criteria below are implemented and independently verified.
 
 ## Current verified boundary
 
 The cybersecurity registry exposes `authorize_execution(record, action)` and `run_authorized_action(record, action, executors)`. The latter checks an action-to-executor mapping and authorization before invoking its selected callable. The local JSONL registry is a pilot adapter, not tamper-proof/WORM storage.
 
-`LiveRuntimeBridge.execute()` currently progresses a console command through its state transitions and calls `self.runtime.execute_detailed(...)`. The code inspected for this contract does not show the cybersecurity registry guard being called before that runtime execution. Therefore, the registry guard must not be described as protecting every live runtime execution.
+`LiveRuntimeBridge.execute()` checks commands explicitly classified as `cybersecurity_remediation` before normal state transitions. A missing or denying guard blocks the command; even when the guard allows it, the bridge raises a `PermissionError` until a dedicated asset-scoped remediation executor is configured. The generic OIA/LLM runtime is not called for that cybersecurity command path. Non-cybersecurity commands retain the general runtime path.\n\n`src/cybersecurity_command_metadata.py` now provides a typed resolver adapter that checks metadata shape and binds its command ID to the console command ID. This is only a contract/helper: the metadata provider must still be implemented by trusted application code using authenticated server-side context. The adapter itself does not authenticate metadata, compare all asset/approval fields against a registry record, or enable execution.
 
 ## Required integration boundary
 
 1. **Explicit action classification.** A command may enter the cybersecurity guard only when a trusted runtime component classifies it as a supported security-sensitive action. Do not infer an actionable remediation solely from free-form objective text.
-2. **Trusted record resolution.** Resolve the assessment record from a trusted registry/repository using an immutable record reference or version. Do not accept a caller-supplied record as proof of its own authority.
+2. **Trusted record resolution.** The typed resolver adapter is available, but the trusted metadata provider and its authenticated server-side source are not yet wired into the live runtime. Resolve the assessment record from a trusted registry/repository using an immutable record reference or version. Do not accept a caller-supplied record as proof of its own authority.
 3. **Validate before side effects.** Validate the complete record against the canonical schema, then verify source evidence, applicability, decision, asset identity, owner, exact approval scope, approval time window, and rollback plan before transitioning the command to an executable state or invoking an executor.
 4. **Fail closed.** Missing registry records, schema failures, unverifiable sources, unknown applicability, `hold`, unsupported actions, mismatched asset/action scope, expired approvals, and missing executors must block execution without invoking any executor.
 5. **Trusted executor registry.** Action-to-executor mappings must be constructed by trusted application code, not request data. Each executor must independently enforce least-privilege access to the approved asset. A Python dictionary alone is not a trust boundary.
@@ -23,7 +23,7 @@ The cybersecurity registry exposes `authorize_execution(record, action)` and `ru
 
 ## Acceptance criteria
 
-- [ ] A security-sensitive command with no registry record is blocked before runtime/executor side effects.
+- [x] Current guard tests cover a missing/denying registry record and verify the generic runtime is not called.\n- [ ] A security-sensitive command with no registry record is blocked before runtime/executor side effects in the full production-integrated path.
 - [ ] A schema-invalid or tampered record is blocked and its executor is not called.
 - [ ] Pending, denied, expired, future-dated, or out-of-scope approval is blocked.
 - [ ] Unknown applicability and `hold` are blocked even if an executor exists.
@@ -31,7 +31,7 @@ The cybersecurity registry exposes `authorize_execution(record, action)` and `ru
 - [ ] An unregistered/non-callable executor is blocked.
 - [ ] A valid, unexpired, exact-scope approval calls only the registered executor for that action and asset.
 - [ ] Denial and execution outcomes are correlated to command/execution IDs in audit evidence.
-- [ ] Integration tests exercise the actual `LiveRuntimeBridge.execute()` path and assert denied cases do not reach the consequential side-effect boundary.
+- [x] Current integration tests exercise `LiveRuntimeBridge.execute()` and assert the generic runtime spy is not called for a denied cybersecurity command.\n- [ ] Full production-integrated tests cover authenticated metadata provider, asset-scoped executor, durable audit, idempotency, and independent outcome verification.
 - [ ] Existing non-security runtime tests remain green and command policy is explicit.
 - [ ] Independent reviewer inspects code, tests, CI and audit evidence before the PR leaves Draft.
 - [ ] Production storage, concurrent writes, retention, secret handling, access controls, and tamper-evident/WORM requirements are assessed separately.
