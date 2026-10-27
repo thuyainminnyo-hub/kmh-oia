@@ -33,6 +33,27 @@ class AdaptationEngineTests(unittest.TestCase):
         self.assertEqual(proposal.status, "PROPOSED")
         self.assertEqual(proposal.confidence, 0.8)
 
+    def test_distinct_event_ids_with_same_command_id_get_distinct_proposal_ids(self):
+        engine = AdaptationEngine()
+        first_record = record()
+        second_record = OperatingMemoryRecord(
+            **{**first_record.__dict__, "event_id": "learning:event-2"}
+        )
+        first = engine.propose(
+            first_record, pattern="Pattern A", problem="Problem A",
+            proposed_change="Change A", expected_effect="Effect A",
+            next_experiment="Experiment A",
+        )
+        second = engine.propose(
+            second_record, pattern="Pattern B", problem="Problem B",
+            proposed_change="Change B", expected_effect="Effect B",
+            next_experiment="Experiment B",
+        )
+        self.assertEqual(first.source_command_id, second.source_command_id)
+        self.assertNotEqual(first.id, second.id)
+        self.assertEqual(first.id, "adapt:cmd-1")
+        self.assertEqual(second.id, "adapt:learning:event-2")
+
     def test_governed_lifecycle(self):
         engine = AdaptationEngine()
         proposal = engine.propose(
