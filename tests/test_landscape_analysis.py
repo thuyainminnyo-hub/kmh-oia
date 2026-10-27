@@ -115,14 +115,18 @@ class LandscapeSiteAnalysisTests(unittest.TestCase):
 
     def test_duplicate_observation_id_across_categories_is_rejected(self):
         observations = complete_observations()
-        observations[1] = dict(observations[1], observation_id=observations[0]["observation_id"])
-        observations[1]["category"] = "topography"
-        observations[1]["unit"] = "%"
+        observations[1] = dict(
+            observations[1],
+            observation_id=observations[0]["observation_id"],
+        )
         report = analyze_site(self.fixture["site"], observations)
         self.assertEqual(report.status, QAStatus.HOLD)
-        self.assertIn("duplicate_observation_id", {issue.code for issue in report.validation_issues})
-        topography = next(s for s in report.category_summaries if s.category is ObservationCategory.TOPOGRAPHY)
-        self.assertEqual(len(topography.observation_ids), 1)
+        self.assertIn(
+            "duplicate_observation_id",
+            {issue.code for issue in report.validation_issues},
+        )
+        self.assertIn(ObservationCategory.SUN, report.missing_categories)
+        self.assertNotIn(ObservationCategory.SUN, report.observed_categories)
 
     def test_report_preserves_provenance_and_limitations(self):
         report = analyze_site(self.fixture["site"], complete_observations())
