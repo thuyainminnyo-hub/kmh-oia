@@ -6,6 +6,7 @@ on:
       - "schemas/cybersecurity-threat-record.schema.json"
       - "scripts/validate_cybersecurity_record.py"
       - "tests/fixtures/cybersecurity/**"
+      - "tests/test_cybersecurity_schema.py"
       - ".github/workflows/cybersecurity-registry-schema-qa.yml"
   pull_request:
     paths:
@@ -42,5 +43,7 @@ jobs:
             exit 1
           fi
           echo "PASS: invalid fail-open record was rejected."
+      - name: Run governance contract tests
+        run: python -m unittest tests/test_cybersecurity_schema.py -v
       - name: State test boundary
         run: echo "Schema validation only; no production asset or remediation is verified."
