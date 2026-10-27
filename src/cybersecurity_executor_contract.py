@@ -98,5 +98,7 @@ class RemediationResult:
             refs = getattr(self, name)
             if not isinstance(refs, tuple) or any(not isinstance(ref, str) or not ref.strip() for ref in refs):
                 raise ValueError(f"{name} must be a tuple of non-empty strings")
+        if self.status == RemediationStatus.SUCCEEDED and (not self.before_evidence_refs or not self.after_evidence_refs):
+            raise ValueError("SUCCEEDED requires before and after evidence references")
         if self.status in {RemediationStatus.FAILED, RemediationStatus.PARTIAL, RemediationStatus.UNKNOWN}:
             _require_nonblank(self.error_code or "", "error_code")
