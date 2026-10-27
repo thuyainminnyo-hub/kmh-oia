@@ -8,6 +8,10 @@
 
 Define a narrow, typed boundary for a future asset-scoped remediation executor. Authorization and execution are separate decisions. A valid registry approval must never cause the generic OIA/LLM runtime to execute a security objective.
 
+## Code status
+
+A side-effect-free typed contract now exists in `src/cybersecurity_executor_contract.py`, with unit tests in `tests/test_cybersecurity_executor_contract.py`. It validates request identifiers, action allowlist, positive registry version, timezone-aware timestamps, structured result status, chronology, evidence-reference shape, and required before/after references for a `SUCCEEDED` observation. This module does **not** authorize a request, invoke an executor, persist audit events, or verify outcomes, and it is not wired into `LiveRuntimeBridge`.
+
 ## Proposed request and result contract
 
 The integration should use immutable, typed values (dataclasses or equivalent validated types), not free-form objective text as execution instructions.
