@@ -70,6 +70,14 @@ class AuthenticatedCommandResolverTests(unittest.TestCase):
                 action="execute-shell",
                 authentication_context_id="authctx-789",
             )
+        with self.assertRaisesRegex(ValueError, "allowed cybersecurity action"):
+            AuthenticatedCybersecurityCommandMetadata(
+                command_id="cmd-123",
+                case_id="case-456",
+                registry_version=3,
+                action=["remediate"],
+                authentication_context_id="authctx-789",
+            )
 
 
 if __name__ == "__main__":
