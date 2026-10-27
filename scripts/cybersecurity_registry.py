@@ -137,16 +137,20 @@ def verify_registry(path):
     """Validate the full local hash chain and return entry count."""
     return len(read_entries(path))
 
-def run_authorized_action(record, action, executor, *, now=None):
-    """Invoke a supplied executor only after authorization succeeds.
+def run_authorized_action(record, action, executors, *, now=None):
+    """Dispatch only through a trusted action-to-executor allowlist.
 
-    This is a fail-closed integration seam, not a deployment adapter by itself.
-    Callers must route every consequential execution through this function and
-    provide an executor that independently enforces its own least-privilege scope.
-    Returns (executed, reason, result); executor exceptions are allowed to propagate.
+    The mapping must be maintained by the trusted runtime, with one callable
+    per explicitly supported action. Never build it from untrusted request data.
+    This is still an integration seam, not a deployment adapter by itself:
+    each executor must independently enforce least-privilege asset scope.
+    Returns (executed, reason, result); executor exceptions propagate.
     """
+    if not isinstance(executors, dict):
+        return False, "executors must be a trusted action-to-executor mapping", None
+    executor = executors.get(action)
     if not callable(executor):
-        return False, "executor must be callable", None
+        return False, "no allowlisted executor for this action", None
     allowed, reason = authorize_execution(record, action, now=now)
     if not allowed:
         return False, reason, None
