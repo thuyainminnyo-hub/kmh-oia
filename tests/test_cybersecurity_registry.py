@@ -130,7 +130,7 @@ class CybersecurityRegistryPersistenceTests(unittest.TestCase):
 
         calls = []
         executed, reason, result = run_authorized_action(
-            self.record, "remediate", lambda: calls.append("called"),
+            self.record, "remediate", {"remediate": lambda: calls.append("called")},
             now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
         )
         self.assertFalse(executed)
@@ -144,14 +144,28 @@ class CybersecurityRegistryPersistenceTests(unittest.TestCase):
         calls = []
         executed, reason, result = run_authorized_action(
             self.approved_record(), "remediate",
-            lambda: calls.append("executed") or "ok",
+            {"remediate": lambda: calls.append("executed") or "ok"},
             now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
         )
         self.assertTrue(executed, reason)
         self.assertEqual(calls, ["executed"])
         self.assertEqual(result, "ok")
 
-    def test_authorized_action_wrapper_rejects_non_callable_executor(self):
+    def test_authorized_action_wrapper_rejects_executor_for_other_action(self):
+        from scripts.cybersecurity_registry import run_authorized_action
+
+        calls = []
+        executed, reason, result = run_authorized_action(
+            self.approved_record(), "remediate",
+            {"delete": lambda: calls.append("dangerous")},
+            now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
+        )
+        self.assertFalse(executed)
+        self.assertIn("allowlisted executor", reason)
+        self.assertEqual(calls, [])
+        self.assertIsNone(result)
+
+    def test_authorized_action_wrapper_rejects_non_mapping_executor_registry(self):
         from scripts.cybersecurity_registry import run_authorized_action
 
         executed, reason, result = run_authorized_action(
@@ -159,7 +173,18 @@ class CybersecurityRegistryPersistenceTests(unittest.TestCase):
             now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
         )
         self.assertFalse(executed)
-        self.assertIn("callable", reason)
+        self.assertIn("mapping", reason)
+        self.assertIsNone(result)
+
+    def test_authorized_action_wrapper_rejects_non_callable_executor(self):
+        from scripts.cybersecurity_registry import run_authorized_action
+
+        executed, reason, result = run_authorized_action(
+            self.approved_record(), "remediate", {"remediate": None},
+            now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
+        )
+        self.assertFalse(executed)
+        self.assertIn("allowlisted executor", reason)
         self.assertIsNone(result)
 
 
