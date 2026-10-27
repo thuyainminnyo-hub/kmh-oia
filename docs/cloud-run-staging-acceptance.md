@@ -9,8 +9,8 @@ This checklist intentionally keeps cloud spend low while the KMH OIA runtime is 
 
 At the time this checklist was written, the GitHub Actions runs associated with the staging-readiness head commit reported success:
 
-- KMH OIA Tests: run 1018 — test and performance-baseline jobs succeeded.
-- KMH OIA Validation: run 937 — repository validation, tests, performance evidence, and deployment-evidence-bundle jobs succeeded.
+- KMH OIA Tests: run 1019 — test and performance-baseline jobs succeeded.
+- KMH OIA Validation: run 938 — repository validation, tests, performance evidence, and deployment-evidence-bundle jobs succeeded.
 
 These are repository/CI results only. They are not proof of a live service, real external provider execution, or production business outcomes.
 
