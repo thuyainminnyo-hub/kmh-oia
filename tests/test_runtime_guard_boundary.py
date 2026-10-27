@@ -32,6 +32,28 @@ class RuntimeGuardBoundaryTests(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertEqual(command.status, "INBOX")
 
+    def test_authorized_guard_still_cannot_fall_through_to_generic_runtime(self):
+        calls = []
+
+        class RuntimeSpy:
+            def execute_detailed(self, *args, **kwargs):
+                calls.append(True)
+                return ("response", [], [])
+
+        console = LiveOperatingConsole(date="2026-10-27")
+        command = self._command(console)
+        bridge = LiveRuntimeBridge(
+            console,
+            runtime=RuntimeSpy(),
+            cybersecurity_execution_guard=lambda _command: (True, "approved"),
+        )
+
+        with self.assertRaisesRegex(PermissionError, "dedicated asset-scoped remediation executor"):
+            bridge.execute(command.id)
+
+        self.assertEqual(calls, [])
+        self.assertEqual(command.status, "INBOX")
+
     def test_denied_guard_never_calls_runtime(self):
         calls = []
 
