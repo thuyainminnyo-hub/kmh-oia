@@ -21,14 +21,14 @@ class AuthenticatedCybersecurityCommandMetadata:
 
     def __post_init__(self) -> None:
         for field_name in (
-            "command_id", "case_id", "action", "authentication_context_id"
+            "command_id", "case_id", "authentication_context_id"
         ):
             value = getattr(self, field_name)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{field_name} must be a non-empty string")
         if not isinstance(self.registry_version, int) or isinstance(self.registry_version, bool) or self.registry_version < 1:
             raise ValueError("registry_version must be a positive integer")
-        if not isinstance(self.action, str) or self.action not in EXECUTABLE_ACTIONS:
+        if not isinstance(self.action, str) or not self.action.strip() or self.action not in EXECUTABLE_ACTIONS:
             raise ValueError("action is not an allowed cybersecurity action")
 
 
