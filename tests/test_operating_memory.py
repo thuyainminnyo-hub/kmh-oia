@@ -39,7 +39,9 @@ class OperatingMemoryTests(unittest.TestCase):
             )
             first = memory.record(**kwargs)
             duplicate = memory.record(**kwargs)
+            whitespace_duplicate = memory.record(**{**kwargs, "event_id": " learning:event-1 "})
             self.assertEqual(duplicate, first)
+            self.assertEqual(whitespace_duplicate, first)
             self.assertEqual(len(memory.recent(10)), 1)
 
             restored = OperatingMemory(path)
