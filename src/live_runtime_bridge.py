@@ -1,5 +1,6 @@
 """Bridge the live operating console to the executable OIA runtime."""
 from dataclasses import dataclass
+from typing import Callable
 from uuid import uuid4
 
 from src.components import OIARuntime
@@ -63,6 +64,7 @@ class LiveRuntimeBridge:
         allowed_source_providers: tuple[str, ...] = (),
         receipt_replay_store: ReceiptReplayStore | None = None,
         require_durable_replay_store: bool = False,
+        cybersecurity_execution_guard: Callable[[Command], tuple[bool, str]] | None = None,
     ) -> None:
         if require_durable_replay_store and receipt_replay_store is None:
             raise ValueError(
@@ -76,6 +78,7 @@ class LiveRuntimeBridge:
                 "SQLite receipt replay store health check failed; refusing startup."
             )
         self.console = console
+        self.cybersecurity_execution_guard = cybersecurity_execution_guard
         self.runtime = runtime or OIARuntime()
         self.memory = memory or OperatingMemory()
         self.control_plane = control_plane or StandardControlPlane()
@@ -117,6 +120,22 @@ class LiveRuntimeBridge:
         source_record_id: str = "",
     ) -> ExecutionRecord:
         command = self._get_command(command_id)
+        if command.source_action_kind == "cybersecurity_remediation":
+            guard = self.cybersecurity_execution_guard
+            if guard is None:
+                raise PermissionError(
+                    "cybersecurity remediation requires an explicitly configured execution guard"
+                )
+            allowed, reason = guard(command)
+            if not allowed:
+                raise PermissionError(f"cybersecurity execution blocked: {reason}")
+            # Authorization is not execution. Until a dedicated, asset-scoped
+            # remediation executor is wired into this bridge, never dispatch a
+            # cybersecurity remediation objective to the generic OIA/LLM runtime.
+            raise PermissionError(
+                "cybersecurity remediation authorized but blocked: "
+                "dedicated asset-scoped remediation executor is not configured"
+            )
         selected_standard = standard
         if selected_standard is None and source_adaptation_id is not None:
             selected_standard = self.standard_resolver.resolve(source_adaptation_id).standard

@@ -14,6 +14,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install cybersecurity schema test dependency
+        run: python -m pip install --upgrade pip jsonschema
       - run: python -m unittest discover -s tests -v
 
   performance-evidence:
@@ -66,6 +68,8 @@ jobs:
           name: kmh-oia-production-readiness-snapshot
           path: production-readiness-snapshot.json
       - run: git diff --check
+      - name: Install cybersecurity schema test dependency
+        run: python -m pip install --upgrade pip jsonschema
       - run: python -m unittest discover -s tests -v
 
   deployment-evidence-bundle:
