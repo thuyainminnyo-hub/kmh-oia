@@ -74,7 +74,7 @@ class CybersecurityRegistryPersistenceTests(unittest.TestCase):
         r["assessment"].update({"applicability": "affected", "decision": "remediate"})
         r["approval"].update({
             "status": "approved", "approver": "change-manager",
-            "scope": ["asset:asset-001", "action:remediate"],
+            "scope": ["asset:ASSET-REPLACE-ME", "action:remediate"],
             "approved_at": "2026-10-27T00:00:00Z",
             "expires_at": "2026-10-28T00:00:00Z",
             "rollback_plan_ref": "evidence:rollback-001",
