@@ -1,6 +1,8 @@
+from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from src.operating_memory import OperatingMemory
 
@@ -47,6 +49,38 @@ class OperatingMemoryTests(unittest.TestCase):
             restored = OperatingMemory(path)
             self.assertEqual(restored.record(**kwargs), first)
             self.assertEqual(len(restored.recent(10)), 1)
+
+    def test_concurrent_duplicate_event_id_is_recorded_once(self) -> None:
+        memory = OperatingMemory()
+        kwargs = dict(
+            command_id="cmd-concurrent",
+            wanted="w", did="d", actual="a", verified="v",
+            decision="decision", learned="learned", changed="changed",
+            next_command="next", event_id="learning:concurrent-1",
+        )
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            records = list(executor.map(lambda _: memory.record(**kwargs), range(40)))
+
+        self.assertTrue(all(record == records[0] for record in records))
+        self.assertEqual(len(memory.recent(10)), 1)
+
+    def test_persist_failure_rolls_back_record_and_allows_retry(self) -> None:
+        memory = OperatingMemory()
+        kwargs = dict(
+            command_id="cmd-retry",
+            wanted="w", did="d", actual="a", verified="v",
+            decision="decision", learned="learned", changed="changed",
+            next_command="next", event_id="learning:retry-1",
+        )
+        with patch.object(memory, "_persist", side_effect=OSError("simulated disk failure")):
+            with self.assertRaisesRegex(OSError, "simulated disk failure"):
+                memory.record(**kwargs)
+        self.assertEqual(memory.recent(10), ())
+
+        record = memory.record(**kwargs)
+        self.assertEqual(memory.recent(1), (record,))
+        self.assertEqual(memory.record(**kwargs), record)
+        self.assertEqual(len(memory.recent(10)), 1)
 
     def test_rejects_invalid_confidence(self) -> None:
         memory = OperatingMemory()
