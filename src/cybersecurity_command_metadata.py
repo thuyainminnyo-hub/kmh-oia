@@ -15,13 +15,14 @@ from src.cybersecurity_executor_contract import EXECUTABLE_ACTIONS
 class AuthenticatedCybersecurityCommandMetadata:
     command_id: str
     case_id: str
+    asset_id: str
     registry_version: int
     action: str
     authentication_context_id: str
 
     def __post_init__(self) -> None:
         for field_name in (
-            "command_id", "case_id", "authentication_context_id"
+            "command_id", "case_id", "asset_id", "authentication_context_id"
         ):
             value = getattr(self, field_name)
             if not isinstance(value, str) or not value.strip():
@@ -34,7 +35,7 @@ class AuthenticatedCybersecurityCommandMetadata:
 
 def build_authenticated_command_resolver(
     metadata_provider: Callable[[object], AuthenticatedCybersecurityCommandMetadata],
-) -> Callable[[object], tuple[str, int, str]]:
+) -> Callable[[object], tuple[str, int, str, str]]:
     """Adapt trusted metadata to the registry guard's resolver signature.
 
     The provider must authenticate and bind metadata to the command server-side.
@@ -53,6 +54,6 @@ def build_authenticated_command_resolver(
         command_id = getattr(command, "id", None)
         if not isinstance(command_id, str) or metadata.command_id != command_id:
             raise ValueError("authenticated metadata command ID mismatch")
-        return metadata.case_id, metadata.registry_version, metadata.action
+        return metadata.case_id, metadata.registry_version, metadata.action, metadata.asset_id
 
     return resolve
