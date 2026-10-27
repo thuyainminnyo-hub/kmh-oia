@@ -120,6 +120,21 @@ class CybersecurityRegistryPersistenceTests(unittest.TestCase):
         self.assertFalse(allowed)
         self.assertIn("applicability", reason)
 
+    def test_hold_decision_never_invokes_executor(self):
+        from scripts.cybersecurity_registry import run_authorized_action
+
+        record = self.approved_record()
+        record["assessment"]["decision"] = "hold"
+        calls = []
+        executed, reason, result = run_authorized_action(
+            record, "hold", {"hold": lambda: calls.append("executed")},
+            now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc),
+        )
+        self.assertFalse(executed)
+        self.assertIn("not an executable decision", reason)
+        self.assertEqual(calls, [])
+        self.assertIsNone(result)
+
     def test_denies_action_that_differs_from_assessment(self):
         allowed, reason = authorize_execution(self.approved_record(), "monitor", now=datetime(2026, 10, 27, 1, tzinfo=timezone.utc))
         self.assertFalse(allowed)
