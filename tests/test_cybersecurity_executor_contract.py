@@ -48,6 +48,10 @@ class RemediationRequestContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "allowed cybersecurity action"):
             self.valid_request(action="delete")
 
+    def test_rejects_non_string_action(self):
+        with self.assertRaisesRegex(ValueError, "allowed cybersecurity action"):
+            self.valid_request(action=["remediate"])
+
     def test_rejects_naive_timestamp(self):
         with self.assertRaisesRegex(ValueError, "timezone-aware"):
             self.valid_request(requested_at=datetime(2026, 10, 27, 10, 0))
@@ -100,6 +104,10 @@ class RemediationResultContractTests(unittest.TestCase):
             with self.subTest(status=status):
                 with self.assertRaisesRegex(ValueError, "error_code"):
                     self.valid_result(status=status, error_code=" ")
+
+    def test_rejects_non_string_action(self):
+        with self.assertRaisesRegex(ValueError, "allowed cybersecurity action"):
+            self.valid_result(action=["remediate"])
 
     def test_rejects_plain_string_status(self):
         with self.assertRaisesRegex(ValueError, "RemediationStatus"):
