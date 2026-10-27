@@ -60,6 +60,24 @@ class RegistryRuntimeGuardTests(unittest.TestCase):
         self.assertFalse(allowed)
         self.assertIn("not found", reason)
 
+    def test_non_string_action_from_trusted_resolver_is_denied(self):
+        guard = build_registry_execution_guard(
+            self.path, lambda _command: (self.record["case_id"], 1, ["remediate"]),
+        )
+        allowed, reason = guard(self.command)
+        self.assertFalse(allowed)
+        self.assertIn("invalid action", reason)
+
+    def test_resolver_exception_fails_closed(self):
+        def broken_resolver(_command):
+            raise RuntimeError("authenticated metadata unavailable")
+
+        guard = build_registry_execution_guard(self.path, broken_resolver)
+        allowed, reason = guard(self.command)
+        self.assertFalse(allowed)
+        self.assertIn("failed closed", reason)
+        self.assertIn("RuntimeError", reason)
+
     def test_corrupt_registry_fails_closed(self):
         self.path.write_text("{bad json}\n", encoding="utf-8")
         guard = build_registry_execution_guard(
