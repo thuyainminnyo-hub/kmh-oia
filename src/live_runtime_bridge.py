@@ -129,6 +129,13 @@ class LiveRuntimeBridge:
             allowed, reason = guard(command)
             if not allowed:
                 raise PermissionError(f"cybersecurity execution blocked: {reason}")
+            # Authorization is not execution. Until a dedicated, asset-scoped
+            # remediation executor is wired into this bridge, never dispatch a
+            # cybersecurity remediation objective to the generic OIA/LLM runtime.
+            raise PermissionError(
+                "cybersecurity remediation authorized but blocked: "
+                "dedicated asset-scoped remediation executor is not configured"
+            )
         selected_standard = standard
         if selected_standard is None and source_adaptation_id is not None:
             selected_standard = self.standard_resolver.resolve(source_adaptation_id).standard
