@@ -1,5 +1,6 @@
 """HTTP adapter contract tests using only local synthetic inputs."""
 import json
+import socket
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
@@ -16,6 +17,7 @@ class TestHTTPServer(unittest.TestCase):
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
         cls.base_url = f"http://127.0.0.1:{cls.server.server_port}"
+        cls.server_address = cls.server.server_address
 
     @classmethod
     def tearDownClass(cls):
@@ -34,9 +36,11 @@ class TestHTTPServer(unittest.TestCase):
             return error.code, json.loads(error.read())
         return response.status, json.loads(response.read())
 
-    def request_raw(self, path, data, content_type="application/json"):
+    def request_raw(self, path, data, content_type="application/json", transfer_encoding=None):
         request = Request(self.base_url + path, data=data, method="POST")
         request.add_header("Content-Type", content_type)
+        if transfer_encoding is not None:
+            request.add_header("Transfer-Encoding", transfer_encoding)
         try:
             response = urlopen(request, timeout=3)
         except HTTPError as error:
@@ -76,6 +80,30 @@ class TestHTTPServer(unittest.TestCase):
         status, body = self.request_raw("/run", oversized)
         self.assertEqual(status, 413)
         self.assertEqual(body["error"], "request_too_large")
+
+    def test_missing_content_length_is_rejected(self):
+        with socket.create_connection(self.server_address, timeout=3) as connection:
+            connection.sendall(
+                b"POST /run HTTP/1.1\r\n"
+                b"Host: localhost\r\n"
+                b"Content-Type: application/json\r\n"
+                b"Connection: close\r\n\r\n"
+            )
+            response = b""
+            while True:
+                chunk = connection.recv(4096)
+                if not chunk:
+                    break
+                response += chunk
+        self.assertIn(b" 411 ", response.split(b"\r\n", 1)[0])
+        self.assertIn(b'"content_length_required"', response)
+
+    def test_transfer_encoding_is_rejected(self):
+        status, body = self.request_raw(
+            "/run", b'{"goal": "hello"}', transfer_encoding="chunked"
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(body["error"], "transfer_encoding_not_supported")
 
     def test_non_object_json_is_rejected(self):
         status, body = self.request_raw("/run", b'["not", "an", "object"]')
