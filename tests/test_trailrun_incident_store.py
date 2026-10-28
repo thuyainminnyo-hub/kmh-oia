@@ -398,6 +398,46 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
             audit_rows[-1]["correlation_id"],
         )
 
+    def test_create_rejects_storage_inconsistent_payload_before_persistence(self):
+        missing_required_audit_field = sample_incident(
+            event_id="evt_STORE_BAD_AUDIT",
+            incident_id="inc_STORE_BAD_AUDIT",
+        )
+        missing_required_audit_field["audit"][0].pop("actor_role")
+
+        unsupported_audit_field = sample_incident(
+            event_id="evt_STORE_EXTRA_AUDIT",
+            incident_id="inc_STORE_EXTRA_AUDIT",
+        )
+        unsupported_audit_field["audit"][0]["untrusted_extra"] = "must not persist"
+
+        non_string_identifier = sample_incident(
+            event_id="evt_STORE_BAD_ID",
+            incident_id="inc_STORE_BAD_ID",
+        )
+        non_string_identifier["incident_id"] = 123
+
+        for candidate in (
+            missing_required_audit_field,
+            unsupported_audit_field,
+            non_string_identifier,
+        ):
+            with self.subTest(event_id=candidate["event_id"]):
+                with self.assertRaises(InvalidIncident):
+                    self.store.create_incident(candidate)
+
+                with sqlite3.connect(self.db_path) as connection:
+                    receipt_count = connection.execute(
+                        "SELECT COUNT(*) FROM event_receipts WHERE event_id=?",
+                        (candidate["event_id"],),
+                    ).fetchone()[0]
+                    incident_count = connection.execute(
+                        "SELECT COUNT(*) FROM incidents WHERE incident_id=?",
+                        (str(candidate["incident_id"]),),
+                    ).fetchone()[0]
+                self.assertEqual(receipt_count, 0)
+                self.assertEqual(incident_count, 0)
+
     def test_create_rejects_multiple_initial_audit_entries_at_store_boundary(self):
         invalid = sample_incident(
             event_id="evt_MULTI_AUDIT",
