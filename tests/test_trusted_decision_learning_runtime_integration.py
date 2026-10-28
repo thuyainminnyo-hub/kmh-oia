@@ -3,7 +3,6 @@
 The deterministic adapter validates application wiring and attribution only. It
 is not evidence of real-provider authenticity or production deployment.
 """
-from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 import tempfile
@@ -110,10 +109,8 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             self.assertEqual(execution.trusted_receipt_verification.execution_id, execution_id)
             self.assertEqual(execution.trusted_receipt_verification.source_record_id, "record:e2e-1")
 
-            # The bridge's execution record reflects VERIFIED. Advance the governed
-            # console lifecycle to LEARNED and pass that state to the learning gate.
-            console.transition(command.id, "LEARNED")
-            learning_execution = replace(execution, final_status="LEARNED")
+            # Pass the bridge-produced execution record directly to the learning gate.
+            learning_execution = execution
             result = runtime.learning_service.capture_execution(
                 decision,
                 learning_execution,
