@@ -37,3 +37,15 @@
 ## Release decision
 
 **HOLD / NOT VERIFIED.** Do not merge as production-ready, deploy, or use real runner/medical data until the open gaps and Gate C/D requirements in `runner-safety-pilot.md` have evidence and explicit owner approval.
+
+## Latest exact-candidate CI evidence — 2026-10-28
+
+The PR metadata currently identifies branch head `df4e2490683796cd7b63ae836712df6924aec772`, based on `032b588cc668c1edc309e8a8276253543427ac76`. For that head, GitHub Actions reports:
+
+- [KMH OIA Tests #1070 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40632764945). The run log recorded **503 tests, OK**, including the latest checkpoint-scope and initial-audit consistency cases.
+- [KMH OIA Validation #989 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40632764997). The run log recorded **503 tests, OK** and the validation workflow's static/repository validation steps completed successfully.
+- GitHub PR metadata identifies `1fd5e02c517e26045b37b22844134b56fa39e612` as the generated merge-candidate SHA for head `df4e249...` and base `032b588...`. Keep this separate from the PR branch head SHA.
+
+These results are GitHub Actions evidence for that candidate, **not** a local workstation/Codespace run. The local verification matrix remains unrecorded. Because this note is now being changed, the commit created by this edit needs its own CI verification before the evidence is treated as current for the updated head.
+
+The latest reviewed code still does not authenticate callers or provide trusted identity-to-role/checkpoint mapping. No reviewer submission is currently recorded on PR #137. The release remains **HOLD / NOT VERIFIED FOR PRODUCTION**; do not merge, deploy, or use real runner/medical/location data.
