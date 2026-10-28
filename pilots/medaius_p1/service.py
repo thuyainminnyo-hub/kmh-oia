@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -56,8 +57,8 @@ def retrieve_history(patients: list[dict[str, Any]], patient_id: str) -> dict[st
 
 def make_audit_event(request_id: str, outcome: str) -> dict[str, str]:
     """Create a PHI-minimizing audit event; deliberately excludes patient ID and history."""
-    if not request_id.strip():
-        raise ValueError("request_id must not be empty")
+    if not isinstance(request_id, str) or not re.fullmatch(r"[A-Za-z0-9._:-]{1,80}", request_id):
+        raise ValueError("request_id must be 1-80 characters: letters, digits, dot, underscore, colon or hyphen only")
     if outcome not in {"SUCCESS", "NOT_FOUND", "BLOCKED", "ERROR"}:
         raise ValueError("unsupported audit outcome")
     from datetime import datetime, timezone
