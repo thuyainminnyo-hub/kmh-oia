@@ -101,7 +101,7 @@ class ComfyUIImageAdapter:
                     if isinstance(candidate.get("outputs"), dict) and candidate["outputs"]:
                         history_entry = candidate
                         break
-                time.sleep(min(self.poll_interval_seconds, max(0.0, deadline - time.monotonic()))
+                time.sleep(min(self.poll_interval_seconds, max(0.0, deadline - time.monotonic())))
             if history_entry is None:
                 raise ComfyUIAdapterError("timed out waiting for ComfyUI output")
             image_meta = self._first_image(history_entry.get("outputs", {}))
