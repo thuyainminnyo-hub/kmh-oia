@@ -234,6 +234,41 @@ class SQLiteIncidentStore:
                     "Stored incident payload state/audit is inconsistent"
                 )
 
+            required_audit_fields = {"action", "actor_role", "at", "result"}
+            allowed_audit_fields = required_audit_fields | {"correlation_id"}
+            payload_audit = stored_payload["audit"]
+            if not payload_audit or any(
+                not isinstance(entry, dict)
+                or not required_audit_fields.issubset(entry)
+                or not set(entry).issubset(allowed_audit_fields)
+                for entry in payload_audit
+            ):
+                connection.rollback()
+                raise InvalidIncident(
+                    "Stored incident payload contains malformed audit entries"
+                )
+
+            audit_rows = connection.execute(
+                "SELECT action, actor_role, at, result, correlation_id "
+                "FROM incident_audit WHERE incident_id=? ORDER BY sequence",
+                (incident_id,),
+            ).fetchall()
+            normalized_payload_audit = [
+                {
+                    "action": entry["action"],
+                    "actor_role": entry["actor_role"],
+                    "at": entry["at"],
+                    "result": entry["result"],
+                    "correlation_id": entry.get("correlation_id"),
+                }
+                for entry in payload_audit
+            ]
+            if normalized_payload_audit != [dict(entry) for entry in audit_rows]:
+                connection.rollback()
+                raise InvalidIncident(
+                    "Stored incident payload audit does not match authoritative audit log"
+                )
+
             audit_entry = {
                 "action": requested_status,
                 "actor_role": actor_role,
