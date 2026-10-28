@@ -98,7 +98,11 @@ class ComfyUIImageAdapter:
                     status_text = status.get("status_str", "") if isinstance(status, dict) else ""
                     if status_text.lower() in {"error", "failed"}:
                         raise ComfyUIAdapterError("ComfyUI reported execution failure")
-                    if isinstance(candidate.get("outputs"), dict) and candidate["outputs"]:
+                    # Do not treat partial output metadata as completion. Wait for
+                    # an explicit successful terminal status before downloading.
+                    if status_text.lower() == "success":
+                        if not isinstance(candidate.get("outputs"), dict):
+                            raise ComfyUIAdapterError("successful history entry has no outputs object")
                         history_entry = candidate
                         break
                 time.sleep(min(self.poll_interval_seconds, max(0.0, deadline - time.monotonic())))
