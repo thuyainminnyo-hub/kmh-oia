@@ -12,22 +12,51 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+MODULE_DIR = Path(__file__).resolve().parent
+REGISTRY_PATH = MODULE_DIR / "anatomy_registry.v0.2.json"
+REGISTRY_VERSION = "KMH-ANATOMY-LOCAL-0.2"
+SCHEMA_VERSION = "0.2"
+
 
 class BodyMapError(ValueError):
     """A body-map input or operation failed a defined control."""
 
 
-_ALLOWED_ANATOMY = {
-    "SKULL": "Skull",
-    "SPINE": "Spine",
-    "PELVIS": "Pelvis",
-    "UPPER_LIMB": "Upper limb",
-    "LOWER_LIMB": "Lower limb",
-}
 _ALLOWED_FINDINGS = {"fracture", "dislocation", "arthritis", "bone_lesion", "other"}
 _ALLOWED_TREATMENTS = {"closed_reduction", "cast_or_splint", "internal_fixation", "observation", "other"}
 _ALLOWED_STATUSES = {"draft", "reviewed", "signed", "amended"}
 _SAFE_REF = re.compile(r"^SYN-(?:BMA|ENC|ACTOR)-[A-Za-z0-9-]{1,40}$")
+
+
+def load_anatomy_registry(path: str | Path = REGISTRY_PATH) -> dict[str, dict[str, Any]]:
+    """Load and minimally validate the versioned local registry; no network access."""
+    try:
+        document = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BodyMapError("local anatomy registry is unavailable or invalid JSON") from exc
+    if document.get("registry_version") != REGISTRY_VERSION:
+        raise BodyMapError("unsupported local anatomy registry version")
+    if document.get("classification") != "synthetic-pilot-only":
+        raise BodyMapError("registry must be marked synthetic-pilot-only")
+    regions = document.get("regions")
+    if not isinstance(regions, list) or not regions:
+        raise BodyMapError("registry must contain at least one region")
+    indexed: dict[str, dict[str, Any]] = {}
+    for item in regions:
+        if not isinstance(item, dict):
+            raise BodyMapError("registry region entries must be objects")
+        code, label = item.get("code"), item.get("label")
+        if not isinstance(code, str) or not code or not isinstance(label, str) or not label:
+            raise BodyMapError("registry region requires code and label")
+        if code in indexed:
+            raise BodyMapError("registry contains duplicate anatomy codes")
+        views, laterality = item.get("views"), item.get("laterality")
+        if not isinstance(views, list) or not views or not set(views) <= {"front", "back", "both"}:
+            raise BodyMapError("registry contains invalid view options")
+        if not isinstance(laterality, list) or not laterality or not set(laterality) <= {"left", "right", "bilateral", "midline", "not_applicable"}:
+            raise BodyMapError("registry contains invalid laterality options")
+        indexed[code] = item
+    return indexed
 
 
 def utc_now() -> str:
@@ -35,8 +64,8 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def validate_annotation(annotation: dict[str, Any]) -> dict[str, Any]:
-    """Validate the pilot's strict schema subset and return a JSON-safe copy."""
+def validate_annotation(annotation: dict[str, Any], registry_path: str | Path = REGISTRY_PATH) -> dict[str, Any]:
+    """Validate a synthetic annotation against the versioned local anatomy registry."""
     if not isinstance(annotation, dict):
         raise BodyMapError("annotation must be an object")
     required = {
@@ -49,23 +78,23 @@ def validate_annotation(annotation: dict[str, Any]) -> dict[str, Any]:
         raise BodyMapError("annotation contains unknown fields")
     if required - set(annotation):
         raise BodyMapError("annotation is missing required fields")
-    if annotation["schema_version"] != "0.1" or annotation["data_classification"] != "synthetic":
-        raise BodyMapError("only schema 0.1 synthetic records are allowed")
-    if annotation["specialty"] != "orthopedics" or annotation["anatomy_system"] != "KMH-ANATOMY-LOCAL-0.1":
+    if annotation["schema_version"] != SCHEMA_VERSION or annotation["data_classification"] != "synthetic":
+        raise BodyMapError("only schema 0.2 synthetic records are allowed")
+    if annotation["specialty"] != "orthopedics" or annotation["anatomy_system"] != REGISTRY_VERSION:
         raise BodyMapError("unsupported specialty or anatomy system")
     for key, prefix in (("annotation_id", "SYN-BMA-"), ("encounter_ref", "SYN-ENC-"), ("author_ref", "SYN-ACTOR-")):
         value = annotation[key]
         if not isinstance(value, str) or not value.startswith(prefix) or not _SAFE_REF.fullmatch(value):
             raise BodyMapError(f"{key} must be a valid synthetic reference")
+    registry = load_anatomy_registry(registry_path)
     anatomy = annotation["anatomy_code"]
-    if anatomy not in _ALLOWED_ANATOMY or annotation["region"] != _ALLOWED_ANATOMY[anatomy]:
+    entry = registry.get(anatomy)
+    if entry is None or annotation["region"] != entry["label"]:
         raise BodyMapError("anatomy code and region do not match the local registry")
-    if annotation["view"] not in {"front", "back", "both"}:
-        raise BodyMapError("view must be front, back, or both")
-    if annotation["laterality"] not in {"left", "right", "bilateral", "midline", "not_applicable"}:
-        raise BodyMapError("invalid laterality")
-    if anatomy == "SKULL" and annotation["laterality"] != "midline":
-        raise BodyMapError("SKULL requires midline laterality in this pilot registry")
+    if annotation["view"] not in entry["views"]:
+        raise BodyMapError("view is not allowed for the selected anatomy region")
+    if annotation["laterality"] not in entry["laterality"]:
+        raise BodyMapError("laterality is not allowed for the selected anatomy region")
     if annotation["finding"] not in _ALLOWED_FINDINGS:
         raise BodyMapError("unsupported finding")
     treatment = annotation["treatment"]
@@ -75,9 +104,8 @@ def validate_annotation(annotation: dict[str, Any]) -> dict[str, Any]:
         raise BodyMapError("invalid treatment code or status")
     if annotation["status"] not in _ALLOWED_STATUSES:
         raise BodyMapError("invalid annotation status")
-    if annotation["status"] == "signed":
-        if not isinstance(annotation.get("signed_at"), str):
-            raise BodyMapError("signed records require signed_at")
+    if annotation["status"] == "signed" and not isinstance(annotation.get("signed_at"), str):
+        raise BodyMapError("signed records require signed_at")
     for key in ("created_at", "updated_at"):
         value = annotation[key]
         if not isinstance(value, str):
@@ -99,7 +127,7 @@ def validate_annotation(annotation: dict[str, Any]) -> dict[str, Any]:
 
 
 class BodyMapStore:
-    """SQLite local store with atomic annotation/audit writes and immutable audit rows."""
+    """SQLite local store with atomic annotation/audit writes and append-only audit rows."""
 
     def __init__(self, database_path: str | Path, authorized_actors: set[str]) -> None:
         self.database_path = Path(database_path)
@@ -151,7 +179,6 @@ class BodyMapStore:
         if safe["treatment"]["status"] not in {"proposed", "planned"}:
             raise BodyMapError("new draft cannot claim treatment was performed or cancelled")
         now = utc_now()
-        # One transaction ensures the record is not committed without its audit event.
         with self._connect() as db:
             db.execute("PRAGMA foreign_keys = ON")
             db.execute(
@@ -163,7 +190,6 @@ class BodyMapStore:
                    VALUES (?, ?, ?, ?, ?)""",
                 (now, actor_ref, "annotation.create", "success", "corr-" + safe["annotation_id"]),
             )
-        # Return the record only after both writes commit.
         return safe
 
     def _record_denial(self, actor_ref: str, action: str, correlation_ref: str) -> None:
