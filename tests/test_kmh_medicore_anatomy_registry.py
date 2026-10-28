@@ -1,11 +1,11 @@
-"""Contract checks for the local illustrative anatomy registry."""
+"""Contract checks for the local illustrative anatomy registry and annotation schema."""
 import json
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "pilots" / "kmh_medicore_bodymap" / "anatomy_registry.v0.2.json"
-SCHEMA_PATH = ROOT / "schemas" / "medicore" / "body-map-annotation-0.1.schema.json"
+SCHEMA_PATH = ROOT / "schemas" / "medicore" / "body-map-annotation-0.2.schema.json"
 
 
 class AnatomyRegistryContractTests(unittest.TestCase):
@@ -18,6 +18,13 @@ class AnatomyRegistryContractTests(unittest.TestCase):
         registry_codes = {item["code"] for item in self.registry["regions"]}
         schema_codes = set(self.schema["properties"]["anatomy_code"]["enum"])
         self.assertEqual(registry_codes, schema_codes)
+
+    def test_registry_version_matches_schema_anatomy_system(self):
+        self.assertEqual(
+            self.registry["registry_version"],
+            self.schema["properties"]["anatomy_system"]["const"],
+        )
+        self.assertEqual(self.schema["properties"]["schema_version"]["const"], "0.2")
 
     def test_registry_codes_and_labels_are_unique(self):
         codes = [item["code"] for item in self.registry["regions"]]
