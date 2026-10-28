@@ -41,11 +41,24 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         store = SQLiteIncidentStore(Path(self.temp_dir.name) / "service.sqlite3")
-        self.service = TrailRunIncidentService(store)
+        self.service = TrailRunIncidentService(
+            store, allowed_checkpoint_ids={"cp_DEMO_SVC"}
+        )
         self.service.create_incident("checkpoint_volunteer", payload())
 
     def tearDown(self):
         self.temp_dir.cleanup()
+
+    def test_incident_outside_checkpoint_scope_is_denied(self):
+        outside = payload()
+        outside["incident_id"] = "inc_OUTSIDE_SCOPE"
+        outside["event_id"] = "evt_OUTSIDE_SCOPE"
+        outside["checkpoint_id"] = "cp_OTHER"
+        with self.assertRaises(AccessDenied):
+            self.service.create_incident("checkpoint_volunteer", outside)
+
+        with self.assertRaises(AccessDenied):
+            self.service.get_incident("race_control", "inc_NOT_IN_SCOPE")
 
     def test_volunteer_cannot_dispatch_and_state_audit_unchanged(self):
         with self.assertRaises(AccessDenied):
