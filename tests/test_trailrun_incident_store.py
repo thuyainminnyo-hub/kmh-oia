@@ -173,6 +173,64 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
         self.assertEqual(saved_payload["audit"][0]["result"], "forged")
         self.assertEqual(self.store.get_audit("inc_SYNTHETIC001"), audit_before)
 
+    def test_read_and_transition_reject_payload_incident_id_mismatch(self):
+        self.store.create_incident(sample_incident())
+        with sqlite3.connect(self.db_path) as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM incidents WHERE incident_id=?",
+                ("inc_SYNTHETIC001",),
+            ).fetchone()
+            tampered = json.loads(row[0])
+            tampered["incident_id"] = "inc_FORGED_IDENTIFIER"
+            connection.execute(
+                "UPDATE incidents SET payload_json=? WHERE incident_id=?",
+                (json.dumps(tampered), "inc_SYNTHETIC001"),
+            )
+
+        with self.assertRaises(InvalidIncident):
+            self.store.get_incident("inc_SYNTHETIC001")
+        with self.assertRaises(InvalidIncident):
+            self.store.transition(
+                "inc_SYNTHETIC001", "ACKNOWLEDGED",
+                actor_role="race_control", at="2026-10-28T02:01:00Z",
+            )
+        with sqlite3.connect(self.db_path) as connection:
+            row = connection.execute(
+                "SELECT status FROM incidents WHERE incident_id=?",
+                ("inc_SYNTHETIC001",),
+            ).fetchone()
+        self.assertEqual(row[0], "REPORTED")
+        self.assertEqual(len(self.store.get_audit("inc_SYNTHETIC001")), 1)
+
+    def test_read_and_transition_reject_payload_event_id_receipt_mismatch(self):
+        self.store.create_incident(sample_incident())
+        with sqlite3.connect(self.db_path) as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM incidents WHERE incident_id=?",
+                ("inc_SYNTHETIC001",),
+            ).fetchone()
+            tampered = json.loads(row[0])
+            tampered["event_id"] = "evt_FORGED001"
+            connection.execute(
+                "UPDATE incidents SET payload_json=? WHERE incident_id=?",
+                (json.dumps(tampered), "inc_SYNTHETIC001"),
+            )
+
+        with self.assertRaises(InvalidIncident):
+            self.store.get_incident("inc_SYNTHETIC001")
+        with self.assertRaises(InvalidIncident):
+            self.store.transition(
+                "inc_SYNTHETIC001", "ACKNOWLEDGED",
+                actor_role="race_control", at="2026-10-28T02:01:00Z",
+            )
+        with sqlite3.connect(self.db_path) as connection:
+            row = connection.execute(
+                "SELECT status FROM incidents WHERE incident_id=?",
+                ("inc_SYNTHETIC001",),
+            ).fetchone()
+        self.assertEqual(row[0], "REPORTED")
+        self.assertEqual(len(self.store.get_audit("inc_SYNTHETIC001")), 1)
+
     def test_direct_store_call_cannot_bypass_transition_role_policy(self):
         self.store.create_incident(sample_incident())
         self.store.transition(
