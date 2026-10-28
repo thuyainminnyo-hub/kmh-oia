@@ -19,7 +19,7 @@ python -m compileall -q src tests scripts
 git diff --check
 ```
 
-Record the actual command output and exit status. A successful CI run must be linked to the exact commit SHA being evaluated. If the environment differs from CI, record the difference rather than treating the runs as equivalent.
+Record the actual command output and exit status. For pull-request workflows, distinguish the PR branch head SHA from the GitHub-generated merge-candidate SHA tested by Actions. Record both when they differ; do not claim SHA equality unless the checked-out revision proves it. If the environment differs from CI, record the difference rather than treating the runs as equivalent.
 
 ## 2. Test matrix
 
@@ -44,12 +44,14 @@ Copy and complete this section for each actual run; do not fill it from expected
 - Operator / environment (local workstation or Codespace):
 - Python version:
 - Branch:
-- Exact commit SHA:
+- Local checkout SHA (`git rev-parse HEAD`):
+- PR branch head SHA, if applicable:
+- CI workflow `GITHUB_SHA` / merge-candidate SHA, if applicable:
 - Exact command(s):
 - Exit code:
 - Tests run / passed / failed / skipped:
 - Relevant output or attached log location:
-- CI workflow run URLs for the same SHA:
+- CI workflow run URLs and the exact SHA each workflow tested:
 - Environment differences, warnings, or failures:
 - Open issues / owner:
 - Release decision: **HOLD unless all relevant gates have explicit evidence and approval.**
@@ -71,9 +73,18 @@ Keep logs free of secrets and real personal/medical data. A test log is evidence
 - [ ] The exact checkout SHA and environment are recorded.
 - [ ] Full test-suite output and exit code are preserved.
 - [ ] Negative tests prove denied requests do not mutate incident state, receipts, or audit records where covered.
-- [ ] CI evidence refers to the same SHA as the local run.
+- [ ] PR head SHA, CI-tested merge-candidate SHA, and local checkout SHA are recorded separately when different; any equality claim is verified from commit metadata.
 - [ ] Failures are fixed and rerun; they are not waived by a different commit's green CI.
 - [ ] Authentication, trusted identity-to-role derivation, and trusted checkpoint assignments remain explicitly open until a real entry point and provider are chosen and reviewed.
 - [ ] Draft PR #137 is not merged and no deployment is performed as part of local verification.
 
-**Decision rule:** A green local suite and green exact-head CI are necessary engineering evidence, not authorization for real data, live event use, merge, or production release. Keep the release at **HOLD / NOT VERIFIED FOR PRODUCTION** until independent security/privacy review and explicit race/event-owner approvals close the applicable gates.
+**Decision rule:** A green local suite and green pull-request CI are necessary engineering evidence, not authorization for real data, live event use, merge, or production release. Keep the release at **HOLD / NOT VERIFIED FOR PRODUCTION** until independent security/privacy review and explicit race/event-owner approvals close the applicable gates.
+
+## 5. CI SHA interpretation — verified example (2026-10-28)
+
+This repository's pull-request workflows use `actions/checkout@v4` without setting an explicit `ref`. For the run associated with PR head `f071aafaae4035c4ff9b0a192c526e07c6a8d73d`, the evidence bundle records `4a3edbfefbab84800ad740406aeb337cd5ca7056`. GitHub metadata identifies `4a3edbf...` as the synthetic merge commit titled `Merge f071aaf... into 032b588...`. Therefore, the CI suite ran on the PR merge candidate, combining the candidate changes with the base; the two SHAs are related but not identical.
+
+- [KMH OIA Tests #1065](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40626089238): job log says `Ran 500 tests ... OK`.
+- [KMH OIA Validation #984](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40626089175): test job also says `Ran 500 tests ... OK`; compileall, deployment preflight, readiness snapshot, `git diff --check`, performance evidence, and deployment evidence bundle completed successfully.
+
+This is valid integration CI evidence for that merge candidate, not a separate local workstation/Codespace run and not proof that the branch head SHA itself was checked out directly. The generated deployment bundle correctly describes its own `GITHUB_SHA` merge-candidate context; its SHA should not be relabeled as the PR branch head.
