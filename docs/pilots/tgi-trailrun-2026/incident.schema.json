@@ -108,7 +108,7 @@
     "audit": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 1,
+      "description": "For create requests, the service accepts one initial REPORTED entry; persisted records may contain additional service-appended audit entries.",
       "items": {
         "type": "object",
         "additionalProperties": false,
