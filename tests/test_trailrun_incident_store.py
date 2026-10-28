@@ -65,6 +65,37 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
         self.assertEqual(first.incident_id, second.incident_id)
         self.assertEqual(len(self.store.get_audit(first.incident_id)), 1)
 
+    def test_exact_replay_fails_closed_when_receipt_points_to_another_incident(self):
+        original = sample_incident(
+            event_id="evt_RECEIPT_ORIGINAL",
+            incident_id="inc_RECEIPT_ORIGINAL",
+        )
+        other = sample_incident(
+            event_id="evt_RECEIPT_OTHER",
+            incident_id="inc_RECEIPT_OTHER",
+        )
+        self.store.create_incident(original)
+        self.store.create_incident(other)
+
+        # Simulate a corrupted but still foreign-key-valid receipt mapping.
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                "UPDATE event_receipts SET incident_id=? WHERE event_id=?",
+                ("inc_RECEIPT_OTHER", "evt_RECEIPT_ORIGINAL"),
+            )
+
+        with self.assertRaises(InvalidIncident):
+            self.store.create_incident(original)
+
+        self.assertEqual(len(self.store.get_audit("inc_RECEIPT_ORIGINAL")), 1)
+        self.assertEqual(len(self.store.get_audit("inc_RECEIPT_OTHER")), 1)
+        with sqlite3.connect(self.db_path) as connection:
+            original_receipt = connection.execute(
+                "SELECT incident_id FROM event_receipts WHERE event_id=?",
+                ("evt_RECEIPT_ORIGINAL",),
+            ).fetchone()
+        self.assertEqual(original_receipt[0], "inc_RECEIPT_OTHER")
+
     def test_reused_event_id_with_changed_payload_is_conflict(self):
         self.store.create_incident(sample_incident())
         changed = sample_incident()
