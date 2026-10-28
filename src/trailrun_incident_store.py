@@ -168,20 +168,79 @@ class SQLiteIncidentStore:
             connection.commit()
         return CreateResult(incident_id, event_id, True)
 
+    @staticmethod
+    def _load_consistent_payload(
+        connection: sqlite3.Connection,
+        incident_id: str,
+        status: str,
+        payload_json: str,
+    ) -> dict[str, Any]:
+        """Load a snapshot only when its status and embedded audit match storage."""
+        try:
+            payload = json.loads(payload_json)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise InvalidIncident("Stored incident payload is malformed") from exc
+
+        if (
+            not isinstance(payload, dict)
+            or payload.get("status") != status
+            or not isinstance(payload.get("audit"), list)
+        ):
+            raise InvalidIncident(
+                "Stored incident payload state/audit is inconsistent"
+            )
+
+        required_fields = {"action", "actor_role", "at", "result"}
+        allowed_fields = required_fields | {"correlation_id"}
+        payload_audit = payload["audit"]
+        if not payload_audit or any(
+            not isinstance(entry, dict)
+            or not required_fields.issubset(entry)
+            or not set(entry).issubset(allowed_fields)
+            for entry in payload_audit
+        ):
+            raise InvalidIncident(
+                "Stored incident payload contains malformed audit entries"
+            )
+
+        rows = connection.execute(
+            "SELECT action, actor_role, at, result, correlation_id "
+            "FROM incident_audit WHERE incident_id=? ORDER BY sequence",
+            (incident_id,),
+        ).fetchall()
+        normalized_payload_audit = [
+            {
+                "action": entry["action"],
+                "actor_role": entry["actor_role"],
+                "at": entry["at"],
+                "result": entry["result"],
+                "correlation_id": entry.get("correlation_id"),
+            }
+            for entry in payload_audit
+        ]
+        if normalized_payload_audit != [dict(entry) for entry in rows]:
+            raise InvalidIncident(
+                "Stored incident payload audit does not match authoritative audit log"
+            )
+        return payload
+
     def get_incident(self, incident_id: str) -> dict[str, Any] | None:
         with closing(self._connect()) as connection:
             row = connection.execute(
                 "SELECT incident_id, status, payload_json, created_at FROM incidents WHERE incident_id=?",
                 (incident_id,),
             ).fetchone()
-        if row is None:
-            return None
-        return {
-            "incident_id": row["incident_id"],
-            "status": row["status"],
-            "payload": json.loads(row["payload_json"]),
-            "created_at": row["created_at"],
-        }
+            if row is None:
+                return None
+            payload = self._load_consistent_payload(
+                connection, incident_id, row["status"], row["payload_json"]
+            )
+            return {
+                "incident_id": row["incident_id"],
+                "status": row["status"],
+                "payload": payload,
+                "created_at": row["created_at"],
+            }
 
     def transition(
         self,
@@ -220,54 +279,12 @@ class SQLiteIncidentStore:
                 raise InvalidTransition(decision.reason_code)
 
             try:
-                stored_payload = json.loads(row["payload_json"])
-            except (TypeError, json.JSONDecodeError) as exc:
-                connection.rollback()
-                raise InvalidIncident("Stored incident payload is malformed") from exc
-            if (
-                not isinstance(stored_payload, dict)
-                or stored_payload.get("status") != current_status
-                or not isinstance(stored_payload.get("audit"), list)
-            ):
-                connection.rollback()
-                raise InvalidIncident(
-                    "Stored incident payload state/audit is inconsistent"
+                stored_payload = self._load_consistent_payload(
+                    connection, incident_id, current_status, row["payload_json"]
                 )
-
-            required_audit_fields = {"action", "actor_role", "at", "result"}
-            allowed_audit_fields = required_audit_fields | {"correlation_id"}
-            payload_audit = stored_payload["audit"]
-            if not payload_audit or any(
-                not isinstance(entry, dict)
-                or not required_audit_fields.issubset(entry)
-                or not set(entry).issubset(allowed_audit_fields)
-                for entry in payload_audit
-            ):
+            except InvalidIncident:
                 connection.rollback()
-                raise InvalidIncident(
-                    "Stored incident payload contains malformed audit entries"
-                )
-
-            audit_rows = connection.execute(
-                "SELECT action, actor_role, at, result, correlation_id "
-                "FROM incident_audit WHERE incident_id=? ORDER BY sequence",
-                (incident_id,),
-            ).fetchall()
-            normalized_payload_audit = [
-                {
-                    "action": entry["action"],
-                    "actor_role": entry["actor_role"],
-                    "at": entry["at"],
-                    "result": entry["result"],
-                    "correlation_id": entry.get("correlation_id"),
-                }
-                for entry in payload_audit
-            ]
-            if normalized_payload_audit != [dict(entry) for entry in audit_rows]:
-                connection.rollback()
-                raise InvalidIncident(
-                    "Stored incident payload audit does not match authoritative audit log"
-                )
+                raise
 
             audit_entry = {
                 "action": requested_status,
