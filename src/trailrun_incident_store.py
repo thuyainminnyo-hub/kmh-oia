@@ -206,7 +206,8 @@ class SQLiteIncidentStore:
         with closing(self._connect()) as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
-                "SELECT status FROM incidents WHERE incident_id=?", (incident_id,)
+                "SELECT status, payload_json FROM incidents WHERE incident_id=?",
+                (incident_id,),
             ).fetchone()
             if row is None:
                 connection.rollback()
@@ -218,10 +219,45 @@ class SQLiteIncidentStore:
                 connection.rollback()
                 raise InvalidTransition(decision.reason_code)
 
-            connection.execute(
-                "UPDATE incidents SET status=? WHERE incident_id=? AND status=?",
-                (requested_status, incident_id, current_status),
+            try:
+                stored_payload = json.loads(row["payload_json"])
+            except (TypeError, json.JSONDecodeError) as exc:
+                connection.rollback()
+                raise InvalidIncident("Stored incident payload is malformed") from exc
+            if (
+                not isinstance(stored_payload, dict)
+                or stored_payload.get("status") != current_status
+                or not isinstance(stored_payload.get("audit"), list)
+            ):
+                connection.rollback()
+                raise InvalidIncident(
+                    "Stored incident payload state/audit is inconsistent"
+                )
+
+            audit_entry = {
+                "action": requested_status,
+                "actor_role": actor_role,
+                "at": at,
+                "result": "completed",
+            }
+            if correlation_id is not None:
+                audit_entry["correlation_id"] = correlation_id
+            stored_payload["status"] = requested_status
+            stored_payload["audit"].append(audit_entry)
+            updated_payload_json = self._canonical_json(stored_payload)
+
+            update_cursor = connection.execute(
+                "UPDATE incidents SET status=?, payload_json=? "
+                "WHERE incident_id=? AND status=?",
+                (
+                    requested_status, updated_payload_json,
+                    incident_id, current_status,
+                ),
             )
+            if update_cursor.rowcount != 1:
+                connection.rollback()
+                raise InvalidTransition("Concurrent state update detected")
+
             connection.execute(
                 "INSERT INTO incident_audit(incident_id, action, actor_role, at, result, correlation_id) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
