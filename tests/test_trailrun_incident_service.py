@@ -4,7 +4,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.trailrun_incident_service import AccessDenied, TrailRunIncidentService
+from src.trailrun_incident_service import (
+    AccessDenied,
+    InvalidIncidentPayload,
+    TrailRunIncidentService,
+)
 from src.trailrun_incident_store import SQLiteIncidentStore
 
 
@@ -79,6 +83,17 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
     def test_volunteer_cannot_read_audit(self):
         with self.assertRaises(AccessDenied):
             self.service.get_audit("checkpoint_volunteer", "inc_SYNTHETIC_SVC")
+
+    def test_service_rejects_schema_invalid_payload_before_persistence(self):
+        bad = payload()
+        bad["incident_id"] = "inc_SCHEMA_BAD"
+        bad["event_id"] = "evt_SCHEMA_BAD"
+        bad["unexpected_field"] = "must be rejected"
+        with self.assertRaises(InvalidIncidentPayload):
+            self.service.create_incident("checkpoint_volunteer", bad)
+        self.assertIsNone(
+            self.service.get_incident("race_control", "inc_SCHEMA_BAD")
+        )
 
     def test_create_role_must_match_reporter_role(self):
         bad = payload()
