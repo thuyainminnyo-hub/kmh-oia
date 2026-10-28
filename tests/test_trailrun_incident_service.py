@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
+
+from jsonschema import Draft202012Validator
 
 from src.trailrun_incident_service import (
     AccessDenied,
@@ -181,6 +184,50 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
             self.service.get_incident("race_control", "inc_SYNTHETIC_SVC")["status"],
             "DISPATCHED",
         )
+
+    def test_transitioned_payload_remains_schema_valid_and_matches_audit_log(self):
+        self.service.transition(
+            "race_control", "inc_SYNTHETIC_SVC", "ACKNOWLEDGED",
+            at="2026-10-28T02:01:00Z",
+            correlation_id="corr_ACK_SCHEMA",
+        )
+        incident = self.service.get_incident("race_control", "inc_SYNTHETIC_SVC")
+        audit_rows = self.service.get_audit("race_control", "inc_SYNTHETIC_SVC")
+
+        self.assertEqual(incident["status"], incident["payload"]["status"])
+        self.assertEqual(len(incident["payload"]["audit"]), len(audit_rows))
+
+        payload_audit = [
+            {
+                "action": entry["action"],
+                "actor_role": entry["actor_role"],
+                "at": entry["at"],
+                "result": entry["result"],
+                "correlation_id": entry.get("correlation_id"),
+            }
+            for entry in incident["payload"]["audit"]
+        ]
+        database_audit = [
+            {
+                "action": entry["action"],
+                "actor_role": entry["actor_role"],
+                "at": entry["at"],
+                "result": entry["result"],
+                "correlation_id": entry["correlation_id"],
+            }
+            for entry in audit_rows
+        ]
+        self.assertEqual(payload_audit, database_audit)
+
+        schema_path = (
+            Path(__file__).resolve().parents[1]
+            / "docs" / "pilots" / "tgi-trailrun-2026" / "incident.schema.json"
+        )
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        validator = Draft202012Validator(
+            schema, format_checker=Draft202012Validator.FORMAT_CHECKER
+        )
+        self.assertEqual(list(validator.iter_errors(incident["payload"])), [])
 
     def test_medical_lead_can_resolve_but_cannot_dispatch(self):
         with self.assertRaises(AccessDenied):
