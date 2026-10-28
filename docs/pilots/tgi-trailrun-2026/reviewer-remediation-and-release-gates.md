@@ -2,7 +2,7 @@
 
 **Status:** OPEN — planning and acceptance criteria only  
 **Current PR:** #137  
-**Current PR head:** `332f494c843af3170a13a00c3ee7547dd00adc76`  
+**Latest CI-verified candidate before this documentation-only refresh:** `26c60dd26ac4deba5354f779f832e9ab32f7481e`  
 **Release decision:** HOLD — NOT VERIFIED FOR PRODUCTION  
 **Data policy:** Synthetic fixtures only. Do not use real runner, medical, or location data.
 
@@ -70,16 +70,17 @@ Implement only after Gate 0 decisions are recorded.
 
 **Acceptance evidence:** dated approvals and target-environment verification tied to the exact candidate SHA.
 
-## Current evidence snapshot
+## CI evidence snapshot before this documentation-only refresh
 
-- PR #137 is Open / Draft / not merged; `zinbo2024-bit` remains requested as reviewer.
-- Current PR head is `332f494c843af3170a13a00c3ee7547dd00adc76`.
-- [KMH OIA Tests #40725543843](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725543843) passed on this exact head: `Ran 517 tests in 0.974s`, `OK`.
-- [KMH OIA Validation #40725543953](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725543953) passed on this exact head; tests, repository validation, performance evidence, and deployment evidence bundle succeeded.
-- A local Colab run was reported for earlier commit `4cc4499144d951ae0cf9f5b492d3b1d508db58e0` (Python 3.12.3, 514 tests, `OVERALL_RESULT=PASS`). Because it was not executed at this current head, it is historical supporting evidence, not an exact-head local verification record for `332f494...`.
+This section records a CI-verified parent candidate; it must not be interpreted as proof that a later documentation-only commit has already been checked.
+
+- PR #137 remains Open / Draft / not merged; `zinbo2024-bit` remains requested as reviewer.
+- Last verified candidate before this doc refresh: `26c60dd26ac4deba5354f779f832e9ab32f7481e`.
+- [KMH OIA Tests #40725848141](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725848141) passed on that exact candidate: `Ran 517 tests in 0.957s`, `OK`.
+- [KMH OIA Validation #40725848144](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725848144) passed on that exact candidate; tests, repository validation, performance evidence, and deployment evidence bundle succeeded.
+- A local Colab run was reported for earlier commit `4cc4499144d951ae0cf9f5b492d3b1d508db58e0` (Python 3.12.3, 514 tests, `OVERALL_RESULT=PASS`). This is historical evidence for that earlier SHA, not a local run for `26c60dd...` or any later commit.
 - The reviewer provided a COMMENTED review, not production approval.
-- Authentication adapter, trusted role/checkpoint derivation, stable verified actor-subject audit attribution, target-host verification, and event/medical-owner approvals remain open.
-
+- Authentication adapter, trusted role/checkpoint derivation, stable verified actor-subject audit attribution, target-host verification, and event/medical owner approvals remain open.
 ## Stop rule
 
 Keep **HOLD — NOT VERIFIED FOR PRODUCTION** until the relevant gates have explicit evidence and named-owner approval. Do not merge or deploy as part of this plan. Never use this pilot as the sole emergency-response channel.

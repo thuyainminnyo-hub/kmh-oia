@@ -38,20 +38,20 @@
 
 **HOLD / NOT VERIFIED.** Do not merge as production-ready, deploy, or use real runner/medical data until the open gaps and Gate C/D requirements in `runner-safety-pilot.md` have evidence and explicit owner approval.
 
-## Latest exact-head CI evidence — 2026-10-28
+## Exact-head CI evidence captured before this documentation-only refresh — 2026-10-28
 
-The current PR #137 head is `332f494c843af3170a13a00c3ee7547dd00adc76`. GitHub Actions reports both workflows successful on this exact commit:
+The last CI-verified candidate before this documentation-only refresh was `26c60dd26ac4deba5354f779f832e9ab32f7481e`. It was the PR branch head at the time of the runs; later documentation commits must be checked against their own exact SHA before claiming current-head verification.
 
-- [KMH OIA Tests #40725543843 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725543843). The test job log records **517 tests, OK** (`Ran 517 tests in 0.974s`), including the three synthetic SQLite failure-injection tests:
+- [KMH OIA Tests #40725848141 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725848141). The exact-candidate test log records **517 tests, OK** (`Ran 517 tests in 0.957s`), including the three synthetic SQLite failure-injection tests:
   - `test_failed_receipt_insert_rolls_back_create_and_allows_clean_retry`
   - `test_failed_initial_audit_insert_rolls_back_incident_and_receipt`
   - `test_failed_transition_audit_insert_rolls_back_state_change`
-- [KMH OIA Validation #40725543953 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725543953). The tests, repository-validation, performance-evidence, and deployment-evidence-bundle jobs completed successfully.
+- [KMH OIA Validation #40725848144 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725848144). Tests, repository-validation, performance-evidence, and deployment-evidence-bundle jobs completed successfully.
 
-An earlier local Colab verification was reported for commit `4cc4499144d951ae0cf9f5b492d3b1d508db58e0` (Python 3.12.3, 514 tests, compile/preflight/diff checks passed). That run is not an exact-head local run for `332f494...`; no local checkout execution at the current head is evidenced by the CI workflows. Do not conflate this earlier local result with the latest CI result.
+An earlier local Colab verification was reported for commit `4cc4499144d951ae0cf9f5b492d3b1d508db58e0` (Python 3.12.3, 514 tests, compile/preflight/diff checks passed). That run is not an exact-head local run for `26c60dd...`; no local checkout execution for that candidate or any later commit is evidenced here.
 
-The formal reviewer submission from `zinbo2024-bit` remains **COMMENTED**, not APPROVED. The review explicitly identifies the missing verified identity/provider boundary, server-derived role/checkpoint scope, durable production persistence/multi-worker guarantees, trusted audit attribution, notification/offline behavior, and owner approvals. These gaps remain open; this note is not an independent security approval.
+The formal reviewer submission from `zinbo2024-bit` remains **COMMENTED**, not APPROVED. The review identifies missing verified identity/provider integration, server-derived role/checkpoint scope, durable production persistence/multi-worker guarantees, trusted audit attribution, notification/offline handling, and owner approvals. These gaps remain open; this note is not an independent security approval.
 
-The latest automated checks verify repository code and synthetic test behavior only. They do not authenticate callers, demonstrate trusted identity-to-role/checkpoint mapping, prove target-host behavior, demonstrate real notification delivery, authorize a field test, or establish production readiness.
+The checks above verify repository code and synthetic test behavior only. They do not authenticate callers, demonstrate trusted identity-to-role/checkpoint mapping, prove target-host behavior, demonstrate real notification delivery, authorize a field test, or establish production readiness.
 
 **Release remains HOLD — NOT VERIFIED FOR PRODUCTION.** Keep PR #137 open and draft; do not merge or deploy. Continue using synthetic fixtures only, and never rely on this pilot as the sole emergency-response channel.
