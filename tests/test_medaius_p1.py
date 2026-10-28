@@ -66,6 +66,12 @@ class PatientHistoryTests(unittest.TestCase):
         self.assertNotIn("visits", serialized)
         self.assertEqual(event["action"], "patient_history_retrieval")
 
+    def test_audit_rejects_request_id_with_spaces_or_control_characters(self):
+        for request_id in ("has space", "line\\nbreak", "", "x" * 81):
+            with self.subTest(request_id=request_id):
+                with self.assertRaises(ValueError):
+                    make_audit_event(request_id, "SUCCESS")
+
     def test_audit_rejects_unknown_outcome(self):
         with self.assertRaises(ValueError):
             make_audit_event("req-123", "PATIENT_RECORD")
