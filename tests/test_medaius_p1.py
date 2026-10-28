@@ -63,6 +63,27 @@ class PatientHistoryTests(unittest.TestCase):
             with self.assertRaises(InvalidFixture):
                 load_patients(path)
 
+    def test_fixture_requires_synthetic_marker_and_synthetic_id_prefix(self):
+        valid_record = {
+            "patient_id": "SYN-PAT-0001",
+            "synthetic": True,
+            "visits": [],
+        }
+        invalid_records = (
+            {"patient_id": "SYN-PAT-0001", "visits": []},
+            {"patient_id": "SYN-PAT-0001", "synthetic": False, "visits": []},
+            {"patient_id": "PAT-0001", "synthetic": True, "visits": []},
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fixture.json"
+            path.write_text(json.dumps([valid_record]), encoding="utf-8")
+            self.assertEqual(len(load_patients(path)), 1)
+            for record in invalid_records:
+                with self.subTest(record=record):
+                    path.write_text(json.dumps([record]), encoding="utf-8")
+                    with self.assertRaises(InvalidFixture):
+                        load_patients(path)
+
     def test_audit_event_excludes_patient_data(self):
         event = make_audit_event("req-123", "SUCCESS")
         serialized = json.dumps(event)
