@@ -226,21 +226,27 @@ class SQLiteIncidentStore:
 
     def get_incident(self, incident_id: str) -> dict[str, Any] | None:
         with closing(self._connect()) as connection:
+            # Use one read snapshot for the incident row and its audit rows.
+            # A concurrent writer may commit, but this read must not mix versions.
+            connection.execute("BEGIN")
             row = connection.execute(
                 "SELECT incident_id, status, payload_json, created_at FROM incidents WHERE incident_id=?",
                 (incident_id,),
             ).fetchone()
             if row is None:
+                connection.commit()
                 return None
             payload = self._load_consistent_payload(
                 connection, incident_id, row["status"], row["payload_json"]
             )
-            return {
+            snapshot = {
                 "incident_id": row["incident_id"],
                 "status": row["status"],
                 "payload": payload,
                 "created_at": row["created_at"],
             }
+            connection.commit()
+            return snapshot
 
     def transition(
         self,
