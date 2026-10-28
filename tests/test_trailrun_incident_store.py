@@ -123,16 +123,25 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
             )
 
         audit_before = self.store.get_audit("inc_SYNTHETIC001")
+
+        # Both read and transition boundaries must fail closed on divergent history.
+        with self.assertRaises(InvalidIncident):
+            self.store.get_incident("inc_SYNTHETIC001")
         with self.assertRaises(InvalidIncident):
             self.store.transition(
                 "inc_SYNTHETIC001", "ACKNOWLEDGED",
                 actor_role="race_control", at="2026-10-28T02:01:00Z",
             )
 
-        saved_after = self.store.get_incident("inc_SYNTHETIC001")
-        self.assertEqual(saved_after["status"], "REPORTED")
-        self.assertEqual(saved_after["payload"]["status"], "REPORTED")
-        self.assertEqual(saved_after["payload"]["audit"][0]["result"], "forged")
+        with sqlite3.connect(self.db_path) as connection:
+            row_after = connection.execute(
+                "SELECT status, payload_json FROM incidents WHERE incident_id=?",
+                ("inc_SYNTHETIC001",),
+            ).fetchone()
+        saved_payload = json.loads(row_after[1])
+        self.assertEqual(row_after[0], "REPORTED")
+        self.assertEqual(saved_payload["status"], "REPORTED")
+        self.assertEqual(saved_payload["audit"][0]["result"], "forged")
         self.assertEqual(self.store.get_audit("inc_SYNTHETIC001"), audit_before)
 
     def test_direct_store_call_cannot_bypass_transition_role_policy(self):
