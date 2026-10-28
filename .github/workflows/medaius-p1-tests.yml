@@ -1,0 +1,27 @@
+name: Medaius P1 local synthetic pilot tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "pilots/medaius_p1/**"
+      - "tests/test_medaius_p1.py"
+      - ".github/workflows/medaius-p1-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-local-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run Medaius P1 acceptance tests
+        run: python -m unittest discover -s tests -p 'test_medaius_p1.py' -v
