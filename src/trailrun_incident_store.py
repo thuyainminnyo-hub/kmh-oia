@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -56,7 +57,7 @@ class SQLiteIncidentStore:
         if self.database_path == ":memory:":
             raise ValueError("Use a file-backed database to verify restart persistence")
         Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.executescript(
                 """
                 PRAGMA journal_mode=WAL;
@@ -123,7 +124,7 @@ class SQLiteIncidentStore:
         event_id = str(payload["event_id"])
         created_at = str(payload["recorded_at"])
 
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute("BEGIN IMMEDIATE")
             existing = connection.execute(
                 "SELECT payload_sha256, incident_id FROM event_receipts WHERE event_id=?",
@@ -160,7 +161,7 @@ class SQLiteIncidentStore:
         return CreateResult(incident_id, event_id, True)
 
     def get_incident(self, incident_id: str) -> dict[str, Any] | None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             row = connection.execute(
                 "SELECT incident_id, status, payload_json, created_at FROM incidents WHERE incident_id=?",
                 (incident_id,),
@@ -189,7 +190,7 @@ class SQLiteIncidentStore:
         if requested_status not in ALLOWED_STATUSES:
             raise InvalidTransition("Unknown requested status")
 
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 "SELECT status FROM incidents WHERE incident_id=?", (incident_id,)
@@ -225,7 +226,7 @@ class SQLiteIncidentStore:
         }
 
     def get_audit(self, incident_id: str) -> list[dict[str, Any]]:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             rows = connection.execute(
                 "SELECT sequence, action, actor_role, at, result, correlation_id "
                 "FROM incident_audit WHERE incident_id=? ORDER BY sequence",
