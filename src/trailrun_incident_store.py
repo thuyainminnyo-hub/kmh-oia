@@ -148,6 +148,10 @@ class SQLiteIncidentStore:
                     raise IdempotencyConflict(
                         "event_id was already used with a different payload"
                     )
+                if existing["incident_id"] != incident_id:
+                    raise InvalidIncident(
+                        "Stored event receipt incident ID does not match replay payload"
+                    )
                 return CreateResult(existing["incident_id"], event_id, False)
 
             existing_incident = connection.execute(
