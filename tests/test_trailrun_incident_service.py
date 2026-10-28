@@ -134,6 +134,24 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
             "audit-attribution rejection must not leave an idempotency receipt",
         )
 
+    def test_create_rejects_prepopulated_audit_history_without_side_effects(self):
+        bad = payload()
+        bad["incident_id"] = "inc_PREPOPULATED_AUDIT"
+        bad["event_id"] = "evt_PREPOPULATED_AUDIT"
+        bad["audit"].append({
+            "action": "ACKNOWLEDGED",
+            "actor_role": "race_control",
+            "at": "2026-10-28T02:01:00Z",
+            "result": "completed",
+            "correlation_id": "corr_PREPOPULATED_AUDIT",
+        })
+
+        with self.assertRaises(InvalidIncidentPayload):
+            self.service.create_incident("checkpoint_volunteer", bad)
+
+        self.assertIsNone(self.service._store.get_incident("inc_PREPOPULATED_AUDIT"))
+        self.assertEqual(self.service._store.get_audit("inc_PREPOPULATED_AUDIT"), [])
+
     def test_create_rejects_non_reported_initial_audit_action(self):
         bad = payload()
         bad["incident_id"] = "inc_BAD_INITIAL_AUDIT_ACTION"
