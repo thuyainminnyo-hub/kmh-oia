@@ -78,10 +78,29 @@ The owner approved **design work only**, limited to local staging and synthetic 
 
 For every test, record `NOT RUN`, `PASS`, or `FAIL`; exact commit SHA; command; environment; artifact; reviewer. A written test contract is not a test result.
 
-## Gate 2+ dependencies
+## Reviewer feedback from PR #137 — blockers, not approval
+
+The PR #137 reviewer noted that this change is a contract/specification slice, not a live runner-safety service. The synthetic fixture and identity-boundary contract are useful safeguards, but authentication, server-derived role/checkpoint scope, durable adapter behavior, notification delivery, runtime persistence, and owner approvals are not implemented or verified. The reviewer explicitly said this comment is **not production approval** and that Production HOLD must remain.
+
+Convert that feedback into the following evidence requirements. These are planned tests only; none should be marked PASS without a run record tied to the exact candidate commit.
+
+## Gate 2+ test contract (design only; NOT RUN)
+
+| ID | Scenario | Expected result | Required evidence |
+|---|---|---|---|
+| G2-01 | Restart process/service after a synthetic incident is recorded | Required incident state and receipt survive according to the chosen persistence contract; no partial record | Exact commit, restart integration test, state/receipt comparison |
+| G2-02 | Retry the same synthetic request concurrently across workers | One idempotent outcome; no duplicate receipt or inconsistent state; storage claim is atomic for the intended deployment model | Multi-worker concurrency test against the intended transactional store; repeatable artifact |
+| G2-03 | Attempt to spoof actor, role, or checkpoint attribution | Audit uses authenticated subject and server-mapped role/scope; denied attempts do not alter incident/receipt state | Identity-boundary integration test and inspected audit entries |
+| G2-04 | Notification is recorded, attempted, delivered, acknowledged, delayed, or fails | Statuses are not conflated; failed delivery/acknowledgement is observable and follows the approved escalation policy | Fault-injection test plus delivery/acknowledgement evidence |
+| G2-05 | Identity source, storage, network, or notification dependency becomes unavailable | Protected actions fail closed; no unauthorized/partial mutation; manual/offline procedure is explicit | Failure-injection evidence and reviewed runbook |
+| G2-06 | Manual/offline fallback exercise using synthetic fixture | Named operator can follow the approved local procedure and record its result without relying on this pilot as the sole emergency channel | Rehearsal record, reviewer, unresolved failure list |
+
+The selected real entry point/provider and intended runtime/storage model must be decided before any provider-specific or production-target integration test can be meaningful. Do not substitute a fake verifier or mock-only test for verification at the actual authentication boundary.
 
 - Denied/invalid operations have no unauthorized side effects.
 - Persistence/restart/concurrency guarantees are demonstrated for the intended target.
+- Idempotency is tested under multi-worker concurrency where the intended deployment can run multiple workers.
+- Audit attribution is derived from verified identity and server-side role/scope mapping.
 - Notifications distinguish recorded, attempted, delivered, and acknowledged.
 - Manual/offline emergency procedure is approved and rehearsed.
 - Independent security/privacy review and event/medical owner approvals are recorded.
