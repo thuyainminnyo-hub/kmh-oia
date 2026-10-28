@@ -43,6 +43,31 @@ class BodyMapTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_schema_v02_contract_matches_backend_fixture(self):
+        schema_path = Path(__file__).resolve().parents[1] / "schemas" / "medicore" / "body-map-annotation-0.2.schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        fixture = sample_annotation()
+        self.assertEqual(schema["properties"]["schema_version"]["const"], fixture["schema_version"])
+        self.assertEqual(set(schema["required"]), set(fixture))
+        self.assertFalse(set(fixture) - set(schema["properties"]))
+        self.assertEqual(schema["properties"]["specialty"]["const"], fixture["specialty"])
+        self.assertEqual(schema["properties"]["anatomy_system"]["const"], fixture["anatomy_system"])
+        self.assertIn(fixture["anatomy_code"], schema["properties"]["anatomy_code"]["enum"])
+        self.assertIn(fixture["view"], schema["properties"]["view"]["enum"])
+        self.assertIn(fixture["laterality"], schema["properties"]["laterality"]["enum"])
+        self.assertIn(fixture["finding"], schema["properties"]["finding"]["enum"])
+        self.assertIn(fixture["treatment"]["code"], schema["properties"]["treatment"]["properties"]["code"]["enum"])
+        self.assertIn(fixture["treatment"]["status"], schema["properties"]["treatment"]["properties"]["status"]["enum"])
+        self.assertIn(fixture["status"], schema["properties"]["status"]["enum"])
+
+    def test_schema_rejects_unknown_fields_by_contract(self):
+        schema_path = Path(__file__).resolve().parents[1] / "schemas" / "medicore" / "body-map-annotation-0.2.schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        fixture = sample_annotation()
+        fixture["patient_name"] = "must-not-be-present"
+        self.assertFalse(schema["additionalProperties"])
+        self.assertTrue(set(fixture) - set(schema["properties"]))
+
     def test_requested_orthopedics_front_skull_fracture_draft_is_valid(self):
         result = validate_annotation(sample_annotation())
         self.assertEqual(result["specialty"], "orthopedics")
