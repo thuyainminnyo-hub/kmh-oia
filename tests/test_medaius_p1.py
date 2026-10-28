@@ -1,0 +1,75 @@
+"""Acceptance tests for the local synthetic Medaius P1 pilot."""
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from pilots.medaius_p1.service import (
+    DuplicatePatientID,
+    InvalidFixture,
+    PatientNotFound,
+    load_patients,
+    make_audit_event,
+    retrieve_history,
+)
+
+ROOT = Path(__file__).resolve().parents[1]
+FIXTURE = ROOT / "pilots" / "medaius_p1" / "fixtures" / "synthetic_patients.json"
+
+
+class PatientHistoryTests(unittest.TestCase):
+    def test_exact_id_returns_full_matching_record(self):
+        patients = load_patients(FIXTURE)
+        record = retrieve_history(patients, "SYN-PAT-0001")
+        self.assertEqual(record["patient_id"], "SYN-PAT-0001")
+        self.assertEqual(record["visits"][0]["visit_id"], "SYN-VIS-0001")
+        self.assertEqual(record["visits"][0]["observations"][0]["value"], 24.5)
+        self.assertTrue(record["synthetic"])
+
+    def test_missing_id_is_not_found(self):
+        with self.assertRaises(PatientNotFound):
+            retrieve_history(load_patients(FIXTURE), "SYN-PAT-9999")
+
+    def test_no_fuzzy_match(self):
+        with self.assertRaises(PatientNotFound):
+            retrieve_history(load_patients(FIXTURE), "SYN-PAT-000")
+
+    def test_duplicate_exact_ids_fail_closed(self):
+        duplicate = [{"patient_id": "SYN-PAT-0001", "visits": []}, {"patient_id": "SYN-PAT-0001", "visits": []}]
+        with self.assertRaises(DuplicatePatientID):
+            retrieve_history(duplicate, "SYN-PAT-0001")
+
+    def test_result_is_copy_not_mutable_source(self):
+        patients = load_patients(FIXTURE)
+        record = retrieve_history(patients, "SYN-PAT-0001")
+        record["visits"].clear()
+        self.assertEqual(len(patients[0]["visits"]), 1)
+
+    def test_fixture_is_not_modified_by_retrieval(self):
+        before = FIXTURE.read_bytes()
+        retrieve_history(load_patients(FIXTURE), "SYN-PAT-0001")
+        self.assertEqual(FIXTURE.read_bytes(), before)
+
+    def test_invalid_fixture_root_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "bad.json"
+            path.write_text(json.dumps({"patient_id": "SYN-PAT-0001"}), encoding="utf-8")
+            with self.assertRaises(InvalidFixture):
+                load_patients(path)
+
+    def test_audit_event_excludes_patient_data(self):
+        event = make_audit_event("req-123", "SUCCESS")
+        serialized = json.dumps(event)
+        self.assertIn("req-123", serialized)
+        self.assertNotIn("SYN-PAT", serialized)
+        self.assertNotIn("visits", serialized)
+        self.assertEqual(event["action"], "patient_history_retrieval")
+
+    def test_audit_rejects_unknown_outcome(self):
+        with self.assertRaises(ValueError):
+            make_audit_event("req-123", "PATIENT_RECORD")
+
+
+if __name__ == "__main__":
+    unittest.main()
