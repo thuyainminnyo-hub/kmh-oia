@@ -5,17 +5,19 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pilots.kmh_medicore_bodymap.service import BodyMapError, BodyMapStore, validate_annotation
+from pilots.kmh_medicore_bodymap.service import (
+    BodyMapError, BodyMapStore, REGISTRY_VERSION, load_anatomy_registry, validate_annotation
+)
 
 
 def sample_annotation(**changes):
     record = {
-        "schema_version": "0.1",
+        "schema_version": "0.2",
         "annotation_id": "SYN-BMA-ORTHO-0001",
         "encounter_ref": "SYN-ENC-0001",
         "data_classification": "synthetic",
         "specialty": "orthopedics",
-        "anatomy_system": "KMH-ANATOMY-LOCAL-0.1",
+        "anatomy_system": REGISTRY_VERSION,
         "anatomy_code": "SKULL",
         "region": "Skull",
         "view": "front",
@@ -50,6 +52,22 @@ class BodyMapTests(unittest.TestCase):
         self.assertEqual(result["treatment"], {"code": "cast_or_splint", "status": "proposed"})
         self.assertEqual(result["status"], "draft")
 
+    def test_service_uses_the_versioned_registry_file(self):
+        registry = load_anatomy_registry()
+        self.assertEqual(registry["SKULL"]["label"], "Skull")
+        self.assertEqual(registry["SKULL"]["views"], ["front", "back", "both"])
+
+    def test_unknown_registry_version_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bad_registry = Path(directory) / "registry.json"
+            bad_registry.write_text(json.dumps({
+                "registry_version": "unexpected",
+                "classification": "synthetic-pilot-only",
+                "regions": [{"code": "SKULL", "label": "Skull", "views": ["front"], "laterality": ["midline"]}],
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(BodyMapError, "unsupported local anatomy registry version"):
+                validate_annotation(sample_annotation(), registry_path=bad_registry)
+
     def test_create_persists_record_and_minimal_audit_atomically(self):
         created = self.store.create_annotation(sample_annotation(), actor_ref=self.actor)
         self.assertEqual(self.store.get_annotation(created["annotation_id"], self.actor), created)
@@ -62,11 +80,11 @@ class BodyMapTests(unittest.TestCase):
         self.assertNotIn("cast_or_splint", serialized_audit)
         self.assertNotIn("encounter_ref", serialized_audit)
 
-    def test_skull_requires_midline_laterality(self):
-        with self.assertRaisesRegex(BodyMapError, "midline"):
+    def test_skull_requires_midline_laterality_from_registry(self):
+        with self.assertRaisesRegex(BodyMapError, "laterality is not allowed"):
             validate_annotation(sample_annotation(laterality="left"))
 
-    def test_region_must_match_registered_anatomy_code(self):
+    def test_region_must_match_registry_label(self):
         with self.assertRaisesRegex(BodyMapError, "do not match"):
             validate_annotation(sample_annotation(region="Cranium"))
 
@@ -114,7 +132,7 @@ class BodyMapTests(unittest.TestCase):
             with sqlite3.connect(self.db_path) as db:
                 db.execute("DELETE FROM audit_events WHERE event_id=1")
 
-    def test_signed_history_is_not_silently_overwritten_by_create(self):
+    def test_existing_annotation_is_not_silently_overwritten_by_create(self):
         self.store.create_annotation(sample_annotation(), actor_ref=self.actor)
         changed = sample_annotation()
         changed["finding"] = "arthritis"
