@@ -65,6 +65,17 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
         with self.assertRaises(AccessDenied):
             self.service.get_audit("race_control", "inc_OUTSIDE_SCOPE")
 
+        with self.assertRaises(AccessDenied):
+            self.service.transition(
+                "race_control", "inc_OUTSIDE_SCOPE", "ACKNOWLEDGED",
+                at="2026-10-28T02:03:00Z",
+            )
+        outside_after = self.service._store.get_incident("inc_OUTSIDE_SCOPE")
+        self.assertEqual(outside_after["status"], "REPORTED")
+        self.assertEqual(
+            len(self.service._store.get_audit("inc_OUTSIDE_SCOPE")), 1
+        )
+
     def test_volunteer_cannot_dispatch_and_state_audit_unchanged(self):
         with self.assertRaises(AccessDenied):
             self.service.transition(
