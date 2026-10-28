@@ -105,6 +105,18 @@ The selected real entry point/provider and intended runtime/storage model must b
 - Manual/offline emergency procedure is approved and rehearsed.
 - Independent security/privacy review and event/medical owner approvals are recorded.
 
+## Evidence inventory — inspected artifacts and limitations
+
+The following repository artifacts were inspected on 2026-10-28. These are links to existing design/review materials, not substitutes for an independent approval or runtime evidence:
+
+- [Trusted Identity Adapter Contract](https://github.com/thuyainminnyo-hub/kmh-oia/blob/pilot/tgi-trailrun-runner-safety/docs/pilots/tgi-trailrun-2026/identity-adapter-contract.md) — design contract only; provider/framework not selected and authentication is not implemented.
+- [Security Review Note](https://github.com/thuyainminnyo-hub/kmh-oia/blob/pilot/tgi-trailrun-runner-safety/docs/pilots/tgi-trailrun-2026/security-review-note.md) — records open security gaps and explicitly retains HOLD; not an independent security/privacy certification.
+- [Reviewer Remediation and Release Gates](https://github.com/thuyainminnyo-hub/kmh-oia/blob/pilot/tgi-trailrun-runner-safety/docs/pilots/tgi-trailrun-2026/reviewer-remediation-and-release-gates.md) — defines acceptance gates, but the listed criteria are not evidence that they have passed.
+- [Local Synthetic Verification Matrix](https://github.com/thuyainminnyo-hub/kmh-oia/blob/pilot/tgi-trailrun-runner-safety/docs/pilots/tgi-trailrun-2026/local-verification-matrix.md) — explicitly says local execution results have not been recorded; authentication and trusted checkpoint assignment remain blocked by design.
+- [Runner Safety Pilot Overview](https://github.com/thuyainminnyo-hub/kmh-oia/blob/pilot/tgi-trailrun-runner-safety/docs/pilots/tgi-trailrun-2026/runner-safety-pilot.md) — documents scope and design boundary; not operational approval.
+
+**Still missing from the inspected pilot evidence set:** a separately approved pilot-specific manual/offline fallback runbook; a documented privacy review performed by an independent reviewer; a selected real entry point/provider; provider integration results; and event-owner/race-director plus qualified medical-lead approval for any real operation. Do not treat the linked design notes as satisfying these items.
+
 ## Current evidence and stop rule
 
 - Previous PR comments record CI and local synthetic verification for candidate `4cc4499144d951ae0cf9f5b492d3b1d508db58e0`; these do not prove production readiness.
