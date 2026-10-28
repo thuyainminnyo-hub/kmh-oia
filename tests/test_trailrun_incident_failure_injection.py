@@ -167,5 +167,52 @@ class TrailRunFailureInjectionTests(unittest.TestCase):
         self.assertEqual(len(self.store.get_audit(incident["incident_id"])), 2)
 
 
+    def test_failed_initial_audit_insert_rolls_back_incident_and_receipt(self) -> None:
+        incident = synthetic_incident(
+            event_id="evt_FAILURE_CREATE_AUDIT_01",
+            incident_id="inc_FAILURE_CREATE_AUDIT_01",
+        )
+
+        # Fail at the final write in create_incident, after the incident and
+        # idempotency receipt have been inserted inside the same transaction.
+        with sqlite3.connect(self.database_path) as connection:
+            connection.execute(
+                """
+                CREATE TRIGGER inject_initial_audit_failure
+                BEFORE INSERT ON incident_audit
+                WHEN NEW.action = 'REPORTED'
+                BEGIN
+                    SELECT RAISE(ABORT, 'synthetic initial audit write failure');
+                END;
+                """
+            )
+
+        with self.assertRaisesRegex(
+            sqlite3.IntegrityError, "synthetic initial audit write failure"
+        ):
+            self.store.create_incident(incident)
+
+        # Neither the incident row nor its idempotency receipt may be stranded.
+        self.assertEqual(
+            self.table_counts(incident["incident_id"], incident["event_id"]),
+            (0, 0, 0),
+        )
+        self.assertIsNone(self.store.get_incident(incident["incident_id"]))
+        self.assertEqual(self.store.get_audit(incident["incident_id"]), [])
+
+        # A clean retry after removing only the injected fault must create once.
+        with sqlite3.connect(self.database_path) as connection:
+            connection.execute("DROP TRIGGER inject_initial_audit_failure")
+
+        created = self.store.create_incident(incident)
+        replay = self.store.create_incident(incident)
+        self.assertTrue(created.created)
+        self.assertFalse(replay.created)
+        self.assertEqual(
+            self.table_counts(incident["incident_id"], incident["event_id"]),
+            (1, 1, 1),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
