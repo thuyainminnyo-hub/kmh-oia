@@ -31,6 +31,7 @@ class EvidenceAdmissionResult:
     learning_admitted: bool
     missing_fields: tuple[str, ...]
     reasons: tuple[str, ...]
+    receipt_content_hash: str = ""
 
 
 class EvidenceAdmissionGate:
@@ -65,6 +66,8 @@ class EvidenceAdmissionGate:
             and receipt_result.execution_id == request.execution_id
             and f"{receipt_result.provider_name}:{receipt_result.source_record_id}" == request.source
             and receipt_result.raw_observation == request.raw_observation
+            and isinstance(receipt_result.content_hash, str)
+            and bool(receipt_result.content_hash.strip())
         )
         if status == "OUTCOME_LINKED" and not trusted_receipt_verified:
             reasons.append(
@@ -92,6 +95,7 @@ class EvidenceAdmissionGate:
             learning_admitted=admitted,
             missing_fields=missing,
             reasons=tuple(reasons),
+            receipt_content_hash=(receipt_result.content_hash if admitted and receipt_result is not None else ""),
         )
 
     def evaluate_mapping(self, evidence: Mapping[str, str]) -> EvidenceAdmissionResult:
