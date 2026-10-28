@@ -1,12 +1,12 @@
 # KMH OIA × Medaius P1 — Patient History Retrieval
 
-**Status:** implementation draft on an isolated branch. On 2026-10-28, candidate head `7c1fb2797bb3f8e57a6154ebc70aea727068c745` passed the dedicated synthetic pilot tests, general KMH OIA tests and repository validation (run links are recorded in PR #140). These checks validate repository/test behavior only; they do not establish Medaius API compatibility, clinical safety, or production readiness. No Medaius API connection exists.
+**Status:** implementation draft on an isolated branch. Candidate head before this documentation-only update, `a10dbe708d37110e224d90d8550ba7625b6c2d3c`, passed the dedicated synthetic pilot tests, general KMH OIA tests and repository validation (run links are recorded in PR #140). This documentation update will produce a new head, so rerun and verify all workflows against the resulting SHA before treating that new head as validated. These checks validate repository/test behavior only; they do not establish Medaius API compatibility, clinical safety, or production readiness. No Medaius API connection exists.
 
 ## Scope
 
 - Local CLI/service only; synthetic JSON fixtures only.
 - Exact `patient_id` matching; no fuzzy matching or inference.
-- Loader requires `synthetic: true` and the `SYN-PAT-` identifier prefix.
+- Loader and public retrieval boundary require `synthetic: true` and the `SYN-PAT-` identifier prefix.
 - These markers are guardrails, not proof that data is synthetic; fixture provenance must still be controlled and verified by the operator.
 - Read-only retrieval; source fixture must remain unchanged.
 - Duplicate exact IDs fail closed.
@@ -44,11 +44,11 @@ Expected exit codes: success `0`; exact ID not found `2`; duplicate exact IDs bl
 
 ## Verification evidence
 
-- Candidate head `7c1fb2797bb3f8e57a6154ebc70aea727068c745`:
-  - Medaius P1 local synthetic pilot tests #14: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40731078638
-  - KMH OIA Tests #1127: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40731078623
-  - KMH OIA Validation #1046: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40731078809
-- Re-run the workflows for any subsequent commit and verify that run SHA matches the candidate head before treating it as validated.
+- Candidate head before this documentation-only update: `a10dbe708d37110e224d90d8550ba7625b6c2d3c`
+  - Medaius P1 local synthetic pilot tests #16: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40732089010
+  - KMH OIA Tests #1129: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40732088777
+  - KMH OIA Validation #1048: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40732088661
+- These three runs completed successfully for the pre-update candidate SHA. The new documentation commit must be validated against its own SHA before the PR's latest head is considered CI-verified.
 - The acceptance suite checks fixture SHA-256 before/after retrieval to detect file mutation.
 - Review that no real PHI, secrets, or external calls were introduced.
 
