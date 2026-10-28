@@ -38,14 +38,20 @@
 
 **HOLD / NOT VERIFIED.** Do not merge as production-ready, deploy, or use real runner/medical data until the open gaps and Gate C/D requirements in `runner-safety-pilot.md` have evidence and explicit owner approval.
 
-## Latest exact-candidate CI evidence — 2026-10-28
+## Latest exact-head CI evidence — 2026-10-28
 
-The PR metadata currently identifies branch head `df4e2490683796cd7b63ae836712df6924aec772`, based on `032b588cc668c1edc309e8a8276253543427ac76`. For that head, GitHub Actions reports:
+The current PR #137 head is `332f494c843af3170a13a00c3ee7547dd00adc76`. GitHub Actions reports both workflows successful on this exact commit:
 
-- [KMH OIA Tests #1070 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40632764945). The run log recorded **503 tests, OK**, including the latest checkpoint-scope and initial-audit consistency cases.
-- [KMH OIA Validation #989 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40632764997). The run log recorded **503 tests, OK** and the validation workflow's static/repository validation steps completed successfully.
-- GitHub PR metadata identifies `1fd5e02c517e26045b37b22844134b56fa39e612` as the generated merge-candidate SHA for head `df4e249...` and base `032b588...`. Keep this separate from the PR branch head SHA.
+- [KMH OIA Tests #40725543843 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725543843). The test job log records **517 tests, OK** (`Ran 517 tests in 0.974s`), including the three synthetic SQLite failure-injection tests:
+  - `test_failed_receipt_insert_rolls_back_create_and_allows_clean_retry`
+  - `test_failed_initial_audit_insert_rolls_back_incident_and_receipt`
+  - `test_failed_transition_audit_insert_rolls_back_state_change`
+- [KMH OIA Validation #40725543953 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725543953). The tests, repository-validation, performance-evidence, and deployment-evidence-bundle jobs completed successfully.
 
-These results are GitHub Actions evidence for that candidate, **not** a local workstation/Codespace run. The local verification matrix remains unrecorded. Because this note is now being changed, the commit created by this edit needs its own CI verification before the evidence is treated as current for the updated head.
+An earlier local Colab verification was reported for commit `4cc4499144d951ae0cf9f5b492d3b1d508db58e0` (Python 3.12.3, 514 tests, compile/preflight/diff checks passed). That run is not an exact-head local run for `332f494...`; no local checkout execution at the current head is evidenced by the CI workflows. Do not conflate this earlier local result with the latest CI result.
 
-The latest reviewed code still does not authenticate callers or provide trusted identity-to-role/checkpoint mapping. No reviewer submission is currently recorded on PR #137. The release remains **HOLD / NOT VERIFIED FOR PRODUCTION**; do not merge, deploy, or use real runner/medical/location data.
+The formal reviewer submission from `zinbo2024-bit` remains **COMMENTED**, not APPROVED. The review explicitly identifies the missing verified identity/provider boundary, server-derived role/checkpoint scope, durable production persistence/multi-worker guarantees, trusted audit attribution, notification/offline behavior, and owner approvals. These gaps remain open; this note is not an independent security approval.
+
+The latest automated checks verify repository code and synthetic test behavior only. They do not authenticate callers, demonstrate trusted identity-to-role/checkpoint mapping, prove target-host behavior, demonstrate real notification delivery, authorize a field test, or establish production readiness.
+
+**Release remains HOLD — NOT VERIFIED FOR PRODUCTION.** Keep PR #137 open and draft; do not merge or deploy. Continue using synthetic fixtures only, and never rely on this pilot as the sole emergency-response channel.
