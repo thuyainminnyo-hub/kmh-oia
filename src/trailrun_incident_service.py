@@ -86,6 +86,11 @@ class TrailRunIncidentService:
             raise InvalidIncidentPayload(
                 f"Incident schema validation failed at {location}: {first.message}"
             )
+        checkpoint_id = payload.get("checkpoint_id")
+        if not isinstance(checkpoint_id, str) or not checkpoint_id:
+            raise InvalidIncidentPayload(
+                "checkpoint_id is required for this checkpoint-scoped pilot"
+            )
         # Audit history is append-only after creation. Do not accept client-preloaded history.
         if len(payload["audit"]) != 1:
             raise InvalidIncidentPayload(
@@ -100,7 +105,7 @@ class TrailRunIncidentService:
             raise AccessDenied("AUDIT_ACTOR_ROLE_MISMATCH")
         if first_audit_entry.get("action") != "REPORTED":
             raise InvalidIncidentPayload("Initial audit action must be REPORTED")
-        self._require_checkpoint(payload["checkpoint_id"])
+        self._require_checkpoint(checkpoint_id)
         return self._store.create_incident(payload)
 
     def get_incident(self, role: str, incident_id: str):
