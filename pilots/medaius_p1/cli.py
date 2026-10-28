@@ -56,7 +56,7 @@ def run(argv: list[str] | None = None) -> int:
             audit_path = Path(args.audit_file)
             audit_path.parent.mkdir(parents=True, exist_ok=True)
             with audit_path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(event, sort_keys=True) + "\\n")
+                handle.write(json.dumps(event, sort_keys=True) + "\n")
         except OSError:
             print("ERROR: audit event could not be persisted; result withheld.", file=sys.stderr)
             return 4
