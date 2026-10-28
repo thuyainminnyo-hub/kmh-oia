@@ -54,9 +54,9 @@ class ProductionJob:
             raise ValueError("created_at must be an ISO-8601 timestamp") from exc
         if timestamp.tzinfo is None or timestamp.utcoffset() is None:
             raise ValueError("created_at must include a timezone")
-        if self.status == "approved" and not self.output_path.strip():
-            raise ValueError("approved jobs must include output_path")
         if not isinstance(self.output_path, str):
             raise ValueError("output_path must be a string")
+        if self.status == "approved" and not self.output_path.strip():
+            raise ValueError("approved jobs must include output_path")
         if not isinstance(self.error_message, str):
             raise ValueError("error_message must be a string")
