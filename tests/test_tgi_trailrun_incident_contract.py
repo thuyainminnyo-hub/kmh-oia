@@ -9,6 +9,8 @@ import json
 import re
 import unittest
 from datetime import datetime
+
+from jsonschema import Draft202012Validator
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -90,6 +92,18 @@ class TGiTrailRunIncidentContractTests(unittest.TestCase):
         self.assertIn(("RESOLVED", "CLOSED"), ALLOWED_TRANSITIONS)
         self.assertNotIn(("REPORTED", "DISPATCHED"), ALLOWED_TRANSITIONS)
         self.assertNotIn(("ACKNOWLEDGED", "RESOLVED"), ALLOWED_TRANSITIONS)
+
+    def test_full_json_schema_2020_12_validation_accepts_fixture(self) -> None:
+        Draft202012Validator.check_schema(self.schema)
+        validator = Draft202012Validator(self.schema, format_checker=Draft202012Validator.FORMAT_CHECKER)
+        self.assertEqual(list(validator.iter_errors(self.fixture)), [])
+
+    def test_full_json_schema_rejects_unknown_field_and_invalid_status(self) -> None:
+        validator = Draft202012Validator(self.schema, format_checker=Draft202012Validator.FORMAT_CHECKER)
+        unknown_field = dict(self.fixture, unexpected_field="must be rejected")
+        self.assertTrue(list(validator.iter_errors(unknown_field)))
+        invalid_status = dict(self.fixture, status="AUTONOMOUSLY_TRIAGED")
+        self.assertTrue(list(validator.iter_errors(invalid_status)))
 
     def test_fixture_is_explicitly_synthetic(self) -> None:
         self.assertIn("Synthetic", self.fixture.get("operator_note", ""))
