@@ -16,7 +16,7 @@
 From the repository root:
 
 ```bash
-python -m unittest tests.test_medaius_p1 -v
+python -m unittest discover -s tests -p 'test_medaius_p1.py' -v
 python -m pilots.medaius_p1.cli \
   --fixture pilots/medaius_p1/fixtures/synthetic_patients.json \
   --patient-id SYN-PAT-0001 \
