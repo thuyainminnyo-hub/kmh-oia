@@ -87,8 +87,10 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertIn("prompt_id", result.error_message)
 
+    @patch("src.comfyui_adapter.time.monotonic", side_effect=[0.0, 0.0, 2.0])
+    @patch("src.comfyui_adapter.time.sleep")
     @patch("src.comfyui_adapter.urlopen")
-    def test_missing_history_output_fails(self, mock_urlopen):
+    def test_missing_history_output_fails(self, mock_urlopen, _mock_sleep, _mock_monotonic):
         mock_urlopen.side_effect = [
             FakeResponse(b'{"prompt_id":"prompt-1"}'),
             FakeResponse(b'{"prompt-1":{"outputs":{},"status":{"status_str":"success"}}}'),
