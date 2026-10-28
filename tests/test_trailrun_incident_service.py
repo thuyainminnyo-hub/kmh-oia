@@ -113,6 +113,43 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
         )
         self.assertEqual(len(self.service.get_audit("race_control", "inc_SYNTHETIC_SVC")), 1)
 
+    def test_create_rejects_audit_actor_role_mismatch_without_side_effects(self):
+        bad = payload()
+        bad["incident_id"] = "inc_AUDIT_ROLE_MISMATCH"
+        bad["event_id"] = "evt_AUDIT_ROLE_MISMATCH"
+        bad["audit"][0]["actor_role"] = "medical_lead"
+
+        with self.assertRaises(AccessDenied):
+            self.service.create_incident("checkpoint_volunteer", bad)
+
+        self.assertIsNone(
+            self.service._store.get_incident("inc_AUDIT_ROLE_MISMATCH")
+        )
+        self.assertEqual(
+            self.service._store.get_audit("inc_AUDIT_ROLE_MISMATCH"), []
+        )
+        seed_result = self.service._store.create_incident(bad)
+        self.assertTrue(
+            seed_result.created,
+            "audit-attribution rejection must not leave an idempotency receipt",
+        )
+
+    def test_create_rejects_non_reported_initial_audit_action(self):
+        bad = payload()
+        bad["incident_id"] = "inc_BAD_INITIAL_AUDIT_ACTION"
+        bad["event_id"] = "evt_BAD_INITIAL_AUDIT_ACTION"
+        bad["audit"][0]["action"] = "ACKNOWLEDGED"
+
+        with self.assertRaises(InvalidIncidentPayload):
+            self.service.create_incident("checkpoint_volunteer", bad)
+
+        self.assertIsNone(
+            self.service._store.get_incident("inc_BAD_INITIAL_AUDIT_ACTION")
+        )
+        self.assertEqual(
+            self.service._store.get_audit("inc_BAD_INITIAL_AUDIT_ACTION"), []
+        )
+
     def test_race_control_can_acknowledge_then_dispatch(self):
         self.service.transition(
             "race_control", "inc_SYNTHETIC_SVC", "ACKNOWLEDGED",
