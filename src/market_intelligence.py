@@ -77,7 +77,7 @@ def validate_candles(candles: Iterable[Candle]) -> tuple[Candle, ...]:
         previous = timestamp
 
         values = (candle.open, candle.high, candle.low, candle.close, candle.volume)
-        if any(not isinstance(value, (int, float)) or not math.isfinite(value) for value in values):
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) for value in values):
             raise MarketDataValidationError(f"candle[{index}] values must be finite numbers")
         if min(candle.open, candle.high, candle.low, candle.close) <= 0:
             raise MarketDataValidationError(f"candle[{index}] prices must be positive")
