@@ -368,9 +368,27 @@ class SQLiteIncidentStore:
 
     def get_audit(self, incident_id: str) -> list[dict[str, Any]]:
         with closing(self._connect()) as connection:
+            # An audit read must not return a log detached from an inconsistent
+            # embedded snapshot. Validate the incident and audit in one read view.
+            connection.execute("BEGIN")
+            incident = connection.execute(
+                "SELECT incident_id, status, payload_json FROM incidents WHERE incident_id=?",
+                (incident_id,),
+            ).fetchone()
+            if incident is None:
+                connection.commit()
+                return []
+
+            self._load_consistent_payload(
+                connection,
+                incident_id,
+                incident["status"],
+                incident["payload_json"],
+            )
             rows = connection.execute(
                 "SELECT sequence, action, actor_role, at, result, correlation_id "
                 "FROM incident_audit WHERE incident_id=? ORDER BY sequence",
                 (incident_id,),
             ).fetchall()
+            connection.commit()
         return [dict(row) for row in rows]
