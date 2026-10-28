@@ -89,6 +89,7 @@ fi
 
 run_check "Python version" python --version
 run_check "Required JSON Schema dependency" python -m pip show jsonschema
+run_check "Enforce CI Python and JSON Schema versions" python -c 'import sys, jsonschema; v=tuple(int(part) for part in jsonschema.__version__.split(".")[:2]); assert sys.version_info[:2] == (3, 12), f"Expected Python 3.12, got {sys.version.split()[0]}"; assert (4, 18) <= v < (5, 0), f"Expected jsonschema >=4.18,<5, got {jsonschema.__version__}"; print(f"Runtime policy: PASS (Python {sys.version.split()[0]}, jsonschema {jsonschema.__version__})")'
 run_check "Full repository unit test suite" python -m unittest discover -s tests -v
 run_check "Compile source, tests, and scripts" python -m compileall -q src tests scripts
 run_check "Repository deployment preflight (validation only)" python scripts/deployment_preflight.py
