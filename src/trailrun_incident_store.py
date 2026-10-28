@@ -115,6 +115,14 @@ class SQLiteIncidentStore:
             raise InvalidIncident("Missing required incident fields")
         if payload["status"] != "REPORTED":
             raise InvalidIncident("New incidents must start in REPORTED state")
+
+        # Do not stringify malformed identifiers: doing so would persist a row
+        # whose JSON payload cannot later agree with its authoritative DB key.
+        for field in ("incident_id", "event_id", "recorded_at", "reported_by_role"):
+            value = payload[field]
+            if not isinstance(value, str) or not value.strip():
+                raise InvalidIncident(f"{field} must be a non-empty string")
+
         audit_entries = payload["audit"]
         if (
             not isinstance(audit_entries, list)
@@ -124,7 +132,25 @@ class SQLiteIncidentStore:
             raise InvalidIncident(
                 "Exactly one initial audit entry is required for incident creation"
             )
-        if audit_entries[0].get("action") != "REPORTED":
+
+        first_entry = audit_entries[0]
+        required_audit_fields = {"action", "actor_role", "at", "result"}
+        allowed_audit_fields = required_audit_fields | {"correlation_id"}
+        if (
+            not required_audit_fields.issubset(first_entry)
+            or not set(first_entry).issubset(allowed_audit_fields)
+        ):
+            raise InvalidIncident("Initial audit entry has missing or unsupported fields")
+        for field in required_audit_fields:
+            value = first_entry[field]
+            if not isinstance(value, str) or not value.strip():
+                raise InvalidIncident(f"Initial audit {field} must be a non-empty string")
+        if (
+            "correlation_id" in first_entry
+            and not isinstance(first_entry["correlation_id"], str)
+        ):
+            raise InvalidIncident("Initial audit correlation_id must be a string")
+        if first_entry["action"] != "REPORTED":
             raise InvalidIncident("First audit entry must record REPORTED")
 
     def create_incident(self, payload: dict[str, Any]) -> CreateResult:
