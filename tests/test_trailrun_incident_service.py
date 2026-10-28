@@ -137,6 +137,26 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
             "audit-attribution rejection must not leave an idempotency receipt",
         )
 
+    def test_create_rejects_location_only_payload_without_checkpoint_scope(self):
+        bad = payload()
+        bad["incident_id"] = "inc_NO_CHECKPOINT_SCOPE"
+        bad["event_id"] = "evt_NO_CHECKPOINT_SCOPE"
+        bad.pop("checkpoint_id")
+        bad["last_known_location"] = {
+            "description": "Synthetic location only; test fixture.",
+            "observed_at": "2026-10-28T02:00:00Z",
+        }
+
+        with self.assertRaises(InvalidIncidentPayload):
+            self.service.create_incident("checkpoint_volunteer", bad)
+
+        self.assertIsNone(
+            self.service._store.get_incident("inc_NO_CHECKPOINT_SCOPE")
+        )
+        self.assertEqual(
+            self.service._store.get_audit("inc_NO_CHECKPOINT_SCOPE"), []
+        )
+
     def test_create_rejects_prepopulated_audit_history_without_side_effects(self):
         bad = payload()
         bad["incident_id"] = "inc_PREPOPULATED_AUDIT"
