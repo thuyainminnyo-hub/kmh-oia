@@ -24,6 +24,20 @@ class InvalidFixture(RetrievalError):
     """The fixture is malformed or violates the expected shape."""
 
 
+def _validate_record(record: Any) -> None:
+    """Validate the synthetic-only contract at every retrieval boundary."""
+    if not isinstance(record, dict) or not isinstance(record.get("patient_id"), str):
+        raise InvalidFixture("each patient must be an object with a string patient_id")
+    if not record["patient_id"].strip():
+        raise InvalidFixture("patient_id must not be empty")
+    if record.get("synthetic") is not True:
+        raise InvalidFixture("each patient must be explicitly labelled synthetic=true")
+    if not re.fullmatch(r"SYN-PAT-[A-Za-z0-9-]+", record["patient_id"]):
+        raise InvalidFixture("patient_id must use the synthetic SYN-PAT- prefix")
+    if not isinstance(record.get("visits"), list):
+        raise InvalidFixture("each patient must contain a visits list")
+
+
 def load_patients(path: str | Path) -> list[dict[str, Any]]:
     """Load a JSON list of explicitly labelled synthetic records without modifying the file."""
     try:
@@ -33,16 +47,7 @@ def load_patients(path: str | Path) -> list[dict[str, Any]]:
     if not isinstance(payload, list):
         raise InvalidFixture("fixture root must be a JSON list")
     for record in payload:
-        if not isinstance(record, dict) or not isinstance(record.get("patient_id"), str):
-            raise InvalidFixture("each patient must be an object with a string patient_id")
-        if not record["patient_id"].strip():
-            raise InvalidFixture("patient_id must not be empty")
-        if record.get("synthetic") is not True:
-            raise InvalidFixture("each patient must be explicitly labelled synthetic=true")
-        if not re.fullmatch(r"SYN-PAT-[A-Za-z0-9-]+", record["patient_id"]):
-            raise InvalidFixture("patient_id must use the synthetic SYN-PAT- prefix")
-        if not isinstance(record.get("visits"), list):
-            raise InvalidFixture("each patient must contain a visits list")
+        _validate_record(record)
     return payload
 
 
@@ -50,6 +55,11 @@ def retrieve_history(patients: list[dict[str, Any]], patient_id: str) -> dict[st
     """Return the exact matching synthetic record; never fuzzy-match or infer data."""
     if not isinstance(patient_id, str) or not patient_id.strip():
         raise ValueError("patient_id must not be empty")
+    if not isinstance(patients, list):
+        raise InvalidFixture("patients must be a list")
+    # Do not rely solely on load_patients(): callers can invoke this public function directly.
+    for record in patients:
+        _validate_record(record)
     matches = [record for record in patients if record.get("patient_id") == patient_id]
     if not matches:
         raise PatientNotFound("no exact patient ID match")
