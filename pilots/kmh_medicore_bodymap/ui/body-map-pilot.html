@@ -6,7 +6,7 @@
 <title>KMH MediCore — Body Map Pilot</title>
 <style>
 :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f6fb}
-*{box-sizing:border-box}body{margin:0;padding:24px}.shell{max-width:1100px;margin:auto}.banner{padding:14px 16px;border:1px solid #d7b35c;background:#fff8dc;border-radius:12px;margin-bottom:18px}.banner strong{display:block;margin-bottom:4px}.grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(300px,1fr);gap:18px}.card{background:white;border:1px solid #dfe4ef;border-radius:16px;padding:20px;box-shadow:0 6px 20px #1c2b4a0b}h1{margin:0 0 8px;font-size:1.6rem}h2{font-size:1.1rem;margin:0 0 14px}.muted{color:#5d687c}.switches,.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 18px}button,select{font:inherit}button{border:1px solid #c9d1e1;background:#fff;border-radius:9px;padding:9px 12px;cursor:pointer}button[aria-pressed=true],button.selected{background:#eeeaff;border-color:#6554cc;color:#3825a4}button:focus-visible,select:focus-visible{outline:3px solid #9a8cff;outline-offset:2px}.figure{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center}.silhouette{width:100%;height:290px;border:1px solid #e5e9f2;border-radius:12px;background:#fbfcff}.bone{fill:#eef1f7;stroke:#69758b;stroke-width:2}.region{fill:#dcd5ff;stroke:#5c49c4;stroke-width:2;cursor:pointer}.region:focus{outline:none;stroke:#1f1778;stroke-width:4}.region[aria-pressed=true]{fill:#8f7af4}.figure-label{text-align:center;color:#5d687c;font-size:.9rem}.field{margin:14px 0}.field label{display:block;font-weight:600;margin-bottom:6px}.field select{width:100%;padding:10px;border:1px solid #c9d1e1;border-radius:9px;background:#fff}.summary{background:#f7f8fc;border-radius:10px;padding:14px;line-height:1.7;overflow-wrap:anywhere}.status{font-weight:700;color:#4b3ab0}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.notice{margin-top:12px;font-size:.92rem}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@media(max-width:760px){body{padding:12px}.grid{grid-template-columns:1fr}.card{padding:15px}.figure{grid-template-columns:1fr 1fr}.silhouette{height:230px}}
+*{box-sizing:border-box}body{margin:0;padding:24px}.shell{max-width:1100px;margin:auto}.banner{padding:14px 16px;border:1px solid #d7b35c;background:#fff8dc;border-radius:12px;margin-bottom:18px}.banner strong{display:block;margin-bottom:4px}.grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(300px,1fr);gap:18px}.card{background:white;border:1px solid #dfe4ef;border-radius:16px;padding:20px;box-shadow:0 6px 20px #1c2b4a0b}h1{margin:0 0 8px;font-size:1.6rem}h2{font-size:1.1rem;margin:0 0 14px}.muted{color:#5d687c}.switches,.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 18px}button,select{font:inherit}button{border:1px solid #c9d1e1;background:#fff;border-radius:9px;padding:9px 12px;cursor:pointer}button[aria-pressed=true],button.selected{background:#eeeaff;border-color:#6554cc;color:#3825a4}button:focus-visible,select:focus-visible{outline:3px solid #9a8cff;outline-offset:2px}.figure{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center}.silhouette{width:100%;height:290px;border:1px solid #e5e9f2;border-radius:12px;background:#fbfcff}.bone{fill:#eef1f7;stroke:#69758b;stroke-width:2}.region{fill:#dcd5ff;stroke:#5c49c4;stroke-width:2;cursor:pointer}.region:focus{outline:none;stroke:#1f1778;stroke-width:4}.region[aria-pressed=true]{fill:#8f7af4}.figure-label{text-align:center;color:#5d687c;font-size:.9rem}.field{margin:14px 0}.field label{display:block;font-weight:600;margin-bottom:6px}.field select{width:100%;padding:10px;border:1px solid #c9d1e1;border-radius:9px;background:#fff}.summary{background:#f7f8fc;border-radius:10px;padding:14px;line-height:1.7;overflow-wrap:anywhere}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.notice{margin-top:12px;font-size:.92rem}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@media(max-width:760px){body{padding:12px}.grid{grid-template-columns:1fr}.card{padding:15px}.figure{grid-template-columns:1fr 1fr}.silhouette{height:230px}}
 </style>
 </head>
 <body>
@@ -66,15 +66,34 @@
   const labels={SKULL:"Skull",SPINE:"Spine",PELVIS:"Pelvis",UPPER_LIMB:"Upper limb",LOWER_LIMB:"Lower limb"};
   const state={view:"front",region:"SKULL",finding:"fracture",treatment:"cast_or_splint"};
   const summary=document.getElementById("summary"),message=document.getElementById("message");
-  function snapshot(){return {schema_version:"0.2",data_classification:"synthetic",specialty:"orthopedics",anatomy_system:"KMH-ANATOMY-LOCAL-0.2",view:state.view,anatomy_code:state.region,region:labels[state.region],finding:state.finding,treatment:{code:state.treatment,status:"proposed"},status:"draft",note:"Illustrative UI preview only; not saved; not a clinical recommendation."};}
+  function snapshot(){
+    const timestamp=new Date().toISOString();
+    return {
+      schema_version:"0.2",
+      annotation_id:"SYN-BMA-UI-PREVIEW-0001",
+      encounter_ref:"SYN-ENC-UI-PREVIEW-0001",
+      data_classification:"synthetic",
+      specialty:"orthopedics",
+      anatomy_system:"KMH-ANATOMY-LOCAL-0.2",
+      anatomy_code:state.region,
+      region:labels[state.region],
+      view:state.view,
+      laterality:state.region==="SKULL"||state.region==="SPINE"?"midline":"not_applicable",
+      finding:state.finding,
+      treatment:{code:state.treatment,status:"proposed"},
+      status:"draft",
+      author_ref:"SYN-ACTOR-UI-PREVIEW-0001",
+      created_at:timestamp,
+      updated_at:timestamp
+    };
+  }
   function render(){
     document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.view===state.view)));
     document.querySelectorAll("[data-region]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.region===state.region)));
     document.querySelectorAll("[data-region-button]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.regionButton===state.region)));
     document.querySelector(".silhouette").setAttribute("aria-label","Schematic body map, "+state.view+" view");
     summary.replaceChildren();
-    const data=snapshot();
-    Object.entries(data).forEach(([key,value])=>{const row=document.createElement("div");const strong=document.createElement("strong");strong.textContent=key.replaceAll("_"," ")+": ";row.append(strong,document.createTextNode(typeof value==="object"?JSON.stringify(value):String(value)));summary.append(row);});
+    Object.entries(snapshot()).forEach(([key,value])=>{const row=document.createElement("div");const strong=document.createElement("strong");strong.textContent=key.replaceAll("_"," ")+": ";row.append(strong,document.createTextNode(typeof value==="object"?JSON.stringify(value):String(value)));summary.append(row);});
     message.textContent="Draft only — nothing has been saved.";
   }
   function selectRegion(code){if(labels[code]){state.region=code;render();}}
@@ -84,7 +103,7 @@
   document.getElementById("finding").addEventListener("change",e=>{state.finding=e.target.value;render();});
   document.getElementById("treatment").addEventListener("change",e=>{state.treatment=e.target.value;render();});
   document.getElementById("reset").addEventListener("click",()=>{state.view="front";state.region="SKULL";state.finding="fracture";state.treatment="cast_or_splint";document.getElementById("finding").value=state.finding;document.getElementById("treatment").value=state.treatment;render();});
-  document.getElementById("copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(JSON.stringify(snapshot(),null,2));message.textContent="JSON preview copied to clipboard; nothing was saved."; }catch(_){message.textContent="Clipboard unavailable. Select and copy the preview manually; nothing was saved."; }});
+  document.getElementById("copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(JSON.stringify(snapshot(),null,2));message.textContent="JSON preview copied to clipboard; nothing was saved.";}catch(_){message.textContent="Clipboard unavailable. Select and copy the preview manually; nothing was saved."; }});
   render();
 })();
 </script>
