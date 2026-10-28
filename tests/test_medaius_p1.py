@@ -1,11 +1,14 @@
 """Acceptance tests for the local synthetic Medaius P1 pilot."""
 
+import contextlib
 import hashlib
+import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
+from pilots.medaius_p1.cli import run as run_cli
 from pilots.medaius_p1.service import (
     DuplicatePatientID,
     InvalidFixture,
@@ -77,6 +80,23 @@ class PatientHistoryTests(unittest.TestCase):
     def test_audit_rejects_unknown_outcome(self):
         with self.assertRaises(ValueError):
             make_audit_event("req-123", "PATIENT_RECORD")
+
+    def test_cli_withholds_result_when_audit_write_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit-is-a-directory"
+            audit_path.mkdir()
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = run_cli([
+                    "--fixture", str(FIXTURE),
+                    "--patient-id", "SYN-PAT-0001",
+                    "--audit-file", str(audit_path),
+                ])
+            self.assertEqual(code, 4)
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertIn("audit event could not be persisted", stderr.getvalue())
+            self.assertNotIn("SYN-PAT-0001", stderr.getvalue())
 
 
 if __name__ == "__main__":
