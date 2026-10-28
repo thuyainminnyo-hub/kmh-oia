@@ -1,12 +1,13 @@
 """Execution bridge contract for local AI production jobs.
 
-The bridge coordinates an injected adapter and verifies that its reported
-artifact exists. It does not implement a model provider itself.
+The bridge coordinates an injected adapter and verifies reported artifacts
+inside an explicitly allowed output root. It does not implement a model provider.
 """
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
 
+from src.output_verification import verify_output_file
 from src.production_job import ProductionJob
 
 
@@ -24,10 +25,11 @@ class ProductionAdapter(Protocol):
 
 
 class ProductionExecutionBridge:
-    """Run a job through an adapter and fail closed on missing artifacts."""
+    """Run a job and fail closed unless its artifact is verified in the allowed root."""
 
-    def __init__(self, adapter: ProductionAdapter) -> None:
+    def __init__(self, adapter: ProductionAdapter, *, allowed_output_root: str | Path) -> None:
         self.adapter = adapter
+        self.allowed_output_root = Path(allowed_output_root).resolve()
 
     def execute(self, job: ProductionJob) -> ProductionJob:
         if job.status != "queued":
@@ -42,29 +44,28 @@ class ProductionExecutionBridge:
                 error_message=f"adapter raised {type(exc).__name__}: {exc}",
             )
 
+        if not isinstance(result, AdapterResult):
+            return replace(
+                running, status="failed",
+                error_message="adapter returned an invalid result type",
+            )
         if not result.success:
             return replace(
                 running,
                 status="failed",
-                output_path=result.output_path,
                 error_message=result.error_message or "adapter reported failure",
             )
-        if not isinstance(result.output_path, str) or not result.output_path.strip():
+        verification = verify_output_file(result.output_path, self.allowed_output_root)
+        if not verification.verified:
             return replace(
                 running,
                 status="failed",
-                error_message="adapter reported success without an output path",
-            )
-        if not Path(result.output_path).is_file():
-            return replace(
-                running,
-                status="failed",
-                output_path=result.output_path,
-                error_message="reported artifact does not exist as a file",
+                output_path=result.output_path if isinstance(result.output_path, str) else "",
+                error_message=f"output verification failed: {verification.reason}",
             )
         return replace(
             running,
             status="qa_pending",
-            output_path=result.output_path,
+            output_path=verification.resolved_path or "",
             error_message="",
         )
