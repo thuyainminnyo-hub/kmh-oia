@@ -78,8 +78,34 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
             correlation_id="corr_ACK001",
         )
         self.assertEqual(result["status"], "ACKNOWLEDGED")
-        self.assertEqual(self.store.get_incident("inc_SYNTHETIC001")["status"], "ACKNOWLEDGED")
-        self.assertEqual(len(self.store.get_audit("inc_SYNTHETIC001")), 2)
+        saved = self.store.get_incident("inc_SYNTHETIC001")
+        audit_rows = self.store.get_audit("inc_SYNTHETIC001")
+        self.assertEqual(saved["status"], "ACKNOWLEDGED")
+        self.assertEqual(saved["payload"]["status"], "ACKNOWLEDGED")
+        self.assertEqual(len(audit_rows), 2)
+        self.assertEqual(len(saved["payload"]["audit"]), 2)
+
+        payload_audit = [
+            {
+                "action": item["action"],
+                "actor_role": item["actor_role"],
+                "at": item["at"],
+                "result": item["result"],
+                "correlation_id": item.get("correlation_id"),
+            }
+            for item in saved["payload"]["audit"]
+        ]
+        database_audit = [
+            {
+                "action": item["action"],
+                "actor_role": item["actor_role"],
+                "at": item["at"],
+                "result": item["result"],
+                "correlation_id": item["correlation_id"],
+            }
+            for item in audit_rows
+        ]
+        self.assertEqual(payload_audit, database_audit)
 
     def test_direct_store_call_cannot_bypass_transition_role_policy(self):
         self.store.create_incident(sample_incident())
