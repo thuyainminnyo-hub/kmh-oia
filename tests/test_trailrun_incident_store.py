@@ -193,6 +193,50 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
         self.assertEqual(sum(result.created for result in results), 1)
         self.assertEqual(len(self.store.get_audit("inc_SYNTHETIC001")), 1)
 
+    def test_concurrent_competing_transitions_apply_once_and_audit_once(self):
+        self.store.create_incident(sample_incident())
+        barrier = threading.Barrier(2)
+        results = []
+        errors = []
+
+        def submit(correlation_id: str) -> None:
+            try:
+                barrier.wait(timeout=3)
+                result = SQLiteIncidentStore(self.db_path).transition(
+                    "inc_SYNTHETIC001", "ACKNOWLEDGED",
+                    actor_role="race_control",
+                    at="2026-10-28T02:01:00Z",
+                    correlation_id=correlation_id,
+                )
+                results.append(result)
+            except Exception as exc:
+                errors.append(exc)
+
+        threads = [
+            threading.Thread(target=submit, args=("corr_RACE_A",)),
+            threading.Thread(target=submit, args=("corr_RACE_B",)),
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+
+        self.assertTrue(all(not thread.is_alive() for thread in threads))
+        self.assertEqual(len(results), 1, repr(results))
+        self.assertEqual(len(errors), 1, repr(errors))
+        self.assertIsInstance(errors[0], InvalidTransition)
+
+        saved = self.store.get_incident("inc_SYNTHETIC001")
+        audit_rows = self.store.get_audit("inc_SYNTHETIC001")
+        self.assertEqual(saved["status"], "ACKNOWLEDGED")
+        self.assertEqual(saved["payload"]["status"], "ACKNOWLEDGED")
+        self.assertEqual(len(audit_rows), 2)
+        self.assertEqual(len(saved["payload"]["audit"]), 2)
+        self.assertEqual(
+            saved["payload"]["audit"][-1]["correlation_id"],
+            audit_rows[-1]["correlation_id"],
+        )
+
     def test_create_rejects_multiple_initial_audit_entries_at_store_boundary(self):
         invalid = sample_incident(
             event_id="evt_MULTI_AUDIT",
