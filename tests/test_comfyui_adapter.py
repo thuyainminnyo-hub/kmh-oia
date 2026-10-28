@@ -80,6 +80,25 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         submitted = json.loads(mock_urlopen.call_args_list[0].args[0].data.decode())
         self.assertEqual(submitted["prompt"]["6"]["inputs"]["text"], self.job.prompt)
 
+    @patch("src.comfyui_adapter.time.sleep")
+    @patch("src.comfyui_adapter.urlopen")
+    def test_waits_for_success_status_before_downloading(self, mock_urlopen, _mock_sleep):
+        running = {"prompt-1": {"outputs": {"9": {"images": [
+            {"filename": "generated.png", "subfolder": "", "type": "output"}
+        ]}}, "status": {"status_str": "running"}}}
+        success = {"prompt-1": {"outputs": {"9": {"images": [
+            {"filename": "generated.png", "subfolder": "", "type": "output"}
+        ]}}, "status": {"status_str": "success"}}}
+        mock_urlopen.side_effect = [
+            FakeResponse(b'{"prompt_id":"prompt-1"}'),
+            FakeResponse(json.dumps(running).encode()),
+            FakeResponse(json.dumps(success).encode()),
+            FakeResponse(b"synthetic image bytes"),
+        ]
+        result = self.adapter.execute(self.running_job)
+        self.assertTrue(result.success, result.error_message)
+        self.assertEqual(Path(result.output_path).read_bytes(), b"synthetic image bytes")
+
     @patch("src.comfyui_adapter.urlopen")
     def test_queue_response_without_prompt_id_fails(self, mock_urlopen):
         mock_urlopen.return_value = FakeResponse(b"{}")
@@ -113,7 +132,7 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
     def test_empty_image_fails(self, mock_urlopen):
         history = {"prompt-1": {"outputs": {"9": {"images": [
             {"filename": "generated.png", "subfolder": "", "type": "output"}
-        ]}}}}
+        ]}}, "status": {"status_str": "success"}}}
         mock_urlopen.side_effect = [
             FakeResponse(b'{"prompt_id":"prompt-1"}'),
             FakeResponse(json.dumps(history).encode()),
@@ -127,7 +146,7 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
     def test_rejects_unsupported_extension(self, mock_urlopen):
         history = {"prompt-1": {"outputs": {"9": {"images": [
             {"filename": "generated.exe", "subfolder": "", "type": "output"}
-        ]}}}}
+        ]}}, "status": {"status_str": "success"}}}
         mock_urlopen.side_effect = [
             FakeResponse(b'{"prompt_id":"prompt-1"}'),
             FakeResponse(json.dumps(history).encode()),
