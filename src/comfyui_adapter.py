@@ -105,6 +105,9 @@ class ComfyUIImageAdapter:
             if history_entry is None:
                 raise ComfyUIAdapterError("timed out waiting for ComfyUI output")
             image_meta = self._first_image(history_entry.get("outputs", {}))
+            suffix = Path(image_meta["filename"]).suffix.lower()
+            if suffix not in {".png", ".jpg", ".jpeg", ".webp"}:
+                raise ComfyUIAdapterError("unsupported output image extension")
             raw = self._request_bytes(
                 "/view?" + urlencode({
                     "filename": image_meta["filename"],
@@ -116,9 +119,6 @@ class ComfyUIImageAdapter:
                 raise ComfyUIAdapterError("ComfyUI returned an empty image")
             if len(raw) > self.max_output_bytes:
                 raise ComfyUIAdapterError("ComfyUI image exceeded max_output_bytes")
-            suffix = Path(image_meta["filename"]).suffix.lower()
-            if suffix not in {".png", ".jpg", ".jpeg", ".webp"}:
-                raise ComfyUIAdapterError("unsupported output image extension")
             self.output_root.mkdir(parents=True, exist_ok=True)
             destination = (self.output_root / f"{job.job_id}-{uuid4().hex}{suffix}").resolve()
             destination.relative_to(self.output_root)
