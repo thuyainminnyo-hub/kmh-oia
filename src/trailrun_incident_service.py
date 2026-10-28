@@ -6,7 +6,11 @@ authentication, runner/resource scoping, network transport, or dispatch.
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
+
+from jsonschema import Draft202012Validator
 
 from src.trailrun_incident_access import authorize, authorize_transition
 from src.trailrun_incident_store import (
@@ -18,6 +22,21 @@ from src.trailrun_incident_store import (
 
 class AccessDenied(PermissionError):
     """Raised when a trusted caller role lacks permission for an action."""
+
+
+class InvalidIncidentPayload(ValueError):
+    """Raised when a create payload does not match the published JSON Schema."""
+
+
+_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "docs" / "pilots" / "tgi-trailrun-2026" / "incident.schema.json"
+)
+_SCHEMA = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
+Draft202012Validator.check_schema(_SCHEMA)
+_VALIDATOR = Draft202012Validator(
+    _SCHEMA, format_checker=Draft202012Validator.FORMAT_CHECKER
+)
 
 
 class TrailRunIncidentService:
@@ -34,6 +53,15 @@ class TrailRunIncidentService:
 
     def create_incident(self, role: str, payload: dict[str, Any]):
         self._require(role, "incident:create")
+        if not isinstance(payload, dict):
+            raise InvalidIncidentPayload("Incident payload must be an object")
+        errors = sorted(_VALIDATOR.iter_errors(payload), key=lambda error: list(error.path))
+        if errors:
+            first = errors[0]
+            location = ".".join(str(part) for part in first.path) or "<root>"
+            raise InvalidIncidentPayload(
+                f"Incident schema validation failed at {location}: {first.message}"
+            )
         if payload.get("reported_by_role") != role:
             raise AccessDenied("REPORTED_BY_ROLE_MISMATCH")
         return self._store.create_incident(payload)
