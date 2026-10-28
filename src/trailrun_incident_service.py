@@ -42,8 +42,27 @@ _VALIDATOR = Draft202012Validator(
 class TrailRunIncidentService:
     """Small service boundary that checks role policy before store operations."""
 
-    def __init__(self, store: SQLiteIncidentStore) -> None:
+    def __init__(
+        self,
+        store: SQLiteIncidentStore,
+        *,
+        allowed_checkpoint_ids: set[str] | frozenset[str] | None = None,
+    ) -> None:
         self._store = store
+        # Scope must be supplied by a trusted authentication/authorization adapter.
+        # None means no checkpoint access, not unrestricted access.
+        self._allowed_checkpoint_ids = frozenset(allowed_checkpoint_ids or ())
+
+    def _require_checkpoint(self, checkpoint_id: str) -> None:
+        if checkpoint_id not in self._allowed_checkpoint_ids:
+            raise AccessDenied("CHECKPOINT_SCOPE_DENIED")
+
+    def _require_incident_scope(self, incident_id: str) -> dict[str, Any]:
+        incident = self._store.get_incident(incident_id)
+        if incident is None:
+            return None
+        self._require_checkpoint(incident["checkpoint_id"])
+        return incident
 
     @staticmethod
     def _require(role: str, action: str) -> None:
@@ -64,14 +83,16 @@ class TrailRunIncidentService:
             )
         if payload.get("reported_by_role") != role:
             raise AccessDenied("REPORTED_BY_ROLE_MISMATCH")
+        self._require_checkpoint(payload["checkpoint_id"])
         return self._store.create_incident(payload)
 
     def get_incident(self, role: str, incident_id: str):
         self._require(role, "incident:read")
-        return self._store.get_incident(incident_id)
+        return self._require_incident_scope(incident_id)
 
     def get_audit(self, role: str, incident_id: str):
         self._require(role, "audit:read")
+        self._require_incident_scope(incident_id)
         return self._store.get_audit(incident_id)
 
     def transition(
@@ -86,6 +107,7 @@ class TrailRunIncidentService:
         decision = authorize_transition(role, requested_status)
         if not decision.allowed:
             raise AccessDenied(decision.reason_code)
+        self._require_incident_scope(incident_id)
         return self._store.transition(
             incident_id,
             requested_status,
