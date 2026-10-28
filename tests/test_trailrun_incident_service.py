@@ -84,6 +84,23 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
             len(self.service._store.get_audit("inc_OUTSIDE_SCOPE")), 1
         )
 
+    def test_missing_checkpoint_scope_denies_create_without_side_effects(self):
+        deny_by_default = TrailRunIncidentService(self.service._store)
+        candidate = payload()
+        candidate["incident_id"] = "inc_NO_SCOPE"
+        candidate["event_id"] = "evt_NO_SCOPE"
+
+        with self.assertRaises(AccessDenied):
+            deny_by_default.create_incident("checkpoint_volunteer", candidate)
+
+        self.assertIsNone(self.service._store.get_incident("inc_NO_SCOPE"))
+        self.assertEqual(self.service._store.get_audit("inc_NO_SCOPE"), [])
+        seed_result = self.service._store.create_incident(candidate)
+        self.assertTrue(
+            seed_result.created,
+            "default-denied creation must not leave an idempotency receipt",
+        )
+
     def test_volunteer_cannot_dispatch_and_state_audit_unchanged(self):
         with self.assertRaises(AccessDenied):
             self.service.transition(
