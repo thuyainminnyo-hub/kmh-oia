@@ -111,9 +111,16 @@ class SQLiteIncidentStore:
             raise InvalidIncident("Missing required incident fields")
         if payload["status"] != "REPORTED":
             raise InvalidIncident("New incidents must start in REPORTED state")
-        if not isinstance(payload["audit"], list) or not payload["audit"]:
-            raise InvalidIncident("At least one initial audit entry is required")
-        if payload["audit"][0].get("action") != "REPORTED":
+        audit_entries = payload["audit"]
+        if (
+            not isinstance(audit_entries, list)
+            or len(audit_entries) != 1
+            or not isinstance(audit_entries[0], dict)
+        ):
+            raise InvalidIncident(
+                "Exactly one initial audit entry is required for incident creation"
+            )
+        if audit_entries[0].get("action") != "REPORTED":
             raise InvalidIncident("First audit entry must record REPORTED")
 
     def create_incident(self, payload: dict[str, Any]) -> CreateResult:
