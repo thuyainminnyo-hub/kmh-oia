@@ -1,6 +1,6 @@
 # KMH OIA × Medaius P1 — Patient History Retrieval
 
-**Status:** implementation draft on an isolated branch. Earlier synthetic acceptance, general test and repository-validation workflows passed on an earlier commit; the latest fixture-guard change still requires a fresh CI run. No Medaius API connection exists; this is not production-ready.
+**Status:** implementation draft on an isolated branch. On 2026-10-28, the current candidate head `7d4976d16efcdb0d67760e2492f67b5a20018dc0` passed the dedicated synthetic pilot tests, general KMH OIA tests and repository validation (run links are recorded in PR #140). These checks validate repository/test behavior only; they do not establish Medaius API compatibility, clinical safety, or production readiness. No Medaius API connection exists.
 
 ## Scope
 
@@ -42,14 +42,20 @@ Expected exit codes: success `0`; exact ID not found `2`; duplicate exact IDs bl
 9. If audit persistence fails, retrieved output is withheld and the CLI returns exit code `4`.
 10. No outbound network, Medaius API call, production access, or clinical write is performed.
 
-## Verification evidence to capture
+## Verification evidence
 
-- Full `python -m unittest discover -s tests -p 'test_medaius_p1.py' -v` output and exit code for the current head.
-- Positive, not-found, malformed-fixture and audit-write-failure CLI output/exit codes.
-- Fixture SHA-256 before/after retrieval to prove no file mutation (automated acceptance test).
-- Environment/runtime version and commit SHA.
+- Candidate head `7d4976d16efcdb0d67760e2492f67b5a20018dc0`:
+  - Medaius P1 local synthetic pilot tests #13: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40730633389
+  - KMH OIA Tests #1126: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40730633652
+  - KMH OIA Validation #1045: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40730633406
+- Re-run the workflows for any subsequent commit and verify that run SHA matches the candidate head before treating it as validated.
+- The acceptance suite checks fixture SHA-256 before/after retrieval to detect file mutation.
 - Review that no real PHI, secrets, or external calls were introduced.
 
 ## Integration gate
 
-Public Medaius documentation mentions webhooks and data export/import, but webhook events are not proof of a patient-history read API. Before any adapter is implemented, obtain written confirmation of supported patient/encounter read endpoints, authentication and scopes, sandbox availability, rate limits, audit requirements, data-processing terms and integration permission from Medaius. Until then, API integration remains **PENDING**.
+Public Medaius documentation mentioning webhooks or data export/import is not proof of a patient-history read API. Before any adapter is implemented, obtain written confirmation of supported patient/encounter read endpoints, authentication and scopes, sandbox availability, rate limits, audit requirements, data-processing terms and integration permission from Medaius. Until then, API integration remains **PENDING**.
+
+## Review and release gate
+
+PR #140 remains a draft and unmerged. Independent review is still required. Do not merge or deploy until the review is complete and the integration evidence gates are satisfied.
