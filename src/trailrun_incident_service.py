@@ -88,6 +88,13 @@ class TrailRunIncidentService:
             )
         if payload.get("reported_by_role") != role:
             raise AccessDenied("REPORTED_BY_ROLE_MISMATCH")
+        # Keep the initial audit attribution consistent with the role accepted
+        # at this service boundary. This is consistency validation, not identity proof.
+        first_audit_entry = payload["audit"][0]
+        if first_audit_entry.get("actor_role") != role:
+            raise AccessDenied("AUDIT_ACTOR_ROLE_MISMATCH")
+        if first_audit_entry.get("action") != "REPORTED":
+            raise InvalidIncidentPayload("Initial audit action must be REPORTED")
         self._require_checkpoint(payload["checkpoint_id"])
         return self._store.create_incident(payload)
 
