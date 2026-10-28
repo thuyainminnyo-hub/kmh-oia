@@ -91,6 +91,13 @@ class MarketIntelligenceTests(unittest.TestCase):
         with self.assertRaisesRegex(MarketDataValidationError, "finite"):
             validate_candles(rows)
 
+    def test_rejects_boolean_values_as_numeric_prices(self):
+        rows = rising_fixture()
+        row = rows[3]
+        rows[3] = Candle(row.timestamp, True, row.high, row.low, row.close, row.volume)
+        with self.assertRaisesRegex(MarketDataValidationError, "finite numbers"):
+            validate_candles(rows)
+
     def test_same_input_same_indicator_values(self):
         rows = rising_fixture()
         first = analyze_synthetic_market(rows, analysis_id="same-a")
