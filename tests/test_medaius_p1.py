@@ -81,6 +81,26 @@ class PatientHistoryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             make_audit_event("req-123", "PATIENT_RECORD")
 
+    def test_cli_writes_a_valid_jsonl_audit_record(self):
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit.jsonl"
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                code = run_cli([
+                    "--fixture", str(FIXTURE),
+                    "--patient-id", "SYN-PAT-0001",
+                    "--request-id", "jsonl-test-001",
+                    "--audit-file", str(audit_path),
+                ])
+            self.assertEqual(code, 0)
+            lines = audit_path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 1)
+            event = json.loads(lines[0])
+            self.assertEqual(event["request_id"], "jsonl-test-001")
+            self.assertEqual(event["outcome"], "SUCCESS")
+            self.assertNotIn("SYN-PAT-0001", lines[0])
+            self.assertEqual(stdout.getvalue() and json.loads(stdout.getvalue())["patient_id"], "SYN-PAT-0001")
+
     def test_cli_withholds_result_when_audit_write_fails(self):
         with tempfile.TemporaryDirectory() as directory:
             audit_path = Path(directory) / "audit-is-a-directory"
