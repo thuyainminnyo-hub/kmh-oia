@@ -31,20 +31,35 @@ if ! : > "$log_file"; then
 fi
 
 overall_status=0
+log_write_failed=0
+set -o pipefail
+
 emit() {
-  printf '%s\n' "$*" | tee -a "$log_file"
+  if ! printf '%s\n' "$*" | tee -a "$log_file"; then
+    printf 'ERROR: failed to write verification log; evidence may be incomplete.\n' >&2
+    overall_status=1
+    log_write_failed=1
+  fi
 }
 
 run_check() {
   local label="$1"
   shift
+  local -a pipeline_status
   emit ""
   emit "===== ${label} ====="
   "$@" 2>&1 | tee -a "$log_file"
-  local command_status="${PIPESTATUS[0]}"
-  emit "exit_code=${command_status}"
-  if [[ "$command_status" -ne 0 ]]; then
+  pipeline_status=("${PIPESTATUS[@]}")
+  local command_status="${pipeline_status[0]:-1}"
+  local tee_status="${pipeline_status[1]:-1}"
+  emit "command_exit_code=${command_status}"
+  emit "log_write_exit_code=${tee_status}"
+  if [[ "$command_status" -ne 0 || "$tee_status" -ne 0 ]]; then
     overall_status=1
+  fi
+  if [[ "$tee_status" -ne 0 ]]; then
+    log_write_failed=1
+    printf 'ERROR: tee failed while recording check output.\n' >&2
   fi
 }
 
