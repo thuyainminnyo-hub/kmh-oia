@@ -82,7 +82,7 @@
       anatomy_code:state.region,
       region:labels[state.region],
       view:state.view,
-      laterality:state.region==="SKULL"||state.region==="SPINE"?"midline":"not_applicable",
+      laterality:state.laterality,
       finding:state.finding,
       treatment:{code:state.treatment,status:"proposed"},
       status:"draft",
