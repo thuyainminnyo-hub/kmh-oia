@@ -87,14 +87,28 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
         with self.assertRaises(InvalidIncident):
             self.store.create_incident(original)
 
-        self.assertEqual(len(self.store.get_audit("inc_RECEIPT_ORIGINAL")), 1)
-        self.assertEqual(len(self.store.get_audit("inc_RECEIPT_OTHER")), 1)
+        # Corrupt receipts make protected audit reads fail closed too.
+        with self.assertRaises(InvalidIncident):
+            self.store.get_audit("inc_RECEIPT_ORIGINAL")
+        with self.assertRaises(InvalidIncident):
+            self.store.get_audit("inc_RECEIPT_OTHER")
+
         with sqlite3.connect(self.db_path) as connection:
             original_receipt = connection.execute(
                 "SELECT incident_id FROM event_receipts WHERE event_id=?",
                 ("evt_RECEIPT_ORIGINAL",),
             ).fetchone()
+            original_audit_count = connection.execute(
+                "SELECT COUNT(*) FROM incident_audit WHERE incident_id=?",
+                ("inc_RECEIPT_ORIGINAL",),
+            ).fetchone()[0]
+            other_audit_count = connection.execute(
+                "SELECT COUNT(*) FROM incident_audit WHERE incident_id=?",
+                ("inc_RECEIPT_OTHER",),
+            ).fetchone()[0]
         self.assertEqual(original_receipt[0], "inc_RECEIPT_OTHER")
+        self.assertEqual(original_audit_count, 1)
+        self.assertEqual(other_audit_count, 1)
 
     def test_reused_event_id_with_changed_payload_is_conflict(self):
         self.store.create_incident(sample_incident())
@@ -242,8 +256,12 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
                 "SELECT status FROM incidents WHERE incident_id=?",
                 ("inc_SYNTHETIC001",),
             ).fetchone()
+            audit_count = connection.execute(
+                "SELECT COUNT(*) FROM incident_audit WHERE incident_id=?",
+                ("inc_SYNTHETIC001",),
+            ).fetchone()[0]
         self.assertEqual(row[0], "REPORTED")
-        self.assertEqual(len(self.store.get_audit("inc_SYNTHETIC001")), 1)
+        self.assertEqual(audit_count, 1)
 
     def test_read_and_transition_reject_payload_event_id_receipt_mismatch(self):
         self.store.create_incident(sample_incident())
@@ -271,8 +289,12 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
                 "SELECT status FROM incidents WHERE incident_id=?",
                 ("inc_SYNTHETIC001",),
             ).fetchone()
+            audit_count = connection.execute(
+                "SELECT COUNT(*) FROM incident_audit WHERE incident_id=?",
+                ("inc_SYNTHETIC001",),
+            ).fetchone()[0]
         self.assertEqual(row[0], "REPORTED")
-        self.assertEqual(len(self.store.get_audit("inc_SYNTHETIC001")), 1)
+        self.assertEqual(audit_count, 1)
 
     def test_direct_store_call_cannot_bypass_transition_role_policy(self):
         self.store.create_incident(sample_incident())
