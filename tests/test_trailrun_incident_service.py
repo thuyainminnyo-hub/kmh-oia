@@ -57,8 +57,13 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
         with self.assertRaises(AccessDenied):
             self.service.create_incident("checkpoint_volunteer", outside)
 
+        # Seed through the low-level store to simulate an existing incident
+        # owned by another checkpoint; the service must still deny access.
+        self.service._store.create_incident(outside)
         with self.assertRaises(AccessDenied):
-            self.service.get_incident("race_control", "inc_NOT_IN_SCOPE")
+            self.service.get_incident("race_control", "inc_OUTSIDE_SCOPE")
+        with self.assertRaises(AccessDenied):
+            self.service.get_audit("race_control", "inc_OUTSIDE_SCOPE")
 
     def test_volunteer_cannot_dispatch_and_state_audit_unchanged(self):
         with self.assertRaises(AccessDenied):
