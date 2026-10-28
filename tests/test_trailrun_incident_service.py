@@ -49,7 +49,7 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
-    def test_incident_outside_checkpoint_scope_is_denied(self):
+    def test_incident_outside_checkpoint_scope_is_denied_without_create_side_effects(self):
         outside = payload()
         outside["incident_id"] = "inc_OUTSIDE_SCOPE"
         outside["event_id"] = "evt_OUTSIDE_SCOPE"
@@ -57,9 +57,17 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
         with self.assertRaises(AccessDenied):
             self.service.create_incident("checkpoint_volunteer", outside)
 
+        # A denied create must leave no incident, receipt, or audit entry behind.
+        self.assertIsNone(self.service._store.get_incident("inc_OUTSIDE_SCOPE"))
+        self.assertEqual(self.service._store.get_audit("inc_OUTSIDE_SCOPE"), [])
+        seed_result = self.service._store.create_incident(outside)
+        self.assertTrue(
+            seed_result.created,
+            "scope-denied creation must not leave an idempotency receipt",
+        )
+
         # Seed through the low-level store to simulate an existing incident
         # owned by another checkpoint; the service must still deny access.
-        self.service._store.create_incident(outside)
         with self.assertRaises(AccessDenied):
             self.service.get_incident("race_control", "inc_OUTSIDE_SCOPE")
         with self.assertRaises(AccessDenied):
@@ -124,12 +132,20 @@ class TrailRunIncidentServiceTests(unittest.TestCase):
             self.service.get_incident("race_control", "inc_SCHEMA_BAD")
         )
 
-    def test_create_role_must_match_reporter_role(self):
+    def test_create_role_must_match_reporter_role_without_side_effects(self):
         bad = payload()
         bad["incident_id"] = "inc_MISMATCH"
         bad["event_id"] = "evt_MISMATCH"
         with self.assertRaises(AccessDenied):
             self.service.create_incident("race_control", bad)
+
+        self.assertIsNone(self.service._store.get_incident("inc_MISMATCH"))
+        self.assertEqual(self.service._store.get_audit("inc_MISMATCH"), [])
+        seed_result = self.service._store.create_incident(bad)
+        self.assertTrue(
+            seed_result.created,
+            "role-mismatch rejection must not leave an idempotency receipt",
+        )
 
 
 if __name__ == "__main__":
