@@ -27,7 +27,8 @@ class BodyMapUiContractTests(unittest.TestCase):
         self.assertIn('encounter_ref:"SYN-ENC-UI-PREVIEW-0001"', self.html)
         self.assertIn('author_ref:"SYN-ACTOR-UI-PREVIEW-0001"', self.html)
         self.assertIn('laterality:state.laterality', self.html)
-        self.assertIn('created_at:timestamp,updated_at:timestamp', self.html)
+        self.assertIn("created_at:timestamp", self.html)
+        self.assertIn("updated_at:timestamp", self.html)
 
     def test_region_controls_and_keyboard_interaction_exist(self):
         for region in ("SKULL", "SPINE", "PELVIS", "UPPER_LIMB", "LOWER_LIMB"):
