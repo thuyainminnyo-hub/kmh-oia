@@ -1,5 +1,6 @@
 """Acceptance tests for the local synthetic Medaius P1 pilot."""
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -46,10 +47,11 @@ class PatientHistoryTests(unittest.TestCase):
         record["visits"].clear()
         self.assertEqual(len(patients[0]["visits"]), 1)
 
-    def test_fixture_is_not_modified_by_retrieval(self):
-        before = FIXTURE.read_bytes()
+    def test_fixture_sha256_is_unchanged_by_retrieval(self):
+        before = hashlib.sha256(FIXTURE.read_bytes()).hexdigest()
         retrieve_history(load_patients(FIXTURE), "SYN-PAT-0001")
-        self.assertEqual(FIXTURE.read_bytes(), before)
+        after = hashlib.sha256(FIXTURE.read_bytes()).hexdigest()
+        self.assertEqual(after, before)
 
     def test_invalid_fixture_root_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
