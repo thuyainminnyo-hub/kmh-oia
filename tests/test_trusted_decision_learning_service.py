@@ -198,6 +198,64 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertEqual(retried.adaptation.status, "PROPOSED")
         self.assertEqual(engine.calls, 2)
 
+    def test_restart_recovers_memory_event_and_durable_proposal_after_retry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            memory_path = Path(tmp) / "memory.json"
+            proposal_path = Path(tmp) / "proposals.sqlite3"
+            self.memory = OperatingMemory(path=memory_path)
+            repository = SQLiteAdaptationProposalRepository(str(proposal_path))
+            self.service = TrustedDecisionLearningService(
+                classifier=self.classifier,
+                receipt_verifier=self.verifier,
+                memory=self.memory,
+                adaptation_proposal_repository=repository,
+            )
+
+            class FailsOnceEngine:
+                def __init__(self, delegate):
+                    self.delegate = delegate
+                    self.calls = 0
+
+                def propose(self, record, **kwargs):
+                    self.calls += 1
+                    if self.calls == 1:
+                        raise RuntimeError("simulated proposal persistence boundary failure")
+                    return self.delegate.propose(record, **kwargs)
+
+            self.service._adaptation_engine = FailsOnceEngine(
+                AdaptationEngine(repository=repository)
+            )
+            with self.assertRaisesRegex(
+                RuntimeError, "simulated proposal persistence boundary failure"
+            ):
+                self.capture()
+
+            event_id_before_restart = self.memory.recent(1)[0].event_id
+            self.assertEqual(len(self.memory.recent(10)), 1)
+
+            # Reconstruct both stores and the service, as after a process restart.
+            self.memory = OperatingMemory(path=memory_path)
+            repository = SQLiteAdaptationProposalRepository(str(proposal_path))
+            self.adapter = FakeTrustedSourceAdapter()
+            self.verifier = TrustedSourceReceiptVerifier(
+                self.adapter,
+                allowed_providers=("booking-provider",),
+            )
+            self.service = TrustedDecisionLearningService(
+                classifier=self.classifier,
+                receipt_verifier=self.verifier,
+                memory=self.memory,
+                adaptation_proposal_repository=repository,
+            )
+
+            recovered = self.capture()
+            self.assertTrue(recovered.admitted)
+            self.assertEqual(len(self.memory.recent(10)), 1)
+            self.assertEqual(recovered.memory.event_id, event_id_before_restart)
+            self.assertEqual(recovered.adaptation.id, f"adapt:{event_id_before_restart}")
+            self.assertEqual(recovered.adaptation.status, "PROPOSED")
+            self.assertEqual(repository.get(recovered.adaptation.id)["status"], "PROPOSED")
+
     def test_missing_receipt_fails_closed_without_learning_influence(self):
         result = self.capture(execution=self.execution(receipt=False))
         self.assertFalse(result.admitted)
