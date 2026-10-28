@@ -324,12 +324,50 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
         self.assertEqual(len(self.store.get_audit("inc_SYNTHETIC001")), 1)
 
     def test_file_database_survives_store_recreation(self):
-        self.store.create_incident(sample_incident())
-        restarted_store = SQLiteIncidentStore(self.db_path)
-        self.assertEqual(
-            restarted_store.get_incident("inc_SYNTHETIC001")["status"], "REPORTED"
+        original_payload = sample_incident()
+        created = self.store.create_incident(original_payload)
+        self.assertTrue(created.created)
+        self.store.transition(
+            "inc_SYNTHETIC001", "ACKNOWLEDGED",
+            actor_role="race_control",
+            at="2026-10-28T02:01:00Z",
+            correlation_id="corr_RESTART_ACK",
         )
-        self.assertEqual(len(restarted_store.get_audit("inc_SYNTHETIC001")), 1)
+
+        # A new store instance models a close/reopen cycle on the same local DB.
+        restarted_store = SQLiteIncidentStore(self.db_path)
+        saved = restarted_store.get_incident("inc_SYNTHETIC001")
+        audit_rows = restarted_store.get_audit("inc_SYNTHETIC001")
+
+        self.assertEqual(saved["status"], "ACKNOWLEDGED")
+        self.assertEqual(saved["payload"]["status"], "ACKNOWLEDGED")
+        self.assertEqual(
+            [entry["action"] for entry in audit_rows],
+            ["REPORTED", "ACKNOWLEDGED"],
+        )
+        self.assertEqual(len(saved["payload"]["audit"]), 2)
+        self.assertEqual(audit_rows[-1]["correlation_id"], "corr_RESTART_ACK")
+        self.assertEqual(
+            saved["payload"]["audit"][-1]["correlation_id"], "corr_RESTART_ACK"
+        )
+
+        # The authoritative idempotency receipt must survive the reopen too.
+        replay = restarted_store.create_incident(original_payload)
+        self.assertFalse(replay.created)
+        self.assertEqual(replay.incident_id, "inc_SYNTHETIC001")
+        self.assertEqual(replay.event_id, "evt_SYNTHETIC001")
+
+        # Reusing the event ID with different content remains a conflict after reopen.
+        changed_payload = sample_incident()
+        changed_payload["severity"] = "P1"
+        with self.assertRaises(IdempotencyConflict):
+            restarted_store.create_incident(changed_payload)
+
+        # A replay/conflict must not change the restored state or append audit rows.
+        saved_after_replay = restarted_store.get_incident("inc_SYNTHETIC001")
+        audit_after_replay = restarted_store.get_audit("inc_SYNTHETIC001")
+        self.assertEqual(saved_after_replay["status"], "ACKNOWLEDGED")
+        self.assertEqual(len(audit_after_replay), 2)
 
     def test_concurrent_duplicate_submission_creates_one_incident(self):
         results = []
