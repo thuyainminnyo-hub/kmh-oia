@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,8 @@ def run(argv: list[str] | None = None) -> int:
     parser.add_argument("--request-id", default="local-p1-request", help="Non-sensitive audit correlation ID")
     parser.add_argument("--audit-file", help="Optional path for PHI-minimized JSONL audit events")
     args = parser.parse_args(argv)
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{1,80}", args.request_id):
+        parser.error("request-id must be 1-80 characters: letters, digits, dot, underscore, colon or hyphen only")
     outcome = "ERROR"
     result: dict[str, Any]
     exit_code = 1
