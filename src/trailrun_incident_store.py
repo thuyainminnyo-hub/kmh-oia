@@ -31,6 +31,10 @@ class IdempotencyConflict(IncidentStoreError):
     """An event ID was reused with a different payload."""
 
 
+class IncidentIdConflict(IncidentStoreError):
+    """An incident ID is already assigned to a different event."""
+
+
 class IncidentNotFound(IncidentStoreError):
     """The requested incident does not exist."""
 
@@ -145,6 +149,16 @@ class SQLiteIncidentStore:
                         "event_id was already used with a different payload"
                     )
                 return CreateResult(existing["incident_id"], event_id, False)
+
+            existing_incident = connection.execute(
+                "SELECT incident_id FROM incidents WHERE incident_id=?",
+                (incident_id,),
+            ).fetchone()
+            if existing_incident:
+                connection.rollback()
+                raise IncidentIdConflict(
+                    "incident_id is already assigned to a different event"
+                )
 
             connection.execute(
                 "INSERT INTO incidents(incident_id, status, payload_json, created_at) "
