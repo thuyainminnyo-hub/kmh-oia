@@ -105,3 +105,20 @@ The helper refuses an invalid/missing SHA argument, records branch and local che
 - A non-zero script exit means the evidence capture did not pass; inspect the recorded log and rerun after correcting the environment or checkout.
 - A zero exit establishes only local engineering checks for that exact checkout. It does not verify identity authentication or trusted role/checkpoint mapping and is not production approval.
 - Keep the output log private until it is reviewed for sensitive content. Use synthetic data only, and do not put real runner, medical, location, or emergency incident data in fixtures or logs.
+
+## 6. Latest exact-head CI evidence — 2026-10-28
+
+**Evidence boundary:** GitHub Actions CI for the synthetic pilot branch. This is not a local workstation/Codespace execution record and does not close the pending local evidence items in sections 2–4.
+
+- PR head commit tested: `1805befdd2dd99691e7afe8441b6fc58e8dcefc6`.
+- [KMH OIA Tests #40725279344](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725279344) — completed `success`; test log reports `Ran 517 tests in 0.972s` and `OK`.
+- The test log includes these three synthetic SQLite failure-injection cases, each reporting `ok`:
+  - `test_failed_receipt_insert_rolls_back_create_and_allows_clean_retry`
+  - `test_failed_initial_audit_insert_rolls_back_incident_and_receipt`
+  - `test_failed_transition_audit_insert_rolls_back_state_change`
+- [KMH OIA Validation #40725279336](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725279336) — completed `success`; test, repository-validation, performance-evidence, and deployment-evidence-bundle jobs completed successfully.
+- The new tests use temporary SQLite databases, synthetic identifiers, and injected database triggers only. They do not exercise live identity providers, notification delivery, real event response, or production infrastructure.
+
+**Interpretation:** The exact-head CI evidence supports the tested local persistence/rollback behavior at this commit. It does not prove that the user's local checkout ran these commands, does not satisfy independent review, and does not establish production readiness.
+
+**Local evidence status remains:** NOT RECORDED in a local workstation/Codespace. Keep LV-08 (trusted identity), LV-09 (trusted checkpoint assignment), LV-10 (live operational behavior), and release decision HOLD unchanged until their separate evidence and approvals exist.
