@@ -227,6 +227,29 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             self.assertIsNone(result.adaptation)
             self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
 
+    def test_replayed_receipt_is_rejected_by_composed_runtime(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = DeterministicReceiptAdapter()
+            decision, runtime, execution = self._execute_composed_runtime(
+                Path(tmp), adapter, FailedOutcomeClassifier()
+            )
+            execution_id = execution.operating_loop.execution_id
+            event_count_before = len(runtime.memory.recent(20))
+
+            # The bridge already claimed this provider/record/content tuple.
+            replay = runtime.bridge.trusted_source_verifier.verify(
+                "record:negative-1",
+                execution_id,
+            )
+
+            self.assertFalse(replay.verified)
+            self.assertTrue(
+                any("replay" in reason.lower() for reason in replay.reasons),
+                replay.reasons,
+            )
+            self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
+            self.assertEqual(len(runtime.proposal_repository.list_all()), 0)
+
     def test_classifier_failure_fails_closed_without_learning_write(self):
         with tempfile.TemporaryDirectory() as tmp:
             classifier = FailedOutcomeClassifier()
