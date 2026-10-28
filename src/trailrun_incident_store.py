@@ -204,6 +204,22 @@ class SQLiteIncidentStore:
                 "Stored incident payload state/audit is inconsistent"
             )
 
+        if (
+            payload.get("incident_id") != incident_id
+            or not isinstance(payload.get("event_id"), str)
+            or not payload["event_id"]
+        ):
+            raise InvalidIncident("Stored incident identifiers are inconsistent")
+
+        receipts = connection.execute(
+            "SELECT event_id FROM event_receipts WHERE incident_id=?",
+            (incident_id,),
+        ).fetchall()
+        if len(receipts) != 1 or receipts[0]["event_id"] != payload["event_id"]:
+            raise InvalidIncident(
+                "Stored incident event ID does not match its authoritative receipt"
+            )
+
         required_fields = {"action", "actor_role", "at", "result"}
         allowed_fields = required_fields | {"correlation_id"}
         payload_audit = payload["audit"]
