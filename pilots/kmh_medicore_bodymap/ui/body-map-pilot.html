@@ -50,6 +50,7 @@
     </section>
     <section class="card" aria-labelledby="details-title">
       <h2 id="details-title">2. Annotation details</h2>
+      <div class="field"><label for="laterality">Laterality</label><select id="laterality"><option value="midline">Midline</option><option value="left">Left</option><option value="right">Right</option><option value="bilateral">Bilateral</option></select></div>
       <div class="field"><label for="finding">Finding label</label><select id="finding"><option value="fracture">Fracture</option><option value="dislocation">Dislocation</option><option value="arthritis">Arthritis</option><option value="bone_lesion">Bone lesion</option><option value="other">Other</option></select></div>
       <div class="field"><label for="treatment">Treatment label</label><select id="treatment"><option value="cast_or_splint">Cast or splint</option><option value="closed_reduction">Closed reduction</option><option value="internal_fixation">Internal fixation</option><option value="observation">Observation</option><option value="other">Other</option></select></div>
       <p class="muted">The treatment below is always recorded as <strong>proposed</strong>. This demo does not recommend or confirm treatment.</p>
@@ -64,7 +65,10 @@
 (function(){
   "use strict";
   const labels={SKULL:"Skull",SPINE:"Spine",PELVIS:"Pelvis",UPPER_LIMB:"Upper limb",LOWER_LIMB:"Lower limb"};
-  const state={view:"front",region:"SKULL",finding:"fracture",treatment:"cast_or_splint"};
+  const state={view:"front",region:"SKULL",laterality:"midline",finding:"fracture",treatment:"cast_or_splint"};
+  const allowedLaterality={SKULL:["midline"],SPINE:["midline"],PELVIS:["midline","left","right","bilateral"],UPPER_LIMB:["left","right","bilateral"],LOWER_LIMB:["left","right","bilateral"]};
+  const laterality=document.getElementById("laterality");
+  function syncLaterality(){const allowed=allowedLaterality[state.region];if(!allowed.includes(state.laterality))state.laterality=allowed[0];laterality.replaceChildren();allowed.forEach(value=>{const option=document.createElement("option");option.value=value;option.textContent=value.charAt(0).toUpperCase()+value.slice(1);laterality.append(option);});laterality.value=state.laterality;}
   const summary=document.getElementById("summary"),message=document.getElementById("message");
   function snapshot(){
     const timestamp=new Date().toISOString();
@@ -96,14 +100,16 @@
     Object.entries(snapshot()).forEach(([key,value])=>{const row=document.createElement("div");const strong=document.createElement("strong");strong.textContent=key.replaceAll("_"," ")+": ";row.append(strong,document.createTextNode(typeof value==="object"?JSON.stringify(value):String(value)));summary.append(row);});
     message.textContent="Draft only — nothing has been saved.";
   }
-  function selectRegion(code){if(labels[code]){state.region=code;render();}}
+  function selectRegion(code){if(labels[code]){state.region=code;syncLaterality();render();}}
   document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{state.view=b.dataset.view;render();}));
   document.querySelectorAll("[data-region-button]").forEach(b=>b.addEventListener("click",()=>selectRegion(b.dataset.regionButton)));
   document.querySelectorAll("[data-region]").forEach(el=>{el.addEventListener("click",()=>selectRegion(el.dataset.region));el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectRegion(el.dataset.region);}});});
+  laterality.addEventListener("change",e=>{state.laterality=e.target.value;render();});
   document.getElementById("finding").addEventListener("change",e=>{state.finding=e.target.value;render();});
   document.getElementById("treatment").addEventListener("change",e=>{state.treatment=e.target.value;render();});
-  document.getElementById("reset").addEventListener("click",()=>{state.view="front";state.region="SKULL";state.finding="fracture";state.treatment="cast_or_splint";document.getElementById("finding").value=state.finding;document.getElementById("treatment").value=state.treatment;render();});
+  document.getElementById("reset").addEventListener("click",()=>{state.view="front";state.region="SKULL";state.laterality="midline";state.finding="fracture";state.treatment="cast_or_splint";document.getElementById("finding").value=state.finding;document.getElementById("treatment").value=state.treatment;syncLaterality();render();});
   document.getElementById("copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(JSON.stringify(snapshot(),null,2));message.textContent="JSON preview copied to clipboard; nothing was saved.";}catch(_){message.textContent="Clipboard unavailable. Select and copy the preview manually; nothing was saved."; }});
+  syncLaterality();
   render();
 })();
 </script>
