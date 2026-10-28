@@ -105,6 +105,18 @@ class BodyMapTests(unittest.TestCase):
         self.assertNotIn("cast_or_splint", serialized_audit)
         self.assertNotIn("encounter_ref", serialized_audit)
 
+    def test_invalid_timestamp_is_rejected(self):
+        with self.assertRaisesRegex(BodyMapError, "created_at must be an ISO timestamp"):
+            validate_annotation(sample_annotation(created_at="not-a-timestamp"))
+
+    def test_timestamp_without_timezone_is_rejected(self):
+        with self.assertRaisesRegex(BodyMapError, "created_at must include a timezone"):
+            validate_annotation(sample_annotation(created_at="2026-10-29T00:00:00"))
+
+    def test_malformed_synthetic_reference_is_rejected(self):
+        with self.assertRaisesRegex(BodyMapError, "annotation_id must be a valid synthetic reference"):
+            validate_annotation(sample_annotation(annotation_id="BMA-REAL-0001"))
+
     def test_skull_requires_midline_laterality_from_registry(self):
         with self.assertRaisesRegex(BodyMapError, "laterality is not allowed"):
             validate_annotation(sample_annotation(laterality="left"))
