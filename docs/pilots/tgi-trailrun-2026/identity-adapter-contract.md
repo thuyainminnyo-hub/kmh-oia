@@ -117,11 +117,10 @@ It can move to **VERIFIED** only when the exact commit's CI passes, the integrat
 
 This document alone does not satisfy either gate.
 
-## 8. Latest evidence record (2026-10-28)
+## 8. Evidence and versioning discipline (2026-10-28)
 
-- Documentation change commit for this refreshed contract: to be recorded by the resulting GitHub commit.
+- The current commit SHA must be taken from [PR #137](https://github.com/thuyainminnyo-hub/kmh-oia/pull/137) or the commit history, not hard-coded into this document. This prevents the document's own next edit from leaving a stale self-reference.
 - The prior head `538a80b1b64662c775a173e0da7dea2d9e0ff553` had both workflows completed successfully: [KMH OIA Tests #1062](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40624634614) and [KMH OIA Validation #981](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40624634489).
-- PR #137 was Open / Draft / Not merged at the last metadata check.
 - Authentication, trusted actor derivation, role/scope mapping, owner approvals, and production verification remain open.
 
-After this contract changes, re-check the workflows against the new exact branch head. Never carry forward a previous SHA's CI result to the new commit. Until the actual entry point and identity provider are selected and integrated, keep the pilot synthetic-only and release HOLD.
+After this contract changes, re-check workflows against the new exact branch head. Never carry forward a previous SHA's CI result to the new commit. Until the actual entry point and identity provider are selected and integrated, keep the pilot synthetic-only and release HOLD.
