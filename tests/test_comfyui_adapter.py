@@ -116,7 +116,7 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         ]
         result = self.adapter.execute(self.running_job)
         self.assertFalse(result.success)
-        self.assertIn("timed out", result.error_message)
+        self.assertIn("no output image metadata", result.error_message)
 
     @patch("src.comfyui_adapter.urlopen")
     def test_history_without_image_metadata_fails(self, mock_urlopen):
