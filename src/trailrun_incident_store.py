@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from src.trailrun_incident_access import authorize_transition
 from src.trailrun_incident_state_machine import validate_transition
 
 ALLOWED_STATUSES = {
@@ -189,6 +190,11 @@ class SQLiteIncidentStore:
             raise InvalidIncident("actor_role and timestamp are required")
         if requested_status not in ALLOWED_STATUSES:
             raise InvalidTransition("Unknown requested status")
+        # Defense in depth: direct store callers must not bypass transition policy.
+        # This is not authentication; actor_role must still come from a trusted principal.
+        access = authorize_transition(actor_role, requested_status)
+        if not access.allowed:
+            raise InvalidTransition(access.reason_code)
 
         with closing(self._connect()) as connection:
             connection.execute("BEGIN IMMEDIATE")
