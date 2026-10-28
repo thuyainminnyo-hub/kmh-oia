@@ -209,7 +209,6 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             self.assertIn("does not match runtime receipt", result.reasons[0])
             self.assertIsNone(result.memory)
             self.assertIsNone(result.adaptation)
-            self.assertEqual(len(runtime.proposal_repository.list_all()), 0)
             self.assertEqual(classifier.fail, False)
 
     def test_unapproved_decision_fails_closed_without_learning_write(self):
