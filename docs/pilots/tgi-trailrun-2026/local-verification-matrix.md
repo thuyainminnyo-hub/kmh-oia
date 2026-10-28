@@ -88,3 +88,20 @@ This repository's pull-request workflows use `actions/checkout@v4` without setti
 - [KMH OIA Validation #984](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40626089175): test job also says `Ran 500 tests ... OK`; compileall, deployment preflight, readiness snapshot, `git diff --check`, performance evidence, and deployment evidence bundle completed successfully.
 
 This is valid integration CI evidence for that merge candidate, not a separate local workstation/Codespace run and not proof that the branch head SHA itself was checked out directly. The generated deployment bundle correctly describes its own `GITHUB_SHA` merge-candidate context; its SHA should not be relabeled as the PR branch head.
+
+## Local evidence capture helper — added 2026-10-28
+
+A Bash helper is available at [`scripts/capture_tgi_trailrun_local_verification.sh`](https://github.com/thuyainminnyo-hub/kmh-oia/blob/pilot/tgi-trailrun-runner-safety/scripts/capture_tgi_trailrun_local_verification.sh). Its syntax was checked with `bash -n` during preparation; it has not yet been run inside the user's Codespace.
+
+Run this only from a clean checkout of the current PR #137 branch head. First confirm the current head SHA in GitHub. If the JSON Schema dependency is missing, install the documented test dependency explicitly before running the capture helper:
+
+```bash
+python -m pip install 'jsonschema>=4.18,<5'
+bash scripts/capture_tgi_trailrun_local_verification.sh <current-pr-137-head-sha>
+```
+
+The helper refuses an invalid/missing SHA argument, records branch and local checkout SHA, checks that the working tree is clean and the checkout SHA exactly matches the supplied PR head, then captures the JSON Schema dependency check, full unittest suite, compilation, deployment preflight, and `git diff --check`. It does not install dependencies by itself, access network services, merge, or deploy. It writes a restrictive-permission, timestamped `.log` file in the repository root; the repository's `.gitignore` ignores `.log` files.
+
+- A non-zero script exit means the evidence capture did not pass; inspect the recorded log and rerun after correcting the environment or checkout.
+- A zero exit establishes only local engineering checks for that exact checkout. It does not verify identity authentication or trusted role/checkpoint mapping and is not production approval.
+- Keep the output log private until it is reviewed for sensitive content. Use synthetic data only, and do not put real runner, medical, location, or emergency incident data in fixtures or logs.
