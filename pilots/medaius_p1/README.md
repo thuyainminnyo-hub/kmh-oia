@@ -42,7 +42,7 @@ Expected success exit code: `0`; exact ID not found: `2`; duplicate exact IDs bl
 
 - Full `python -m unittest discover -s tests -p 'test_medaius_p1.py' -v` output and exit code.
 - Positive, not-found and malformed-fixture CLI output/exit codes.
-- Fixture SHA-256 before/after retrieval to prove no file mutation.
+- Fixture SHA-256 before/after retrieval to prove no file mutation (automated acceptance test).
 - Environment/runtime version and commit SHA.
 - Review that no real PHI, secrets, or external calls were introduced.
 
