@@ -8,6 +8,7 @@ from pathlib import Path
 
 from src.trailrun_incident_store import (
     IdempotencyConflict,
+    InvalidIncident,
     InvalidTransition,
     SQLiteIncidentStore,
 )
@@ -124,7 +125,7 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
     def test_invalid_new_status_is_rejected(self):
         invalid = sample_incident()
         invalid["status"] = "DISPATCHED"
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InvalidIncident):
             self.store.create_incident(invalid)
 
 
