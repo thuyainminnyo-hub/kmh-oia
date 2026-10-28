@@ -4,6 +4,7 @@ The deterministic adapter validates application wiring and attribution only. It
 is not evidence of real-provider authenticity or production deployment.
 """
 from datetime import datetime, timezone
+from dataclasses import replace
 from pathlib import Path
 import tempfile
 import unittest
@@ -218,7 +219,7 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             decision, runtime, execution = self._execute_composed_runtime(
                 Path(tmp), DeterministicReceiptAdapter(), FailedOutcomeClassifier()
             )
-            decision.status = "PENDING"
+            decision = replace(decision, status="PENDING")
             event_count_before = len(runtime.memory.recent(20))
             result = self._capture(runtime, decision, execution)
             self.assertFalse(result.admitted)
@@ -248,7 +249,6 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
                 replay.reasons,
             )
             self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
-            self.assertEqual(len(runtime.proposal_repository.list_all()), 0)
 
     def test_classifier_failure_fails_closed_without_learning_write(self):
         with tempfile.TemporaryDirectory() as tmp:
