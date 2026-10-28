@@ -1,6 +1,6 @@
 # TGiTrailRun Pilot — Gate 0 decision intake and Gate 1 test plan
 
-**Status:** BLOCKED — owner decisions pending  
+**Status:** PARTIALLY DOCUMENTED — design-only synthetic staging; independent review and evidence gaps remain  
 **PR:** #137  
 **Current reviewed candidate (at document creation):** `4cc4499144d951ae0cf9f5b492d3b1d508db58e0`  
 **Release:** HOLD — NOT VERIFIED FOR PRODUCTION  
@@ -12,21 +12,21 @@ This document separates confirmed evidence from pending decisions. It does not a
 
 ## Gate 0 — decision intake
 
-Complete only from a decision made by an authorized owner. Use `UNDECIDED`, `PENDING`, or `DEFERRED` where appropriate.
+Owner response recorded on 2026-10-28 by `thuyainminnyo-hub` (Solo Architect & Lead Developer). Scope approved for design work only in a local CLI/service with synthetic fixtures. This is not production approval. Values below are recorded proposals/decisions and must not be treated as independently verified controls.
 
 | Decision | Current status | Required closure evidence |
 |---|---|---|
-| Pilot entry point | Local CLI/service; synthetic fixtures only | Owner confirms pilot boundary and operational responsibility |
+| Pilot entry point | **Confirmed for design-only staging:** local CLI/service; synthetic fixtures only | Recorded owner response dated 2026-10-28; live operation remains out of scope |
 | Future production entry point / hosting | UNDECIDED | Approved choice, accountable hosting owner, target environment |
-| Identity provider and credential validation | UNDECIDED | Provider name, documented validation method, test environment owner |
-| Authoritative role/checkpoint source | UNDECIDED | Source of truth and assignment-change authority |
-| Event owner / race director | PENDING | Name, role, authority, dated decision record |
-| Medical lead | PENDING | Name, role, approval of medical boundaries |
-| Independent security/privacy reviewer | PENDING | Reviewer and agreed review scope |
-| Manual/offline fallback owner | PENDING | Named owner, procedure, acknowledgement expectations |
-| Incident severity and escalation | PENDING | Approved severity definitions, escalation path, acknowledgement targets |
-| Data retention and audit access | PENDING | Approved retention period, access roles, deletion/review owner |
-| Release authority | PENDING | Named release approver and target-host verification criteria |
+| Identity provider and credential validation | **Proposed staging stub:** internal JWT / local token authentication; local cryptographic bearer-token validation; environment owner `thuyainminnyo-hub` | Link the referenced staging specs; verify signature/issuer/audience/expiry/revocation behavior and fail-closed handling; production provider remains undecided |
+| Authoritative role/checkpoint source | **Local staging proposal:** SQLite role/checkpoint tables; changes via Solo Developer/Admin CLI; local audit logs | Review authorization bypass risks, migration/change controls, and audit integrity; this is not a production authoritative source |
+| Event owner / race director | `thuyainminnyo-hub` self-assigned for local pilot | For real event operations, obtain event-owner/race-director authority confirmation |
+| Medical lead | `thuyainminnyo-hub` self-assigned as staging safety lead | Independent qualified medical lead approval is still required before operational use |
+| Independent security/privacy reviewer | **PENDING** — owner proposed self-attestation | Self-attestation does not satisfy independent review; appoint a separate reviewer |
+| Manual/offline fallback owner | `thuyainminnyo-hub` for local pilot | Provide a reviewable runbook and verify the fallback procedure; not a live-event fallback approval |
+| Incident severity and escalation | Local INFO/ERROR/FATAL logs and local notification proposed | Logs/local feedback do not define operational severity, escalation ownership, acknowledgement SLA, or emergency fallback; owner approval and runbook evidence remain open |
+| Data retention and audit access | Synthetic/mock payloads only; transient local storage/manual purge; Admin/Solo Developer access | Link privacy review and runbook; validate deletion, access control, and audit retention behavior |
+| Release authority | **HOLD** — no production release authorized | Independent security/privacy review, qualified event/medical approvals, target-host evidence, and explicit release authorization |
 
 ### Owner decision record template
 
@@ -52,6 +52,18 @@ Evidence/meeting-record link:
 ```
 
 Do not paste tokens, credentials, real runner records, medical details, or precise location data into the issue.
+
+
+## Owner response recorded — 2026-10-28
+
+The owner approved **design work only**, limited to local staging and synthetic fixtures. The stated CI successes for PR #137/#139 are engineering evidence, not identity-provider approval or operational readiness. The following are proposals for a local stub, not a verified production security boundary:
+
+- Internal JWT/local token authentication with local cryptographic bearer-token validation.
+- SQLite role/checkpoint tables and Admin CLI assignment changes with local audit logs.
+- Local INFO/ERROR/FATAL logging and local execution feedback.
+- Synthetic/mock data only, transient local storage, manual purge, Admin/Solo Developer audit access.
+
+**Remaining Gate 0 conditions:** independently appointed security/privacy reviewer; reviewable links for the staging architecture spec, local runbook, and privacy self-review; clear incident severity/escalation and offline fallback procedures; confirmation of any event/medical authority before any real event use. Self-attestation is not independent review.
 
 ## Gate 1 — test contract (design only; NOT RUN)
 
@@ -79,6 +91,6 @@ For every test, record `NOT RUN`, `PASS`, or `FAIL`; exact commit SHA; command; 
 - Previous PR comments record CI and local synthetic verification for candidate `4cc4499144d951ae0cf9f5b492d3b1d508db58e0`; these do not prove production readiness.
 - Reviewer status was `COMMENTED`, not approval.
 - Gate 1 provider integration tests are NOT RUN.
-- Gate 0 remains blocked until authorized decisions and the reviewed data-flow/threat model are recorded.
-- Do not implement a live adapter, merge, or deploy while these entry criteria are unmet.
+- Gate 0 is partially documented for design-only synthetic staging; independent review and supporting evidence remain open.
+- Keep any Gate 1 work restricted to local synthetic staging. Do not implement live integrations, merge for production, or deploy while these entry criteria are unmet.
 - This pilot must never be the sole emergency-response channel.
