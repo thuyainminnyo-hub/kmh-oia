@@ -25,7 +25,7 @@ class InvalidFixture(RetrievalError):
 
 
 def load_patients(path: str | Path) -> list[dict[str, Any]]:
-    """Load a JSON list of synthetic patient records without modifying the file."""
+    """Load a JSON list of explicitly labelled synthetic records without modifying the file."""
     try:
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -37,6 +37,10 @@ def load_patients(path: str | Path) -> list[dict[str, Any]]:
             raise InvalidFixture("each patient must be an object with a string patient_id")
         if not record["patient_id"].strip():
             raise InvalidFixture("patient_id must not be empty")
+        if record.get("synthetic") is not True:
+            raise InvalidFixture("each patient must be explicitly labelled synthetic=true")
+        if not re.fullmatch(r"SYN-PAT-[A-Za-z0-9-]+", record["patient_id"]):
+            raise InvalidFixture("patient_id must use the synthetic SYN-PAT- prefix")
         if not isinstance(record.get("visits"), list):
             raise InvalidFixture("each patient must contain a visits list")
     return payload
