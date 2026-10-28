@@ -160,6 +160,26 @@ class BodyMapTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.store.create_annotation(sample_annotation(), actor_ref=self.actor)
 
+    def test_annotation_insert_rolls_back_if_audit_insert_fails(self):
+        with sqlite3.connect(self.db_path) as db:
+            db.execute("""
+                CREATE TRIGGER reject_audit_insert
+                BEFORE INSERT ON audit_events
+                BEGIN
+                    SELECT RAISE(ABORT, 'forced audit insert failure');
+                END
+            """)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "forced audit insert failure"):
+            self.store.create_annotation(sample_annotation(), actor_ref=self.actor)
+        with sqlite3.connect(self.db_path) as db:
+            row = db.execute(
+                "SELECT annotation_id FROM annotations WHERE annotation_id = ?",
+                ("SYN-BMA-ORTHO-0001",),
+            ).fetchone()
+            events = db.execute("SELECT COUNT(*) FROM audit_events").fetchone()[0]
+        self.assertIsNone(row, "annotation insert must roll back when its audit insert fails")
+        self.assertEqual(events, 0, "failed transaction must not leave a partial audit event")
+
     def test_audit_rows_are_append_only(self):
         self.store.create_annotation(sample_annotation(), actor_ref=self.actor)
         with self.assertRaises(sqlite3.IntegrityError):
