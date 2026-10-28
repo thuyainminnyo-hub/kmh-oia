@@ -9,6 +9,7 @@ from pathlib import Path
 
 from src.trailrun_incident_store import (
     IdempotencyConflict,
+    IncidentIdConflict,
     InvalidIncident,
     InvalidTransition,
     SQLiteIncidentStore,
@@ -70,6 +71,34 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
         changed["severity"] = "P1"
         with self.assertRaises(IdempotencyConflict):
             self.store.create_incident(changed)
+
+    def test_reused_incident_id_with_new_event_is_conflict_without_side_effects(self):
+        first = self.store.create_incident(
+            sample_incident(
+                event_id="evt_ORIGINAL001",
+                incident_id="inc_DUPLICATE001",
+            )
+        )
+        conflicting = sample_incident(
+            event_id="evt_SECONDARY001",
+            incident_id="inc_DUPLICATE001",
+        )
+
+        with self.assertRaises(IncidentIdConflict):
+            self.store.create_incident(conflicting)
+
+        saved = self.store.get_incident("inc_DUPLICATE001")
+        self.assertEqual(saved["payload"]["event_id"], "evt_ORIGINAL001")
+        self.assertEqual(len(self.store.get_audit("inc_DUPLICATE001")), 1)
+
+        # The failed create must not leave an idempotency receipt for its event.
+        retry = dict(conflicting)
+        retry["incident_id"] = "inc_FRESH002"
+        retry_result = self.store.create_incident(retry)
+        self.assertTrue(retry_result.created)
+        self.assertEqual(retry_result.incident_id, "inc_FRESH002")
+        self.assertEqual(len(self.store.get_audit("inc_DUPLICATE001")), 1)
+        self.assertTrue(first.created)
 
     def test_transition_and_audit_are_both_persisted(self):
         self.store.create_incident(sample_incident())
