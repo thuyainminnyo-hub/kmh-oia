@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import Protocol
 
+from src.audio_contracts import AudioProviderError
 from src.main import Trace, run
 
 
@@ -11,6 +12,7 @@ class AudioFrame:
     """Transport-neutral audio payload used by the local voice contract."""
 
     payload: bytes
+    mime_type: str | None = None
 
 
 class SpeechToText(Protocol):
@@ -50,4 +52,8 @@ class VoiceRuntime:
     ) -> tuple[AudioFrame, Trace]:
         goal = self.speech_to_text.transcribe(audio)
         response, trace = run(goal, session_id=session_id)
-        return self.text_to_speech.synthesize(response), trace
+        try:
+            return self.text_to_speech.synthesize(response), trace
+        except AudioProviderError:
+            # Keep the response available to the caller if speech synthesis fails.
+            return AudioFrame(response.encode("utf-8"), mime_type="text/plain; charset=utf-8"), trace
