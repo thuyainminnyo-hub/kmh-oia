@@ -139,6 +139,25 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
         self.assertEqual(sum(result.created for result in results), 1)
         self.assertEqual(len(self.store.get_audit("inc_SYNTHETIC001")), 1)
 
+    def test_create_rejects_multiple_initial_audit_entries_at_store_boundary(self):
+        invalid = sample_incident(
+            event_id="evt_MULTI_AUDIT",
+            incident_id="inc_MULTI_AUDIT",
+        )
+        invalid["audit"].append({
+            "action": "ACKNOWLEDGED",
+            "actor_role": "race_control",
+            "at": "2026-10-28T02:01:00Z",
+            "result": "completed",
+            "correlation_id": "corr_MULTI_AUDIT",
+        })
+
+        with self.assertRaises(InvalidIncident):
+            self.store.create_incident(invalid)
+
+        self.assertIsNone(self.store.get_incident("inc_MULTI_AUDIT"))
+        self.assertEqual(self.store.get_audit("inc_MULTI_AUDIT"), [])
+
     def test_invalid_new_status_is_rejected(self):
         invalid = sample_incident()
         invalid["status"] = "DISPATCHED"
