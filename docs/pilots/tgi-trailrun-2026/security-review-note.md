@@ -8,14 +8,14 @@
 - Earlier candidate commit `c326137f4173fa615a480aaee1121913d5253d02` passed Tests and Validation:
   - Tests: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40623684589
   - Validation: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40623684350
-- The current candidate adds store-boundary transition authorization and service-boundary JSON Schema validation with negative tests.
-- Exact-head CI for the current candidate is in progress; do not treat earlier green runs as evidence for the latest changes.
+- The current candidate adds store-boundary transition authorization, service-boundary JSON Schema validation, and checkpoint-scope checks for create/read/audit/transition paths, with negative tests.
+- CI must be checked against the latest branch head before considering this candidate verified.
 
 ## Security gaps that remain open
 
 1. **Authentication is not implemented here.** The `role` argument is caller-supplied. A real API must derive the role from a verified identity/session/token and must not trust a request-body role.
 2. **Caller-supplied role is still not trusted identity.** The store now checks the role/action policy for transitions as defense in depth, but `actor_role` remains a string supplied by the caller. A real API must derive role from a verified identity and must not trust request-body roles.
-3. **Resource-level scope is not implemented.** The current read methods do not constrain a caller to assigned checkpoints, incidents, or runner scope. Do not expose them to a network endpoint until scope checks are defined and tested.
+3. **Checkpoint scope requires a trusted adapter.** The service now restricts create/read/audit/transition to `allowed_checkpoint_ids`; omitted scope defaults to deny. The module itself does not authenticate callers or derive this set. Do not expose it to a network endpoint until a verified identity adapter supplies scope and runner-level scope requirements are reviewed.
 4. **Role matrix is provisional.** Race director and medical lead must approve role-to-action mapping, especially who may acknowledge, dispatch, resolve, and close incidents.
 5. **Schema validation is enforced at the service create boundary, but not every direct store call.** Network-facing integrations must only expose the service boundary, and the storage layer should eventually be made private or independently validate complete payloads.
 6. **Persistence is local SQLite only.** No evidence yet for multi-host deployment, production backup/restore, disaster recovery, or multi-replica concurrency.
@@ -26,7 +26,7 @@
 - Unauthenticated request is denied.
 - Request-body role spoofing is denied.
 - Volunteer cannot dispatch through any public or internal write path.
-- A caller cannot read an incident or audit record outside their approved scope.
+- A caller cannot create, read, transition, or read audit for an incident outside their supplied checkpoint scope.
 - Unauthorized attempts leave status, receipt, and audit records unchanged.
 - Invalid schema payloads are rejected by the service before persistence.
 - Direct store transition calls cannot use a disallowed role/action transition.
