@@ -170,6 +170,7 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
 
     def test_transition_fails_closed_when_embedded_audit_differs_from_authoritative_log(self):
         self.store.create_incident(sample_incident())
+        audit_before = self.store.get_audit("inc_SYNTHETIC001")
         with sqlite3.connect(self.db_path) as connection:
             row = connection.execute(
                 "SELECT payload_json FROM incidents WHERE incident_id=?",
@@ -182,11 +183,11 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
                 (json.dumps(tampered), "inc_SYNTHETIC001"),
             )
 
-        audit_before = self.store.get_audit("inc_SYNTHETIC001")
-
-        # Both read and transition boundaries must fail closed on divergent history.
+        # All read/transition boundaries must fail closed on divergent history.
         with self.assertRaises(InvalidIncident):
             self.store.get_incident("inc_SYNTHETIC001")
+        with self.assertRaises(InvalidIncident):
+            self.store.get_audit("inc_SYNTHETIC001")
         with self.assertRaises(InvalidIncident):
             self.store.transition(
                 "inc_SYNTHETIC001", "ACKNOWLEDGED",
@@ -198,11 +199,22 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
                 "SELECT status, payload_json FROM incidents WHERE incident_id=?",
                 ("inc_SYNTHETIC001",),
             ).fetchone()
+            audit_rows_after = connection.execute(
+                "SELECT sequence, action, actor_role, at, result, correlation_id "
+                "FROM incident_audit WHERE incident_id=? ORDER BY sequence",
+                ("inc_SYNTHETIC001",),
+            ).fetchall()
         saved_payload = json.loads(row_after[1])
         self.assertEqual(row_after[0], "REPORTED")
         self.assertEqual(saved_payload["status"], "REPORTED")
         self.assertEqual(saved_payload["audit"][0]["result"], "forged")
-        self.assertEqual(self.store.get_audit("inc_SYNTHETIC001"), audit_before)
+        self.assertEqual(
+            [dict(zip(
+                ("sequence", "action", "actor_role", "at", "result", "correlation_id"),
+                row,
+            )) for row in audit_rows_after],
+            audit_before,
+        )
 
     def test_read_and_transition_reject_payload_incident_id_mismatch(self):
         self.store.create_incident(sample_incident())
