@@ -1,6 +1,6 @@
 # KMH OIA × Medaius P1 — Patient History Retrieval
 
-**Status:** implementation draft on an isolated branch; tests have not yet been executed in this environment. No Medaius API connection exists.
+**Status:** implementation draft on an isolated branch. GitHub Actions acceptance tests have passed for the current implementation; the latest security-hardening changes require a fresh CI run. No Medaius API connection exists.
 
 ## Scope
 
@@ -8,7 +8,7 @@
 - Exact `patient_id` matching; no fuzzy matching or inference.
 - Read-only retrieval; source fixture must remain unchanged.
 - Duplicate exact IDs fail closed.
-- Audit events include request ID, UTC timestamp, action and outcome only; no patient ID or history content.
+- Audit events include a constrained request ID (1–80 safe characters), UTC timestamp, action and outcome only; no patient ID or history content.
 - No network calls, real patient data, credentials, clinical writes, deployment or production access.
 
 ## Run locally
@@ -40,7 +40,7 @@ Expected success exit code: `0`; exact ID not found: `2`; duplicate exact IDs bl
 
 ## Verification evidence to capture
 
-- Full `python -m unittest tests.test_medaius_p1 -v` output and exit code.
+- Full `python -m unittest discover -s tests -p 'test_medaius_p1.py' -v` output and exit code.
 - Positive, not-found and malformed-fixture CLI output/exit codes.
 - Fixture SHA-256 before/after retrieval to prove no file mutation.
 - Environment/runtime version and commit SHA.
