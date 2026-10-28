@@ -1,46 +1,58 @@
 import unittest
 
-from src.adaptation_engine import AdaptationEngine
 from src.decision_learning_feedback import DecisionLearningFeedbackEngine
 from src.decision_outcome_evaluator import DecisionOutcome
 from src.operating_memory import OperatingMemory
 
 
 class DecisionLearningFeedbackTests(unittest.TestCase):
-    def outcome(self, quality="GOOD"):
-        return DecisionOutcome("decision:1", "cmd:1", quality == "GOOD", quality, "verified outcome")
+    def outcome(self, quality="GOOD", decision_id="decision:1", command_id="cmd:1"):
+        return DecisionOutcome(
+            decision_id,
+            command_id,
+            quality == "GOOD",
+            quality,
+            "Caller-supplied outcome evaluation; external verification is not established.",
+        )
 
-    def test_good_decision_is_recorded_without_adaptation(self):
-        memory = OperatingMemory()
+    def test_good_unverified_decision_is_only_provisional_observation(self):
         result = DecisionLearningFeedbackEngine().capture(
-            self.outcome(), memory=memory, wanted="review risk",
+            self.outcome(), memory=OperatingMemory(), wanted="review risk",
             actual="risk reduced", next_command="continue"
         )
         self.assertEqual(result.memory.decision, "Decision decision:1: GOOD")
-        self.assertIn("external evidence source and verification are not established", result.memory.verified)
-        self.assertIn("provisionally", result.memory.learned)
+        self.assertIn("not established", result.memory.verified)
+        self.assertIn("provisional observation only", result.memory.learned)
         self.assertIsNone(result.adaptation)
+        self.assertIsNone(result.admission)
 
-    def test_poor_decision_creates_proposed_adaptation(self):
-        memory = OperatingMemory()
-        result = DecisionLearningFeedbackEngine().capture(
-            self.outcome("POOR"), memory=memory, wanted="review risk",
-            actual="risk increased", next_command="revise rule",
-            adaptation_engine=AdaptationEngine(),
-            proposed_change="Change risk review rule",
-            expected_effect="Reduce repeated risk",
-            next_experiment="Run revised review",
-        )
-        self.assertIsNotNone(result.adaptation)
-        self.assertEqual(result.adaptation.status, "PROPOSED")
-        self.assertEqual(result.adaptation.source_command_id, "cmd:1")
-
-    def test_feedback_never_auto_applies_adaptation(self):
+    def test_poor_unverified_decision_does_not_create_adaptation(self):
         result = DecisionLearningFeedbackEngine().capture(
             self.outcome("POOR"), memory=OperatingMemory(),
-            wanted="review", actual="bad", next_command="revise"
+            wanted="review risk", actual="risk increased",
+            next_command="revise rule",
         )
-        self.assertEqual(result.adaptation.status, "PROPOSED")
+        self.assertIsNone(result.adaptation)
+        self.assertIn("Hold adaptation proposal creation", result.memory.changed)
+
+    def test_caller_injected_admission_object_is_rejected(self):
+        class CallerClaim:
+            decision_id = "decision:1"
+            command_id = "cmd:1"
+
+        with self.assertRaisesRegex(ValueError, "caller-supplied admission objects are not trusted"):
+            DecisionLearningFeedbackEngine().capture(
+                self.outcome("POOR"), memory=OperatingMemory(),
+                wanted="review risk", actual="bad result",
+                next_command="hold", admission=CallerClaim(),
+            )
+
+    def test_feedback_never_auto_applies_or_creates_adaptation(self):
+        result = DecisionLearningFeedbackEngine().capture(
+            self.outcome("POOR"), memory=OperatingMemory(),
+            wanted="review", actual="bad", next_command="hold",
+        )
+        self.assertIsNone(result.adaptation)
 
 
 if __name__ == "__main__":
