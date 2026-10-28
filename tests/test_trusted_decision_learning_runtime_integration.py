@@ -129,7 +129,7 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             stored_proposal = runtime.proposal_repository.get(result.adaptation.id)
             self.assertIsNotNone(stored_proposal)
             self.assertEqual(stored_proposal["status"], "PROPOSED")
-            self.assertEqual(stored_proposal["proposal_id"], result.adaptation.id)
+            self.assertEqual(stored_proposal["id"], result.adaptation.id)
             self.assertTrue(runtime.replay_store.health_check())
 
             # The bridge writes its execution event and learning writes a separate,
