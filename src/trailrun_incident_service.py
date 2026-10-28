@@ -2,7 +2,8 @@
 
 The caller must authenticate the user and derive role from a trusted identity
 provider before constructing/using this service. This module does not implement
-authentication, runner/resource scoping, network transport, or dispatch.
+authentication, network transport, or dispatch. Checkpoint scope is enforced only when
+an upstream trusted adapter supplies the caller's allowed checkpoint IDs.
 """
 from __future__ import annotations
 
@@ -57,7 +58,7 @@ class TrailRunIncidentService:
         if checkpoint_id not in self._allowed_checkpoint_ids:
             raise AccessDenied("CHECKPOINT_SCOPE_DENIED")
 
-    def _require_incident_scope(self, incident_id: str) -> dict[str, Any]:
+    def _require_incident_scope(self, incident_id: str) -> dict[str, Any] | None:
         incident = self._store.get_incident(incident_id)
         if incident is None:
             return None
