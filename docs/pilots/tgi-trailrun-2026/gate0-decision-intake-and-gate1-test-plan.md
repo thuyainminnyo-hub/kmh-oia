@@ -117,6 +117,17 @@ The following repository artifacts were inspected on 2026-10-28. These are links
 
 **Still missing from the inspected pilot evidence set:** a separately approved pilot-specific manual/offline fallback runbook; a documented privacy review performed by an independent reviewer; a selected real entry point/provider; provider integration results; and event-owner/race-director plus qualified medical-lead approval for any real operation. Do not treat the linked design notes as satisfying these items.
 
+## CI evidence separation — 2026-10-28
+
+The workflow logs were inspected and the two pull requests' evidence must be kept separate:
+
+| Candidate / purpose | Exact commit SHA | Verified CI evidence | Scope limitation |
+|---|---|---|---|
+| PR #137 — TGiTrailRun pilot code | `4cc4499144d951ae0cf9f5b492d3b1d508db58e0` | [Tests run](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40649395767) and [Validation run](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40649395763) both completed successfully; each test job log reports **514 tests, OK** and includes TGiTrailRun-specific tests. | CI evidence for the synthetic pilot code at this exact candidate only. It does not prove trusted authentication, live notification delivery, real event readiness, or production safety. |
+| PR #139 — documentation-only branch | `9d5db58be622e060d8cd963f66d5d0a03fbc7d68` | [Tests run](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40685670192) and [Validation run](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40685669938) both completed successfully; test logs report **462 tests, OK**. | This branch is based on `main` and its test log contains no TGiTrailRun-specific test names. Do not use these runs as proof that the separate PR #137 code was tested. |
+
+The shell-based local verification procedure was **not run in a local workstation/Codespace in this session** because the runtime could not resolve `github.com` for a repository clone. Do not label the CI executions as local verification. The repository's `local-verification-matrix.md` remains a pending execution-record template, not a completed local run.
+
 ## Current evidence and stop rule
 
 - Previous PR comments record CI and local synthetic verification for candidate `4cc4499144d951ae0cf9f5b492d3b1d508db58e0`; these do not prove production readiness.
