@@ -40,9 +40,26 @@ class PatientHistoryTests(unittest.TestCase):
             retrieve_history(load_patients(FIXTURE), "SYN-PAT-000")
 
     def test_duplicate_exact_ids_fail_closed(self):
-        duplicate = [{"patient_id": "SYN-PAT-0001", "visits": []}, {"patient_id": "SYN-PAT-0001", "visits": []}]
+        duplicate = [
+            {"patient_id": "SYN-PAT-0001", "synthetic": True, "visits": []},
+            {"patient_id": "SYN-PAT-0001", "synthetic": True, "visits": []},
+        ]
         with self.assertRaises(DuplicatePatientID):
             retrieve_history(duplicate, "SYN-PAT-0001")
+
+    def test_direct_retrieval_rejects_record_without_synthetic_marker(self):
+        patients = [{"patient_id": "SYN-PAT-0001", "visits": []}]
+        with self.assertRaises(InvalidFixture):
+            retrieve_history(patients, "SYN-PAT-0001")
+
+    def test_direct_retrieval_rejects_non_synthetic_id_prefix(self):
+        patients = [{"patient_id": "PAT-0001", "synthetic": True, "visits": []}]
+        with self.assertRaises(InvalidFixture):
+            retrieve_history(patients, "PAT-0001")
+
+    def test_direct_retrieval_rejects_malformed_record(self):
+        with self.assertRaises(InvalidFixture):
+            retrieve_history([{"patient_id": "SYN-PAT-0001", "synthetic": True}], "SYN-PAT-0001")
 
     def test_result_is_copy_not_mutable_source(self):
         patients = load_patients(FIXTURE)
