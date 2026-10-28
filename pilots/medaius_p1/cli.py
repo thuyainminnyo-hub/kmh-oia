@@ -48,13 +48,20 @@ def run(argv: list[str] | None = None) -> int:
         result = {"status": "ERROR", "message": str(exc)}
         outcome = "ERROR"
         exit_code = 1
-    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+
+    # Fail closed: do not emit the retrieved record if requested audit persistence fails.
     if args.audit_file:
-        event = make_audit_event(args.request_id, outcome)
-        audit_path = Path(args.audit_file)
-        audit_path.parent.mkdir(parents=True, exist_ok=True)
-        with audit_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event, sort_keys=True) + "\n")
+        try:
+            event = make_audit_event(args.request_id, outcome)
+            audit_path = Path(args.audit_file)
+            audit_path.parent.mkdir(parents=True, exist_ok=True)
+            with audit_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(event, sort_keys=True) + "\\n")
+        except OSError:
+            print("ERROR: audit event could not be persisted; result withheld.", file=sys.stderr)
+            return 4
+
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return exit_code
 
 
