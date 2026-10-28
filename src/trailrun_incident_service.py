@@ -62,7 +62,11 @@ class TrailRunIncidentService:
         incident = self._store.get_incident(incident_id)
         if incident is None:
             return None
-        self._require_checkpoint(incident["checkpoint_id"])
+        payload = incident.get("payload")
+        if not isinstance(payload, dict) or not isinstance(payload.get("checkpoint_id"), str):
+            # Fail closed if stored data is malformed or lacks a scope attribute.
+            raise AccessDenied("INCIDENT_SCOPE_METADATA_MISSING")
+        self._require_checkpoint(payload["checkpoint_id"])
         return incident
 
     @staticmethod
