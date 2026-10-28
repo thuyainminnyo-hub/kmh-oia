@@ -1,11 +1,13 @@
 # KMH OIA × Medaius P1 — Patient History Retrieval
 
-**Status:** implementation draft on an isolated branch. The latest synthetic acceptance, general test and repository-validation workflows passed for the current implementation. No Medaius API connection exists; this is not production-ready.
+**Status:** implementation draft on an isolated branch. Earlier synthetic acceptance, general test and repository-validation workflows passed on an earlier commit; the latest fixture-guard change still requires a fresh CI run. No Medaius API connection exists; this is not production-ready.
 
 ## Scope
 
 - Local CLI/service only; synthetic JSON fixtures only.
 - Exact `patient_id` matching; no fuzzy matching or inference.
+- Loader requires `synthetic: true` and the `SYN-PAT-` identifier prefix.
+- These markers are guardrails, not proof that data is synthetic; fixture provenance must still be controlled and verified by the operator.
 - Read-only retrieval; source fixture must remain unchanged.
 - Duplicate exact IDs fail closed.
 - Audit events include a constrained request ID (1–80 safe characters), UTC timestamp, action and outcome only; no patient ID or history content.
@@ -35,14 +37,14 @@ Expected exit codes: success `0`; exact ID not found `2`; duplicate exact IDs bl
 4. Duplicate IDs fail closed.
 5. Retrieval does not mutate the loaded record or fixture file.
 6. Audit event has request ID, timestamp, action and outcome, and excludes patient ID/history.
-7. Malformed fixture and empty ID fail safely.
+7. Malformed fixture, missing/false synthetic marker, non-synthetic ID prefix and empty ID fail safely.
 8. Output is deterministic for a given fixture and ID except the audit timestamp.
 9. If audit persistence fails, retrieved output is withheld and the CLI returns exit code `4`.
 10. No outbound network, Medaius API call, production access, or clinical write is performed.
 
 ## Verification evidence to capture
 
-- Full `python -m unittest discover -s tests -p 'test_medaius_p1.py' -v` output and exit code.
+- Full `python -m unittest discover -s tests -p 'test_medaius_p1.py' -v` output and exit code for the current head.
 - Positive, not-found, malformed-fixture and audit-write-failure CLI output/exit codes.
 - Fixture SHA-256 before/after retrieval to prove no file mutation (automated acceptance test).
 - Environment/runtime version and commit SHA.
