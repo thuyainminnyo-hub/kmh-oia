@@ -42,6 +42,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - name: Validate local verification helper shell syntax
+        run: bash -n scripts/capture_tgi_trailrun_local_verification.sh
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
