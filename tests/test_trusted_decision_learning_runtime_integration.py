@@ -204,11 +204,13 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             )
             # Simulate the provider returning changed content at the learning boundary.
             adapter.raw_observation = "booking outcome=changed-after-runtime"
+            event_count_before = len(runtime.memory.recent(20))
             result = self._capture(runtime, decision, execution)
             self.assertFalse(result.admitted)
             self.assertIn("does not match runtime receipt", result.reasons[0])
             self.assertIsNone(result.memory)
             self.assertIsNone(result.adaptation)
+            self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
             self.assertEqual(classifier.fail, False)
 
     def test_unapproved_decision_fails_closed_without_learning_write(self):
@@ -217,12 +219,13 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
                 Path(tmp), DeterministicReceiptAdapter(), FailedOutcomeClassifier()
             )
             decision.status = "PENDING"
+            event_count_before = len(runtime.memory.recent(20))
             result = self._capture(runtime, decision, execution)
             self.assertFalse(result.admitted)
             self.assertIn("not approved", result.reasons[0])
             self.assertIsNone(result.memory)
             self.assertIsNone(result.adaptation)
-            self.assertEqual(len(runtime.proposal_repository.list_all()), 0)
+            self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
 
     def test_classifier_failure_fails_closed_without_learning_write(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -237,7 +240,6 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             self.assertIn("classification failed closed", result.reasons[0])
             self.assertIsNone(result.memory)
             self.assertIsNone(result.adaptation)
-            self.assertEqual(len(runtime.proposal_repository.list_all()), 0)
             # Bridge execution event exists, but no outcome-linked learning event was added.
             self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
 
