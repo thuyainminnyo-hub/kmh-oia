@@ -1,7 +1,7 @@
 # TGiTrailRun Runner Safety Pilot — Trusted Identity Adapter Contract
 
-**Status:** DESIGN CONTRACT ONLY — authentication is not implemented by this document.
-**Release decision:** HOLD / NOT VERIFIED.
+**Status:** DESIGN CONTRACT ONLY — authentication is not implemented by this document.  
+**Release decision:** HOLD / NOT VERIFIED.  
 **Data mode:** synthetic fixtures only; no live runner, medical, or location data.
 
 ## 1. Purpose
@@ -10,17 +10,30 @@ Define the minimum trusted identity boundary required before exposing `TrailRunI
 
 This contract does not select an identity provider, API framework, credential format, or deployment model. Those choices must be recorded before implementation.
 
-## 2. Trust boundary
+## 2. Repository findings from the current pilot branch
+
+The source review establishes the following relevant facts:
+
+- The repository README documents the command-line entry point as `python -m src.main "hello"`. The inspected `src/main.py` accepts a goal string, calls the local `OIARuntime`, prints a response, and prints trace stages.
+- The inspected `src/security.py` implements a deterministic allowlist for governed tool names. It is not a user authentication mechanism.
+- The TGiTrailRun `TrailRunIncidentService` is a Python service class. Its public methods receive role strings as arguments, and checkpoint scope is injected through `allowed_checkpoint_ids`; the class itself does not verify credentials or derive a role from a verified identity.
+- The inspected repository root and CI workflows do not identify a selected HTTP application framework or identity provider configuration. The CI workflows install `jsonschema` for the pilot contract tests and run the unittest suite; they do not demonstrate a network authentication boundary.
+
+These findings do not prove that an external deployment wrapper cannot exist elsewhere. They do mean this branch does not yet provide enough evidence to safely attach an identity adapter to a known network entry point.
+
+## 3. Trust boundary
 
 The intended path is:
 
-`Untrusted HTTP / operator request → Credential verifier → Server-side identity-to-role/scope mapping → Trusted request context → Authorization policy → Incident service → Storage`
+`Untrusted request → Credential verifier at the actual entry point → Server-side identity-to-role/scope mapping → Trusted request context → Authorization policy → Incident service → Storage`
 
 Only the credential-verification adapter may establish authentication. Only server-controlled mapping may assign pilot roles and checkpoint scope. The service and storage must not accept authorization claims from user-controlled incident payload fields.
 
+The existing CLI entry point is not automatically a suitable HTTP or event-operations entry point. Do not turn a command-line interface into a public endpoint without a separately reviewed transport and deployment design.
+
 The pilot must not instantiate an arbitrary `VerifiedPrincipal` or similarly named value from request data and claim that this authenticates the caller. A value object's name or constructor is not a security boundary.
 
-## 3. Provider-agnostic adapter contract
+## 4. Provider-agnostic adapter contract
 
 The selected adapter must provide equivalent behavior to the following logical operations. These are requirements, not a claim that the named API already exists.
 
@@ -60,7 +73,7 @@ After successful credential verification only:
 - Never record raw credentials. Define retention and access controls for audit records before any real operational data is accepted.
 - Distinguish authentication failure, authorization denial, scope denial, policy/configuration error, and unexpected internal error in safe logs.
 
-## 4. Required negative tests
+## 5. Required negative tests
 
 The adapter/service integration is not acceptable until all applicable tests run against the chosen real framework and verifier, not only mocks:
 
@@ -80,11 +93,12 @@ The adapter/service integration is not acceptable until all applicable tests run
 
 Use synthetic identities and fixtures only. Include both positive role-mapping tests and negative privilege-escalation tests.
 
-## 5. Decisions required before implementation
+## 6. Decisions required before implementation
 
 The project owner/security reviewer must record:
 
-- API framework and deployment entry point.
+- Actual application/network entry point; if none exists, whether the pilot should remain a local CLI/service library or gain a separately reviewed API.
+- API framework and deployment target if a network API is approved.
 - Identity provider/protocol and authoritative issuer/tenant configuration.
 - Supported credential type and revocation/session invalidation behavior.
 - Authoritative source for user/group-to-role mapping.
@@ -95,7 +109,7 @@ The project owner/security reviewer must record:
 
 Do not add a fake verifier, hard-coded demonstration token, self-asserted principal factory, or unverified token decoder as a substitute for these decisions.
 
-## 6. Exit criteria
+## 7. Exit criteria
 
 The authentication gate can move from **DESIGN** to **IMPLEMENTED** only when the selected verifier is integrated at the actual application entry point, the role/scope mapping is server-controlled, and all applicable negative tests exist.
 
@@ -103,11 +117,11 @@ It can move to **VERIFIED** only when the exact commit's CI passes, the integrat
 
 This document alone does not satisfy either gate.
 
-## 7. Current evidence and next action
+## 8. Latest evidence record (2026-10-28)
 
-- Exact known branch head at the time of this review: `80a667628690cca4d90a7c1399494c499cdfa51c`.
-- CI on that commit: [KMH OIA Tests #1061](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40624234724) and [KMH OIA Validation #980](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40624234756) completed successfully.
-- PR #137 is open and draft; it is not merged.
+- Documentation change commit for this refreshed contract: to be recorded by the resulting GitHub commit.
+- The prior head `538a80b1b64662c775a173e0da7dea2d9e0ff553` had both workflows completed successfully: [KMH OIA Tests #1062](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40624634614) and [KMH OIA Validation #981](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40624634489).
+- PR #137 was Open / Draft / Not merged at the last metadata check.
 - Authentication, trusted actor derivation, role/scope mapping, owner approvals, and production verification remain open.
 
-Next action: choose and document the actual application entry point and identity provider, then implement the adapter at that boundary with tests. Until then, keep the pilot synthetic-only and release HOLD.
+After this contract changes, re-check the workflows against the new exact branch head. Never carry forward a previous SHA's CI result to the new commit. Until the actual entry point and identity provider are selected and integrated, keep the pilot synthetic-only and release HOLD.
