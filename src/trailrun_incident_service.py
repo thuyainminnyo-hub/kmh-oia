@@ -86,6 +86,11 @@ class TrailRunIncidentService:
             raise InvalidIncidentPayload(
                 f"Incident schema validation failed at {location}: {first.message}"
             )
+        # Audit history is append-only after creation. Do not accept client-preloaded history.
+        if len(payload["audit"]) != 1:
+            raise InvalidIncidentPayload(
+                "New incidents must contain exactly one initial audit entry"
+            )
         if payload.get("reported_by_role") != role:
             raise AccessDenied("REPORTED_BY_ROLE_MISMATCH")
         # Keep the initial audit attribution consistent with the role accepted
