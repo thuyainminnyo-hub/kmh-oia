@@ -1,6 +1,6 @@
 # KMH OIA × Medaius P1 — Patient History Retrieval
 
-**Status:** implementation draft on an isolated branch. GitHub Actions acceptance tests have passed for the current implementation; the latest security-hardening changes require a fresh CI run. No Medaius API connection exists.
+**Status:** implementation draft on an isolated branch. The latest synthetic acceptance, general test and repository-validation workflows passed for the current implementation. No Medaius API connection exists; this is not production-ready.
 
 ## Scope
 
@@ -9,6 +9,7 @@
 - Read-only retrieval; source fixture must remain unchanged.
 - Duplicate exact IDs fail closed.
 - Audit events include a constrained request ID (1–80 safe characters), UTC timestamp, action and outcome only; no patient ID or history content.
+- If requested audit persistence fails, the CLI withholds the result, writes a non-sensitive error to stderr and returns exit code `4`.
 - No network calls, real patient data, credentials, clinical writes, deployment or production access.
 
 ## Run locally
@@ -24,7 +25,7 @@ python -m pilots.medaius_p1.cli \
   --audit-file .local-evidence/audit.jsonl
 ```
 
-Expected success exit code: `0`; exact ID not found: `2`; duplicate exact IDs blocked: `3`; invalid input/fixture: `1`. The CLI output for a successful lookup contains the synthetic fixture record. Do not use real patient identifiers or data.
+Expected exit codes: success `0`; exact ID not found `2`; duplicate exact IDs blocked `3`; invalid input/fixture `1`; audit persistence failure `4`. The CLI output for a successful lookup contains the synthetic fixture record. Do not use real patient identifiers or data.
 
 ## Acceptance criteria
 
@@ -36,12 +37,13 @@ Expected success exit code: `0`; exact ID not found: `2`; duplicate exact IDs bl
 6. Audit event has request ID, timestamp, action and outcome, and excludes patient ID/history.
 7. Malformed fixture and empty ID fail safely.
 8. Output is deterministic for a given fixture and ID except the audit timestamp.
-9. No outbound network, Medaius API call, production access, or clinical write is performed.
+9. If audit persistence fails, retrieved output is withheld and the CLI returns exit code `4`.
+10. No outbound network, Medaius API call, production access, or clinical write is performed.
 
 ## Verification evidence to capture
 
 - Full `python -m unittest discover -s tests -p 'test_medaius_p1.py' -v` output and exit code.
-- Positive, not-found and malformed-fixture CLI output/exit codes.
+- Positive, not-found, malformed-fixture and audit-write-failure CLI output/exit codes.
 - Fixture SHA-256 before/after retrieval to prove no file mutation (automated acceptance test).
 - Environment/runtime version and commit SHA.
 - Review that no real PHI, secrets, or external calls were introduced.
