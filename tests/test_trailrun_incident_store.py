@@ -81,6 +81,23 @@ class TrailRunIncidentStoreTests(unittest.TestCase):
         self.assertEqual(self.store.get_incident("inc_SYNTHETIC001")["status"], "ACKNOWLEDGED")
         self.assertEqual(len(self.store.get_audit("inc_SYNTHETIC001")), 2)
 
+    def test_direct_store_call_cannot_bypass_transition_role_policy(self):
+        self.store.create_incident(sample_incident())
+        self.store.transition(
+            "inc_SYNTHETIC001", "ACKNOWLEDGED",
+            actor_role="race_control", at="2026-10-28T02:01:00Z",
+        )
+        before_audit = len(self.store.get_audit("inc_SYNTHETIC001"))
+        with self.assertRaises(InvalidTransition):
+            self.store.transition(
+                "inc_SYNTHETIC001", "DISPATCHED",
+                actor_role="checkpoint_volunteer", at="2026-10-28T02:02:00Z",
+            )
+        self.assertEqual(
+            self.store.get_incident("inc_SYNTHETIC001")["status"], "ACKNOWLEDGED"
+        )
+        self.assertEqual(len(self.store.get_audit("inc_SYNTHETIC001")), before_audit)
+
     def test_invalid_transition_does_not_change_status_or_audit(self):
         self.store.create_incident(sample_incident())
         with self.assertRaises(InvalidTransition):
