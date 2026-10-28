@@ -117,8 +117,21 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             self.assertTrue(execution.admission.learning_admitted)
             self.assertEqual(execution.admission.evidence_status, "OUTCOME_LINKED")
             self.assertTrue(execution.trusted_receipt_verification.verified)
+            self.assertEqual(execution.trusted_receipt_verification.provider_name, "booking-provider")
             self.assertEqual(execution.trusted_receipt_verification.execution_id, execution_id)
             self.assertEqual(execution.trusted_receipt_verification.source_record_id, "record:e2e-1")
+            self.assertEqual(
+                execution.trusted_receipt_verification.content_hash,
+                "sha256:e2e-receipt-stable",
+            )
+            self.assertEqual(
+                execution.trusted_receipt_verification.raw_observation,
+                "booking outcome=failed",
+            )
+            self.assertEqual(
+                execution.trusted_receipt_verification.verification_method,
+                "deterministic-test-adapter",
+            )
 
             # Pass the bridge-produced execution record directly to the learning gate.
             learning_execution = execution
@@ -139,6 +152,23 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             self.assertEqual(stored_proposal["status"], "PROPOSED")
             self.assertEqual(stored_proposal["id"], result.adaptation.id)
             self.assertTrue(runtime.replay_store.health_check())
+
+            # Retrying the same admitted decision/execution/evidence must reuse the
+            # deterministic learning event and durable proposal, without duplicates.
+            memory_count_before_retry = len(runtime.memory.recent(20))
+            retry = runtime.learning_service.capture_execution(
+                decision,
+                learning_execution,
+                evidence_id="evidence:e2e-1",
+                policy_version="policy:e2e-v1",
+                next_command="Review the proposed adaptation",
+            )
+            self.assertTrue(retry.admitted, retry.reasons)
+            self.assertEqual(retry.memory.event_id, result.memory.event_id)
+            self.assertEqual(retry.adaptation.id, result.adaptation.id)
+            self.assertEqual(retry.adaptation.status, "PROPOSED")
+            self.assertEqual(len(runtime.memory.recent(20)), memory_count_before_retry)
+            self.assertEqual(runtime.proposal_repository.get(result.adaptation.id)["id"], result.adaptation.id)
 
             # The bridge writes its execution event and learning writes a separate,
             # outcome-linked event; assert both exist without claiming cross-store atomicity.
