@@ -2,7 +2,7 @@
 
 **Status:** OPEN — planning and acceptance criteria only  
 **Current PR:** #137  
-**Current reviewed candidate:** `00ef72d03dc143e3e0276f281e728278c4c27264`  
+**Current PR head:** `332f494c843af3170a13a00c3ee7547dd00adc76`  
 **Release decision:** HOLD — NOT VERIFIED FOR PRODUCTION  
 **Data policy:** Synthetic fixtures only. Do not use real runner, medical, or location data.
 
@@ -72,11 +72,13 @@ Implement only after Gate 0 decisions are recorded.
 
 ## Current evidence snapshot
 
-- PR #137 is Open / Draft / not merged.
-- Reviewed candidate `00ef72d03dc143e3e0276f281e728278c4c27264` has green Tests #1098 and Validation #1017 (514 tests, OK in each workflow).
-- Local Codespaces verification is not yet recorded.
+- PR #137 is Open / Draft / not merged; `zinbo2024-bit` remains requested as reviewer.
+- Current PR head is `332f494c843af3170a13a00c3ee7547dd00adc76`.
+- [KMH OIA Tests #40725543843](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725543843) passed on this exact head: `Ran 517 tests in 0.974s`, `OK`.
+- [KMH OIA Validation #40725543953](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725543953) passed on this exact head; tests, repository validation, performance evidence, and deployment evidence bundle succeeded.
+- A local Colab run was reported for earlier commit `4cc4499144d951ae0cf9f5b492d3b1d508db58e0` (Python 3.12.3, 514 tests, `OVERALL_RESULT=PASS`). Because it was not executed at this current head, it is historical supporting evidence, not an exact-head local verification record for `332f494...`.
 - The reviewer provided a COMMENTED review, not production approval.
-- Authentication adapter, trusted role/checkpoint derivation, stable actor-subject audit attribution, target-host verification, and event/medical owner approvals remain open.
+- Authentication adapter, trusted role/checkpoint derivation, stable verified actor-subject audit attribution, target-host verification, and event/medical-owner approvals remain open.
 
 ## Stop rule
 
