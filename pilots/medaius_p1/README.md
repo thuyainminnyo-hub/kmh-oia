@@ -1,6 +1,6 @@
 # KMH OIA × Medaius P1 — Patient History Retrieval
 
-**Status:** implementation draft on an isolated branch. On 2026-10-28, the current candidate head `7d4976d16efcdb0d67760e2492f67b5a20018dc0` passed the dedicated synthetic pilot tests, general KMH OIA tests and repository validation (run links are recorded in PR #140). These checks validate repository/test behavior only; they do not establish Medaius API compatibility, clinical safety, or production readiness. No Medaius API connection exists.
+**Status:** implementation draft on an isolated branch. On 2026-10-28, candidate head `7c1fb2797bb3f8e57a6154ebc70aea727068c745` passed the dedicated synthetic pilot tests, general KMH OIA tests and repository validation (run links are recorded in PR #140). These checks validate repository/test behavior only; they do not establish Medaius API compatibility, clinical safety, or production readiness. No Medaius API connection exists.
 
 ## Scope
 
@@ -44,10 +44,10 @@ Expected exit codes: success `0`; exact ID not found `2`; duplicate exact IDs bl
 
 ## Verification evidence
 
-- Candidate head `7d4976d16efcdb0d67760e2492f67b5a20018dc0`:
-  - Medaius P1 local synthetic pilot tests #13: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40730633389
-  - KMH OIA Tests #1126: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40730633652
-  - KMH OIA Validation #1045: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40730633406
+- Candidate head `7c1fb2797bb3f8e57a6154ebc70aea727068c745`:
+  - Medaius P1 local synthetic pilot tests #14: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40731078638
+  - KMH OIA Tests #1127: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40731078623
+  - KMH OIA Validation #1046: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40731078809
 - Re-run the workflows for any subsequent commit and verify that run SHA matches the candidate head before treating it as validated.
 - The acceptance suite checks fixture SHA-256 before/after retrieval to detect file mutation.
 - Review that no real PHI, secrets, or external calls were introduced.
