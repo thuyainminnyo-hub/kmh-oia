@@ -124,9 +124,8 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
     if expected > _MAX_DECOMPRESSED_BYTES:
         raise ValueError("decoded image exceeds safety limit")
     decoder = zlib.decompressobj()
-    decoded = decoder.decompress(b"".join(idat_parts), _MAX_DECOMPRESSED_BYTES + 1)
-    decoded += decoder.flush()
-    if len(decoded) != expected or not decoder.eof or decoder.unused_data:
+    decoded = decoder.decompress(b"".join(idat_parts), expected + 1)
+    if len(decoded) != expected or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
         raise ValueError("IDAT data does not decode to expected scanline length")
     if any(decoded[row * (row_bytes + 1)] > 4 for row in range(height)):
         raise ValueError("invalid PNG scanline filter")
