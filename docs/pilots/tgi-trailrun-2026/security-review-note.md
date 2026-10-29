@@ -38,20 +38,19 @@
 
 **HOLD / NOT VERIFIED.** Do not merge as production-ready, deploy, or use real runner/medical data until the open gaps and Gate C/D requirements in `runner-safety-pilot.md` have evidence and explicit owner approval.
 
-## Exact-head CI evidence captured before this documentation-only refresh — 2026-10-28
+## Latest exact-head CI evidence before this review-document refresh — 2026-10-29
 
-The last CI-verified candidate before this documentation-only refresh was `26c60dd26ac4deba5354f779f832e9ab32f7481e`. It was the PR branch head at the time of the runs; later documentation commits must be checked against their own exact SHA before claiming current-head verification.
+The last fully verified source candidate before this review-document refresh is `eaf37e540af3bac02452f8e21db80c7c3e2ac80b`. The documentation-only commit that follows still requires its own CI run; do not describe the parent run as verification of the later SHA.
 
-- [KMH OIA Tests #40725848141 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725848141). The exact-candidate test log records **517 tests, OK** (`Ran 517 tests in 0.957s`), including the three synthetic SQLite failure-injection tests:
-  - `test_failed_receipt_insert_rolls_back_create_and_allows_clean_retry`
-  - `test_failed_initial_audit_insert_rolls_back_incident_and_receipt`
-  - `test_failed_transition_audit_insert_rolls_back_state_change`
-- [KMH OIA Validation #40725848144 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725848144). Tests, repository-validation, performance-evidence, and deployment-evidence-bundle jobs completed successfully.
+- [KMH OIA Tests #40822856450 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40822856450). The exact-candidate test log records **517 tests, OK** (`Ran 517 tests in 1.020s`). The strengthened `test_file_database_survives_store_recreation` test ran in this suite.
+- [KMH OIA Validation #40822856444 — success](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40822856444). The tests, repository-validation, performance-evidence, and deployment-evidence-bundle jobs completed successfully.
+- The corresponding local verification matrix documents the restart/replay expectations: incident status and embedded/authoritative audit remain consistent after reopening the database; the original idempotency receipt survives; a changed payload for the same event remains a conflict; and replay/conflict do not append audit history.
 
-An earlier local Colab verification was reported for commit `4cc4499144d951ae0cf9f5b492d3b1d508db58e0` (Python 3.12.3, 514 tests, compile/preflight/diff checks passed). That run is not an exact-head local run for `26c60dd...`; no local checkout execution for that candidate or any later commit is evidenced here.
+An earlier local Colab verification was reported for commit `4cc4499144d951ae0cf9f5b492d3b1d508db58e0` (Python 3.12.3, 514 tests, compile/preflight/diff checks passed). That run is not an exact-head local run for `eaf37e5...`; no local checkout execution at the latest candidate is evidenced here.
 
 The formal reviewer submission from `zinbo2024-bit` remains **COMMENTED**, not APPROVED. The review identifies missing verified identity/provider integration, server-derived role/checkpoint scope, durable production persistence/multi-worker guarantees, trusted audit attribution, notification/offline handling, and owner approvals. These gaps remain open; this note is not an independent security approval.
 
 The checks above verify repository code and synthetic test behavior only. They do not authenticate callers, demonstrate trusted identity-to-role/checkpoint mapping, prove target-host behavior, demonstrate real notification delivery, authorize a field test, or establish production readiness.
 
 **Release remains HOLD — NOT VERIFIED FOR PRODUCTION.** Keep PR #137 open and draft; do not merge or deploy. Continue using synthetic fixtures only, and never rely on this pilot as the sole emergency-response channel.
+
