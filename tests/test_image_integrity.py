@@ -8,12 +8,17 @@ from pathlib import Path
 from src.image_integrity import verify_png_integrity
 
 
+def chunk(kind, data):
+    return (struct.pack(">I", len(data)) + kind + data
+            + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
+
+
+def ihdr(width=1, height=1, bit_depth=8, color_type=6, interlace=0):
+    return struct.pack(">IIBBBBB", width, height, bit_depth, color_type, 0, 0, interlace)
+
+
 def make_png(pixel=b"\x00\x00\x00\xff"):
-    def chunk(kind, data):
-        return (struct.pack(">I", len(data)) + kind + data
-                + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
-    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
-    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr())
             + chunk(b"IDAT", zlib.compress(b"\x00" + pixel))
             + chunk(b"IEND", b""))
 
@@ -74,6 +79,56 @@ class ImageIntegrityTests(unittest.TestCase):
         self.assertTrue(a.verified, a.reason)
         self.assertTrue(b.verified, b.reason)
         self.assertNotEqual(a.sha256, b.sha256)
+
+    def test_rejects_non_consecutive_idat_chunks(self):
+        header = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr())
+        compressed = zlib.compress(b"\x00\x00\x00\x00\xff")
+        raw = header + chunk(b"IDAT", compressed[:2]) + chunk(b"tEXt", b"k\x00v")
+        raw += chunk(b"IDAT", compressed[2:]) + chunk(b"IEND", b"")
+        result = self.verify_bytes("split-idat.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("consecutive", result.reason)
+
+    def test_rejects_unknown_critical_chunk(self):
+        raw = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr())
+               + chunk(b"ABCD", b"") + chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00\xff"))
+               + chunk(b"IEND", b""))
+        result = self.verify_bytes("critical.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("unknown critical", result.reason)
+
+    def test_rejects_invalid_bit_depth_color_type_combination(self):
+        raw = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr(bit_depth=4, color_type=6))
+               + chunk(b"IDAT", zlib.compress(b"\x00")) + chunk(b"IEND", b""))
+        result = self.verify_bytes("invalid-depth.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("bit depth/color type", result.reason)
+
+    def test_rejects_scanline_output_larger_than_declared_dimensions(self):
+        raw = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr())
+               + chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00\xffEXTRA"))
+               + chunk(b"IEND", b""))
+        result = self.verify_bytes("oversized-decoded.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("expected scanline", result.reason)
+
+    def test_rejects_trailing_bytes_after_iend(self):
+        result = self.verify_bytes("trailing.png", make_png() + b"junk")
+        self.assertFalse(result.verified)
+        self.assertIn("trailing bytes", result.reason)
+
+    def test_rejects_duplicate_iend(self):
+        raw = make_png() + chunk(b"IEND", b"")
+        result = self.verify_bytes("duplicate-iend.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("trailing bytes", result.reason)
+
+    def test_rejects_invalid_dimensions_before_decode(self):
+        raw = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr(width=0))
+               + chunk(b"IDAT", zlib.compress(b"")) + chunk(b"IEND", b""))
+        result = self.verify_bytes("zero-width.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("dimensions", result.reason)
 
 
 if __name__ == "__main__":
