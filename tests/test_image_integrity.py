@@ -168,5 +168,33 @@ class ImageIntegrityTests(unittest.TestCase):
         self.assertIn("reserved bit", result.reason)
 
 
+    def test_split_idat_payloads_preserve_one_zlib_stream(self):
+        header = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr())
+        compressed = zlib.compress(b"\x00\x00\x00\x00\xff")
+        split = max(1, len(compressed) // 2)
+        raw = header + chunk(b"IDAT", compressed[:split]) + chunk(b"IDAT", compressed[split:])
+        raw += chunk(b"IEND", b"")
+        result = self.verify_bytes("split-idat-valid.png", raw)
+        self.assertTrue(result.verified, result.reason)
+
+    def test_indexed_png_ignores_unused_padding_bits_after_last_pixel(self):
+        header = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr(width=1, bit_depth=1, color_type=3))
+        palette = chunk(b"PLTE", b"\x00\x00\x00\xff\xff\xff")
+        # Pixel index is the most-significant bit (0); lower seven padding bits
+        # are not pixels and may contain any bit pattern.
+        image_data = chunk(b"IDAT", zlib.compress(b"\x00\x7f"))
+        raw = header + palette + image_data + chunk(b"IEND", b"")
+        result = self.verify_bytes("indexed-padding-bits.png", raw)
+        self.assertTrue(result.verified, result.reason)
+
+    def test_rejects_extra_bytes_after_zlib_stream_inside_idat(self):
+        header = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr())
+        compressed = zlib.compress(b"\x00\x00\x00\x00\xff") + b"\x00EXTRA"
+        raw = header + chunk(b"IDAT", compressed) + chunk(b"IEND", b"")
+        result = self.verify_bytes("idat-trailing-compressed.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("expected scanline", result.reason)
+
+
 if __name__ == "__main__":
     unittest.main()
