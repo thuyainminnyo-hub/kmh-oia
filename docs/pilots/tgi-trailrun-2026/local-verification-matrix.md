@@ -1,6 +1,6 @@
 # TGiTrailRun Pilot — Local Synthetic Verification Matrix
 
-**Status:** READY TO RUN — results have not been recorded by this document.  
+**Local workstation/Codespace status:** NOT RECORDED. Latest exact-head GitHub Actions CI evidence is documented in §6; CI is not a substitute for a local execution record.  
 **Execution mode:** Local CLI/service only; synthetic fixtures only.  
 **Release gate:** HOLD / NOT VERIFIED FOR PRODUCTION.
 
@@ -110,15 +110,18 @@ The helper refuses an invalid/missing SHA argument, records branch and local che
 
 **Evidence boundary:** GitHub Actions CI for the synthetic pilot branch. This is not a local workstation/Codespace execution record and does not close the pending local evidence items in sections 2–4.
 
-- PR head commit tested: `1805befdd2dd99691e7afe8441b6fc58e8dcefc6`.
-- [KMH OIA Tests #40725279344](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725279344) — completed `success`; test log reports `Ran 517 tests in 0.972s` and `OK`.
-- The test log includes these three synthetic SQLite failure-injection cases, each reporting `ok`:
-  - `test_failed_receipt_insert_rolls_back_create_and_allows_clean_retry`
-  - `test_failed_initial_audit_insert_rolls_back_incident_and_receipt`
-  - `test_failed_transition_audit_insert_rolls_back_state_change`
-- [KMH OIA Validation #40725279336](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40725279336) — completed `success`; test, repository-validation, performance-evidence, and deployment-evidence-bundle jobs completed successfully.
-- The new tests use temporary SQLite databases, synthetic identifiers, and injected database triggers only. They do not exercise live identity providers, notification delivery, real event response, or production infrastructure.
+- Exact PR branch head tested: `38380d146e979156c47897b544ab808e458634a5`.
+- [KMH OIA Tests #40734780870](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40734780870) — completed `success`; test job log reports `Ran 517 tests in 1.148s` and `OK`.
+- The exact-head test suite includes `test_file_database_survives_store_recreation`, now strengthened to verify:
+  - a file-backed SQLite store is closed/recreated after a state transition;
+  - incident status, embedded audit, authoritative audit rows, and correlation ID agree after reopen;
+  - replay of the original event after reopen returns the original receipt (`created=False`);
+  - reuse of the same event ID with a changed payload still raises `IdempotencyConflict`;
+  - replay/conflict attempts do not change the restored status or append audit rows.
+- The same suite contains three synthetic SQLite failure-injection tests for receipt-insert failure, initial-audit-insert failure, and transition-audit-insert failure; they assert transactional rollback and clean retry.
+- [KMH OIA Validation #40734780858](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/40734780858) — completed `success`; tests, repository-validation, performance-evidence, and deployment-evidence-bundle jobs completed successfully.
+- These workflows ran against exact branch head `38380d146e979156c47897b544ab808e458634a5`. This is not a local workstation/Codespace execution record and is not a production readiness decision.
 
-**Interpretation:** The exact-head CI evidence supports the tested local persistence/rollback behavior at this commit. It does not prove that the user's local checkout ran these commands, does not satisfy independent review, and does not establish production readiness.
+**Interpretation:** This exact-head CI evidence supports the tested local SQLite restart/replay consistency and rollback behavior at this commit. It does not prove multi-host production durability, authentication, trusted role/checkpoint mapping, live notification delivery, real event response, or independent security review.
 
-**Local evidence status remains:** NOT RECORDED in a local workstation/Codespace. Keep LV-08 (trusted identity), LV-09 (trusted checkpoint assignment), LV-10 (live operational behavior), and release decision HOLD unchanged until their separate evidence and approvals exist.
+**Local evidence status remains:** NOT RECORDED in a local workstation/Codespace. Keep LV-08 (trusted identity), LV-09 (trusted checkpoint assignment), LV-10 (live operational behavior), and release decision HOLD unchanged until separate evidence and approvals exist.
