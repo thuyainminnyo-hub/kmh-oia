@@ -113,6 +113,25 @@ jobs:
             --commit-sha "$GITHUB_SHA" \
             --ci-runs deployment-ci-runs.json \
             --output deployment-evidence-bundle.json
+      - name: Record source head SHA separately from tested merge SHA
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json, os
+          path = "deployment-evidence-bundle.json"
+          with open(path, encoding="utf-8") as handle:
+              bundle = json.load(handle)
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as handle:
+              event = json.load(handle)
+          pull_request = event.get("pull_request") or {}
+          source_head_sha = (pull_request.get("head") or {}).get("sha") or os.environ["GITHUB_SHA"]
+          bundle["source_head_sha"] = source_head_sha
+          with open(path, "w", encoding="utf-8") as handle:
+              json.dump(bundle, handle, indent=2, sort_keys=True)
+              handle.write("\\n")
+          PY
       - name: Independently verify CI evidence against GitHub API
         env:
           GITHUB_TOKEN: ${{ github.token }}
