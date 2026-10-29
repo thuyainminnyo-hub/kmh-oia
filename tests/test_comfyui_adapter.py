@@ -47,6 +47,19 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
             poll_interval_seconds=0.001,
         )
 
+    def test_base_url_trailing_slash_is_normalized_for_api_paths(self):
+        adapter = ComfyUIImageAdapter(
+            base_url="http://127.0.0.1:8188/",
+            workflow_path=self.workflow,
+            output_root=self.root / "out",
+            prompt_node_id="6",
+        )
+        self.assertEqual(adapter.base_url, "http://127.0.0.1:8188")
+        request = adapter._build_request_for_test if hasattr(adapter, "_build_request_for_test") else None
+        # The request helpers append API paths only after base_url normalization.
+        self.assertFalse(adapter.base_url.endswith("//"))
+        self.assertEqual(adapter.base_url + "/prompt", "http://127.0.0.1:8188/prompt")
+
     def test_requires_local_http_base_url(self):
         with self.assertRaisesRegex(ValueError, "base_url"):
             ComfyUIImageAdapter(
