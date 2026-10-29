@@ -1,6 +1,6 @@
-import io
 import json
 import unittest
+from urllib.error import URLError
 
 from scripts.verify_github_workflow_evidence import verify_bundle
 
@@ -104,6 +104,47 @@ class VerifyGitHubWorkflowEvidenceTests(unittest.TestCase):
         bundle["gates"][0]["evidence"][0]["name"] = "Made Up Check"
         errors = verify_bundle(bundle, REPO, opener=fake_opener_for())
         self.assertTrue(any("unknown job name" in error for error in errors))
+
+
+    def test_fails_closed_when_github_api_is_unavailable(self):
+        def unavailable(request, timeout=15):
+            raise URLError("simulated network outage")
+
+        errors = verify_bundle(fixture_bundle(), REPO, opener=unavailable)
+        self.assertTrue(any("GitHub API verification failed" in error for error in errors))
+
+    def test_rejects_missing_expected_job(self):
+        def opener(request, timeout=15):
+            if request.full_url.endswith(f"/actions/runs/{RUN_ID}"):
+                return response({
+                    "head_sha": SOURCE_SHA,
+                    "html_url": RUN_URL,
+                    "repository": {"full_name": REPO},
+                })
+            if request.full_url.endswith(f"/actions/runs/{RUN_ID}/jobs?per_page=100"):
+                return response({"jobs": [
+                    {"id": "tests", "name": "tests", "status": "completed",
+                     "conclusion": "success", "head_sha": SOURCE_SHA}
+                ]})
+            raise AssertionError(f"Unexpected URL: {request.full_url}")
+
+        errors = verify_bundle(fixture_bundle(), REPO, opener=opener)
+        self.assertTrue(any("missing expected job performance-evidence" in error for error in errors))
+
+    def test_rejects_malformed_jobs_response(self):
+        def opener(request, timeout=15):
+            if request.full_url.endswith(f"/actions/runs/{RUN_ID}"):
+                return response({
+                    "head_sha": SOURCE_SHA,
+                    "html_url": RUN_URL,
+                    "repository": {"full_name": REPO},
+                })
+            if request.full_url.endswith(f"/actions/runs/{RUN_ID}/jobs?per_page=100"):
+                return response({"jobs": "not-a-list"})
+            raise AssertionError(f"Unexpected URL: {request.full_url}")
+
+        errors = verify_bundle(fixture_bundle(), REPO, opener=opener)
+        self.assertTrue(any("jobs response" in error and "malformed" in error for error in errors))
 
 
 if __name__ == "__main__":
