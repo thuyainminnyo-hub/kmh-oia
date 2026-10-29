@@ -123,6 +123,8 @@ class ComfyUIImageAdapter:
                 raise ComfyUIAdapterError("ComfyUI returned an empty image")
             if len(raw) > self.max_output_bytes:
                 raise ComfyUIAdapterError("ComfyUI image exceeded max_output_bytes")
+            if not self._matches_image_signature(suffix, raw):
+                raise ComfyUIAdapterError("image bytes do not match the declared file extension")
             self.output_root.mkdir(parents=True, exist_ok=True)
             destination = (self.output_root / f"{job.job_id}-{uuid4().hex}{suffix}").resolve()
             destination.relative_to(self.output_root)
@@ -133,6 +135,17 @@ class ComfyUIImageAdapter:
             return AdapterResult(True, output_path=str(destination))
         except (OSError, json.JSONDecodeError, HTTPError, URLError, TimeoutError, KeyError, TypeError, ValueError, ComfyUIAdapterError) as exc:
             return AdapterResult(False, error_message=f"{type(exc).__name__}: {exc}")
+
+    @staticmethod
+    def _matches_image_signature(suffix: str, raw: bytes) -> bool:
+        """Check a minimal container signature; this is not full image decoding."""
+        if suffix == ".png":
+            return raw.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
+        if suffix in {".jpg", ".jpeg"}:
+            return raw.startswith(b"\\xff\\xd8\\xff")
+        if suffix == ".webp":
+            return len(raw) >= 12 and raw.startswith(b"RIFF") and raw[8:12] == b"WEBP"
+        return False
 
     @staticmethod
     def _first_image(outputs: dict) -> dict:
