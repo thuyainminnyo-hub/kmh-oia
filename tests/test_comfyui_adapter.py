@@ -62,7 +62,7 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
 
     @patch("src.comfyui_adapter.urlopen")
     def test_submits_polls_downloads_and_saves_output(self, mock_urlopen):
-        image_bytes = b"\\x89PNG\\r\\n\\x1a\\nsynthetic payload"
+        image_bytes = b"\x89PNG\r\n\x1a\nsynthetic payload"
         history = {"prompt-1": {"outputs": {"9": {"images": [
             {"filename": "generated.png", "subfolder": "", "type": "output"}
         ]}}, "status": {"status_str": "success"}}}
