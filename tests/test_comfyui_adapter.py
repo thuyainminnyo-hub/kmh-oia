@@ -77,6 +77,7 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         path = Path(result.output_path)
         self.assertTrue(path.is_file())
         self.assertEqual(path.read_bytes(), image_bytes)
+        self.assertEqual(result.provider_execution_id, "prompt-1")
         submitted = json.loads(mock_urlopen.call_args_list[0].args[0].data.decode())
         self.assertEqual(submitted["prompt"]["6"]["inputs"]["text"], self.job.prompt)
 
@@ -98,6 +99,7 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         result = self.adapter.execute(self.running_job)
         self.assertTrue(result.success, result.error_message)
         self.assertEqual(Path(result.output_path).read_bytes(), b"\x89PNG\r\n\x1a\nsynthetic payload")
+        self.assertEqual(result.provider_execution_id, "prompt-1")
 
     @patch("src.comfyui_adapter.urlopen")
     def test_queue_response_without_prompt_id_fails(self, mock_urlopen):
