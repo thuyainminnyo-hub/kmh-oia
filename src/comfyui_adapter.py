@@ -132,7 +132,7 @@ class ComfyUIImageAdapter:
             if destination.stat().st_size <= 0:
                 destination.unlink(missing_ok=True)
                 raise ComfyUIAdapterError("saved output image is empty")
-            return AdapterResult(True, output_path=str(destination))
+            return AdapterResult(True, output_path=str(destination), provider_execution_id=prompt_id)
         except (OSError, json.JSONDecodeError, HTTPError, URLError, TimeoutError, KeyError, TypeError, ValueError, ComfyUIAdapterError) as exc:
             return AdapterResult(False, error_message=f"{type(exc).__name__}: {exc}")
 
