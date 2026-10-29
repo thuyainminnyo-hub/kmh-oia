@@ -7,6 +7,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol
 
+from src.image_integrity import verify_png_integrity
 from src.output_verification import verify_output_file
 from src.production_job import ProductionJob
 
@@ -64,6 +65,16 @@ class ProductionExecutionBridge:
                 output_path=result.output_path if isinstance(result.output_path, str) else "",
                 error_message=f"output verification failed: {verification.reason}",
             )
+        if running.asset_type == "image":
+            integrity = verify_png_integrity(
+                verification.resolved_path or "", self.allowed_output_root
+            )
+            if not integrity.verified:
+                return replace(
+                    running, status="failed",
+                    output_path=verification.resolved_path or "",
+                    error_message=f"image integrity verification failed: {integrity.reason}",
+                )
         if result.provider_execution_id is not None and (
             not isinstance(result.provider_execution_id, str) or not result.provider_execution_id.strip()
         ):
