@@ -8,6 +8,8 @@
 
 This plan translates the review from `zinbo2024-bit` into ordered, evidence-based gates. It does not select an identity provider or framework on behalf of the event owner, and it does not authorize live operations.
 
+**Evidence boundary:** CI links in this document identify the exact commit that was tested. For any later PR head, consult the actual workflow runs for that SHA; do not infer current-head verification from a parent commit or from a documentation-only change.
+
 ## Gate 0 — Confirm operational requirements before implementation
 
 **Owner decision required before writing a live adapter:**
