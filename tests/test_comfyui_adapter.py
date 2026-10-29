@@ -1,6 +1,8 @@
 import json
 import tempfile
+import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
@@ -203,6 +205,48 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertEqual(mock_build_opener.return_value.open.call_count, 3)
         self.assertIn("302", result.error_message)
+
+
+    def test_real_local_http_redirects_are_not_followed(self):
+        requested_paths = []
+
+        class RedirectHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                requested_paths.append(self.path)
+                if self.path in ("/redirect-json", "/redirect-image"):
+                    self.send_response(302)
+                    self.send_header("Location", "/redirect-target")
+                    self.end_headers()
+                elif self.path == "/redirect-target":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b'{"unexpected": true}')
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, _format, *_args):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), RedirectHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.addCleanup(thread.join, 2)
+        self.adapter.base_url = f"http://127.0.0.1:{server.server_port}"
+
+        from urllib.error import HTTPError
+        with self.assertRaises(HTTPError) as json_error:
+            self.adapter._request_json("GET", "/redirect-json")
+        self.assertEqual(json_error.exception.code, 302)
+        self.assertEqual(requested_paths, ["/redirect-json"])
+
+        with self.assertRaises(HTTPError) as image_error:
+            self.adapter._request_bytes("/redirect-image")
+        self.assertEqual(image_error.exception.code, 302)
+        self.assertEqual(requested_paths, ["/redirect-json", "/redirect-image"])
 
     def test_rejects_video_jobs(self):
         video_job = ProductionJob.create("video", "test")
