@@ -65,11 +65,11 @@ class ImageIntegrityTests(unittest.TestCase):
         self.assertIn("exceeds safety limit", result.reason)
 
     def test_rejects_dimensions_exceeding_decoded_memory_limit(self):
-        from src.image_integrity import _MAX_DECOMPRESSED_BYTES
-        width = _MAX_DECOMPRESSED_BYTES
-        raw = (b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", ihdr(width=width, height=1)))
-        raw += chunk(b"IDAT", zlib.compress(b""))
-        raw += chunk(b"IEND", b"")
+        from src.image_integrity import _PNG_SIGNATURE
+        # Legal per-axis dimensions, but RGBA scanlines exceed the decoded cap.
+        width, height = 100_000, 200
+        raw = (_PNG_SIGNATURE + chunk(b"IHDR", ihdr(width=width, height=height))
+               + chunk(b"IDAT", zlib.compress(b"")) + chunk(b"IEND", b""))
         result = self.verify_bytes("decoded-too-large.png", raw)
         self.assertFalse(result.verified)
         self.assertIn("decoded image exceeds safety limit", result.reason)
