@@ -1,5 +1,4 @@
 import hashlib
-import os
 import struct
 import tempfile
 import unittest
@@ -42,7 +41,7 @@ class ImageIntegrityTests(unittest.TestCase):
         outside_dir = tempfile.TemporaryDirectory()
         self.addCleanup(outside_dir.cleanup)
         outside = Path(outside_dir.name) / "outside.png"
-        outside.write_bytes(make_png(pixel=b"\\x00\\x00\\x00\\x00"))
+        outside.write_bytes(make_png(pixel=bytes(4)))
 
         from src.output_verification import verify_output_file as real_verify
         def verify_then_swap(path, root):
