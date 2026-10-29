@@ -116,10 +116,7 @@ jobs:
       - name: Independently verify CI evidence against GitHub API
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          python scripts/verify_github_workflow_evidence.py \\
-            --bundle deployment-evidence-bundle.json \\
-            --repository "$GITHUB_REPOSITORY"
+        run: python scripts/verify_github_workflow_evidence.py --bundle deployment-evidence-bundle.json --repository "$GITHUB_REPOSITORY"
       - name: Enforce evidence bundle CI metadata integrity
         run: |
           python - <<'PY'
