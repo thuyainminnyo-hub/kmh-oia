@@ -51,8 +51,13 @@ def verify_bundle(
     """Return errors; an empty list means GitHub-backed CI evidence checks passed."""
     errors: list[str] = []
     commit_sha = bundle.get("bundle_commit_sha")
+    # For pull_request events, the tested merge commit and API run head SHA differ.
+    source_head_sha = bundle.get("source_head_sha", commit_sha)
     if not isinstance(commit_sha, str) or not re.fullmatch(r"[0-9a-fA-F]{40}", commit_sha):
         errors.append("bundle_commit_sha must be a full 40-character Git commit SHA")
+        return errors
+    if not isinstance(source_head_sha, str) or not re.fullmatch(r"[0-9a-fA-F]{40}", source_head_sha):
+        errors.append("source_head_sha must be a full 40-character Git commit SHA")
         return errors
 
     gates = bundle.get("gates")
@@ -124,7 +129,7 @@ def verify_bundle(
             continue
         jobs_cache[run_id] = [job for job in jobs if isinstance(job, dict)]
 
-        if run.get("head_sha") != commit_sha:
+        if run.get("head_sha") != source_head_sha:
             errors.append(f"GitHub run {run_id} head_sha does not match bundle commit")
         if run.get("repository", {}).get("full_name", "").lower() != repository.lower():
             errors.append(f"GitHub run {run_id} repository identity does not match")
@@ -148,7 +153,7 @@ def verify_bundle(
             errors.append(f"GitHub job {expected_job_id} is not completed")
         if job.get("conclusion") != row.get("conclusion"):
             errors.append(f"GitHub job {expected_job_id} conclusion does not match evidence")
-        if job.get("head_sha") and job.get("head_sha") != commit_sha:
+        if job.get("head_sha") and job.get("head_sha") != source_head_sha:
             errors.append(f"GitHub job {expected_job_id} head_sha does not match bundle commit")
         if row.get("is_required_check") is True and job.get("conclusion") != "success":
             errors.append(f"Required GitHub job {expected_job_id} did not succeed")
