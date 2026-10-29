@@ -1,9 +1,11 @@
 import hashlib
+import os
 import struct
 import tempfile
 import unittest
 import zlib
 from pathlib import Path
+from unittest.mock import patch
 
 from src.image_integrity import verify_png_integrity
 
@@ -33,6 +35,26 @@ class ImageIntegrityTests(unittest.TestCase):
         path = self.root / name
         path.write_bytes(content)
         return verify_png_integrity(str(path), self.root)
+
+    def test_symlink_swap_after_containment_check_fails_closed(self):
+        target = self.root / "candidate.png"
+        target.write_bytes(make_png())
+        outside_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(outside_dir.cleanup)
+        outside = Path(outside_dir.name) / "outside.png"
+        outside.write_bytes(make_png(pixel=b"\\x00\\x00\\x00\\x00"))
+
+        from src.output_verification import verify_output_file as real_verify
+        def verify_then_swap(path, root):
+            result = real_verify(path, root)
+            target.unlink()
+            target.symlink_to(outside)
+            return result
+
+        with patch("src.image_integrity.verify_output_file", side_effect=verify_then_swap):
+            result = verify_png_integrity(str(target), self.root)
+        self.assertFalse(result.verified)
+        self.assertIn("integrity verification failed", result.reason)
 
     def test_valid_png_passes_and_records_sha256(self):
         raw = make_png()
