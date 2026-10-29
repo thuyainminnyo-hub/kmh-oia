@@ -27,6 +27,7 @@ class ProductionJob:
     )
     output_path: str = ""
     error_message: str = ""
+    provider_execution_id: str | None = None
 
     @classmethod
     def create(cls, asset_type: AssetType, prompt: str) -> "ProductionJob":
@@ -60,3 +61,7 @@ class ProductionJob:
             raise ValueError("approved jobs must include output_path")
         if not isinstance(self.error_message, str):
             raise ValueError("error_message must be a string")
+        if self.provider_execution_id is not None and (
+            not isinstance(self.provider_execution_id, str) or not self.provider_execution_id.strip()
+        ):
+            raise ValueError("provider_execution_id must be None or a non-empty string")
