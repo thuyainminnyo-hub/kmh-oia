@@ -10,8 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - run: python -m unittest discover -s tests -v
@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: Generate and validate performance evidence
@@ -30,7 +30,7 @@ jobs:
           set -o pipefail
           python -m scripts.performance_validation | tee performance-validation.json
           python scripts/validate_performance_artifact.py performance-validation.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kmh-oia-performance-validation
           path: performance-validation.json
@@ -39,8 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - run: python -m compileall -q src tests scripts
@@ -61,7 +61,7 @@ jobs:
           if [ "$snapshot_status" -eq 2 ]; then
             echo "Release readiness is HOLD by design; report artifact will be retained."
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kmh-oia-production-readiness-snapshot
           path: production-readiness-snapshot.json
@@ -73,9 +73,12 @@ jobs:
     needs: [tests, performance-evidence, repository-validation]
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: Capture prerequisite job results with real GitHub metadata
@@ -110,6 +113,29 @@ jobs:
             --commit-sha "$GITHUB_SHA" \
             --ci-runs deployment-ci-runs.json \
             --output deployment-evidence-bundle.json
+      - name: Record source head SHA separately from tested merge SHA
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json, os
+          path = "deployment-evidence-bundle.json"
+          with open(path, encoding="utf-8") as handle:
+              bundle = json.load(handle)
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as handle:
+              event = json.load(handle)
+          pull_request = event.get("pull_request") or {}
+          source_head_sha = (pull_request.get("head") or {}).get("sha") or os.environ["GITHUB_SHA"]
+          bundle["source_head_sha"] = source_head_sha
+          with open(path, "w", encoding="utf-8") as handle:
+              json.dump(bundle, handle, indent=2, sort_keys=True)
+              handle.write(chr(10))
+          PY
+      - name: Independently verify CI evidence against GitHub API
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/verify_github_workflow_evidence.py --bundle deployment-evidence-bundle.json --repository "$GITHUB_REPOSITORY"
       - name: Enforce evidence bundle CI metadata integrity
         run: |
           python - <<'PY'
@@ -129,7 +155,7 @@ jobs:
               sys.exit(1)
           print("Evidence bundle CI metadata integrity: PASS")
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kmh-oia-deployment-evidence-bundle
           path: deployment-evidence-bundle.json
