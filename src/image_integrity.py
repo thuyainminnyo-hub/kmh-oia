@@ -77,6 +77,7 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
     seen_ihdr = seen_plte = seen_idat = seen_iend = False
     idat_closed = False
     compressed = bytearray()
+    palette_entries = None
 
     while offset < len(raw):
         if offset + 12 > len(raw):
@@ -90,6 +91,10 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
             raise ValueError("truncated chunk data")
         if any(not (65 <= byte <= 90 or 97 <= byte <= 122) for byte in chunk_type):
             raise ValueError("invalid PNG chunk type")
+        # PNG reserves the third chunk-type byte as uppercase. Reject rather
+        # than interpreting a type with its reserved bit set.
+        if chunk_type[2] & 0x20:
+            raise ValueError("PNG chunk type reserved bit must be zero")
         data = raw[data_start:data_end]
         expected_crc = struct.unpack_from(">I", raw, data_end)[0]
         if zlib.crc32(chunk_type + data) & 0xffffffff != expected_crc:
@@ -129,6 +134,7 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
                 raise ValueError("invalid PLTE length")
             if color_type == 3 and length // 3 > (1 << bit_depth):
                 raise ValueError("PLTE has more entries than indexed bit depth permits")
+            palette_entries = length // 3
             seen_plte = True
         elif chunk_type == b"IDAT":
             if idat_closed:
@@ -168,4 +174,60 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
         raise ValueError("IDAT data does not decode to expected scanline length")
     if any(decoded[row * (row_bytes + 1)] > 4 for row in range(height)):
         raise ValueError("invalid PNG scanline filter")
+
+    # For indexed-color PNGs, reconstruct filtered rows before reading packed
+    # pixel indices. The bit-depth range alone is not sufficient: each index
+    # must also refer to an entry actually present in PLTE.
+    if color_type == 3:
+        if palette_entries is None:
+            raise ValueError("indexed-color PNG requires PLTE before IDAT")
+        bytes_per_pixel = max(1, (bit_depth + 7) // 8)
+        previous_row = bytes(row_bytes)
+        for row_index in range(height):
+            start = row_index * (row_bytes + 1)
+            filter_type = decoded[start]
+            filtered_row = decoded[start + 1:start + 1 + row_bytes]
+            row = _unfilter_scanline(filter_type, filtered_row, previous_row, bytes_per_pixel)
+            for pixel_x in range(width):
+                bit_offset = pixel_x * bit_depth
+                shift = 8 - bit_depth - (bit_offset % 8)
+                palette_index = (row[bit_offset // 8] >> shift) & ((1 << bit_depth) - 1)
+                if palette_index >= palette_entries:
+                    raise ValueError("indexed-color pixel references missing PLTE entry")
+            previous_row = row
+
     return width, height
+
+
+def _unfilter_scanline(filter_type: int, filtered: bytes, previous: bytes,
+                       bytes_per_pixel: int) -> bytes:
+    """Reconstruct one PNG scanline from its filter representation."""
+    reconstructed = bytearray(len(filtered))
+    for i, value in enumerate(filtered):
+        left = reconstructed[i - bytes_per_pixel] if i >= bytes_per_pixel else 0
+        up = previous[i] if previous else 0
+        upper_left = previous[i - bytes_per_pixel] if previous and i >= bytes_per_pixel else 0
+
+        if filter_type == 0:  # None
+            predictor = 0
+        elif filter_type == 1:  # Sub
+            predictor = left
+        elif filter_type == 2:  # Up
+            predictor = up
+        elif filter_type == 3:  # Average
+            predictor = (left + up) // 2
+        elif filter_type == 4:  # Paeth
+            estimate = left + up - upper_left
+            distance_left = abs(estimate - left)
+            distance_up = abs(estimate - up)
+            distance_upper_left = abs(estimate - upper_left)
+            if distance_left <= distance_up and distance_left <= distance_upper_left:
+                predictor = left
+            elif distance_up <= distance_upper_left:
+                predictor = up
+            else:
+                predictor = upper_left
+        else:
+            raise ValueError("invalid PNG scanline filter")
+        reconstructed[i] = (value + predictor) & 0xff
+    return bytes(reconstructed)
