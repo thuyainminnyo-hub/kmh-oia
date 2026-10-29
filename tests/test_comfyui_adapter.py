@@ -93,11 +93,11 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
             FakeResponse(b'{"prompt_id":"prompt-1"}'),
             FakeResponse(json.dumps(running).encode()),
             FakeResponse(json.dumps(success).encode()),
-            FakeResponse(b"\\x89PNG\\r\\n\\x1a\\nsynthetic payload"),
+            FakeResponse(b"\x89PNG\r\n\x1a\nsynthetic payload"),
         ]
         result = self.adapter.execute(self.running_job)
         self.assertTrue(result.success, result.error_message)
-        self.assertEqual(Path(result.output_path).read_bytes(), b"\\x89PNG\\r\\n\\x1a\\nsynthetic payload")
+        self.assertEqual(Path(result.output_path).read_bytes(), b"\x89PNG\r\n\x1a\nsynthetic payload")
 
     @patch("src.comfyui_adapter.urlopen")
     def test_queue_response_without_prompt_id_fails(self, mock_urlopen):
