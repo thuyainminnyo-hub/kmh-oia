@@ -130,7 +130,7 @@ jobs:
           bundle["source_head_sha"] = source_head_sha
           with open(path, "w", encoding="utf-8") as handle:
               json.dump(bundle, handle, indent=2, sort_keys=True)
-              handle.write("\\n")
+              handle.write(chr(10))
           PY
       - name: Independently verify CI evidence against GitHub API
         env:
