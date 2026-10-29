@@ -8,13 +8,13 @@ from pathlib import Path
 from src.image_integrity import verify_png_integrity
 
 
-def make_png(pixel=b"\\x00\\x00\\x00\\xff"):
+def make_png(pixel=b"\x00\x00\x00\xff"):
     def chunk(kind, data):
         return (struct.pack(">I", len(data)) + kind + data
                 + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
     ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
-    return (b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", ihdr)
-            + chunk(b"IDAT", zlib.compress(b"\\x00" + pixel))
+    return (b"\x89PNG\\r\\n\x1a\\n" + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", zlib.compress(b"\x00" + pixel))
             + chunk(b"IEND", b""))
 
 
@@ -54,7 +54,7 @@ class ImageIntegrityTests(unittest.TestCase):
         self.assertFalse(result.verified)
 
     def test_unsupported_jpeg_fails_closed(self):
-        result = self.verify_bytes("image.jpg", b"\\xff\\xd8\\xffnot-a-jpeg")
+        result = self.verify_bytes("image.jpg", b"\xff\xd8\xffnot-a-jpeg")
         self.assertFalse(result.verified)
         self.assertIn("PNG only", result.reason)
 
@@ -67,8 +67,8 @@ class ImageIntegrityTests(unittest.TestCase):
         self.assertIn("escapes", result.reason)
 
     def test_digest_changes_when_bytes_change(self):
-        first = make_png(b"\\x00\\x00\\x00\\xff")
-        second = make_png(b"\\x01\\x00\\x00\\xff")
+        first = make_png(b"\x00\x00\x00\xff")
+        second = make_png(b"\x01\x00\x00\xff")
         a = self.verify_bytes("a.png", first)
         b = self.verify_bytes("b.png", second)
         self.assertTrue(a.verified, a.reason)
