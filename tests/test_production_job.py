@@ -11,6 +11,7 @@ class ProductionJobContractTests(unittest.TestCase):
         self.assertEqual(first.status, "queued")
         self.assertEqual(second.asset_type, "video")
         self.assertEqual(first.attempt, 0)
+        self.assertIsNone(first.provider_execution_id)
 
     def test_rejects_blank_job_id_or_prompt(self):
         with self.assertRaisesRegex(ValueError, "job_id"):
@@ -33,6 +34,13 @@ class ProductionJobContractTests(unittest.TestCase):
                 asset_type="image",
                 prompt="valid",
                 created_at="2026-10-29T12:00:00",
+            )
+
+    def test_provider_execution_id_must_be_non_empty_when_present(self):
+        with self.assertRaisesRegex(ValueError, "provider_execution_id"):
+            ProductionJob(
+                job_id="job-1", asset_type="image", prompt="valid",
+                provider_execution_id=" ",
             )
 
     def test_approved_job_requires_output_path(self):
