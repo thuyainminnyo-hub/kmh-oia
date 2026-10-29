@@ -1,11 +1,23 @@
 import tempfile
 import unittest
+import struct
+import zlib
 from pathlib import Path
 
 from src.production_audit import JsonlProductionAuditSink
 from src.production_execution import AdapterResult, ProductionExecutionBridge
 from src.production_job import ProductionJob
 from src.production_pipeline import execute_with_evidence
+
+
+def valid_png_bytes():
+    def chunk(kind, data):
+        return (struct.pack(">I", len(data)) + kind + data
+                + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
+    return (b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", zlib.compress(b"\\x00\\x00\\x00\\x00\\xff"))
+            + chunk(b"IEND", b""))
 
 
 class FakeAdapter:
@@ -26,7 +38,7 @@ class ProductionPipelineTests(unittest.TestCase):
 
     def test_executes_verifies_hashes_and_records_audit(self):
         output = self.root / "synthetic.png"
-        output.write_bytes(b"synthetic image bytes")
+        output.write_bytes(valid_png_bytes())
         bridge = ProductionExecutionBridge(
             FakeAdapter(AdapterResult(True, str(output), provider_execution_id="comfyui-prompt-actual-test-id")),
             allowed_output_root=self.root,
