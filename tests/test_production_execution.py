@@ -1,8 +1,18 @@
 import tempfile
 import unittest
+import struct
+import zlib
 from pathlib import Path
 
 from src.production_job import ProductionJob
+
+
+def valid_png_bytes():
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+    signature = b"\\x89PNG\\r\\n\\x1a\\n"
+    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
+    return signature + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(b"\\x00\\x00\\x00\\x00\\xff")) + chunk(b"IEND", b"")
 from src.production_execution import AdapterResult, ProductionExecutionBridge
 
 
@@ -31,7 +41,7 @@ class ProductionExecutionBridgeTests(unittest.TestCase):
 
     def test_success_requires_verified_file_and_moves_to_qa_pending(self):
         artifact = self.root / "image.png"
-        artifact.write_bytes(b"synthetic image fixture")
+        artifact.write_bytes(valid_png_bytes())
         adapter = FakeAdapter(AdapterResult(True, str(artifact), provider_execution_id="prompt-abc"))
         result = self.bridge(adapter).execute(self.job)
         self.assertEqual(result.status, "qa_pending")
@@ -39,6 +49,20 @@ class ProductionExecutionBridgeTests(unittest.TestCase):
         self.assertEqual(result.provider_execution_id, "prompt-abc")
         self.assertEqual(result.attempt, 1)
         self.assertEqual(adapter.seen_job.status, "running")
+
+    def test_corrupt_png_fails_integrity_gate(self):
+        artifact = self.root / "corrupt.png"
+        artifact.write_bytes(b"\\x89PNG\\r\\n\\x1a\\nnot-a-real-png")
+        result = self.bridge(FakeAdapter(AdapterResult(True, str(artifact)))).execute(self.job)
+        self.assertEqual(result.status, "failed")
+        self.assertIn("image integrity verification failed", result.error_message)
+
+    def test_unsupported_image_format_fails_closed_in_v1(self):
+        artifact = self.root / "image.jpg"
+        artifact.write_bytes(b"\\xff\\xd8\\xfffake-jpeg")
+        result = self.bridge(FakeAdapter(AdapterResult(True, str(artifact)))).execute(self.job)
+        self.assertEqual(result.status, "failed")
+        self.assertIn("PNG only", result.error_message)
 
     def test_adapter_failure_fails_closed(self):
         adapter = FakeAdapter(AdapterResult(False, error_message="model unavailable"))
