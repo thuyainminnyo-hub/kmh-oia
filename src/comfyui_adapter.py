@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import uuid4
 
 from src.production_execution import AdapterResult
@@ -19,6 +19,13 @@ from src.production_job import ProductionJob
 
 class ComfyUIAdapterError(RuntimeError):
     """Raised for invalid configuration or a failed ComfyUI interaction."""
+
+
+class _RejectRedirectHandler(HTTPRedirectHandler):
+    """Fail closed: local API responses must never redirect to another host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 class ComfyUIImageAdapter:
@@ -165,7 +172,7 @@ class ComfyUIImageAdapter:
         if body is not None:
             headers["Content-Type"] = "application/json"
         request = Request(self.base_url + path, data=body, headers=headers, method=method)
-        with urlopen(request, timeout=self.request_timeout_seconds) as response:
+        with build_opener(_RejectRedirectHandler()).open(request, timeout=self.request_timeout_seconds) as response:
             data = response.read(2_000_001)
         if len(data) > 2_000_000:
             raise ComfyUIAdapterError("ComfyUI JSON response exceeded 2 MB limit")
@@ -176,7 +183,7 @@ class ComfyUIImageAdapter:
 
     def _request_bytes(self, path: str) -> bytes:
         request = Request(self.base_url + path, headers={"Accept": "image/*"}, method="GET")
-        with urlopen(request, timeout=self.request_timeout_seconds) as response:
+        with build_opener(_RejectRedirectHandler()).open(request, timeout=self.request_timeout_seconds) as response:
             data = response.read(self.max_output_bytes + 1)
         if len(data) > self.max_output_bytes:
             raise ComfyUIAdapterError("ComfyUI image exceeded max_output_bytes")
