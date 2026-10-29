@@ -53,9 +53,39 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
                 output_root=self.root / "out", prompt_node_id="6",
             )
 
+    def test_rejects_non_loopback_and_hostname_targets(self):
+        for base_url in (
+            "http://example.com:8188",
+            "http://localhost:8188",
+            "http://192.168.1.10:8188",
+            "https://127.0.0.1:8188",
+        ):
+            with self.subTest(base_url=base_url):
+                with self.assertRaises(ValueError):
+                    ComfyUIImageAdapter(
+                        base_url=base_url, workflow_path=self.workflow,
+                        output_root=self.root / "out", prompt_node_id="6",
+                    )
+
+    def test_rejects_credentials_query_fragment_path_and_malformed_port(self):
+        for base_url in (
+            "http://user:pass@127.0.0.1:8188",
+            "http://127.0.0.1:8188/?token=x",
+            "http://127.0.0.1:8188/#fragment",
+            "http://127.0.0.1:8188/api",
+            "http://127.0.0.1:notaport",
+            "http://127.0.0.1:70000",
+        ):
+            with self.subTest(base_url=base_url):
+                with self.assertRaises(ValueError):
+                    ComfyUIImageAdapter(
+                        base_url=base_url, workflow_path=self.workflow,
+                        output_root=self.root / "out", prompt_node_id="6",
+                    )
+
     def test_missing_prompt_node_fails_closed(self):
         adapter = ComfyUIImageAdapter(
-            base_url="http://localhost:8188", workflow_path=self.workflow,
+            base_url="http://127.0.0.1:8188", workflow_path=self.workflow,
             output_root=self.root / "out", prompt_node_id="missing",
         )
         result = adapter.execute(self.running_job)
