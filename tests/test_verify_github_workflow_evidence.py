@@ -7,6 +7,7 @@ from scripts.verify_github_workflow_evidence import verify_bundle
 
 REPO = "thuyainminnyo-hub/kmh-oia"
 SHA = "a" * 40
+SOURCE_SHA = "b" * 40
 RUN_ID = "12345"
 RUN_URL = f"https://github.com/{REPO}/actions/runs/{RUN_ID}"
 
@@ -32,6 +33,7 @@ def fixture_bundle():
     ]
     return {
         "bundle_commit_sha": SHA,
+        "source_head_sha": SOURCE_SHA,
         "gates": [{
             "gate": "repository_ci_for_bundle_commit",
             "evidence": [
@@ -48,7 +50,7 @@ def fixture_bundle():
     }
 
 
-def fake_opener_for(job_conclusion="success", run_sha=SHA):
+def fake_opener_for(job_conclusion="success", run_sha=SOURCE_SHA):
     run_data = {
         "head_sha": run_sha,
         "html_url": RUN_URL,
@@ -80,7 +82,7 @@ class VerifyGitHubWorkflowEvidenceTests(unittest.TestCase):
 
     def test_rejects_run_sha_mismatch(self):
         errors = verify_bundle(
-            fixture_bundle(), REPO, opener=fake_opener_for(run_sha="b" * 40)
+            fixture_bundle(), REPO, opener=fake_opener_for(run_sha="c" * 40)
         )
         self.assertTrue(any("run 12345 head_sha" in error for error in errors))
 
