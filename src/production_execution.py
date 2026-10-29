@@ -16,6 +16,7 @@ class AdapterResult:
     success: bool
     output_path: str = ""
     error_message: str = ""
+    provider_execution_id: str | None = None
 
 
 class ProductionAdapter(Protocol):
@@ -63,9 +64,17 @@ class ProductionExecutionBridge:
                 output_path=result.output_path if isinstance(result.output_path, str) else "",
                 error_message=f"output verification failed: {verification.reason}",
             )
+        if result.provider_execution_id is not None and (
+            not isinstance(result.provider_execution_id, str) or not result.provider_execution_id.strip()
+        ):
+            return replace(
+                running, status="failed",
+                error_message="adapter returned an invalid provider_execution_id",
+            )
         return replace(
             running,
             status="qa_pending",
             output_path=verification.resolved_path or "",
             error_message="",
+            provider_execution_id=result.provider_execution_id,
         )
