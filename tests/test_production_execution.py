@@ -32,10 +32,11 @@ class ProductionExecutionBridgeTests(unittest.TestCase):
     def test_success_requires_verified_file_and_moves_to_qa_pending(self):
         artifact = self.root / "image.png"
         artifact.write_bytes(b"synthetic image fixture")
-        adapter = FakeAdapter(AdapterResult(True, str(artifact)))
+        adapter = FakeAdapter(AdapterResult(True, str(artifact), provider_execution_id="prompt-abc"))
         result = self.bridge(adapter).execute(self.job)
         self.assertEqual(result.status, "qa_pending")
         self.assertEqual(result.output_path, str(artifact.resolve()))
+        self.assertEqual(result.provider_execution_id, "prompt-abc")
         self.assertEqual(result.attempt, 1)
         self.assertEqual(adapter.seen_job.status, "running")
 
