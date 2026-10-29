@@ -45,7 +45,7 @@ def execute_with_evidence(
             output_path=executed.output_path,
             allowed_output_root=allowed_output_root,
             elapsed_ms=elapsed_ms,
-            provider_execution_id=provider_execution_id,
+            provider_execution_id=provider_execution_id or executed.provider_execution_id,
             audit_sink=audit_sink,
         )
     except Exception as exc:
