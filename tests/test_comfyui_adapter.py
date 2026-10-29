@@ -173,6 +173,25 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertIn("extension", result.error_message)
 
+    def test_output_metadata_accepts_safe_nested_subfolder(self):
+        ComfyUIImageAdapter._validate_image_metadata("generated.png", "batch_1/session-2", "output")
+
+    def test_output_metadata_rejects_filename_path_components(self):
+        for filename in ("../generated.png", "folder/generated.png", r"..\\generated.png", "bad\x00.png"):
+            with self.subTest(filename=filename):
+                with self.assertRaisesRegex(RuntimeError, "filename"):
+                    ComfyUIImageAdapter._validate_image_metadata(filename, "", "output")
+
+    def test_output_metadata_rejects_unsafe_subfolders(self):
+        for subfolder in ("../outside", "/absolute", r"..\\outside", "batch//empty", "C:/outside", "bad\x7fdir"):
+            with self.subTest(subfolder=subfolder):
+                with self.assertRaisesRegex(RuntimeError, "subfolder"):
+                    ComfyUIImageAdapter._validate_image_metadata("generated.png", subfolder, "output")
+
+    def test_output_metadata_rejects_unsupported_type(self):
+        with self.assertRaisesRegex(RuntimeError, "image type"):
+            ComfyUIImageAdapter._validate_image_metadata("generated.png", "", "remote")
+
     @patch("src.comfyui_adapter.build_opener")
     def test_json_redirect_is_rejected_without_following_target(self, mock_build_opener):
         from urllib.error import HTTPError
