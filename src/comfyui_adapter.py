@@ -116,14 +116,18 @@ class ComfyUIImageAdapter:
             if history_entry is None:
                 raise ComfyUIAdapterError("timed out waiting for ComfyUI output")
             image_meta = self._first_image(history_entry.get("outputs", {}))
-            suffix = Path(image_meta["filename"]).suffix.lower()
+            filename = image_meta["filename"]
+            subfolder = image_meta.get("subfolder", "")
+            image_type = image_meta.get("type", "output")
+            self._validate_image_metadata(filename, subfolder, image_type)
+            suffix = Path(filename).suffix.lower()
             if suffix not in {".png", ".jpg", ".jpeg", ".webp"}:
                 raise ComfyUIAdapterError("unsupported output image extension")
             raw = self._request_bytes(
                 "/view?" + urlencode({
-                    "filename": image_meta["filename"],
-                    "subfolder": image_meta.get("subfolder", ""),
-                    "type": image_meta.get("type", "output"),
+                    "filename": filename,
+                    "subfolder": subfolder,
+                    "type": image_type,
                 })
             )
             if not raw:
@@ -142,6 +146,26 @@ class ComfyUIImageAdapter:
             return AdapterResult(True, output_path=str(destination), provider_execution_id=prompt_id)
         except (OSError, json.JSONDecodeError, HTTPError, URLError, TimeoutError, KeyError, TypeError, ValueError, ComfyUIAdapterError) as exc:
             return AdapterResult(False, error_message=f"{type(exc).__name__}: {exc}")
+
+    @staticmethod
+    def _validate_image_metadata(filename: object, subfolder: object, image_type: object) -> None:
+        """Reject path/query abuse in server-returned image metadata before /view requests."""
+        if not isinstance(filename, str) or not filename or filename in {".", ".."}:
+            raise ComfyUIAdapterError("invalid output image filename")
+        if "/" in filename or "\\" in filename or any(ord(char) < 32 or ord(char) == 127 for char in filename):
+            raise ComfyUIAdapterError("output image filename must be a single safe path component")
+        if not isinstance(subfolder, str):
+            raise ComfyUIAdapterError("invalid output image subfolder")
+        if subfolder:
+            if subfolder.startswith(("/", "\\")) or "\\" in subfolder:
+                raise ComfyUIAdapterError("output image subfolder must be a safe relative path")
+            parts = subfolder.split("/")
+            if any(part in {"", ".", ".."} for part in parts):
+                raise ComfyUIAdapterError("output image subfolder contains an unsafe path segment")
+            if any(any(ord(char) < 32 or ord(char) == 127 for char in part) or ":" in part for part in parts):
+                raise ComfyUIAdapterError("output image subfolder contains an invalid path character")
+        if image_type not in {"input", "output", "temp"}:
+            raise ComfyUIAdapterError("unsupported ComfyUI image type")
 
     @staticmethod
     def _matches_image_signature(suffix: str, raw: bytes) -> bool:
