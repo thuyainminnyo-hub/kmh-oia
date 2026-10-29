@@ -62,7 +62,7 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
 
     @patch("src.comfyui_adapter.urlopen")
     def test_submits_polls_downloads_and_saves_output(self, mock_urlopen):
-        image_bytes = b"synthetic png bytes"
+        image_bytes = b"\\x89PNG\\r\\n\\x1a\\nsynthetic payload"
         history = {"prompt-1": {"outputs": {"9": {"images": [
             {"filename": "generated.png", "subfolder": "", "type": "output"}
         ]}}, "status": {"status_str": "success"}}}
@@ -93,11 +93,11 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
             FakeResponse(b'{"prompt_id":"prompt-1"}'),
             FakeResponse(json.dumps(running).encode()),
             FakeResponse(json.dumps(success).encode()),
-            FakeResponse(b"synthetic image bytes"),
+            FakeResponse(b"\\x89PNG\\r\\n\\x1a\\nsynthetic payload"),
         ]
         result = self.adapter.execute(self.running_job)
         self.assertTrue(result.success, result.error_message)
-        self.assertEqual(Path(result.output_path).read_bytes(), b"synthetic image bytes")
+        self.assertEqual(Path(result.output_path).read_bytes(), b"\\x89PNG\\r\\n\\x1a\\nsynthetic payload")
 
     @patch("src.comfyui_adapter.urlopen")
     def test_queue_response_without_prompt_id_fails(self, mock_urlopen):
@@ -141,6 +141,20 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         result = self.adapter.execute(self.running_job)
         self.assertFalse(result.success)
         self.assertIn("empty image", result.error_message)
+
+    @patch("src.comfyui_adapter.urlopen")
+    def test_rejects_bytes_that_do_not_match_image_extension(self, mock_urlopen):
+        history = {"prompt-1": {"outputs": {"9": {"images": [
+            {"filename": "generated.png", "subfolder": "", "type": "output"}
+        ]}}, "status": {"status_str": "success"}}}
+        mock_urlopen.side_effect = [
+            FakeResponse(b'{"prompt_id":"prompt-1"}'),
+            FakeResponse(json.dumps(history).encode()),
+            FakeResponse(b"not a png file"),
+        ]
+        result = self.adapter.execute(self.running_job)
+        self.assertFalse(result.success)
+        self.assertIn("do not match", result.error_message)
 
     @patch("src.comfyui_adapter.urlopen")
     def test_rejects_unsupported_extension(self, mock_urlopen):
