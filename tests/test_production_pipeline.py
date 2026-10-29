@@ -72,7 +72,7 @@ class ProductionPipelineTests(unittest.TestCase):
 
     def test_audit_failure_fails_closed_after_output_verification(self):
         output = self.root / "synthetic.png"
-        output.write_bytes(b"synthetic image bytes")
+        output.write_bytes(valid_png_bytes())
         bridge = ProductionExecutionBridge(
             FakeAdapter(AdapterResult(True, str(output))),
             allowed_output_root=self.root,
