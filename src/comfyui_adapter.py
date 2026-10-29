@@ -220,7 +220,7 @@ class ComfyUIImageAdapter:
 
     def _request_bytes(self, path: str) -> bytes:
         request = Request(self.base_url + path, headers={"Accept": "image/*"}, method="GET")
-        with build_opener(_RejectRedirectHandler()).open(request, timeout=self.request_timeout_seconds) as response:
+        with build_opener(ProxyHandler({}), _RejectRedirectHandler()).open(request, timeout=self.request_timeout_seconds) as response:
             data = response.read(self.max_output_bytes + 1)
         if len(data) > self.max_output_bytes:
             raise ComfyUIAdapterError("ComfyUI image exceeded max_output_bytes")
