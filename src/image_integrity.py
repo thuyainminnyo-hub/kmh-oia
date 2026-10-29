@@ -74,7 +74,7 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
 
     offset = len(_PNG_SIGNATURE)
     width = height = bit_depth = color_type = None
-    seen_ihdr = seen_idat = seen_iend = False
+    seen_ihdr = seen_plte = seen_idat = seen_iend = False
     idat_closed = False
     compressed = bytearray()
 
@@ -120,9 +120,21 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
             seen_ihdr = True
         elif chunk_type == b"IHDR":
             raise ValueError("duplicate IHDR")
+        elif chunk_type == b"PLTE":
+            if seen_plte or seen_idat:
+                raise ValueError("PLTE must appear at most once before IDAT")
+            if color_type in (0, 4):
+                raise ValueError("PLTE is not permitted for grayscale color types")
+            if length == 0 or length % 3 != 0 or length > 768:
+                raise ValueError("invalid PLTE length")
+            if color_type == 3 and length // 3 > (1 << bit_depth):
+                raise ValueError("PLTE has more entries than indexed bit depth permits")
+            seen_plte = True
         elif chunk_type == b"IDAT":
             if idat_closed:
                 raise ValueError("IDAT chunks must be consecutive")
+            if color_type == 3 and not seen_plte:
+                raise ValueError("indexed-color PNG requires PLTE before IDAT")
             seen_idat = True
             if len(compressed) + length > _MAX_FILE_BYTES:
                 raise ValueError("compressed image data exceeds safety limit")
