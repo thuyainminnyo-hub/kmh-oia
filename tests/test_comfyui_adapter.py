@@ -47,7 +47,7 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         )
 
     def test_requires_local_http_base_url(self):
-        with self.assertRaisesRegex(ValueError, "local HTTP"):
+        with self.assertRaisesRegex(ValueError, "base_url"):
             ComfyUIImageAdapter(
                 base_url="https://example.com", workflow_path=self.workflow,
                 output_root=self.root / "out", prompt_node_id="6",
