@@ -10,7 +10,7 @@ from src.production_job import ProductionJob
 def valid_png_bytes():
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
-    signature = b"\x89PNG\\r\\n\x1a\\n"
+    signature = b"\x89PNG\r\n\x1a\n"
     ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
     return signature + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00\xff")) + chunk(b"IEND", b"")
 from src.production_execution import AdapterResult, ProductionExecutionBridge
@@ -52,7 +52,7 @@ class ProductionExecutionBridgeTests(unittest.TestCase):
 
     def test_corrupt_png_fails_integrity_gate(self):
         artifact = self.root / "corrupt.png"
-        artifact.write_bytes(b"\x89PNG\\r\\n\x1a\\nnot-a-real-png")
+        artifact.write_bytes(b"\x89PNG\r\n\x1a\nnot-a-real-png")
         result = self.bridge(FakeAdapter(AdapterResult(True, str(artifact)))).execute(self.job)
         self.assertEqual(result.status, "failed")
         self.assertIn("image integrity verification failed", result.error_message)
