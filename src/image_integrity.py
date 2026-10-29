@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import os
 from pathlib import Path
+import stat
 import struct
 import zlib
 
@@ -42,7 +44,8 @@ def verify_png_integrity(output_path: str, allowed_root: str | Path) -> ImageInt
                                     reason="PNG file exceeds safety limit")
     try:
         path = Path(basic.resolved_path)
-        raw = path.read_bytes()
+        root = Path(allowed_root).resolve()
+        raw = _read_contained_file_no_follow(path, root)
         if len(raw) != basic.size_bytes:
             return ImageIntegrityResult(False, resolved_path=str(path), size_bytes=len(raw),
                                         reason="file changed while being read")
@@ -54,18 +57,67 @@ def verify_png_integrity(output_path: str, allowed_root: str | Path) -> ImageInt
     except (OSError, ValueError, struct.error, zlib.error) as exc:
         return ImageIntegrityResult(
             False, basic.resolved_path, basic.size_bytes,
-            detected_format="PNG" if raw_signature_is_png(output_path) else None,
             decode_verified=False, reason=f"PNG integrity verification failed: {exc}",
         )
 
 
-def raw_signature_is_png(path: str) -> bool:
-    """Best-effort format hint for failed results; never used to accept a file."""
+def _read_contained_file_no_follow(path: Path, root: Path) -> bytes:
+    """Read a regular file under root without following any path symlink.
+
+    Directory descriptors anchor each path traversal step, so a parent directory
+    or final filename swapped to a symlink between validation and read fails closed.
+    """
+    relative = path.relative_to(root)
+    parts = relative.parts
+    if not parts or any(part in {"", ".", ".."} for part in parts):
+        raise ValueError("output path is not a safe relative path under the allowed root")
+
+    directory_flag = getattr(os, "O_DIRECTORY", 0)
+    no_follow_flag = getattr(os, "O_NOFOLLOW", 0)
+    if not directory_flag or not no_follow_flag or not hasattr(os, "supports_dir_fd") or os.open not in os.supports_dir_fd:
+        raise OSError("platform lacks safe directory-relative, no-follow file opening")
+
+    root_fd = os.open(root, os.O_RDONLY | directory_flag | no_follow_flag)
+    parent_fd = root_fd
+    opened_fds = []
     try:
-        with Path(path).open("rb") as stream:
-            return stream.read(8) == _PNG_SIGNATURE
-    except OSError:
-        return False
+        for component in parts[:-1]:
+            parent_fd = os.open(component, os.O_RDONLY | directory_flag | no_follow_flag, dir_fd=parent_fd)
+            opened_fds.append(parent_fd)
+        file_fd = os.open(parts[-1], os.O_RDONLY | no_follow_flag, dir_fd=parent_fd)
+        try:
+            before = os.fstat(file_fd)
+            if not stat.S_ISREG(before.st_mode):
+                raise OSError("output path is not a regular file")
+            if before.st_size <= 0:
+                raise ValueError("output file is empty")
+            if before.st_size > _MAX_FILE_BYTES:
+                raise ValueError("PNG file exceeds safety limit")
+            chunks = []
+            remaining = _MAX_FILE_BYTES + 1
+            while remaining > 0:
+                block = os.read(file_fd, min(1024 * 1024, remaining))
+                if not block:
+                    break
+                chunks.append(block)
+                remaining -= len(block)
+            raw = b"".join(chunks)
+            after = os.fstat(file_fd)
+            identity_before = (before.st_dev, before.st_ino, before.st_size,
+                               before.st_mtime_ns, before.st_ctime_ns)
+            identity_after = (after.st_dev, after.st_ino, after.st_size,
+                              after.st_mtime_ns, after.st_ctime_ns)
+            if identity_before != identity_after or len(raw) != before.st_size:
+                raise ValueError("file changed while being read")
+            if len(raw) > _MAX_FILE_BYTES:
+                raise ValueError("PNG file exceeds safety limit")
+            return raw
+        finally:
+            os.close(file_fd)
+    finally:
+        for fd in reversed(opened_fds):
+            os.close(fd)
+        os.close(root_fd)
 
 
 def _validate_png(raw: bytes) -> tuple[int, int]:
