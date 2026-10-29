@@ -147,5 +147,26 @@ class ImageIntegrityTests(unittest.TestCase):
         self.assertIn("requires PLTE", result.reason)
 
 
+    def test_indexed_png_rejects_pixel_index_outside_palette(self):
+        header = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr(bit_depth=2, color_type=3))
+        palette = chunk(b"PLTE", b"\x00\x00\x00\xff\xff\xff")
+        # With 2-bit indices, the top two bits 10 represent palette index 2,
+        # while this PLTE contains only entries 0 and 1.
+        image_data = chunk(b"IDAT", zlib.compress(b"\x00\x80"))
+        raw = header + palette + image_data + chunk(b"IEND", b"")
+        result = self.verify_bytes("indexed-bad-palette-index.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("missing PLTE entry", result.reason)
+
+    def test_rejects_chunk_type_with_reserved_bit_set(self):
+        header = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr())
+        invalid_ancillary = chunk(b"text", b"k\x00v")
+        raw = header + invalid_ancillary + chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00\xff"))
+        raw += chunk(b"IEND", b"")
+        result = self.verify_bytes("reserved-bit.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("reserved bit", result.reason)
+
+
 if __name__ == "__main__":
     unittest.main()
