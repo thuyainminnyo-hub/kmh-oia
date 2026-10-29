@@ -47,3 +47,25 @@ The current policy allows `echo` and rejects unlisted or empty tool names.
 `Tracer` is the runtime observability boundary. `InMemoryTracer` is the default deterministic implementation and retains ordered `TraceEvent` records. A compatible tracer can be injected through `run(..., tracer=...)` or `OIARuntime(..., tracer=...)`.
 
 No external telemetry backend is required by the current runtime.
+
+## Image output integrity gate (v1)
+
+Image jobs pass the existing output-path/root/non-empty-file gate and then a
+fail-closed PNG integrity gate before reaching `qa_pending`. The PNG gate
+checks chunk CRCs, required chunks, supported IHDR values, bounded IDAT
+decompression, scanline lengths/filter values, and computes SHA-256 over the
+verified bytes. It does not evaluate visual quality, policy compliance, or
+authenticity.
+
+V1 deliberately accepts PNG only at the execution bridge. JPEG and WebP
+outputs are rejected until a reviewed decoder-backed implementation and
+regression fixtures are added. This is a compatibility limitation, not a
+claim that those formats are invalid. Image integrity success means only that
+the supported PNG structure/data checks passed; content QA and production
+promotion remain separate gates.
+
+Run the focused integrity tests with:
+
+```bash
+python -m unittest tests.test_image_integrity tests.test_production_execution -v
+```
