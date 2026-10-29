@@ -132,16 +132,16 @@ class ImageIntegrityTests(unittest.TestCase):
 
 
     def test_valid_indexed_png_with_plte_passes(self):
-        header = b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", ihdr(bit_depth=1, color_type=3))
-        palette = chunk(b"PLTE", b"\\x00\\x00\\x00\\xff\\xff\\xff")
-        image_data = chunk(b"IDAT", zlib.compress(b"\\x00\\x00"))
+        header = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr(bit_depth=1, color_type=3))
+        palette = chunk(b"PLTE", b"\x00\x00\x00\xff\xff\xff")
+        image_data = chunk(b"IDAT", zlib.compress(b"\x00\x00"))
         raw = header + palette + image_data + chunk(b"IEND", b"")
         result = self.verify_bytes("indexed.png", raw)
         self.assertTrue(result.verified, result.reason)
 
     def test_indexed_png_requires_plte(self):
-        raw = (b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", ihdr(bit_depth=1, color_type=3))
-               + chunk(b"IDAT", zlib.compress(b"\\x00\\x00")) + chunk(b"IEND", b""))
+        raw = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr(bit_depth=1, color_type=3))
+               + chunk(b"IDAT", zlib.compress(b"\x00\x00")) + chunk(b"IEND", b""))
         result = self.verify_bytes("indexed-no-plte.png", raw)
         self.assertFalse(result.verified)
         self.assertIn("requires PLTE", result.reason)
