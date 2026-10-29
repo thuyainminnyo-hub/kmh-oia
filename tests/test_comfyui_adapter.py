@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import threading
 import unittest
@@ -296,6 +297,43 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
             self.adapter._request_bytes("/redirect-image")
         self.assertEqual(image_error.exception.code, 302)
         self.assertEqual(requested_paths, ["/redirect-json", "/redirect-image"])
+
+    @patch.dict(os.environ, {"HTTP_PROXY": "http://127.0.0.1:9", "http_proxy": "http://127.0.0.1:9",
+                              "HTTPS_PROXY": "http://127.0.0.1:9", "https_proxy": "http://127.0.0.1:9",
+                              "ALL_PROXY": "http://127.0.0.1:9", "all_proxy": "http://127.0.0.1:9"})
+    @patch("src.comfyui_adapter.build_opener", wraps=__import__("urllib.request", fromlist=["build_opener"]).build_opener)
+    def test_json_and_image_requests_disable_environment_proxy(self, mock_build_opener):
+        # Use a reachable local server while proxy environment variables point at a dead endpoint.
+        requested_paths = []
+
+        class LocalHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                requested_paths.append(self.path)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"ok": true}')
+
+            def log_message(self, _format, *_args):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), LocalHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.addCleanup(thread.join, 2)
+        self.adapter.base_url = f"http://127.0.0.1:{server.server_port}"
+
+        self.assertEqual(self.adapter._request_json("GET", "/json"), {"ok": True})
+        self.assertEqual(self.adapter._request_bytes("/image"), b'{"ok": true}')
+        self.assertEqual(requested_paths, ["/json", "/image"])
+
+        # Both request paths explicitly supply an empty proxy map to build_opener.
+        self.assertEqual(mock_build_opener.call_count, 2)
+        for call in mock_build_opener.call_args_list:
+            self.assertEqual(type(call.args[0]).__name__, "ProxyHandler")
+            self.assertEqual(call.args[0].proxies, {})
 
     def test_rejects_video_jobs(self):
         video_job = ProductionJob.create("video", "test")
