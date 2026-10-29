@@ -18,9 +18,11 @@ import zlib
 from src.output_verification import verify_output_file
 
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+# Keep peak parser memory bounded for this local pilot. The file cap limits
+# the raw input plus retained IDAT data; the decoded cap bounds zlib output.
 _MAX_DIMENSION = 100_000
-_MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024
-_MAX_FILE_BYTES = 512 * 1024 * 1024
+_MAX_DECOMPRESSED_BYTES = 64 * 1024 * 1024
+_MAX_FILE_BYTES = 32 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -221,7 +223,7 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
     # Check the declared decompressed size before decompressing or collecting
     # decoded rows. max_length prevents oversized output from being materialized.
     decoder = zlib.decompressobj()
-    decoded = decoder.decompress(bytes(compressed), expected_decoded + 1)
+    decoded = decoder.decompress(compressed, expected_decoded + 1)
     if len(decoded) != expected_decoded or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
         raise ValueError("IDAT data does not decode to expected scanline length")
     if any(decoded[row * (row_bytes + 1)] > 4 for row in range(height)):
