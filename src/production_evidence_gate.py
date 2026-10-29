@@ -9,6 +9,7 @@ from pathlib import Path
 
 from src.output_verification import verify_output_file
 from src.production_evidence import ProductionEvidence
+from src.production_audit import JsonlProductionAuditSink
 
 
 def create_verified_evidence(
@@ -19,12 +20,13 @@ def create_verified_evidence(
     allowed_output_root: str | Path,
     elapsed_ms: int,
     provider_execution_id: str | None = None,
+    audit_sink: JsonlProductionAuditSink | None = None,
 ) -> ProductionEvidence:
     """Require output-root verification before hashing an output into evidence."""
     verification = verify_output_file(output_path, allowed_output_root)
     if not verification.verified or not verification.resolved_path:
         raise ValueError(f"output verification failed: {verification.reason}")
-    return ProductionEvidence.from_output(
+    evidence = ProductionEvidence.from_output(
         job_id=job_id,
         adapter_name=adapter_name,
         output_path=verification.resolved_path,
@@ -32,3 +34,6 @@ def create_verified_evidence(
         provider_execution_id=provider_execution_id,
         qa_decision="pending",
     )
+    if audit_sink is not None:
+        audit_sink.record_evidence(evidence)
+    return evidence
