@@ -28,17 +28,18 @@ class ProductionPipelineTests(unittest.TestCase):
         output = self.root / "synthetic.png"
         output.write_bytes(b"synthetic image bytes")
         bridge = ProductionExecutionBridge(
-            FakeAdapter(AdapterResult(True, str(output))),
+            FakeAdapter(AdapterResult(True, str(output), provider_execution_id="comfyui-prompt-actual-test-id")),
             allowed_output_root=self.root,
         )
         result = execute_with_evidence(
             self.job, bridge=bridge, adapter_name="fake",
             allowed_output_root=self.root, audit_sink=self.audit,
-            provider_execution_id="synthetic-prompt-id",
+
         )
         self.assertEqual(result.job.status, "qa_pending")
         self.assertIsNotNone(result.evidence)
         self.assertEqual(result.evidence.qa_decision, "pending")
+        self.assertEqual(result.evidence.provider_execution_id, "comfyui-prompt-actual-test-id")
         events = self.audit.verify_chain()
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["event_type"], "evidence_created")
