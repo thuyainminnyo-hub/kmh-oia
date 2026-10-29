@@ -15,8 +15,8 @@ def valid_png_bytes():
         return (struct.pack(">I", len(data)) + kind + data
                 + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
     ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
-    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
-            + chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00\xff"))
+    return (bytes([137]) + b"PNG" + bytes([13, 10, 26, 10]) + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", zlib.compress(bytes([0, 0, 0, 0, 255])))
             + chunk(b"IEND", b""))
 
 
