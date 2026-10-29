@@ -55,6 +55,25 @@ class ImageIntegrityTests(unittest.TestCase):
         self.assertFalse(result.verified)
         self.assertIn("integrity verification failed", result.reason)
 
+    def test_rejects_png_exceeding_file_size_limit_before_read(self):
+        from src.image_integrity import _MAX_FILE_BYTES
+        path = self.root / "oversized.png"
+        with path.open("wb") as stream:
+            stream.truncate(_MAX_FILE_BYTES + 1)
+        result = verify_png_integrity(str(path), self.root)
+        self.assertFalse(result.verified)
+        self.assertIn("exceeds safety limit", result.reason)
+
+    def test_rejects_dimensions_exceeding_decoded_memory_limit(self):
+        from src.image_integrity import _MAX_DECOMPRESSED_BYTES
+        width = _MAX_DECOMPRESSED_BYTES
+        raw = (b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", ihdr(width=width, height=1)))
+        raw += chunk(b"IDAT", zlib.compress(b""))
+        raw += chunk(b"IEND", b"")
+        result = self.verify_bytes("decoded-too-large.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("decoded image exceeds safety limit", result.reason)
+
     def test_valid_png_passes_and_records_sha256(self):
         raw = make_png()
         result = self.verify_bytes("valid.png", raw)
