@@ -140,9 +140,9 @@ class ComfyUIImageAdapter:
     def _matches_image_signature(suffix: str, raw: bytes) -> bool:
         """Check a minimal container signature; this is not full image decoding."""
         if suffix == ".png":
-            return raw.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
+            return raw.startswith(b"\x89PNG\r\n\x1a\n")
         if suffix in {".jpg", ".jpeg"}:
-            return raw.startswith(b"\\xff\\xd8\\xff")
+            return raw.startswith(b"\xff\xd8\xff")
         if suffix == ".webp":
             return len(raw) >= 12 and raw.startswith(b"RIFF") and raw[8:12] == b"WEBP"
         return False
