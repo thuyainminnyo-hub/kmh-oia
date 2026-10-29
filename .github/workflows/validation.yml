@@ -73,6 +73,9 @@ jobs:
     needs: [tests, performance-evidence, repository-validation]
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -110,6 +113,13 @@ jobs:
             --commit-sha "$GITHUB_SHA" \
             --ci-runs deployment-ci-runs.json \
             --output deployment-evidence-bundle.json
+      - name: Independently verify CI evidence against GitHub API
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/verify_github_workflow_evidence.py \\
+            --bundle deployment-evidence-bundle.json \\
+            --repository "$GITHUB_REPOSITORY"
       - name: Enforce evidence bundle CI metadata integrity
         run: |
           python - <<'PY'
