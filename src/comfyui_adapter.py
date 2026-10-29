@@ -5,12 +5,13 @@ ComfyUI API-format workflow JSON and a running local ComfyUI server.
 """
 from __future__ import annotations
 
+import ipaddress
 import json
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 from uuid import uuid4
 
 from src.production_execution import AdapterResult
@@ -46,11 +47,23 @@ class ComfyUIImageAdapter:
         poll_interval_seconds: float = 0.5,
         max_output_bytes: int = 25_000_000,
     ) -> None:
-        parsed = urlparse(base_url)
-        if parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
-            raise ValueError("base_url must be local HTTP (localhost, 127.0.0.1, or ::1)")
+        if not isinstance(base_url, str):
+            raise ValueError("base_url must be a local HTTP URL using a literal loopback IP")
+        try:
+            parsed = urlparse(base_url)
+            host = parsed.hostname
+            port = parsed.port
+            address = ipaddress.ip_address(host) if host else None
+        except ValueError as exc:
+            raise ValueError("base_url must contain a valid literal loopback IP and port") from exc
+        if parsed.scheme != "http" or address is None or not address.is_loopback:
+            raise ValueError("base_url must use HTTP and a literal loopback IP (127.0.0.1 or ::1)")
         if parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ValueError("base_url must not include credentials, query, or fragment")
+        if parsed.path not in {"", "/"}:
+            raise ValueError("base_url must not include a path")
+        if port is not None and not 1 <= port <= 65535:
+            raise ValueError("base_url port must be between 1 and 65535")
         if not isinstance(prompt_node_id, str) or not prompt_node_id.strip():
             raise ValueError("prompt_node_id must be a non-empty string")
         if not isinstance(prompt_input_key, str) or not prompt_input_key.strip():
@@ -196,7 +209,7 @@ class ComfyUIImageAdapter:
         if body is not None:
             headers["Content-Type"] = "application/json"
         request = Request(self.base_url + path, data=body, headers=headers, method=method)
-        with build_opener(_RejectRedirectHandler()).open(request, timeout=self.request_timeout_seconds) as response:
+        with build_opener(ProxyHandler({}), _RejectRedirectHandler()).open(request, timeout=self.request_timeout_seconds) as response:
             data = response.read(2_000_001)
         if len(data) > 2_000_000:
             raise ComfyUIAdapterError("ComfyUI JSON response exceeded 2 MB limit")
