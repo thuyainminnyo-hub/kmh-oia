@@ -298,19 +298,21 @@ class TrustedDecisionLearningService:
                     "confidence": float(confidence),
                     "status": "PROPOSED",
                 }
-            self._learning_ledger.record_learning(
+            persisted = self._learning_ledger.record_learning(
                 event_id=event_id,
                 event=memory_fields,
                 proposal_id=proposal_id,
                 proposal=proposal_payload,
             )
-            projector = LearningOutboxProjector(
-                ledger=self._learning_ledger,
-                memory=self._memory,
-                proposal_repository=self._adaptation_proposal_repository,
-            )
-            projection = projector.run_once()
-            if projection.failed or projection.projected < 1:
+            if persisted["outbox_state"] == "PENDING":
+                projector = LearningOutboxProjector(
+                    ledger=self._learning_ledger,
+                    memory=self._memory,
+                    proposal_repository=self._adaptation_proposal_repository,
+                )
+                projector.run_once()
+            bundle = self._learning_ledger.get_projection_bundle(event_id)
+            if bundle["state"] != "PROJECTED":
                 raise RuntimeError("learning event is durable; projection remains pending for retry")
             memory = next(
                 (item for item in self._memory.recent(1000) if item.event_id == event_id),
