@@ -151,7 +151,7 @@ class SQLiteProposalProcessCrashRecoveryTests(unittest.TestCase):
             self.assertEqual(proposal.id, "adapt:learning:crash-event")
             self.assertEqual(proposal.status, "PROPOSED")
             self.assertEqual(
-                repository.get("learning:crash-event")["id"],
+                repository.get("adapt:learning:crash-event")["id"],
                 proposal.id,
             )
             self._assert_database_integrity(path)
