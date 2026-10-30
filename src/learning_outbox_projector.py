@@ -19,7 +19,10 @@ class ProjectionBatchResult:
 class LearningOutboxProjector:
     """Project pending ledger records, marking completion only after all sinks."""
 
-    def __init__(self, *, ledger: Any, memory: Any, proposal_repository: Any) -> None:
+    def __init__(self, *, ledger: Any, memory: Any, proposal_repository: Any, max_attempts: int = 5) -> None:
+        if not isinstance(max_attempts, int) or isinstance(max_attempts, bool) or max_attempts < 1:
+            raise ValueError("max_attempts must be a positive integer")
+        self.max_attempts = max_attempts
         self.ledger = ledger
         self.memory = memory
         self.proposal_repository = proposal_repository
@@ -71,12 +74,13 @@ class LearningOutboxProjector:
                     if claim_aware and claim_token:
                         self.ledger.record_projection_failure(
                             event_id, "ProjectionError: projection failed",
-                            claim_token=claim_token,
+                            claim_token=claim_token, max_attempts=self.max_attempts,
                         )
                         self.ledger.release_claim(event_id, claim_token=claim_token)
                     else:
                         self.ledger.record_projection_failure(
-                            event_id, "ProjectionError: projection failed"
+                            event_id, "ProjectionError: projection failed",
+                            max_attempts=self.max_attempts,
                         )
                 except Exception:
                     pass
