@@ -31,18 +31,20 @@ rescue Psych::Exception => e
   ["#{path}: YAML parse error: #{e.message}"]
 end
 
-workflow_files = Dir.glob(".github/workflows/*.{yml,yaml}").sort
-if workflow_files.empty?
-  warn "No GitHub Actions workflow files found under .github/workflows/"
+if $PROGRAM_NAME == __FILE__
+  workflow_files = Dir.glob(".github/workflows/*.{yml,yaml}").sort
+  if workflow_files.empty?
+    warn "No GitHub Actions workflow files found under .github/workflows/"
+    exit 1
+  end
+
+  failures = workflow_files.flat_map { |path| validate_workflow(path) }
+  if failures.empty?
+    puts "PASS: all remote reusable workflow references use full 40-character commit SHAs (#{workflow_files.length} workflow files checked)."
+    exit 0
+  end
+
+  warn "FAIL: unpinned remote reusable workflow references found:"
+  failures.each { |failure| warn " - #{failure}" }
   exit 1
 end
-
-failures = workflow_files.flat_map { |path| validate_workflow(path) }
-if failures.empty?
-  puts "PASS: all remote reusable workflow references use full 40-character commit SHAs (#{workflow_files.length} workflow files checked)."
-  exit 0
-end
-
-warn "FAIL: unpinned remote reusable workflow references found:"
-failures.each { |failure| warn " - #{failure}" }
-exit 1
