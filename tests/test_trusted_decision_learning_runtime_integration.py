@@ -360,13 +360,13 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             self.assertEqual(
                 len([
                     item for item in runtime.memory.recent(20)
-                    if item.event_id.startswith("learning:")
+                    if item.event_id is not None and item.event_id.startswith("learning:")
                 ]),
                 1,
             )
             learning_events = [
                 item for item in runtime.memory.recent(20)
-                if item.event_id.startswith("learning:")
+                if item.event_id is not None and item.event_id.startswith("learning:")
             ]
             self.assertEqual(len(learning_events), 1)
             self.assertIsNone(
