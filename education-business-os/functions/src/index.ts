@@ -191,3 +191,29 @@ export const recordAssessment = onCall(async (request) => {
   });
   return { assessmentId, score, status: "reviewed" };
 });
+
+
+/**
+ * Admin-managed role assignment. Bootstrap the first admin out-of-band with
+ * a trusted Firebase Admin SDK session; never expose service-account keys.
+ */
+export const setUserRole = onCall(async (request) => {
+  const actor = requireRole(request, ["admin"]);
+  const uid = requiredString(request.data?.uid, "uid");
+  const role = request.data?.role;
+  if (!["admin", "instructor", "student"].includes(String(role))) {
+    throw new HttpsError("invalid-argument", "Role must be admin, instructor or student.");
+  }
+  try {
+    const user = await getAuth().getUser(uid);
+    await getAuth().setCustomUserClaims(uid, { ...(user.customClaims ?? {}), role });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("not-found", "Firebase Auth user not found.");
+  }
+  await db.collection("auditLogs").add({
+    action: "user.role.updated", actorUid: actor.uid, targetId: uid,
+    role, createdAt: FieldValue.serverTimestamp()
+  });
+  return { uid, role, message: "Role updated. User must refresh their ID token." };
+});
