@@ -1,0 +1,27 @@
+{
+  "pilotId": "APT-FLUTTER-B5",
+  "course": {
+    "id": "flutter-foundation",
+    "name": "Flutter Foundation",
+    "batch": {
+      "id": "APT-FLUTTER-B5",
+      "number": 5,
+      "startDate": "2026-11-07",
+      "schedule": ["Saturday", "Sunday"],
+      "startTime": "14:00",
+      "endTime": "16:00",
+      "timezone": "Asia/Yangon",
+      "durationWeeks": 12,
+      "sessionCount": 24,
+      "totalHours": 48,
+      "fee": 300000,
+      "currency": "MMK",
+      "finalProject": "Weather App"
+    }
+  },
+  "seedPolicy": {
+    "createStudentRecords": false,
+    "createPaymentRecords": false,
+    "note": "Configuration only. Verify schedule, timezone, price and course details with the provider before production import."
+  }
+}
