@@ -9,6 +9,7 @@ on:
       - ".github/workflows/**"
       - "scripts/audit_action_dependencies.py"
       - "tests/test_action_dependency_audit.py"
+      - "docs/phase-1011-9-transitive-action-lockfile.md"
   workflow_dispatch:
 
 permissions:
