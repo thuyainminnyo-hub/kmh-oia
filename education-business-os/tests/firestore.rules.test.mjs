@@ -52,3 +52,18 @@ test("student cannot promote own role", async () => {
     displayName: "Student", email: "student@example.com", role: "admin"
   }));
 });
+
+test("student cannot create enrollment directly", async () => {
+  const db = env.authenticatedContext("student-a", { role: "student" }).firestore();
+  await assertFails(setDoc(doc(db, "enrollments/forged"), {
+    studentId: "student-a", batchId: "APT-FLUTTER-B5", status: "active"
+  }));
+});
+
+test("instructor cannot bypass audited attendance function", async () => {
+  const db = env.authenticatedContext("teacher-a", { role: "instructor" }).firestore();
+  await assertFails(setDoc(doc(db, "attendance/forged"), {
+    enrollmentId: "enr-a", studentId: "student-a", instructorId: "teacher-a",
+    batchId: "APT-FLUTTER-B5", sessionNo: 1, status: "present", markedBy: "teacher-a"
+  }));
+});
