@@ -18,6 +18,7 @@ workflows:
         - 'actions/setup-python@v5.6.0'
     '.github/workflows/reusable-workflow-sha-audit.yml':
         - 'actions/checkout@v7.0.1'
+        - 'actions/setup-python@v5.6.0'
         - 'actions/upload-artifact@v4.6.2'
     '.github/workflows/supply-chain-assurance.yml':
         - 'actions/attest@v4.2.2'
