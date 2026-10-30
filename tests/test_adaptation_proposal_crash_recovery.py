@@ -110,7 +110,7 @@ class SQLiteProposalProcessCrashRecoveryTests(unittest.TestCase):
             # Child exits with an uncommitted INSERT still open.
             self._terminate_writer(path, "before_commit", 73)
 
-            self.assertIsNone(repository.get("learning:crash-event"))
+            self.assertIsNone(repository.get("adapt:learning:crash-event"))
             self._assert_database_integrity(path)
 
             # A normal application retry creates the canonical proposal.
