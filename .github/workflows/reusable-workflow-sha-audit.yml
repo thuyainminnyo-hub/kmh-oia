@@ -1,0 +1,32 @@
+name: Reusable Workflow SHA Audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "scripts/audit_reusable_workflow_refs.py"
+      - "tests/test_reusable_workflow_sha_audit.py"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/**"
+      - "scripts/audit_reusable_workflow_refs.py"
+      - "tests/test_reusable_workflow_sha_audit.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reusable-workflow-sha-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Audit reusable workflow references
+        run: python scripts/audit_reusable_workflow_refs.py
+
+      - name: Run audit unit tests
+        run: python tests/test_reusable_workflow_sha_audit.py
