@@ -110,6 +110,7 @@ class SQLiteLearningLedger:
             "event_id": event_id,
             "event_hash": event_hash,
             "proposal_id": proposal_id,
+            "proposal_hash": proposal_hash,
         }
         message_json, _ = self._canonical_payload(message, "outbox message")
 
@@ -244,6 +245,48 @@ class SQLiteLearningLedger:
                 (event_id,),
             ).fetchone()
         return json.loads(row[0]) if row else None
+
+    def get_projection_bundle(self, event_id: str) -> dict[str, Any]:
+        """Return a hash-verified immutable bundle for an outbox projection."""
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise ValueError("event_id is required")
+        with self._connect() as connection:
+            row = connection.execute(
+                """SELECT e.payload_hash, e.payload_json, p.proposal_id,
+                          p.payload_hash, p.payload_json, o.message_json, o.state
+                   FROM learning_events e
+                   JOIN learning_outbox o ON o.event_id = e.event_id
+                   LEFT JOIN learning_proposals p ON p.event_id = e.event_id
+                   WHERE e.event_id = ?""",
+                (event_id.strip(),),
+            ).fetchone()
+        if row is None:
+            raise ValueError("learning outbox event not found")
+        event_hash, event_json, proposal_id, proposal_hash, proposal_json, message_json, state = row
+        event = json.loads(event_json)
+        _, actual_event_hash = self._canonical_payload(event, "event")
+        message = json.loads(message_json)
+        if actual_event_hash != event_hash or message.get("event_id") != event_id.strip():
+            raise LearningLedgerConflict("outbox event identity or payload hash mismatch")
+        if message.get("event_hash") != event_hash:
+            raise LearningLedgerConflict("outbox event hash does not match canonical event")
+        proposal = json.loads(proposal_json) if proposal_json else None
+        if proposal is None:
+            if proposal_id is not None or message.get("proposal_id") is not None:
+                raise LearningLedgerConflict("outbox proposal identity mismatch")
+            if message.get("proposal_hash") is not None:
+                raise LearningLedgerConflict("unexpected outbox proposal hash")
+        else:
+            _, actual_proposal_hash = self._canonical_payload(proposal, "proposal")
+            if actual_proposal_hash != proposal_hash:
+                raise LearningLedgerConflict("canonical proposal payload hash mismatch")
+            if message.get("proposal_id") != proposal_id or message.get("proposal_hash") != proposal_hash:
+                raise LearningLedgerConflict("outbox proposal identity or hash mismatch")
+        return {
+            "event_id": event_id.strip(), "event": event,
+            "proposal_id": proposal_id, "proposal": proposal,
+            "state": state, "message": message,
+        }
 
     def health_check(self) -> bool:
         try:
