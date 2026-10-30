@@ -138,7 +138,7 @@ class SQLiteProposalProcessCrashRecoveryTests(unittest.TestCase):
             # Child commits the INSERT and then exits without orderly connection close.
             self._terminate_writer(path, "after_commit", 74)
 
-            stored = repository.get("learning:crash-event")
+            stored = repository.get("adapt:learning:crash-event")
             self.assertIsNotNone(stored)
             self.assertEqual(stored["id"], "adapt:learning:crash-event")
             self.assertEqual(stored["status"], "PROPOSED")
