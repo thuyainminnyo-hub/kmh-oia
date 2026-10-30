@@ -61,7 +61,8 @@ service cloud.firestore {
       allow read: if isAdmin()
         || (signedIn() && resource.data.studentId == request.auth.uid)
         || (isInstructor() && resource.data.instructorId == request.auth.uid);
-      allow write: if isAdmin();
+      // Outcome changes must use the audited callable function.
+      allow create, update, delete: if false;
     }
     match /auditLogs/{id} {
       allow read: if isAdmin();
