@@ -3,10 +3,12 @@ on:
   pull_request:
     paths:
       - "education-business-os/**"
+      - ".github/workflows/education-business-os.yml"
   push:
     branches: [main]
     paths:
       - "education-business-os/**"
+      - ".github/workflows/education-business-os.yml"
 jobs:
   web-and-functions:
     runs-on: ubuntu-latest
