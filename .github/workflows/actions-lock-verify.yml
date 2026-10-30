@@ -1,0 +1,53 @@
+name: GitHub Actions Dependency Lockfile Assurance
+
+on:
+  push:
+    branches:
+      - "feat/phase-1011-9-transitive-action-lockfile"
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "scripts/audit_action_dependencies.py"
+      - "tests/test_action_dependency_audit.py"
+      - "docs/phase-1011-9-transitive-action-lockfile.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workflow-dependency-lock:
+    name: Generate or verify transitive action lockfile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned GitHub Actions lockfile extension
+        run: gh extension install github/gh-actions-lock --pin v0.4.0
+
+      - name: Generate lockfile for bootstrap or manual refresh
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: gh actions-lock
+
+      - name: Verify committed lockfile and upstream provenance
+        if: github.event_name == 'pull_request' && hashFiles('.github/workflows/actions.lock') != ''
+        run: gh actions-lock --verify
+
+      - name: Verify offline workflow coverage
+        if: github.event_name == 'pull_request' && hashFiles('.github/workflows/actions.lock') != ''
+        run: gh actions-lock --verify-local
+
+      - name: Upload generated lockfile evidence
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: kmh-oia-actions-lockfile
+          path: .github/workflows/actions.lock
+          if-no-files-found: error
+          retention-days: 14

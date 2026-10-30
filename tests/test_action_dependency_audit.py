@@ -32,6 +32,24 @@ class ActionDependencyAuditTests(unittest.TestCase):
     def write_workflow(self, content):
         (self.workflows / "test.yml").write_text(content, encoding="utf-8")
 
+    def write_lockfile(self, reference="actions/checkout@v4.4.0", commit="sha1-" + SHA,
+                       owner_id=44036562, repo_id=197814629):
+        lock_dir = self.workflows
+        lock_dir.mkdir(parents=True, exist_ok=True)
+        content = (
+            "version: 'v0.0.3'\n"
+            "workflows:\n"
+            "  '.github/workflows/test.yml':\n"
+            f"    - '{reference}'\n"
+            "dependencies:\n"
+            f"  '{reference}':\n"
+            "    ref: 'v4.4.0'\n"
+            f"    commit: '{commit}'\n"
+            f"    owner_id: {owner_id}\n"
+            f"    repo_id: {repo_id}\n"
+        )
+        (lock_dir / "actions.lock").write_text(content, encoding="utf-8")
+
     def test_full_sha_action_passes(self):
         self.write_workflow(self.workflow(f"      - uses: actions/checkout@{SHA}\n"))
         result = audit(self.root)
@@ -43,6 +61,39 @@ class ActionDependencyAuditTests(unittest.TestCase):
         result = audit(self.root)
         self.assertEqual(result["status"], "HOLD")
         self.assertTrue(any("full 40-character commit SHA" in f["message"] for f in result["findings"]))
+
+    def test_tagged_action_passes_when_covered_by_valid_lockfile(self):
+        self.write_workflow(self.workflow("      - uses: actions/checkout@v4.4.0\n"))
+        self.write_lockfile()
+        result = audit(self.root)
+        self.assertEqual(result["status"], "PASS")
+        self.assertTrue(result["lockfile_present"])
+        self.assertEqual(result["lockfile_workflows"], 1)
+        self.assertEqual(result["lockfile_dependencies"], 1)
+        self.assertEqual(result["verified_references"][0]["kind"], "locked-remote-action")
+
+    def test_tagged_action_missing_lockfile_entry_creates_hold(self):
+        self.write_workflow(self.workflow("      - uses: actions/checkout@v4.4.0\n"))
+        self.write_lockfile(reference="actions/checkout@v4.3.0")
+        result = audit(self.root)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertTrue(any("not covered by a valid actions.lock entry" in f["message"]
+                            for f in result["findings"]))
+
+    def test_lockfile_invalid_commit_or_repository_identity_creates_hold(self):
+        self.write_workflow(self.workflow("      - uses: actions/checkout@v4.4.0\n"))
+        self.write_lockfile(commit="sha1-not-a-commit", owner_id=0)
+        result = audit(self.root)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertTrue(any("not covered by a valid actions.lock entry" in f["message"]
+                            for f in result["findings"]))
+
+    def test_malformed_lockfile_is_execution_error(self):
+        self.write_workflow(self.workflow("      - uses: actions/checkout@v4.4.0\n"))
+        (self.workflows / "actions.lock").write_text("version: [bad", encoding="utf-8")
+        result = audit(self.root)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertTrue(result["errors"])
 
     def test_local_composite_and_nested_action_are_scanned(self):
         action = self.root / ".github" / "actions" / "outer"
