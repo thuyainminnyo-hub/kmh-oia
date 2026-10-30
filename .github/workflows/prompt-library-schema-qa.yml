@@ -33,7 +33,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install pinned validator dependency
-        run: python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r requirements-ci.lock
+        run: 'python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r requirements-ci.lock'
 
       - name: Positive path — valid draft fixture must pass
         run: python scripts/validate_prompt_record.py tests/fixtures/prompt-library/valid-draft.example.json
