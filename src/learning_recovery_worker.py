@@ -33,6 +33,7 @@ class LearningRecoveryWorker:
         max_batches: int = 10,
         worker_id: str = "learning-recovery-worker",
         lease_seconds: int = 60,
+        max_attempts: int = 5,
     ) -> None:
         if not isinstance(max_batch_size, int) or isinstance(max_batch_size, bool) or max_batch_size < 1:
             raise ValueError("max_batch_size must be a positive integer")
@@ -43,6 +44,7 @@ class LearningRecoveryWorker:
             ledger=ledger,
             memory=memory,
             proposal_repository=proposal_repository,
+            max_attempts=max_attempts,
         )
         if not isinstance(worker_id, str) or not worker_id.strip():
             raise ValueError("worker_id is required")
