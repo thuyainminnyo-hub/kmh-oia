@@ -340,6 +340,35 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             self.assertIsNone(result.adaptation)
             self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
 
+    def test_proposal_persistence_failure_leaves_memory_event_without_proposal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            decision, runtime, execution = self._execute_composed_runtime(
+                Path(tmp), DeterministicReceiptAdapter(), FailedOutcomeClassifier()
+            )
+            event_count_before = len(runtime.memory.recent(20))
+
+            def fail_proposal_write(*args, **kwargs):
+                raise RuntimeError("simulated SQLite proposal-store outage")
+
+            runtime.proposal_repository.get_or_create = fail_proposal_write
+            with self.assertRaisesRegex(RuntimeError, "simulated SQLite proposal-store outage"):
+                self._capture(runtime, decision, execution)
+
+            # This intentionally records the current cross-store commit boundary:
+            # JSON memory is durable before SQLite proposal persistence is attempted.
+            self.assertEqual(len(runtime.memory.recent(20)), event_count_before + 1)
+            self.assertEqual(
+                len([
+                    item for item in runtime.memory.recent(20)
+                    if item.event_id.startswith("learning:")
+                ]),
+                1,
+            )
+            self.assertEqual(
+                runtime.proposal_repository.health_check(),
+                True,
+            )
+
     def test_classifier_failure_fails_closed_without_learning_write(self):
         with tempfile.TemporaryDirectory() as tmp:
             classifier = FailedOutcomeClassifier()
