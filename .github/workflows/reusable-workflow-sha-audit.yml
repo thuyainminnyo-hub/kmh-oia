@@ -7,6 +7,9 @@ on:
       - "scripts/audit_reusable_workflow_refs.py"
       - "tests/test_reusable_workflow_sha_audit.py"
       - "requirements.txt"
+      - "requirements-ci.lock"
+      - "scripts/verify_python_lock.py"
+      - "tests/test_python_lock.py"
   push:
     branches:
       - main
@@ -27,8 +30,16 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7.0.1
 
+      - name: Set up Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12"
+
       - name: Install pinned CI tooling dependencies
-        run: python -m pip install --disable-pip-version-check -r requirements.txt
+        run: 'python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r requirements-ci.lock'
+
+      - name: Verify Python dependency lock contract
+        run: python scripts/verify_python_lock.py
 
       - name: Audit reusable workflow references
         run: python scripts/audit_reusable_workflow_refs.py --output audit-results/reusable-workflow-audit.json

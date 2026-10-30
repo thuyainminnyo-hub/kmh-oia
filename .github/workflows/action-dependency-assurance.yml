@@ -7,6 +7,9 @@ on:
       - "scripts/audit_action_dependencies.py"
       - "tests/test_action_dependency_audit.py"
       - "requirements.txt"
+      - "requirements-ci.lock"
+      - "scripts/verify_python_lock.py"
+      - "tests/test_python_lock.py"
   push:
     branches: ["main"]
     paths:
@@ -34,7 +37,13 @@ jobs:
           python-version: "3.12"
 
       - name: Install pinned audit dependencies
-        run: python -m pip install --disable-pip-version-check -r requirements.txt
+        run: 'python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r requirements-ci.lock'
+
+      - name: Verify Python dependency lock contract
+        run: python scripts/verify_python_lock.py
+
+      - name: Run Python lock adversarial tests
+        run: python tests/test_python_lock.py
 
       - name: Audit action, composite, and container references
         run: python scripts/audit_action_dependencies.py --output audit-results/action-dependency-audit.json
