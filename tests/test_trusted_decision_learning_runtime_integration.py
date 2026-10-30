@@ -280,6 +280,66 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
             )
             self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
 
+    def test_cross_provider_receipt_substitution_fails_closed_at_learning_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = DeterministicReceiptAdapter()
+            decision, runtime, execution = self._execute_composed_runtime(
+                Path(tmp), adapter, FailedOutcomeClassifier()
+            )
+            original_fetch = adapter.fetch_receipt
+
+            def substituted_provider_receipt(source_record_id, execution_id):
+                receipt = original_fetch(source_record_id, execution_id)
+                return replace(receipt, provider_name="untrusted-provider")
+
+            adapter.fetch_receipt = substituted_provider_receipt
+            event_count_before = len(runtime.memory.recent(20))
+            result = self._capture(runtime, decision, execution)
+            self.assertFalse(result.admitted)
+            self.assertIsNone(result.memory)
+            self.assertIsNone(result.adaptation)
+            self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
+
+    def test_stale_receipt_fails_closed_at_learning_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = DeterministicReceiptAdapter()
+            decision, runtime, execution = self._execute_composed_runtime(
+                Path(tmp), adapter, FailedOutcomeClassifier()
+            )
+            original_fetch = adapter.fetch_receipt
+
+            def stale_receipt(source_record_id, execution_id):
+                receipt = original_fetch(source_record_id, execution_id)
+                return replace(receipt, observed_at="2020-01-01T00:00:00+00:00")
+
+            adapter.fetch_receipt = stale_receipt
+            event_count_before = len(runtime.memory.recent(20))
+            result = self._capture(runtime, decision, execution)
+            self.assertFalse(result.admitted)
+            self.assertIsNone(result.memory)
+            self.assertIsNone(result.adaptation)
+            self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
+
+    def test_receipt_source_record_substitution_fails_closed_at_learning_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter = DeterministicReceiptAdapter()
+            decision, runtime, execution = self._execute_composed_runtime(
+                Path(tmp), adapter, FailedOutcomeClassifier()
+            )
+            original_fetch = adapter.fetch_receipt
+
+            def substituted_record_receipt(source_record_id, execution_id):
+                receipt = original_fetch(source_record_id, execution_id)
+                return replace(receipt, source_record_id="record:substituted")
+
+            adapter.fetch_receipt = substituted_record_receipt
+            event_count_before = len(runtime.memory.recent(20))
+            result = self._capture(runtime, decision, execution)
+            self.assertFalse(result.admitted)
+            self.assertIsNone(result.memory)
+            self.assertIsNone(result.adaptation)
+            self.assertEqual(len(runtime.memory.recent(20)), event_count_before)
+
     def test_classifier_failure_fails_closed_without_learning_write(self):
         with tempfile.TemporaryDirectory() as tmp:
             classifier = FailedOutcomeClassifier()
