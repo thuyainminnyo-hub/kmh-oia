@@ -19,6 +19,8 @@ from src.operating_memory import OperatingMemoryRecord
 
 
 _CHILD_TRANSACTION = r"""
+import hashlib
+import json
 import os
 import sqlite3
 import sys
@@ -26,13 +28,25 @@ import sys
 path, phase = sys.argv[1], sys.argv[2]
 connection = sqlite3.connect(path, timeout=10)
 connection.execute("PRAGMA busy_timeout = 10000")
+payload = {
+    "id": "adapt:learning:crash-event",
+    "source_command_id": "cmd:crash",
+    "pattern": "quality",
+    "problem": "poor outcome",
+    "proposed_change": "review rule",
+    "expected_effect": "improve outcome",
+    "next_experiment": "shadow test",
+    "confidence": 0.8,
+}
+payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+payload_hash = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
 connection.execute(
     "INSERT INTO adaptation_proposals (proposal_id, idempotency_key, payload_hash, payload_json, status) VALUES (?, ?, ?, ?, ?)",
     (
-        "adapt:crash-event",
-        "learning:crash-event",
-        "sha256:crash-payload",
-        '{"id":"adapt:crash-event","source_command_id":"cmd:crash"}',
+        "adapt:learning:crash-event",
+        "adapt:learning:crash-event",
+        payload_hash,
+        payload_json,
         "PROPOSED",
     ),
 )
@@ -126,7 +140,7 @@ class SQLiteProposalProcessCrashRecoveryTests(unittest.TestCase):
 
             stored = repository.get("learning:crash-event")
             self.assertIsNotNone(stored)
-            self.assertEqual(stored["id"], "adapt:crash-event")
+            self.assertEqual(stored["id"], "adapt:learning:crash-event")
             self.assertEqual(stored["status"], "PROPOSED")
             self._assert_database_integrity(path)
 
