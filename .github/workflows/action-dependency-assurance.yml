@@ -42,6 +42,9 @@ jobs:
       - name: Verify Python dependency lock contract
         run: python scripts/verify_python_lock.py
 
+      - name: Run Python lock adversarial tests
+        run: python tests/test_python_lock.py
+
       - name: Audit action, composite, and container references
         run: python scripts/audit_action_dependencies.py --output audit-results/action-dependency-audit.json
 
