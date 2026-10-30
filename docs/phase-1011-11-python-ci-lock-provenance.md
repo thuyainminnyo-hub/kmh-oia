@@ -101,3 +101,43 @@ No reproducibility PASS should be claimed until the new GitHub Actions run compl
 - Implementation: ready for CI validation.
 - CI dependency installation: HOLD until the new reproducibility workflow succeeds and evidence is reviewed.
 - Production release: HOLD; this phase only hardens the CI tooling dependency chain and does not close the project-license, remote-action transitive, deployment-image, or application-runtime release gates.
+
+
+## CI execution evidence — verified 2026-10-30
+
+PR #173 head `8540eff98b2ce3f90ed781c72409327f6324382d` completed all seven PR-triggered workflows successfully:
+
+- KMH OIA Tests — SUCCESS; 507 tests passed.
+- KMH OIA Validation — SUCCESS; tests, repository validation, performance evidence, and deployment evidence bundle passed.
+- Prompt Library Schema QA — SUCCESS.
+- Repository Action Dependency Assurance — SUCCESS.
+- Reusable Workflow SHA Audit — SUCCESS.
+- GitHub Actions Dependency Lockfile Assurance — SUCCESS; the committed Actions lockfile verified.
+- KMH OIA Supply Chain Assurance — SUCCESS.
+
+The clean reconstruction job independently passed:
+- CPython 3.12.15 on Ubuntu x86_64 / glibc 2.39.
+- Downloaded exactly seven wheel files with SHA-256 hash enforcement.
+- Installed from the local wheelhouse with network index access disabled.
+- `pip check` completed successfully.
+- Installed package versions matched all seven lock entries.
+- All seven wheelhouse file digests matched the committed lock.
+- Machine-readable provenance reported `status: PASS`, `errors: []`.
+- Lockfile SHA-256: `7dbc6d22495d5d8e61b3f2c087c2719a2175b286a0e814cd08f96fd2fbb87fbd`.
+
+Evidence:
+- Python lock provenance artifact: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41084484335/artifacts/12989734982
+- Main test workflow: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41084484335
+- Validation and deployment evidence: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41084484534
+- Action dependency audit: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41084484245
+- GitHub Actions lockfile verification: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41084484386
+- Supply-chain SBOM and evidence: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41084484357
+- Prompt schema QA: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41084484247
+- Reusable workflow SHA audit: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41084484379
+
+### Updated governance decision
+
+- Python CI lock and clean reconstruction: PASS for the stated CPython 3.12 / Ubuntu x86_64 target.
+- CI dependency provenance evidence: PASS for the seven locked wheel artifacts.
+- PR #173: Draft and unmerged; code has not been promoted to its base branch.
+- Production release: HOLD for the independent project-license decision, remote GitHub Action bundled dependency coverage, and application deployment/runtime dependency review. This phase does not close those separate release gates.
