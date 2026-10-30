@@ -26,7 +26,7 @@ class ActionDependencyAuditTests(unittest.TestCase):
         return (
             "name: fixture\non:\n  workflow_dispatch:\njobs:\n"
             "  test:\n    runs-on: ubuntu-latest\n"
-            + extra + "    steps:\n" + steps
+            + extra + ("    steps:\n" + steps if steps else "    steps: []\n")
         )
 
     def write_workflow(self, content):
