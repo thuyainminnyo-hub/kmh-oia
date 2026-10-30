@@ -9,7 +9,7 @@
 - Languages: Myanmar + English
 - Prototype version: 1.0.1
 - Repository integration: KMH OIA case-study / isolated creative-learning pilot
-- Status: prototype source and QA plan prepared; CI, physical-device QA, cultural review and deployment are not yet verified.
+- Status: project specification and QA plan committed; interactive prototype source/assets are not included in this PR. Product-specific CI, physical-device QA, cultural review and deployment are not yet verified.
 
 ## Purpose
 
@@ -21,9 +21,8 @@ This pilot is intentionally isolated from the existing Education Business OS ope
 
 - Original Thiri character illustration.
 - Ten outfit concept assets.
-- Outfit selection UI with tap-to-select.
-- Reset action.
-- User-triggered PNG export.
+- Interactive local prototype artifact was generated separately during the working session (not committed in this PR).
+- Intended UI functions: outfit selection, reset and user-triggered PNG export; these have not been verified from repository source.
 - Local-only prototype; no user accounts, analytics or personal-data collection.
 - Playwright test plan and axe-core accessibility scan configuration.
 - Firebase Hosting configuration for a future preview channel.
@@ -115,6 +114,6 @@ Do not infer CI PASS from a workflow file or test suite being committed. Record 
 
 ## Decision
 
-**GO for isolated prototype iteration. HOLD for public/production release.**
+**GO for isolated specification and prototype iteration. HOLD for merging as a verified working product or public/production release.**
 
 This package is a prototype and implementation plan. It is not a verified classroom product, certified toy, live Firebase deployment, or commercially approved product.
