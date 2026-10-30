@@ -364,9 +364,13 @@ class TrustedDecisionLearningRuntimeIntegrationTests(unittest.TestCase):
                 ]),
                 1,
             )
-            self.assertEqual(
-                runtime.proposal_repository.health_check(),
-                True,
+            learning_events = [
+                item for item in runtime.memory.recent(20)
+                if item.event_id.startswith("learning:")
+            ]
+            self.assertEqual(len(learning_events), 1)
+            self.assertIsNone(
+                runtime.proposal_repository.get(f"adapt:{learning_events[0].event_id}")
             )
 
     def test_classifier_failure_fails_closed_without_learning_write(self):
