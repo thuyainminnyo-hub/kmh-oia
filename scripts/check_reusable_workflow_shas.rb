@@ -3,10 +3,10 @@
 
 require "yaml"
 
-SHA40 = /\\A[0-9a-fA-F]{40}\\z/
+SHA40 = /\A[0-9a-fA-F]{40}\z/
 
 def remote_reusable_workflow?(reference)
-  reference.match?(%r{\\A[^/\\s]+/[^/\\s]+/\\.github/workflows/[^@\\s]+@[^@\\s]+\\z})
+  reference.match?(%r{\A[^/\s]+/[^/\s]+/\.github/workflows/[^@\s]+@[^@\s]+\z})
 end
 
 def validate_workflow(path)
