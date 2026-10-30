@@ -27,9 +27,7 @@ path, phase = sys.argv[1], sys.argv[2]
 connection = sqlite3.connect(path, timeout=10)
 connection.execute("PRAGMA busy_timeout = 10000")
 connection.execute(
-    """INSERT INTO adaptation_proposals
-       (proposal_id, idempotency_key, payload_hash, payload_json, status)
-       VALUES (?, ?, ?, ?, ?)""",
+    "INSERT INTO adaptation_proposals (proposal_id, idempotency_key, payload_hash, payload_json, status) VALUES (?, ?, ?, ?, ?)",
     (
         "adapt:crash-event",
         "learning:crash-event",
