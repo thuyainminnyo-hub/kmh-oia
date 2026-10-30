@@ -12,7 +12,7 @@ def audit(sbom_path, inventory_path):
     for name, version in packages:
         entry = entries.get((name, version))
         if name == '.':
-            project = entry.get('review_status', 'OWNER_DECISION_REQUIRED') if entry else 'OWNER_DECISION_REQUIRED'
+            project = entry.get('review_status', 'OWNER_DECISION_REQUIRED') if entry else 'NOT_FOUND'
         elif entry and entry.get('review_status') == 'VERIFIED' and entry.get('license') not in ('', 'NOASSERTION', 'UNDECLARED') and str(entry.get('evidence_url', '')).startswith('https://'):
             verified.append({'name': name, 'version': version, 'license': entry['license']})
         else:
