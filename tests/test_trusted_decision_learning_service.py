@@ -11,6 +11,7 @@ from src.evidence_admission_gate import EvidenceAdmissionResult
 from src.live_runtime_bridge import ExecutionRecord
 from src.operating_loop_record import OperatingLoopRecord
 from src.operating_memory import OperatingMemory
+from src.learning_ledger import SQLiteLearningLedger
 from src.trusted_decision_learning_service import (
     TrustedDecisionLearningService,
     TrustedOutcomeClassification,
@@ -435,6 +436,45 @@ class TrustedDecisionLearningServiceTests(unittest.TestCase):
         self.assertFalse(result.admitted)
         self.assertIsNone(result.memory)
         self.assertEqual(self.memory.recent(), ())
+
+
+    def test_ledger_mode_commits_event_and_proposal_before_projection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            memory_path = root / "memory.json"
+            proposal_repository = SQLiteAdaptationProposalRepository(
+                str(root / "proposals.sqlite3")
+            )
+            ledger = SQLiteLearningLedger(str(root / "learning.sqlite3"))
+            self.memory = OperatingMemory(path=memory_path)
+            self.service = TrustedDecisionLearningService(
+                classifier=self.classifier,
+                receipt_verifier=self.verifier,
+                memory=self.memory,
+                adaptation_proposal_repository=proposal_repository,
+                learning_ledger=ledger,
+            )
+
+            result = self.capture()
+            self.assertTrue(result.admitted)
+            self.assertEqual(result.adaptation.status, "PROPOSED")
+            self.assertEqual(ledger.get_event(result.memory.event_id)["command_id"], "cmd:1")
+            self.assertEqual(ledger.pending_outbox(), ())
+            self.assertEqual(
+                proposal_repository.get(result.adaptation.id)["status"], "PROPOSED"
+            )
+            self.assertEqual(len(self.memory.recent(10)), 1)
+
+    def test_ledger_mode_requires_durable_proposal_repository(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = SQLiteLearningLedger(str(Path(tmp) / "learning.sqlite3"))
+            with self.assertRaisesRegex(ValueError, "ledger mode requires"):
+                TrustedDecisionLearningService(
+                    classifier=self.classifier,
+                    receipt_verifier=self.verifier,
+                    memory=self.memory,
+                    learning_ledger=ledger,
+                )
 
 
 if __name__ == "__main__":

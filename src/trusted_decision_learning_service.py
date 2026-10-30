@@ -17,6 +17,8 @@ from src.decision_queue import DecisionItem
 from src.evidence_admission_gate import EvidenceAdmissionResult
 from src.live_runtime_bridge import ExecutionRecord
 from src.operating_memory import OperatingMemory, OperatingMemoryRecord
+from src.learning_ledger import SQLiteLearningLedger
+from src.learning_outbox_projector import LearningOutboxProjector
 from src.trusted_source_receipt import (
     ReceiptVerificationResult,
     TrustedSourceReceiptVerifier,
@@ -68,12 +70,17 @@ class TrustedDecisionLearningService:
         memory: OperatingMemory,
         adaptation_engine: AdaptationEngine | None = None,
         adaptation_proposal_repository: SQLiteAdaptationProposalRepository | None = None,
+        learning_ledger: SQLiteLearningLedger | None = None,
     ) -> None:
         if adaptation_engine is not None and adaptation_proposal_repository is not None:
             raise ValueError("provide adaptation_engine or adaptation_proposal_repository, not both")
         self._classifier = classifier
         self._receipt_verifier = receipt_verifier
+        if learning_ledger is not None and (adaptation_engine is not None or adaptation_proposal_repository is None):
+            raise ValueError("ledger mode requires adaptation_proposal_repository and no custom adaptation_engine")
         self._memory = memory
+        self._learning_ledger = learning_ledger
+        self._adaptation_proposal_repository = adaptation_proposal_repository
         self._adaptation_engine = adaptation_engine or AdaptationEngine(adaptation_proposal_repository)
 
     def capture_execution(
@@ -257,37 +264,78 @@ class TrustedDecisionLearningService:
             quality=quality,
             reason=reason,
         )
-        memory = self._memory.record(
-            command_id=execution.command_id,
-            wanted=decision.recommended_action,
-            did=execution.response or "Runtime execution completed.",
-            actual=receipt.raw_observation,
-            verified=(
+        memory_fields = {
+            "command_id": execution.command_id,
+            "wanted": decision.recommended_action,
+            "did": execution.response or "Runtime execution completed.",
+            "actual": receipt.raw_observation,
+            "verified": (
                 f"Receipt independently verified by {receipt.provider_name} using "
-                f"{receipt.verification_method}; evidence admitted under "
-                f"{policy_version.strip()}."
+                f"{receipt.verification_method}; evidence admitted under {policy_version.strip()}."
             ),
-            decision=f"Decision {decision.id}: {quality}",
-            learned=f"Trusted outcome classification admitted: {reason}",
-            changed=(
+            "decision": f"Decision {decision.id}: {quality}",
+            "learned": f"Trusted outcome classification admitted: {reason}",
+            "changed": (
                 "Create a governed adaptation proposal for review."
                 if quality == "POOR"
                 else "Retain the current rule; no adaptation proposal is required."
             ),
-            next_command=next_command.strip(),
-            confidence=float(confidence),
-            event_id=event_id,
-        )
+            "next_command": next_command.strip(),
+            "confidence": float(confidence),
+        }
         adaptation = None
-        if quality == "POOR":
-            adaptation = self._adaptation_engine.propose(
-                memory,
-                pattern=f"decision:{decision.id}",
-                problem=reason,
-                proposed_change=f"Review the decision rule for {decision.signal_kind}.",
-                expected_effect=f"Improve the {decision.signal_kind} outcome under existing guardrails.",
-                next_experiment=next_command.strip(),
+        if self._learning_ledger is not None:
+            proposal_id = f"adapt:{event_id}" if quality == "POOR" else None
+            proposal_payload = None
+            if proposal_id is not None:
+                proposal_payload = {
+                    "source_command_id": execution.command_id,
+                    "pattern": f"decision:{decision.id}",
+                    "problem": reason,
+                    "proposed_change": f"Review the decision rule for {decision.signal_kind}.",
+                    "expected_effect": f"Improve the {decision.signal_kind} outcome under existing guardrails.",
+                    "next_experiment": next_command.strip(),
+                    "confidence": float(confidence),
+                    "status": "PROPOSED",
+                }
+            persisted = self._learning_ledger.record_learning(
+                event_id=event_id,
+                event=memory_fields,
+                proposal_id=proposal_id,
+                proposal=proposal_payload,
             )
+            if persisted["outbox_state"] == "PENDING":
+                projector = LearningOutboxProjector(
+                    ledger=self._learning_ledger,
+                    memory=self._memory,
+                    proposal_repository=self._adaptation_proposal_repository,
+                )
+                projector.run_once()
+            bundle = self._learning_ledger.get_projection_bundle(event_id)
+            if bundle["state"] != "PROJECTED":
+                raise RuntimeError("learning event is durable; projection remains pending for retry")
+            memory = next(
+                (item for item in self._memory.recent(1000) if item.event_id == event_id),
+                None,
+            )
+            if memory is None:
+                raise RuntimeError("projected learning memory record could not be reloaded")
+            if proposal_id is not None:
+                canonical = self._adaptation_proposal_repository.get(proposal_id)
+                if canonical is None:
+                    raise RuntimeError("projected adaptation proposal could not be reloaded")
+                adaptation = AdaptationProposal(**canonical)
+        else:
+            memory = self._memory.record(**memory_fields, event_id=event_id)
+            if quality == "POOR":
+                adaptation = self._adaptation_engine.propose(
+                    memory,
+                    pattern=f"decision:{decision.id}",
+                    problem=reason,
+                    proposed_change=f"Review the decision rule for {decision.signal_kind}.",
+                    expected_effect=f"Improve the {decision.signal_kind} outcome under existing guardrails.",
+                    next_experiment=next_command.strip(),
+                )
         return TrustedDecisionLearningResult(
             admitted=True,
             decision_id=decision.id,
