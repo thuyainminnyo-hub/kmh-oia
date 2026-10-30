@@ -55,6 +55,19 @@ class ImageIntegrityTests(unittest.TestCase):
         self.assertFalse(result.verified)
         self.assertIn("integrity verification failed", result.reason)
 
+    def test_rejects_png_exceeding_chunk_count_limit(self):
+        from src.image_integrity import _MAX_CHUNK_COUNT
+        header = b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", ihdr())
+        ancillary = chunk(b"tEXt", b"")
+        # All chunks are individually valid and remain below the 32 MiB file cap.
+        raw = header + ancillary * (_MAX_CHUNK_COUNT - 2) + chunk(
+            b"IDAT", zlib.compress(b"\\x00\\x00\\x00\\x00\\xff")
+        ) + chunk(b"IEND", b"")
+        self.assertLess(len(raw), 32 * 1024 * 1024)
+        result = self.verify_bytes("too-many-chunks.png", raw)
+        self.assertFalse(result.verified)
+        self.assertIn("chunk count exceeds safety limit", result.reason)
+
     def test_rejects_png_exceeding_file_size_limit_before_read(self):
         from src.image_integrity import _MAX_FILE_BYTES
         path = self.root / "oversized.png"
