@@ -35,7 +35,7 @@ service cloud.firestore {
       allow read: if isAdmin()
         || (signedIn() && resource.data.studentId == request.auth.uid)
         || (isInstructor() && resource.data.instructorId == request.auth.uid);
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if false;
     }
     match /payments/{id} {
       allow read: if isAdmin()
@@ -47,37 +47,15 @@ service cloud.firestore {
       allow read: if isAdmin()
         || (signedIn() && resource.data.studentId == request.auth.uid)
         || (isInstructor() && resource.data.instructorId == request.auth.uid);
-      allow create: if isAdmin() || (isInstructor()
-        && request.resource.data.instructorId == request.auth.uid
-        && assignedEnrollment(request.resource.data.enrollmentId, request.resource.data.studentId, request.resource.data.batchId)
-        && request.resource.data.markedBy == request.auth.uid
-        && request.resource.data.status in ['present','absent','late','excused']
-        && request.resource.data.sessionNo is int
-        && request.resource.data.sessionNo >= 1
-        && request.resource.data.sessionNo <= 24);
-      allow update: if isAdmin() || (isInstructor()
-        && resource.data.instructorId == request.auth.uid
-        && request.resource.data.instructorId == request.auth.uid
-        && assignedEnrollment(request.resource.data.enrollmentId, request.resource.data.studentId, request.resource.data.batchId)
-        && request.resource.data.markedBy == request.auth.uid
-        && request.resource.data.status in ['present','absent','late','excused']
-        && request.resource.data.sessionNo is int
-        && request.resource.data.sessionNo >= 1
-        && request.resource.data.sessionNo <= 24);
-      allow delete: if isAdmin();
+      // All mutations go through audited callable Cloud Functions.
+      allow create, update, delete: if false;
     }
     match /assessments/{id} {
       allow read: if isAdmin()
         || (signedIn() && resource.data.studentId == request.auth.uid)
         || (isInstructor() && resource.data.instructorId == request.auth.uid);
-      allow create, update: if isAdmin() || (isInstructor()
-        && request.resource.data.instructorId == request.auth.uid
-        && assignedEnrollment(request.resource.data.enrollmentId, request.resource.data.studentId, request.resource.data.batchId)
-        && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.score is number
-        && request.resource.data.score >= 0
-        && request.resource.data.score <= 100);
-      allow delete: if isAdmin();
+      // All mutations go through audited callable Cloud Functions.
+      allow create, update, delete: if false;
     }
     match /outcomes/{id} {
       allow read: if isAdmin()
