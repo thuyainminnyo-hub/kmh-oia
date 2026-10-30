@@ -217,3 +217,79 @@ export const setUserRole = onCall(async (request) => {
   });
   return { uid, role, message: "Role updated. User must refresh their ID token." };
 });
+
+
+export const createCourseBatch = onCall(async (request) => {
+  const actor = requireRole(request, ["admin"]);
+  const courseId = requiredString(request.data?.courseId, "courseId", 80);
+  const courseName = requiredString(request.data?.courseName, "courseName", 120);
+  const batchId = requiredString(request.data?.batchId, "batchId", 80);
+  const startDate = requiredString(request.data?.startDate, "startDate", 10);
+  const fee = request.data?.fee;
+  const currency = request.data?.currency ?? "MMK";
+  const schedule = request.data?.schedule;
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate)) {
+    throw new HttpsError("invalid-argument", "startDate must use YYYY-MM-DD.");
+  }
+  if (!Number.isInteger(fee) || (fee as number) < 0 || (fee as number) > 100000000) {
+    throw new HttpsError("invalid-argument", "fee must be a non-negative integer.");
+  }
+  if (currency !== "MMK") throw new HttpsError("invalid-argument", "Pilot currently supports MMK only.");
+  if (!Array.isArray(schedule) || schedule.length === 0 || schedule.length > 7 ||
+      schedule.some((day) => typeof day !== "string" || !["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].includes(day))) {
+    throw new HttpsError("invalid-argument", "schedule must contain valid weekday names.");
+  }
+  const courseRef = db.collection("courses").doc(courseId);
+  const batchRef = db.collection("batches").doc(batchId);
+  await db.runTransaction(async (tx) => {
+    const existing = await tx.get(batchRef);
+    if (existing.exists) throw new HttpsError("already-exists", "Batch ID already exists.");
+    tx.set(courseRef, {
+      name: courseName, updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid
+    }, { merge: true });
+    tx.create(batchRef, {
+      courseId, name: courseName, startDate, fee, currency,
+      schedule, status: "planned", createdAt: FieldValue.serverTimestamp(),
+      createdBy: actor.uid
+    });
+    tx.create(db.collection("auditLogs").doc(), {
+      action: "course.batch.created", actorUid: actor.uid, targetId: batchId,
+      createdAt: FieldValue.serverTimestamp()
+    });
+  });
+  return { courseId, batchId, status: "planned" };
+});
+
+export const recordOutcome = onCall(async (request) => {
+  const actor = requireRole(request, ["admin", "instructor"]);
+  const enrollmentId = requiredString(request.data?.enrollmentId, "enrollmentId");
+  const outcome = request.data?.outcome;
+  const evidence = request.data?.evidence ?? "";
+  if (!["completed", "not_completed", "withdrawn"].includes(String(outcome))) {
+    throw new HttpsError("invalid-argument", "Unsupported outcome.");
+  }
+  if (typeof evidence !== "string" || evidence.length > 1000) {
+    throw new HttpsError("invalid-argument", "Evidence note must be at most 1000 characters.");
+  }
+  const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
+  const outcomeRef = db.collection("outcomes").doc(enrollmentId);
+  await db.runTransaction(async (tx) => {
+    const enrollment = await tx.get(enrollmentRef);
+    if (!enrollment.exists) throw new HttpsError("not-found", "Enrollment not found.");
+    const data = enrollment.data()!;
+    if (actor.role === "instructor" && data.instructorId !== actor.uid) {
+      throw new HttpsError("permission-denied", "Instructor is not assigned to this enrollment.");
+    }
+    tx.set(outcomeRef, {
+      enrollmentId, studentId: data.studentId, batchId: data.batchId,
+      instructorId: data.instructorId ?? actor.uid, outcome, evidence,
+      recordedBy: actor.uid, recordedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    tx.update(enrollmentRef, { status: outcome === "completed" ? "completed" : outcome });
+    tx.create(db.collection("auditLogs").doc(), {
+      action: "student.outcome.recorded", actorUid: actor.uid, targetId: enrollmentId,
+      outcome, createdAt: FieldValue.serverTimestamp()
+    });
+  });
+  return { enrollmentId, outcome };
+});
