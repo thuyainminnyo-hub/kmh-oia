@@ -1,0 +1,6 @@
+# KMH OIA Python application source currently imports only Python standard-library
+# modules and first-party src/ modules. No third-party runtime distributions are
+# declared at this checkpoint.
+#
+# If a third-party import is introduced under src/, add an exact name==version
+# pin here. scripts/audit_python_dependencies.py enforces this static contract.

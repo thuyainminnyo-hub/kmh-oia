@@ -33,6 +33,9 @@ jobs:
           git archive --format=tar.gz --output=kmh-oia-source.tar.gz "$GITHUB_SHA"
           test -s kmh-oia-source.tar.gz
 
+      - name: Audit Python runtime dependency imports
+        run: python scripts/audit_python_dependencies.py --output runtime-dependency-evidence.json
+
       - name: Generate SPDX JSON SBOM with Syft
         uses: anchore/sbom-action@v0.24.0 # v0.24.0
         with:
@@ -41,6 +44,13 @@ jobs:
           output-file: sbom.spdx.json
           upload-artifact: false
           upload-release-assets: false
+
+      - name: Validate reviewed package license evidence
+        run: |
+          python scripts/validate_license_inventory.py \
+            --sbom sbom.spdx.json \
+            --inventory licenses/dependency-license-review.json \
+            --output license-review-evidence.json
 
       - name: Validate SPDX document and record evidence
         shell: bash
@@ -163,6 +173,8 @@ jobs:
             sbom.spdx.json
             kmh-oia-source.tar.gz
             supply-chain-evidence.json
+            runtime-dependency-evidence.json
+            license-review-evidence.json
           if-no-files-found: error
           retention-days: 14
 
