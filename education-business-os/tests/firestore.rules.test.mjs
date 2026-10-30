@@ -18,7 +18,7 @@ before(async () => {
       studentId: "student-a", instructorId: "teacher-a", batchId: "APT-FLUTTER-B5", status: "active"
     });
     await setDoc(doc(db, "enrollments/enr-b"), {
-      studentId: "student-b", instructorId: "teacher-a", batchId: "APT-FLUTTER-B5", status: "active"
+      studentId: "student-b", instructorId: "teacher-b", batchId: "APT-FLUTTER-B5", status: "active"
     });
     await setDoc(doc(db, "payments/pay-a"), { studentId: "student-a", instructorId: "teacher-a", status: "pending" });
   });
@@ -65,5 +65,23 @@ test("instructor cannot bypass audited attendance function", async () => {
   await assertFails(setDoc(doc(db, "attendance/forged"), {
     enrollmentId: "enr-a", studentId: "student-a", instructorId: "teacher-a",
     batchId: "APT-FLUTTER-B5", sessionNo: 1, status: "present", markedBy: "teacher-a"
+  }));
+});
+
+
+test("instructor can read an enrollment assigned to them", async () => {
+  const db = env.authenticatedContext("teacher-a", { role: "instructor" }).firestore();
+  await assertSucceeds(getDoc(doc(db, "enrollments/enr-a")));
+});
+
+test("instructor cannot read an enrollment assigned to another instructor", async () => {
+  const db = env.authenticatedContext("teacher-a", { role: "instructor" }).firestore();
+  await assertFails(getDoc(doc(db, "enrollments/enr-b")));
+});
+
+test("admin cannot write outcomes directly outside audited callable functions", async () => {
+  const db = env.authenticatedContext("admin-a", { role: "admin" }).firestore();
+  await assertFails(setDoc(doc(db, "outcomes/forged"), {
+    enrollmentId: "enr-a", studentId: "student-a", outcome: "completed"
   }));
 });
