@@ -228,7 +228,7 @@ export const createCourseBatch = onCall(async (request) => {
   const fee = request.data?.fee;
   const currency = request.data?.currency ?? "MMK";
   const schedule = request.data?.schedule;
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
     throw new HttpsError("invalid-argument", "startDate must use YYYY-MM-DD.");
   }
   if (!Number.isInteger(fee) || (fee as number) < 0 || (fee as number) > 100000000) {
