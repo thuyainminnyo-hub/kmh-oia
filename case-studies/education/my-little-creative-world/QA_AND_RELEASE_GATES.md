@@ -45,3 +45,18 @@ Do not infer CI PASS from a workflow file or test suite being committed. Record 
 **GO for isolated prototype iteration. HOLD for public/production release.**
 
 This package is a prototype and implementation plan. It is not a verified classroom product, certified toy, live Firebase deployment, or commercially approved product.
+
+
+## Repository integration boundary (verified for PR #175)
+
+The current PR commits project documentation only. The repository directory does not yet contain the runnable web app, package manifest, Playwright configuration, test files, or image assets. Therefore a product-specific Playwright workflow must not be added as if it can run against committed product code.
+
+### Required before enabling product CI
+
+1. Commit the runnable app and its referenced assets under a dedicated app directory.
+2. Add a lockfile and Playwright test suite targeting that directory.
+3. Add a workflow scoped to changes in that app directory and its workflow/test files.
+4. Run the workflow and retain HTML report, screenshots and traces as artifacts.
+5. Record the exact workflow run URL, head SHA, job conclusions and artifact links.
+
+Until those prerequisites exist, the KMH OIA repository workflows validate the KMH OIA repository only; they do not prove the MLCW user interface works.
