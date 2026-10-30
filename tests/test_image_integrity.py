@@ -63,7 +63,7 @@ class ImageIntegrityTests(unittest.TestCase):
         ancillary = chunk(b"raND", b"")
         raw = (_PNG_SIGNATURE + chunk(b"IHDR", ihdr())
                + ancillary * _MAX_PNG_CHUNKS
-               + chunk(b"IDAT", zlib.compress(b"\\x00\\x00\\x00\\x00\\xff"))
+               + chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00\xff"))
                + chunk(b"IEND", b""))
         result = self.verify_bytes("too-many-chunks.png", raw)
         self.assertFalse(result.verified)
