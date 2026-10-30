@@ -74,6 +74,35 @@ jobs:
               if not isinstance(package, dict) or not package.get("name") or not package.get("SPDXID"):
                   raise SystemExit(f"Invalid SPDX package entry at index {index}")
 
+          manifest_names = {
+              "requirements.txt", "pyproject.toml", "poetry.lock", "uv.lock",
+              "Pipfile", "Pipfile.lock", "setup.py", "setup.cfg",
+              "package.json", "package-lock.json", "npm-shrinkwrap.json",
+              "pnpm-lock.yaml", "yarn.lock", "go.mod", "go.sum",
+              "Cargo.toml", "Cargo.lock", "pom.xml", "build.gradle",
+              "build.gradle.kts", "Gemfile", "Gemfile.lock",
+          }
+          dependency_manifests = sorted(
+              str(path) for path in Path(".").rglob("*")
+              if path.is_file() and path.name in manifest_names
+              and ".git" not in path.parts
+          )
+          license_noassertion_count = sum(
+              package.get("licenseDeclared") == "NOASSERTION"
+              or package.get("licenseConcluded") == "NOASSERTION"
+              for package in sbom["packages"]
+          )
+          review_findings = []
+          if not dependency_manifests:
+              review_findings.append(
+                  "No recognized dependency manifest or lockfile was found; runtime dependency coverage is unverified."
+              )
+          if license_noassertion_count:
+              review_findings.append(
+                  f"{license_noassertion_count} package entries have NOASSERTION for declared or concluded license."
+              )
+          review_status = "REVIEW_REQUIRED" if review_findings else "REVIEW_READY"
+
           def sha256(path):
               digest = hashlib.sha256()
               with path.open("rb") as stream:
@@ -93,6 +122,16 @@ jobs:
                   "format": sbom["spdxVersion"],
                   "sha256": sha256(sbom_path),
                   "package_count": len(sbom["packages"]),
+                  "unique_name_version_count": len({
+                      (package.get("name"), package.get("versionInfo"))
+                      for package in sbom["packages"]
+                  }),
+                  "license_noassertion_count": license_noassertion_count,
+              },
+              "dependency_coverage": {
+                  "recognized_manifests": dependency_manifests,
+                  "review_status": review_status,
+                  "review_findings": review_findings,
               },
               "source_snapshot": {
                   "path": str(source_path),
@@ -108,7 +147,10 @@ jobs:
           Path("supply-chain-evidence.json").write_text(
               json.dumps(evidence, indent=2) + "\n", encoding="utf-8"
           )
-          print(f"SPDX validation: PASS; packages={len(sbom['packages'])}")
+          print(f"SPDX structural validation: PASS; packages={len(sbom['packages'])}")
+          print(f"Dependency/license review status: {review_status}")
+          for finding in review_findings:
+              print(f"REVIEW REQUIRED: {finding}")
           print(f"SBOM SHA-256: {evidence['sbom']['sha256']}")
           print(f"Source SHA-256: {evidence['source_snapshot']['sha256']}")
           PY
