@@ -1,22 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: npm
-    directory: "/case-studies/education/my-little-creative-world"
-    schedule:
-      interval: weekly
-      day: monday
-      time: "04:00"
-      timezone: "Etc/UTC"
-    open-pull-requests-limit: 5
-    groups:
-      npm-minor-and-patch:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types:
-          - minor
-          - patch
-
+  # Keep workflow actions maintained while the MLCW app manifest is not yet committed.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
@@ -25,3 +9,6 @@ updates:
       time: "04:15"
       timezone: "Etc/UTC"
     open-pull-requests-limit: 5
+
+  # Add the npm ecosystem entry only after package.json and package-lock.json
+  # are committed under /case-studies/education/my-little-creative-world.
