@@ -16,6 +16,43 @@ jobs:
       - run: python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r requirements-ci.lock
       - run: python -m unittest discover -s tests -v
 
+  dependency-reproducibility:
+    name: Verify clean hash-locked dependency reconstruction
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Validate lock and CI consumers
+        run: python scripts/verify_python_lock.py
+      - name: Create isolated installer environment
+        run: python -m venv .venv-lock
+      - name: Download only hash-verified wheels
+        run: |
+          .venv-lock/bin/python -m pip download --disable-pip-version-check \
+            --require-hashes --only-binary=:all: \
+            -r requirements-ci.lock --dest wheelhouse
+      - name: Reinstall offline from the verified wheelhouse
+        run: |
+          .venv-lock/bin/python -m pip install --disable-pip-version-check \
+            --no-index --find-links wheelhouse \
+            --require-hashes --only-binary=:all: \
+            -r requirements-ci.lock
+      - name: Verify dependency consistency and installed versions
+        run: |
+          .venv-lock/bin/python -m pip check
+          .venv-lock/bin/python scripts/verify_python_lock.py \
+            --verify-installed --wheelhouse wheelhouse \
+            --evidence-out python-lock-provenance.json
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: kmh-oia-python-lock-provenance
+          path: python-lock-provenance.json
+          if-no-files-found: error
+          retention-days: 30
+
   performance-baseline:
     runs-on: ubuntu-latest
     steps:
