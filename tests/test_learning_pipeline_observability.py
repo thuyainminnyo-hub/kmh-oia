@@ -1,4 +1,5 @@
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -58,7 +59,7 @@ class LearningPipelineObservabilityTests(unittest.TestCase):
                 "UPDATE learning_outbox SET lease_until = 1 WHERE event_id = ?",
                 (expired[0]["event_id"],),
             )
-        snapshot = self.observer.snapshot(now_epoch=2)
+        snapshot = self.observer.snapshot(now_epoch=time.time() + 2)
         self.assertEqual(snapshot.total_events, 4)
         self.assertEqual(snapshot.pending_events, 2)
         self.assertEqual(snapshot.projected_events, 1)
