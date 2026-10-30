@@ -25,17 +25,22 @@ class LearningOutboxProjector:
         self.proposal_repository = proposal_repository
 
     def run_once(self, limit: int = 100) -> ProjectionBatchResult:
-        pending = self.ledger.pending_outbox(limit)
+        return self._project(self.ledger.pending_outbox(limit), claim_aware=False)
+
+    def run_claimed(self, claimed: tuple[dict[str, Any], ...]) -> ProjectionBatchResult:
+        return self._project(claimed, claim_aware=True)
+
+    def _project(self, items: tuple[dict[str, Any], ...], *, claim_aware: bool) -> ProjectionBatchResult:
         projected = failed = 0
-        for item in pending:
+        for item in items:
             event_id = item["event_id"]
+            claim_token = item.get("claim_token") if claim_aware else None
             try:
                 bundle = self.ledger.get_projection_bundle(event_id)
                 if bundle["state"] != "PENDING":
                     continue
                 if bundle["event_id"] != event_id:
                     raise ValueError("outbox event identity mismatch")
-
                 event = bundle["event"]
                 memory_fields = {
                     name: event[name]
@@ -49,7 +54,6 @@ class LearningOutboxProjector:
                 record = self.memory.record(**memory_fields, event_id=event_id)
                 if record.event_id != event_id:
                     raise ValueError("memory projection returned a different event identity")
-
                 proposal = bundle["proposal"]
                 if proposal is not None:
                     proposal_payload = dict(proposal)
@@ -59,21 +63,23 @@ class LearningOutboxProjector:
                     )
                     if canonical.get("id") != bundle["proposal_id"]:
                         raise ValueError("proposal projection returned a different identity")
-
-                # Only acknowledge after every configured projection succeeded.
-                self.ledger.mark_projected(event_id)
+                self.ledger.mark_projected(event_id, claim_token=claim_token)
                 projected += 1
-            except Exception as exc:
+            except Exception:
                 failed += 1
-                # Keep error text bounded; do not include payloads or secrets.
                 try:
-                    self.ledger.record_projection_failure(
-                        event_id, f"{type(exc).__name__}: projection failed"
-                    )
+                    if claim_aware and claim_token:
+                        self.ledger.record_projection_failure(
+                            event_id, "ProjectionError: projection failed",
+                            claim_token=claim_token,
+                        )
+                        self.ledger.release_claim(event_id, claim_token=claim_token)
+                    else:
+                        self.ledger.record_projection_failure(
+                            event_id, "ProjectionError: projection failed"
+                        )
                 except Exception:
-                    # A failed failure-record must not hide the original failure
-                    # or falsely acknowledge the outbox item.
                     pass
         return ProjectionBatchResult(
-            scanned=len(pending), projected=projected, failed=failed
+            scanned=len(items), projected=projected, failed=failed
         )
