@@ -60,3 +60,22 @@ The current PR commits project documentation only. The repository directory does
 5. Record the exact workflow run URL, head SHA, job conclusions and artifact links.
 
 Until those prerequisites exist, the KMH OIA repository workflows validate the KMH OIA repository only; they do not prove the MLCW user interface works.
+
+
+## Dependency automation readiness — 2026-10-31
+
+- `.github/dependabot.yml` is committed on this PR branch, but Dependabot version-update monitoring starts only after the configuration is present on the repository default branch.
+- GitHub Actions dependencies are configured for weekly checks at the repository root.
+- The npm ecosystem entry is intentionally deferred because this repository branch does not yet contain the MLCW `package.json` or `package-lock.json`.
+- Add the npm entry only after the manifest and a generated, committed lockfile are present in `/case-studies/education/my-little-creative-world`.
+- Do not claim Dependabot is active from a PR-branch-only configuration.
+
+Source: https://docs.github.com/en/code-security/concepts/supply-chain-security/about-the-dependabot-yml-file
+
+## Current PR checkpoint — 2026-10-31
+
+- PR #175 remains OPEN / DRAFT.
+- Current branch head at this checkpoint: `c0d91640c24956947de5be3b1d323b452e2c25f8`.
+- The Dependabot config correction was committed and fetched back for content verification.
+- No workflow run was returned for that exact commit at the time of this checkpoint; do not infer a CI result.
+- Product app integration, npm lockfile and product E2E remain pending/not run.
