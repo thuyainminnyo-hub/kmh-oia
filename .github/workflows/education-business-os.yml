@@ -21,12 +21,22 @@ jobs:
         working-directory: education-business-os/functions
         run: |
           npm install
+          npm audit --json > "$GITHUB_WORKSPACE/npm-audit-functions.json" || true
           npm run build
       - name: Build Web
         working-directory: education-business-os/web
         run: |
           npm install
+          npm audit --json > "$GITHUB_WORKSPACE/npm-audit-web.json" || true
           npm run build
+      - name: Upload dependency audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: education-business-os-npm-audit
+          path: npm-audit-*.json
+          if-no-files-found: warn
+          retention-days: 14
   firestore-rules:
     runs-on: ubuntu-latest
     steps:
@@ -40,7 +50,17 @@ jobs:
           java-version: "21"
       - name: Install rules test dependencies
         working-directory: education-business-os/tests
-        run: npm install
+        run: |
+          npm install
+          npm audit --json > "$GITHUB_WORKSPACE/npm-audit-tests.json" || true
+      - name: Upload rules test dependency audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: education-business-os-rules-audit
+          path: npm-audit-tests.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Run Firestore rules tests in emulator
         working-directory: education-business-os
         run: |
