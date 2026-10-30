@@ -31,6 +31,8 @@ class LearningRecoveryWorker:
         proposal_repository: Any,
         max_batch_size: int = 100,
         max_batches: int = 10,
+        worker_id: str = "learning-recovery-worker",
+        lease_seconds: int = 60,
     ) -> None:
         if not isinstance(max_batch_size, int) or isinstance(max_batch_size, bool) or max_batch_size < 1:
             raise ValueError("max_batch_size must be a positive integer")
@@ -42,16 +44,26 @@ class LearningRecoveryWorker:
             memory=memory,
             proposal_repository=proposal_repository,
         )
+        if not isinstance(worker_id, str) or not worker_id.strip():
+            raise ValueError("worker_id is required")
+        if not isinstance(lease_seconds, int) or isinstance(lease_seconds, bool) or lease_seconds < 1:
+            raise ValueError("lease_seconds must be a positive integer")
         self.max_batch_size = max_batch_size
         self.max_batches = max_batches
+        self.worker_id = worker_id.strip()
+        self.lease_seconds = lease_seconds
 
     def run_once(self) -> RecoveryRun:
         scanned = projected = failed = 0
         for _ in range(self.max_batches):
-            pending = self.ledger.pending_outbox(self.max_batch_size)
-            if not pending:
+            claimed = self.ledger.claim_pending(
+                worker_id=self.worker_id,
+                limit=self.max_batch_size,
+                lease_seconds=self.lease_seconds,
+            )
+            if not claimed:
                 break
-            result = self.projector.run_once(self.max_batch_size)
+            result = self.projector.run_claimed(claimed)
             scanned += result.scanned
             projected += result.projected
             failed += result.failed
