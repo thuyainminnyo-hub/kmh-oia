@@ -1,0 +1,29 @@
+name: Reusable workflow SHA gate
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "scripts/check_reusable_workflow_shas.rb"
+      - "test/reusable_workflow_sha_gate_test.rb"
+  push:
+    branches:
+      - security/reusable-workflow-sha-gate
+    paths:
+      - ".github/workflows/**"
+      - "scripts/check_reusable_workflow_shas.rb"
+      - "test/reusable_workflow_sha_gate_test.rb"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Verify remote reusable workflow refs
+        run: ruby scripts/check_reusable_workflow_shas.rb
+      - name: Run SHA gate tests
+        run: ruby test/reusable_workflow_sha_gate_test.rb
