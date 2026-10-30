@@ -52,6 +52,11 @@ class LearningRecoveryWorkerTests(unittest.TestCase):
         self.assertEqual(result.failed, 0)
         self.assertEqual(result.remaining, 0)
         self.assertTrue(result.healthy)
+        self.assertIsNotNone(result.observability)
+        self.assertEqual(result.observability["pending_events"], 0)
+        self.assertEqual(result.observability["projected_events"], 2)
+        self.assertEqual(result.observability["dead_letter_events"], 0)
+        self.assertTrue(result.observability["ledger_healthy"])
         self.assertEqual(len(self.memory.recent(10)), 2)
 
     def test_worker_is_idempotent_when_no_pending_records(self):
@@ -65,6 +70,8 @@ class LearningRecoveryWorkerTests(unittest.TestCase):
         self.assertEqual(result.projected, 0)
         self.assertEqual(result.remaining, 0)
         self.assertTrue(result.healthy)
+        self.assertEqual(result.observability["pending_events"], 0)
+        self.assertEqual(result.observability["projected_events"], 0)
 
     def test_worker_stops_after_projection_failure(self):
         self.add_event("1")
@@ -82,6 +89,8 @@ class LearningRecoveryWorkerTests(unittest.TestCase):
         self.assertEqual(result.failed, 1)
         self.assertEqual(result.remaining, 1)
         self.assertFalse(result.healthy)
+        self.assertEqual(result.observability["pending_events"], 1)
+        self.assertEqual(result.observability["retry_attempts_total"], 1)
 
     def test_invalid_batch_limits_rejected(self):
         with self.assertRaises(ValueError):
