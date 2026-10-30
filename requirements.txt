@@ -1,3 +1,4 @@
-# Minimal third-party dependency for scripts/validate_prompt_record.py and Prompt Library Schema QA.
-# This is a CI/tooling dependency, not a complete declaration of every runtime dependency.
+# Minimal CI/tooling dependencies for Prompt Library QA and workflow YAML auditing.
+# This is not a complete declaration of application/runtime dependencies.
 jsonschema==4.26.0
+PyYAML==6.0.3
