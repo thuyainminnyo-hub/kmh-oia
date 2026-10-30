@@ -63,6 +63,18 @@ class SQLiteLearningLedger:
                 );
                 """
             )
+            columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(learning_outbox)")
+            }
+            for name, definition in (
+                ("lease_owner", "TEXT"),
+                ("lease_token", "TEXT"),
+                ("lease_until", "REAL"),
+            ):
+                if name not in columns:
+                    connection.execute(
+                        f"ALTER TABLE learning_outbox ADD COLUMN {name} {definition}"
+                    )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=10)
