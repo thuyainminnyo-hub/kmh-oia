@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-10-30",
+  "scope": "Exact GitHub Action references in .github/workflows/actions.lock and direct Python tooling distributions in requirements.txt. This is not a complete inventory of bundled action internals or transitive Python distributions.",
+  "entries": [
+    {
+      "name": "actions/attest",
+      "version": "v4.2.2",
+      "ecosystem": "github-action",
+      "license": "MIT",
+      "review_status": "VERIFIED",
+      "evidence_type": "LICENSE file at exact upstream tag",
+      "evidence_url": "https://github.com/actions/attest/blob/v4.2.2/LICENSE",
+      "evidence_blob_sha": "5f9e342dcc1e39277b96077541676ce6307de2c7"
+    },
+    {
+      "name": "actions/checkout",
+      "version": "v4.4.0",
+      "ecosystem": "github-action",
+      "license": "MIT",
+      "review_status": "VERIFIED",
+      "evidence_type": "LICENSE file at exact upstream tag",
+      "evidence_url": "https://github.com/actions/checkout/blob/v4.4.0/LICENSE",
+      "evidence_blob_sha": "a67dca8b4f65d6bd351f6b1e333ce2cd84d843a5"
+    },
+    {
+      "name": "actions/checkout",
+      "version": "v7.0.1",
+      "ecosystem": "github-action",
+      "license": "MIT",
+      "review_status": "VERIFIED",
+      "evidence_type": "LICENSE file at exact upstream tag",
+      "evidence_url": "https://github.com/actions/checkout/blob/v7.0.1/LICENSE",
+      "evidence_blob_sha": "a67dca8b4f65d6bd351f6b1e333ce2cd84d843a5"
+    },
+    {
+      "name": "actions/download-artifact",
+      "version": "v7.0.0",
+      "ecosystem": "github-action",
+      "license": "MIT",
+      "review_status": "VERIFIED",
+      "evidence_type": "LICENSE file at exact upstream tag",
+      "evidence_url": "https://github.com/actions/download-artifact/blob/v7.0.0/LICENSE",
+      "evidence_blob_sha": "a67dca8b4f65d6bd351f6b1e333ce2cd84d843a5"
+    },
+    {
+      "name": "actions/setup-python",
+      "version": "v5.6.0",
+      "ecosystem": "github-action",
+      "license": "MIT",
+      "review_status": "VERIFIED",
+      "evidence_type": "LICENSE file at exact upstream tag",
+      "evidence_url": "https://github.com/actions/setup-python/blob/v5.6.0/LICENSE",
+      "evidence_blob_sha": "a426ef259d6c5d705e9c1405075c3b318093c65e"
+    },
+    {
+      "name": "actions/upload-artifact",
+      "version": "v4.6.2",
+      "ecosystem": "github-action",
+      "license": "MIT",
+      "review_status": "VERIFIED",
+      "evidence_type": "LICENSE file at exact upstream tag",
+      "evidence_url": "https://github.com/actions/upload-artifact/blob/v4.6.2/LICENSE",
+      "evidence_blob_sha": "a67dca8b4f65d6bd351f6b1e333ce2cd84d843a5"
+    },
+    {
+      "name": "actions/upload-artifact",
+      "version": "v6.0.0",
+      "ecosystem": "github-action",
+      "license": "MIT",
+      "review_status": "VERIFIED",
+      "evidence_type": "LICENSE file at exact upstream tag",
+      "evidence_url": "https://github.com/actions/upload-artifact/blob/v6.0.0/LICENSE",
+      "evidence_blob_sha": "a67dca8b4f65d6bd351f6b1e333ce2cd84d843a5"
+    },
+    {
+      "name": "anchore/sbom-action",
+      "version": "v0.24.0",
+      "ecosystem": "github-action",
+      "license": "Apache-2.0",
+      "review_status": "VERIFIED",
+      "evidence_type": "LICENSE file at exact upstream tag",
+      "evidence_url": "https://github.com/anchore/sbom-action/blob/v0.24.0/LICENSE",
+      "evidence_blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64"
+    },
+    {
+      "name": "jsonschema",
+      "version": "4.26.0",
+      "ecosystem": "python-ci-tooling",
+      "license": "MIT",
+      "review_status": "VERIFIED",
+      "evidence_type": "PyPI release metadata and source LICENSE file",
+      "evidence_url": "https://pypi.org/project/jsonschema/4.26.0/",
+      "evidence_blob_url": "https://github.com/python-jsonschema/jsonschema/blob/v4.26.0/json/LICENSE",
+      "evidence_blob_sha": "c28adbadd9114a30a302fef37c3d14f490645c1c"
+    },
+    {
+      "name": "pyyaml",
+      "version": "6.0.3",
+      "ecosystem": "python-ci-tooling",
+      "license": "MIT",
+      "review_status": "VERIFIED",
+      "evidence_type": "PyPI release metadata and source LICENSE file",
+      "evidence_url": "https://pypi.org/project/PyYAML/6.0.3/",
+      "evidence_blob_url": "https://github.com/yaml/pyyaml/blob/6.0.3/LICENSE",
+      "evidence_blob_sha": "2f1b8e15e5627d92f0521605c9870bc8e5505cb4"
+    },
+    {
+      "name": ".",
+      "version": null,
+      "ecosystem": "project-root",
+      "license": "UNDECLARED",
+      "review_status": "OWNER_DECISION_REQUIRED",
+      "evidence_type": "Repository root inspected; LICENSE and NOTICE files are absent",
+      "evidence_url": "https://github.com/thuyainminnyo-hub/kmh-oia/tree/feat/phase-1011-10-runtime-dependency-license-governance"
+    }
+  ],
+  "limitations": [
+    "The upstream LICENSE file identifies the repository-level license for the pinned action release; it does not enumerate licenses for all bundled Node.js transitive dependencies.",
+    "requirements.txt contains only direct CI/tooling pins. It is not a resolved transitive Python lockfile.",
+    "The SPDX source-tree scan does not fetch and scan the source or bundled dependencies of remote GitHub Actions.",
+    "The KMH OIA project's own license is intentionally not inferred or selected; repository owner approval is required."
+  ]
+}
