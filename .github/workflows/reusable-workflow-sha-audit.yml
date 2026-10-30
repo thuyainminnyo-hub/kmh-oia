@@ -8,6 +8,8 @@ on:
       - "tests/test_reusable_workflow_sha_audit.py"
       - "requirements.txt"
       - "requirements-ci.lock"
+      - "scripts/verify_python_lock.py"
+      - "tests/test_python_lock.py"
   push:
     branches:
       - main
