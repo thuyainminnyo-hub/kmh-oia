@@ -112,7 +112,7 @@ class LearningRecoveryWorkerTests(unittest.TestCase):
         self.assertEqual(result.observability["pending_events"], 0)
         self.assertEqual(result.observability["dead_letter_events"], 1)
         self.assertEqual(result.observability["retry_attempts_total"], 1)
-        self.assertFalse(result.observability["ledger_healthy"] is False)
+        self.assertTrue(result.observability["ledger_healthy"])
 
     def test_invalid_batch_limits_rejected(self):
         with self.assertRaises(ValueError):
