@@ -36,7 +36,7 @@ Currency amounts are integer MMK. Use Firestore timestamps. Never store card cre
 7. Generate the Flutter app in mobile/ and configure it with FlutterFire.
 
 ## Release gates
-- Assign custom claims server-side; never trust a role sent by the client.
+- Bootstrap the first admin out-of-band with a trusted Firebase Admin SDK session; then use the admin-only setUserRole function. Never trust a role sent by the client.
 - Verify payments against receipts/provider records before marking verified.
 - Use synthetic development data; obtain consent before importing student data.
 - Run emulator rules tests, Functions tests, Web build and Mobile build.
