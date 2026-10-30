@@ -220,7 +220,12 @@ class SQLiteLearningLedger:
         with self._connect() as connection:
             rows = connection.execute(
                 """SELECT event_id, message_json, attempts
-                   FROM learning_outbox WHERE state = 'PENDING'
+                   FROM learning_outbox
+                   WHERE state = 'PENDING'
+                     AND NOT EXISTS (
+                         SELECT 1 FROM learning_dead_letters d
+                         WHERE d.event_id = learning_outbox.event_id
+                     )
                    ORDER BY created_at, event_id LIMIT ?""",
                 (limit,),
             ).fetchall()
@@ -294,7 +299,8 @@ class SQLiteLearningLedger:
             cursor = connection.execute(
                 """UPDATE learning_outbox
                    SET state = 'PROJECTED', attempts = attempts + 1,
-                       last_error = NULL, updated_at = CURRENT_TIMESTAMP
+                       last_error = NULL, lease_owner = NULL, lease_token = NULL,
+                       lease_until = NULL, updated_at = CURRENT_TIMESTAMP
                    WHERE event_id = ? AND state = 'PENDING'
                      AND (? IS NULL OR lease_token = ?)""",
                 (event_id.strip(), claim_token, claim_token),
@@ -452,7 +458,8 @@ class SQLiteLearningLedger:
                     ).fetchall()
                 }
             return result == ("ok",) and {
-                "learning_events", "learning_proposals", "learning_outbox"
+                "learning_events", "learning_proposals", "learning_outbox",
+                "learning_dead_letters", "learning_replay_audit"
             }.issubset(tables)
         except sqlite3.Error:
             return False
