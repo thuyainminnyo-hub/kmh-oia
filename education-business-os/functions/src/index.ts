@@ -35,6 +35,9 @@ export const recordPayment = onCall(async (request) => {
     const enrollment = await tx.get(enrollmentRef);
     if (!enrollment.exists) throw new HttpsError("not-found", "Enrollment not found.");
     const data = enrollment.data()!;
+    if (request.auth!.token.role === "instructor" && data.instructorId !== actorUid) {
+      throw new HttpsError("permission-denied", "Instructor is not assigned to this enrollment.");
+    }
     tx.create(paymentRef, {
       enrollmentId, studentId: data.studentId, instructorId: data.instructorId ?? null,
       batchId: data.batchId, amount, currency: "MMK", method,
