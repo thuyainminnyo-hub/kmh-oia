@@ -64,3 +64,22 @@ Evidence:
 The extension release is pinned to v0.4.0. Its repository describes the extension as pre-1.0, so keep the version pinned and review extension updates deliberately. The GitHub lockfile platform feature is generally available, but a lockfile does not approve dependency safety or replace source/license review.
 
 PR #169 remains Draft/unmerged. Container digest/provenance, reusable workflow identity and SHA review, SBOM/license reconciliation, and main-branch artifact attestation verification remain separate governance gates. Release remains HOLD until those gates are independently evidenced.
+
+## SBOM and license review finding — 2026-10-30
+
+The PR's SPDX evidence artifact was downloaded and inspected independently:
+
+- SPDX format: SPDX-2.3.
+- Package entries: 25.
+- Unique name/version pairs: 11.
+- Recognized dependency manifests: `requirements.txt` only.
+- License `NOASSERTION` entries: 25.
+- Evidence review status: `REVIEW_REQUIRED`.
+- The repository's requirements file explicitly describes itself as minimal CI/tooling dependencies, not a complete application/runtime dependency declaration.
+
+Therefore the SBOM generation/structural-validation CI job passed, but license assurance and full dependency coverage have not passed. Do not describe this result as license compliance. Phase 1011.10 should first establish the actual runtime dependency manifests/lockfiles, reconcile each package's declared/concluded license against authoritative package metadata and project policy, classify unknown/NOASSERTION packages, and preserve an exception/approval record where needed.
+
+Supply-chain artifact: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41070332239/artifacts/12983004243
+Action dependency audit artifact: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41070332269/artifacts/12985066133
+
+The latest PR head at this checkpoint is `498c33139526c1485092ee61887aa12f540cdbc9`. Lockfile verification, action audit, 494-test suite, reusable workflow audit, Prompt Library QA, repository validation/deployment evidence, and SBOM generation/structural validation all passed. The main-branch attestation job was skipped because this was a pull-request event. PR #169 remains Draft/unmerged; release remains HOLD.
