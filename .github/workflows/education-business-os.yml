@@ -1,0 +1,42 @@
+name: Education Business OS CI
+on:
+  pull_request:
+    paths:
+      - "education-business-os/**"
+  push:
+    branches: [main]
+    paths:
+      - "education-business-os/**"
+jobs:
+  web-and-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build Cloud Functions
+        working-directory: education-business-os/functions
+        run: |
+          npm install
+          npm run build
+      - name: Build Web
+        working-directory: education-business-os/web
+        run: |
+          npm install
+          npm run build
+  firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install rules test dependencies
+        working-directory: education-business-os/tests
+        run: npm install
+      - name: Run Firestore rules tests in emulator
+        working-directory: education-business-os
+        run: |
+          npm install -g firebase-tools
+          firebase emulators:exec --project demo-education-business-os --only firestore "cd tests && npm test"
