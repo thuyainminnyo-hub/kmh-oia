@@ -55,6 +55,9 @@ class SQLiteLearningLedger:
                         CHECK (state IN ('PENDING', 'PROJECTED')),
                     attempts INTEGER NOT NULL DEFAULT 0,
                     last_error TEXT,
+                    lease_owner TEXT,
+                    lease_token TEXT,
+                    lease_until REAL,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
@@ -201,7 +204,61 @@ class SQLiteLearningLedger:
             for row in rows
         )
 
-    def mark_projected(self, event_id: str) -> None:
+    def claim_pending(self, *, worker_id: str, limit: int = 100, lease_seconds: int = 60) -> tuple[dict[str, Any], ...]:
+        """Atomically claim pending or expired-lease rows for one worker."""
+        import time
+        import uuid
+
+        if not isinstance(worker_id, str) or not worker_id.strip():
+            raise ValueError("worker_id is required")
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+            raise ValueError("limit must be a positive integer")
+        if not isinstance(lease_seconds, int) or isinstance(lease_seconds, bool) or lease_seconds < 1:
+            raise ValueError("lease_seconds must be a positive integer")
+        now = time.time()
+        claimed = []
+        try:
+            with self._connect() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                rows = connection.execute(
+                    """SELECT event_id, message_json, attempts FROM learning_outbox
+                       WHERE state = 'PENDING' AND (lease_until IS NULL OR lease_until <= ?)
+                       ORDER BY created_at, event_id LIMIT ?""",
+                    (now, limit),
+                ).fetchall()
+                for event_id, message_json, attempts in rows:
+                    token = uuid.uuid4().hex
+                    cursor = connection.execute(
+                        """UPDATE learning_outbox
+                           SET lease_owner = ?, lease_token = ?, lease_until = ?,
+                               updated_at = CURRENT_TIMESTAMP
+                           WHERE event_id = ? AND state = 'PENDING'
+                             AND (lease_until IS NULL OR lease_until <= ?)""",
+                        (worker_id.strip(), token, now + lease_seconds, event_id, now),
+                    )
+                    if cursor.rowcount == 1:
+                        claimed.append({
+                            "event_id": event_id,
+                            "message": json.loads(message_json),
+                            "attempts": attempts,
+                            "worker_id": worker_id.strip(),
+                            "claim_token": token,
+                        })
+            return tuple(claimed)
+        except sqlite3.Error as exc:
+            raise RuntimeError("durable SQLite learning ledger unavailable") from exc
+
+    def release_claim(self, event_id: str, *, claim_token: str) -> bool:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """UPDATE learning_outbox SET lease_owner = NULL, lease_token = NULL,
+                   lease_until = NULL, updated_at = CURRENT_TIMESTAMP
+                   WHERE event_id = ? AND state = 'PENDING' AND lease_token = ?""",
+                (event_id, claim_token),
+            )
+            return cursor.rowcount == 1
+
+    def mark_projected(self, event_id: str, *, claim_token: str | None = None) -> None:
         if not isinstance(event_id, str) or not event_id.strip():
             raise ValueError("event_id is required")
         with self._connect() as connection:
@@ -209,8 +266,9 @@ class SQLiteLearningLedger:
                 """UPDATE learning_outbox
                    SET state = 'PROJECTED', attempts = attempts + 1,
                        last_error = NULL, updated_at = CURRENT_TIMESTAMP
-                   WHERE event_id = ? AND state = 'PENDING'""",
-                (event_id.strip(),),
+                   WHERE event_id = ? AND state = 'PENDING'
+                     AND (? IS NULL OR lease_token = ?)""",
+                (event_id.strip(), claim_token, claim_token),
             )
             if cursor.rowcount != 1:
                 row = connection.execute(
@@ -222,7 +280,7 @@ class SQLiteLearningLedger:
                 if row[0] != "PROJECTED":
                     raise RuntimeError("outbox projection state transition failed")
 
-    def record_projection_failure(self, event_id: str, error: str) -> None:
+    def record_projection_failure(self, event_id: str, error: str, *, claim_token: str | None = None) -> None:
         if not isinstance(event_id, str) or not event_id.strip():
             raise ValueError("event_id is required")
         if not isinstance(error, str) or not error.strip():
@@ -232,8 +290,9 @@ class SQLiteLearningLedger:
                 """UPDATE learning_outbox
                    SET attempts = attempts + 1, last_error = ?,
                        updated_at = CURRENT_TIMESTAMP
-                   WHERE event_id = ? AND state = 'PENDING'""",
-                (error.strip()[:1000], event_id.strip()),
+                   WHERE event_id = ? AND state = 'PENDING'
+                     AND (? IS NULL OR lease_token = ?)""",
+                (error.strip()[:1000], event_id.strip(), claim_token, claim_token),
             )
             if cursor.rowcount != 1:
                 raise ValueError("pending outbox event not found")
