@@ -15,7 +15,7 @@ from yaml.nodes import MappingNode, ScalarNode, SequenceNode
 from yaml.constructor import ConstructorError
 
 FULL_SHA = re.compile(r"^[0-9a-fA-F]{40}$")
-REMOTE_ACTION = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@([^@\\s]+)$")
+REMOTE_ACTION = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@([^@\s]+)$")
 DIGEST = re.compile(r"@sha256:[0-9a-fA-F]{64}$")
 LOCAL_PREFIXES = ("./", "$/")
 
