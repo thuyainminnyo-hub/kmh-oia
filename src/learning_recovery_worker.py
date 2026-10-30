@@ -76,6 +76,7 @@ class LearningRecoveryWorker:
         healthy = bool(
             self.ledger.health_check()
             and remaining == 0
+            and not self.ledger.dead_letters(1)
             and failed == 0
         )
         return RecoveryRun(
