@@ -64,7 +64,7 @@ class ReusableWorkflowAuditTests(unittest.TestCase):
 
     def test_dollar_local_workflow_passes(self):
         self.write("local.yml", "name: local\non:\n  workflow_dispatch:\njobs:\n  test:\n    runs-on: ubuntu-latest\n")
-        self.write("caller.yml", self.call("$/\.github/workflows/local.yml"))
+        self.write("caller.yml", self.call("$/.github/workflows/local.yml"))
         errors, _, _, refs = audit(self.root)
         self.assertEqual(errors, [])
         self.assertEqual(refs[0]["kind"], "local")
