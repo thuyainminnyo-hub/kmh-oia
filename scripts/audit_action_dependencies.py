@@ -15,6 +15,7 @@ from yaml.nodes import MappingNode, ScalarNode, SequenceNode
 from yaml.constructor import ConstructorError
 
 FULL_SHA = re.compile(r"^[0-9a-fA-F]{40}$")
+LOCKED_COMMIT = re.compile(r"^sha1-[0-9a-fA-F]{40}$")
 REMOTE_ACTION = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*@([^@\s]+)$")
 DIGEST = re.compile(r"@sha256:[0-9a-fA-F]{64}$")
 LOCAL_PREFIXES = ("./", "$/")
@@ -92,6 +93,38 @@ def audit(root: Path) -> dict[str, Any]:
     container_refs = 0
     visited_composites: set[Path] = set()
 
+    lockfile_path = root / ".github" / "workflows" / "actions.lock"
+    lock_data = None
+    if lockfile_path.is_file():
+        try:
+            lock_data = load_yaml(lockfile_path)
+            if (not isinstance(lock_data, dict)
+                    or not isinstance(lock_data.get("workflows"), dict)
+                    or not isinstance(lock_data.get("dependencies"), dict)
+                    or not isinstance(lock_data.get("version"), str)):
+                errors.append(".github/workflows/actions.lock: invalid lockfile structure")
+                lock_data = None
+        except (OSError, UnicodeError, yaml.YAMLError) as exc:
+            errors.append(f".github/workflows/actions.lock: YAML parse error: {exc}")
+
+    def valid_lock_entry(workflow_path: str, reference: str) -> tuple[bool, str | None]:
+        if lock_data is None:
+            return False, None
+        workflow_entries = lock_data["workflows"].get(workflow_path)
+        if not isinstance(workflow_entries, list) or reference not in workflow_entries:
+            return False, None
+        dependency = lock_data["dependencies"].get(reference)
+        if not isinstance(dependency, dict):
+            return False, None
+        commit = dependency.get("commit")
+        owner_id = dependency.get("owner_id")
+        repo_id = dependency.get("repo_id")
+        if (not isinstance(commit, str) or not LOCKED_COMMIT.fullmatch(commit)
+                or not isinstance(owner_id, int) or owner_id <= 0
+                or not isinstance(repo_id, int) or repo_id <= 0):
+            return False, None
+        return True, commit
+
     def record_issue(level: str, location: str, message: str) -> None:
         findings.append({"level": level, "location": location, "message": message})
 
@@ -107,7 +140,7 @@ def audit(root: Path) -> dict[str, Any]:
         else:
             references.append({"location": location, "kind": "container", "reference": image.strip()})
 
-    def scan_uses(reference: Any, location: str, depth: int = 0) -> None:
+    def scan_uses(reference: Any, location: str, workflow_path: str, depth: int = 0) -> None:
         nonlocal action_calls, scanned_composites
         action_calls += 1
         if not isinstance(reference, str) or not reference.strip():
@@ -146,7 +179,7 @@ def audit(root: Path) -> dict[str, Any]:
                 record_issue("HOLD", manifest.relative_to(root).as_posix(),
                              "local action is not a structurally valid composite action")
                 return
-            scan_steps(steps, manifest.relative_to(root).as_posix(), depth + 1)
+            scan_steps(steps, manifest.relative_to(root).as_posix(), workflow_path, depth + 1)
             return
 
         match = REMOTE_ACTION.fullmatch(reference)
@@ -154,12 +187,21 @@ def audit(root: Path) -> dict[str, Any]:
             record_issue("HOLD", location, f"unrecognized action reference syntax: {reference}")
             return
         ref = match.group(1)
+        if lock_data is not None:
+            locked, commit = valid_lock_entry(workflow_path, reference)
+            if not locked:
+                record_issue("HOLD", location,
+                             f"remote action is not covered by a valid actions.lock entry for {workflow_path}: {reference}")
+                return
+            references.append({"location": location, "kind": "locked-remote-action",
+                               "reference": reference, "locked_commit": commit})
+            return
         if not FULL_SHA.fullmatch(ref):
             record_issue("HOLD", location, f"remote action is not pinned to a full 40-character commit SHA: {reference}")
             return
         references.append({"location": location, "kind": "remote-action", "reference": reference})
 
-    def scan_steps(steps: Any, owner: str, depth: int = 0) -> None:
+    def scan_steps(steps: Any, owner: str, workflow_path: str, depth: int = 0) -> None:
         if not isinstance(steps, list):
             record_issue("HOLD", owner, "steps must be a YAML sequence")
             return
@@ -169,7 +211,7 @@ def audit(root: Path) -> dict[str, Any]:
                 record_issue("HOLD", location, "step must be a YAML mapping")
                 continue
             if "uses" in step:
-                scan_uses(step["uses"], location, depth)
+                scan_uses(step["uses"], location, workflow_path, depth)
 
     if not workflows_dir.is_dir():
         errors.append("workflow directory not found")
@@ -216,7 +258,7 @@ def audit(root: Path) -> dict[str, Any]:
                         record_issue("HOLD", location + f" service {service_name!r}",
                                      "service definition must be a YAML mapping")
             if "steps" in job:
-                scan_steps(job["steps"], location)
+                scan_steps(job["steps"], location, relative)
 
     status = "HOLD" if errors or findings else "PASS"
     return {
@@ -227,6 +269,9 @@ def audit(root: Path) -> dict[str, Any]:
         "composite_action_manifests_scanned": scanned_composites,
         "action_uses_checked": action_calls,
         "container_references_checked": container_refs,
+        "lockfile_present": lock_data is not None,
+        "lockfile_workflows": len(lock_data["workflows"]) if lock_data is not None else 0,
+        "lockfile_dependencies": len(lock_data["dependencies"]) if lock_data is not None else 0,
         "verified_references": references,
         "findings": findings,
         "errors": errors,
@@ -235,6 +280,8 @@ def audit(root: Path) -> dict[str, Any]:
             "Nested uses references inside local composite action manifests",
             "docker:// step images and job/service container image digests",
             "Reusable workflow job calls remain covered by audit_reusable_workflow_refs.py",
+            "When actions.lock exists, remote action references require an exact workflow entry and structurally valid repository identity plus locked commit; gh actions-lock --verify independently checks upstream provenance",
+            "Without actions.lock, remote action references require full 40-character commit SHAs",
             "This audit does not prove action source safety or complete runtime dependency coverage",
         ],
     }
