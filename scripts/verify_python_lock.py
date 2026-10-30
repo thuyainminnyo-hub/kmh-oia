@@ -109,13 +109,16 @@ def audit(root: Path, verify_installed: bool = False, wheelhouse: Path | None = 
 
     installed = {}
     if verify_installed:
+        all_installed = {}
         for dist in importlib.metadata.distributions():
             name = dist.metadata.get("Name")
             version = dist.version
             if name:
-                normalized = normalize(name)
-                if normalized in EXPECTED:
-                    installed[normalized] = version
+                all_installed[normalize(name)] = version
+        installed = {name: version for name, version in all_installed.items() if name in EXPECTED}
+        extras = sorted(set(all_installed) - set(EXPECTED) - {"pip", "setuptools"})
+        if extras:
+            errors.append("unexpected installed distributions: " + ", ".join(extras))
         if installed != EXPECTED:
             errors.append(f"installed dependency set differs from lock: {installed}")
 
@@ -166,7 +169,7 @@ def main() -> int:
     parser.add_argument("--evidence-out", type=Path)
     args = parser.parse_args()
     result = audit(args.root, args.verify_installed, args.wheelhouse)
-    rendered = json.dumps(result, indent=2) + "\\n"
+    rendered = json.dumps(result, indent=2) + "\n"
     if args.evidence_out:
         args.evidence_out.write_text(rendered, encoding="utf-8")
     print(rendered, end="")
