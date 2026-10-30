@@ -79,6 +79,10 @@ function App() {
         {rows.length ? rows.map(x=><div className="record" key={x.id}><strong>{x.batchId ?? "Batch"}</strong><span>{x.studentId ?? ""}</span><span>{x.status ?? "unknown"}</span><code>{x.id}</code></div>) : <p>No enrollment records found for this account.</p>}
       </section>
       {(role === "admin" || role === "instructor") && <section className="panel"><h2>Operations</h2><div className="forms">
+        {role === "admin" && <form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void invoke("createCourseBatch",{courseId:f.get("courseId"),courseName:f.get("courseName"),batchId:f.get("newBatchId"),startDate:f.get("startDate"),fee:Number(f.get("fee")),currency:"MMK",schedule:String(f.get("schedule")).split(",").map(x=>x.trim())});}}>
+          <h3>Create course / batch</h3><Field label="Course ID" name="courseId"/><Field label="Course name" name="courseName"/><Field label="Batch ID" name="newBatchId"/><Field label="Start date (YYYY-MM-DD)" name="startDate"/><Field label="Fee (MMK)" name="fee" type="number"/><Field label="Weekdays (comma separated)" name="schedule"/><button disabled={busy}>Create course and batch</button>
+        </form>}
+
         {role === "admin" && <form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void invoke("createEnrollment",{studentId:f.get("studentId"),batchId:f.get("batchId"),instructorId:f.get("instructorId")||null});}}>
           <h3>Create enrollment</h3><Field label="Student Auth UID" name="studentId"/><Field label="Batch ID" name="batchId"/><Field label="Instructor UID (optional)" name="instructorId" required={false}/><button disabled={busy}>Create enrollment</button>
         </form>}
@@ -90,6 +94,9 @@ function App() {
         </form>}
         <form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void invoke("markAttendance",{enrollmentId:f.get("enrollmentId"),sessionNo:Number(f.get("sessionNo")),status:f.get("status")});}}>
           <h3>Mark attendance</h3><Field label="Enrollment ID" name="enrollmentId"/><Field label="Session (1–24)" name="sessionNo" type="number"/><label>Status<select name="status"><option>present</option><option>absent</option><option>late</option><option>excused</option></select></label><button disabled={busy}>Save attendance</button>
+        </form>
+        <form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void invoke("recordOutcome",{enrollmentId:f.get("enrollmentId"),outcome:f.get("outcome"),evidence:f.get("evidence")});}}>
+          <h3>Record student outcome</h3><Field label="Enrollment ID" name="enrollmentId"/><label>Outcome<select name="outcome"><option value="completed">Completed</option><option value="not_completed">Not completed</option><option value="withdrawn">Withdrawn</option></select></label><label>Evidence note<textarea name="evidence" rows={3}/></label><button disabled={busy}>Save outcome</button>
         </form>
         <form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void invoke("recordAssessment",{enrollmentId:f.get("enrollmentId"),projectName:f.get("projectName"),score:Number(f.get("score")),feedback:f.get("feedback")});}}>
           <h3>Record assessment</h3><Field label="Enrollment ID" name="enrollmentId"/><Field label="Project name" name="projectName"/><Field label="Score (0–100)" name="score" type="number"/><label>Feedback<textarea name="feedback" rows={3}/></label><button disabled={busy}>Save assessment</button>
