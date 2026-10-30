@@ -61,6 +61,19 @@ class SQLiteLearningLedger:
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS learning_dead_letters (
+                    event_id TEXT PRIMARY KEY REFERENCES learning_outbox(event_id),
+                    attempts INTEGER NOT NULL,
+                    reason TEXT NOT NULL,
+                    quarantined_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS learning_replay_audit (
+                    replay_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id TEXT NOT NULL,
+                    actor TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    replayed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
                 """
             )
             columns = {
@@ -235,6 +248,10 @@ class SQLiteLearningLedger:
                 rows = connection.execute(
                     """SELECT event_id, message_json, attempts FROM learning_outbox
                        WHERE state = 'PENDING' AND (lease_until IS NULL OR lease_until <= ?)
+                         AND NOT EXISTS (
+                             SELECT 1 FROM learning_dead_letters d
+                             WHERE d.event_id = learning_outbox.event_id
+                         )
                        ORDER BY created_at, event_id LIMIT ?""",
                     (now, limit),
                 ).fetchall()
@@ -292,22 +309,88 @@ class SQLiteLearningLedger:
                 if row[0] != "PROJECTED":
                     raise RuntimeError("outbox projection state transition failed")
 
-    def record_projection_failure(self, event_id: str, error: str, *, claim_token: str | None = None) -> None:
+    def record_projection_failure(
+        self, event_id: str, error: str, *, claim_token: str | None = None,
+        max_attempts: int = 5,
+    ) -> int:
         if not isinstance(event_id, str) or not event_id.strip():
             raise ValueError("event_id is required")
         if not isinstance(error, str) or not error.strip():
             raise ValueError("projection error is required")
+        if not isinstance(max_attempts, int) or isinstance(max_attempts, bool) or max_attempts < 1:
+            raise ValueError("max_attempts must be a positive integer")
         with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             cursor = connection.execute(
                 """UPDATE learning_outbox
                    SET attempts = attempts + 1, last_error = ?,
+                       lease_owner = NULL, lease_token = NULL, lease_until = NULL,
                        updated_at = CURRENT_TIMESTAMP
                    WHERE event_id = ? AND state = 'PENDING'
                      AND (? IS NULL OR lease_token = ?)""",
                 (error.strip()[:1000], event_id.strip(), claim_token, claim_token),
             )
             if cursor.rowcount != 1:
-                raise ValueError("pending outbox event not found")
+                raise ValueError("pending outbox event not found or claim token is stale")
+            attempts = connection.execute(
+                "SELECT attempts FROM learning_outbox WHERE event_id = ?",
+                (event_id.strip(),),
+            ).fetchone()[0]
+            if attempts >= max_attempts:
+                connection.execute(
+                    """INSERT INTO learning_dead_letters(event_id, attempts, reason)
+                       VALUES (?, ?, ?)
+                       ON CONFLICT(event_id) DO UPDATE SET
+                           attempts = excluded.attempts, reason = excluded.reason,
+                           quarantined_at = CURRENT_TIMESTAMP""",
+                    (event_id.strip(), attempts, error.strip()[:1000]),
+                )
+            return attempts
+
+    def replay_dead_letter(self, event_id: str, *, actor: str, reason: str) -> None:
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise ValueError("event_id is required")
+        if not isinstance(actor, str) or not actor.strip():
+            raise ValueError("actor is required")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError("replay reason is required")
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT event_id FROM learning_dead_letters WHERE event_id = ?",
+                (event_id.strip(),),
+            ).fetchone()
+            if row is None:
+                raise ValueError("dead-letter event not found")
+            connection.execute(
+                """INSERT INTO learning_replay_audit(event_id, actor, reason)
+                   VALUES (?, ?, ?)""",
+                (event_id.strip(), actor.strip(), reason.strip()[:1000]),
+            )
+            connection.execute(
+                "DELETE FROM learning_dead_letters WHERE event_id = ?",
+                (event_id.strip(),),
+            )
+            connection.execute(
+                """UPDATE learning_outbox SET attempts = 0, last_error = NULL,
+                   lease_owner = NULL, lease_token = NULL, lease_until = NULL,
+                   updated_at = CURRENT_TIMESTAMP WHERE event_id = ?""",
+                (event_id.strip(),),
+            )
+
+    def dead_letters(self, limit: int = 100) -> tuple[dict[str, Any], ...]:
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+            raise ValueError("limit must be a positive integer")
+        with self._connect() as connection:
+            rows = connection.execute(
+                """SELECT event_id, attempts, reason, quarantined_at
+                   FROM learning_dead_letters ORDER BY quarantined_at, event_id LIMIT ?""",
+                (limit,),
+            ).fetchall()
+        return tuple(
+            {"event_id": row[0], "attempts": row[1], "reason": row[2], "quarantined_at": row[3]}
+            for row in rows
+        )
 
     def get_event(self, event_id: str) -> dict[str, Any] | None:
         with self._connect() as connection:
