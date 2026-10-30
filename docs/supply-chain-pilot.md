@@ -10,12 +10,15 @@ This is a narrowly scoped inventory and provenance pilot. It does not claim that
 
 Workflow: `.github/workflows/supply-chain-assurance.yml`
 
+Dependency declaration: `requirements.txt` pins the known third-party validator dependency used by `scripts/validate_prompt_record.py`. It is a CI/tooling dependency declaration, not a claim that all KMH OIA runtime dependencies have been inventoried.
+
 1. Pull requests and pushes to `main` generate an SPDX JSON SBOM using Anchore Syft.
 2. The workflow checks required SPDX document fields, SPDX 2.x version, package-list shape, and package identifiers.
 3. It inventories recognized dependency manifests and lockfiles, counts `NOASSERTION` license fields, and records a separate `REVIEW_REQUIRED` status when dependency coverage or license evidence is incomplete. This review status does not mislabel structural validation as a security pass.
 4. It creates a source archive for the exact `GITHUB_SHA` and records SHA-256 digests for the SBOM and source archive in `supply-chain-evidence.json`.
 5. The three evidence files are uploaded as a 14-day workflow artifact.
 6. Only a push to `main` receives the attestation job. That job uses GitHub artifact attestations to bind the source archive to the SPDX SBOM.
+7. Prompt Library Schema QA installs the validator from the pinned `requirements.txt` instead of resolving an unpinned latest version.
 
 All third-party actions in this workflow are pinned to full commit SHAs. The attestation job has separate, least-privilege permissions and does not run for pull-request events.
 
@@ -43,7 +46,7 @@ This pilot is not yet configured as a required branch-protection check and does 
 - The SBOM is not a vulnerability scan, malware analysis, license-compliance decision, or independent security certification.
 - The source archive is the repository source snapshot, not a compiled or deployed production artifact.
 - GitHub documents artifact attestations as available for public repositories on current plans. Private/internal repository use requires GitHub Enterprise Cloud.
-- The first run must be inspected before the pilot is considered operationally verified. The initial artifact review found 16 SPDX entries (9 unique name/version pairs), no recognized dependency manifest/lockfile in the source snapshot, and `NOASSERTION` license fields across all 16 entries. This means SBOM structure passed, but dependency coverage and license review remain open.
+- The initial artifact review found 16 SPDX entries (9 unique name/version pairs), no recognized dependency manifest/lockfile, and `NOASSERTION` license fields across all 16 entries. A subsequent change adds the explicitly documented CI/tooling dependency `jsonschema==4.26.0` to `requirements.txt` and makes Schema QA install from that file. This improves declared CI dependency coverage but does not establish that all application/runtime dependencies are declared; transitive dependency completeness and license review remain open.
 
 ## References
 
