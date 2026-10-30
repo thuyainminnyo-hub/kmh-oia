@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/case-studies/education/my-little-creative-world"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:15"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
