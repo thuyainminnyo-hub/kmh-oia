@@ -23,6 +23,7 @@ _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _MAX_DIMENSION = 100_000
 _MAX_DECOMPRESSED_BYTES = 64 * 1024 * 1024
 _MAX_FILE_BYTES = 32 * 1024 * 1024
+_MAX_PNG_CHUNKS = 10_000
 
 
 @dataclass(frozen=True)
@@ -133,7 +134,11 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
     compressed = bytearray()
     palette_entries = None
 
+    chunk_count = 0
     while offset < len(raw):
+        chunk_count += 1
+        if chunk_count > _MAX_PNG_CHUNKS:
+            raise ValueError("PNG exceeds maximum chunk count")
         if offset + 12 > len(raw):
             raise ValueError("truncated chunk header")
         length = struct.unpack_from(">I", raw, offset)[0]
