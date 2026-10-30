@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
@@ -33,6 +34,8 @@ export const createEnrollment = onCall(async (request) => {
   const instructorId = request.data?.instructorId == null
     ? null : requiredString(request.data.instructorId, "instructorId");
 
+  try { await getAuth().getUser(studentId); }
+  catch { throw new HttpsError("not-found", "Student Auth user not found."); }
   const batchRef = db.collection("batches").doc(batchId);
   const enrollmentRef = db.collection("enrollments").doc();
   await db.runTransaction(async (tx) => {
