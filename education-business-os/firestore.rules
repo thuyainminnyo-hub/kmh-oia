@@ -7,6 +7,12 @@ service cloud.firestore {
     function isInstructor() { return role() == 'instructor'; }
     function isStaff() { return isAdmin() || isInstructor(); }
     function owns(uid) { return signedIn() && request.auth.uid == uid; }
+    function assignedEnrollment(enrollmentId, studentId, batchId) {
+      let enrollment = get(/databases/$(database)/documents/enrollments/$(enrollmentId)).data;
+      return enrollment.studentId == studentId
+        && enrollment.batchId == batchId
+        && enrollment.instructorId == request.auth.uid;
+    }
 
     match /users/{uid} {
       allow read: if owns(uid) || isAdmin();
@@ -41,25 +47,36 @@ service cloud.firestore {
       allow read: if isAdmin()
         || (signedIn() && resource.data.studentId == request.auth.uid)
         || (isInstructor() && resource.data.instructorId == request.auth.uid);
-      allow create, update: if isStaff()
-        && request.resource.data.keys().hasOnly(['batchId','enrollmentId','studentId','instructorId','sessionNo','status','markedAt','markedBy'])
+      allow create: if isAdmin() || (isInstructor()
+        && request.resource.data.instructorId == request.auth.uid
+        && assignedEnrollment(request.resource.data.enrollmentId, request.resource.data.studentId, request.resource.data.batchId)
         && request.resource.data.markedBy == request.auth.uid
         && request.resource.data.status in ['present','absent','late','excused']
         && request.resource.data.sessionNo is int
         && request.resource.data.sessionNo >= 1
-        && request.resource.data.sessionNo <= 24;
+        && request.resource.data.sessionNo <= 24);
+      allow update: if isAdmin() || (isInstructor()
+        && resource.data.instructorId == request.auth.uid
+        && request.resource.data.instructorId == request.auth.uid
+        && assignedEnrollment(request.resource.data.enrollmentId, request.resource.data.studentId, request.resource.data.batchId)
+        && request.resource.data.markedBy == request.auth.uid
+        && request.resource.data.status in ['present','absent','late','excused']
+        && request.resource.data.sessionNo is int
+        && request.resource.data.sessionNo >= 1
+        && request.resource.data.sessionNo <= 24);
       allow delete: if isAdmin();
     }
     match /assessments/{id} {
       allow read: if isAdmin()
         || (signedIn() && resource.data.studentId == request.auth.uid)
         || (isInstructor() && resource.data.instructorId == request.auth.uid);
-      allow create, update: if isStaff()
-        && request.resource.data.keys().hasOnly(['batchId','enrollmentId','studentId','instructorId','projectName','score','feedback','status','updatedAt','updatedBy'])
+      allow create, update: if isAdmin() || (isInstructor()
+        && request.resource.data.instructorId == request.auth.uid
+        && assignedEnrollment(request.resource.data.enrollmentId, request.resource.data.studentId, request.resource.data.batchId)
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.score is number
         && request.resource.data.score >= 0
-        && request.resource.data.score <= 100;
+        && request.resource.data.score <= 100);
       allow delete: if isAdmin();
     }
     match /outcomes/{id} {
