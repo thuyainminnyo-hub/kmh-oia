@@ -120,9 +120,9 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 **GO:** prepare and execute an isolated, one-workflow pilot.  
 **HOLD:** lockfile enforcement, broad workflow migration, and production rollout until all acceptance gates have evidence. A one-workflow pilot is not repository-wide readiness; do not activate Require lockfile across this repository while three workflows remain outside the pilot.
 
-## 8. Platform / CLI capability discrepancy
+## 8. Reusable workflow coverage — operational interpretation
 
-GitHub's Oct 28, 2026 GA announcement explicitly lists reusable workflow references among lockfile capabilities. The current `github/gh-actions-lock` README for the inspected v0.4.0 release still lists remote reusable workflows at `jobs.<id>.uses` as unsupported. Treat this as a version/capability discrepancy, not as settled coverage. The `test.yml` pilot baseline contains no reusable workflow calls, so the scoped pilot can proceed without relying on this feature. Before expanding to any workflow that calls reusable workflows, verify support in the exact pinned CLI version, inspect generated lockfile entries, and confirm GitHub runner enforcement behavior. Until then, use full-SHA references as compensating control.
+GitHub's Oct 28, 2026 GA changelog wording appears to include reusable workflow references, but the detailed GitHub Docs explicitly state that a caller's lockfile does not pin `jobs.<job_id>.uses`. The current `github/gh-actions-lock` README also lists remote reusable workflows as unsupported, and upstream issue #179 documents that the CLI can skip such calls without a finding, allowing `--verify` to pass despite the gap. Follow the detailed implementation guidance operationally: pin remote reusable workflow references to full 40-character commit SHAs, and onboard the reusable workflow source repository separately so its own dependencies are covered. Do not rely on the caller's lockfile or CLI `--verify` for remote reusable workflow coverage. The `test.yml` pilot baseline contains no remote reusable workflow calls, so this limitation does not block the narrow pilot.
 
 ## 9. Execution truth
 
