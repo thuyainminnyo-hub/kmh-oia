@@ -52,13 +52,13 @@ Do not assume this Linux asset is suitable for macOS or Windows maintainers; sel
 
 ## 3. Upstream CLI maturity and read-only inspection
 
-The GitHub Oct 28, 2026 GA announcement and official Docs describe workflow dependency lockfiles as generally available. The upstream extension README still carries a Public Preview / pre-1.0 warning, so distinguish the platform feature GA from the CLI project's own maturity/versioning: treat CLI behavior and lockfile compatibility as version-sensitive and pin the evaluated release. Official installation is through the authenticated GitHub CLI extension mechanism:
+The GitHub Oct 28, 2026 announcement describes the platform lockfile feature as generally available. However, the upstream `github/gh-actions-lock` README still explicitly labels the extension Public Preview and pre-1.0. Treat these as distinct claims: platform feature GA does not mean the CLI extension itself has left preview. Pin and evaluate the exact CLI release before production use. The upstream README documents installation through the authenticated GitHub CLI extension mechanism:
 
 ```bash
 gh extension install github/gh-actions-lock
 ```
 
-The upstream README documents `gh actions-lock --no-fix` as a read-only, online report mode. Prefer this as the first CLI behavior check after installation. `gh actions-lock --verify` is also read-only and performs online verification, but it requires an existing lockfile to verify; do not run it as a pre-generation acceptance check when `.github/workflows/actions.lock` does not yet exist. `--verify-local` is offline coverage-only and does not verify provenance. `gh actions-lock` and `--relock` write changes and remain gated on explicit review.
+This command installs the extension from its repository and does not, by itself, prove that the installed code is the separately inspected `v0.4.0` release asset. The pilot must record the installed extension version and verify it matches the reviewed release; do not mix the separately downloaded release binary with `gh actions-lock` extension commands. The upstream README documents `gh actions-lock --no-fix` as a read-only, online report mode. Prefer this as the first CLI behavior check after installation. `gh actions-lock --verify` is also read-only and performs online verification, but it requires an existing lockfile to verify; do not run it as a pre-generation acceptance check when `.github/workflows/actions.lock` does not yet exist. `--verify-local` is offline coverage-only and does not verify provenance. `gh actions-lock` and `--relock` write changes and remain gated on explicit review.
 
 Coverage limitations from the current upstream README:
 
@@ -104,7 +104,7 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 - [ ] Re-fetch workflow; confirm expected baseline or review drift.
 - [ ] Download v0.4.0 Linux amd64 asset.
 - [ ] Independently verify SHA-256 against the release API digest.
-- [ ] Record the verified release digest, extension version, and `gh actions-lock --help` output.
+- [ ] Record the verified release digest, installed extension version, and `gh actions-lock --help` output; establish that the installed extension is the reviewed release (or use a controlled installation of that exact tag).
 - [ ] Generate lockfile for `.github/workflows/test.yml` only.
 - [ ] Review workflow rewrite and complete lockfile diff.
 - [ ] After generation, run `gh actions-lock --verify` and record exit status/output; do not run it as a pre-generation check when no lockfile exists.
