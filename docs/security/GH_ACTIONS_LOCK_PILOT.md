@@ -62,12 +62,12 @@ This command installs the extension from its repository and does not, by itself,
 
 Coverage limitations from the current upstream README:
 
-- Remote reusable workflows referenced by `jobs.<job_id>.uses` are not locked by this tool.
+- The current upstream CLI README says remote reusable workflows referenced by `jobs.<job_id>.uses` are not locked by the tool. However, GitHub's Oct 28, 2026 GA announcement says the platform lockfile feature includes reusable workflow references. This is a material platform-versus-CLI version discrepancy; do not assume CLI v0.4.0 supports the GA capability until the exact pinned CLI release is tested and its generated lockfile is inspected.
 - Local `./...` actions are not followed or locked; handling them requires an explicit supported migration or ignore decision, with review.
 - Container images are not locked; use immutable `@sha256:` digests.
 - A lockfile is not a security review of the pinned dependency itself.
 
-For this target workflow, the baseline inventory found none of those constructs. Re-fetch and inspect the exact candidate workflow before running the tool, and stop if the inventory has drifted.
+For this target workflow, the baseline inventory found no reusable workflow calls, local actions, or container declarations, so the current discrepancy does not block the narrowly scoped `test.yml` pilot. It does block claiming repository-wide reusable-workflow coverage. Re-fetch and inspect the exact candidate workflow before running the tool, and stop if the inventory has drifted.
 
 ## 4. Scoped generation procedure
 
@@ -90,8 +90,8 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 
 ## 5. Coverage boundaries and compensating controls
 
-- The caller's lockfile does not pin remote reusable workflow references at `jobs.<job_id>.uses`; independently require full 40-character commit SHAs.
-- The reusable workflow source repository must onboard and lock its own action dependencies.
+- GitHub's GA announcement says platform lockfiles include reusable workflow references, but the current upstream CLI README says the CLI does not lock remote reusable workflows. Verify exact extension release behavior before relying on this coverage.
+- Until verified, pin remote reusable workflow references to full 40-character commit SHAs as a compensating control; separately assess the reusable workflow source repository's own action dependencies and lockfile.
 - Local `./` actions need explicit migration/handling and review.
 - Container images need immutable `@sha256:` digests.
 - Lockfiles pin dependency code resolution; they do not prove that the pinned code is safe.
@@ -120,6 +120,10 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 **GO:** prepare and execute an isolated, one-workflow pilot.  
 **HOLD:** lockfile enforcement, broad workflow migration, and production rollout until all acceptance gates have evidence. A one-workflow pilot is not repository-wide readiness; do not activate Require lockfile across this repository while three workflows remain outside the pilot.
 
-## 8. Execution truth
+## 8. Platform / CLI capability discrepancy
+
+GitHub's Oct 28, 2026 GA announcement explicitly lists reusable workflow references among lockfile capabilities. The current `github/gh-actions-lock` README for the inspected v0.4.0 release still lists remote reusable workflows at `jobs.<id>.uses` as unsupported. Treat this as a version/capability discrepancy, not as settled coverage. The `test.yml` pilot baseline contains no reusable workflow calls, so the scoped pilot can proceed without relying on this feature. Before expanding to any workflow that calls reusable workflows, verify support in the exact pinned CLI version, inspect generated lockfile entries, and confirm GitHub runner enforcement behavior. Until then, use full-SHA references as compensating control.
+
+## 9. Execution truth
 
 This document and its preparation branch are committed planning artifacts only. The CLI has not been installed or executed in this environment. No `actions.lock` has been generated, no workflow has been rewritten, and no CI run has been triggered by this preparation step.
