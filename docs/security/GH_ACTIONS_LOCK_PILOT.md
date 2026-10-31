@@ -62,7 +62,7 @@ This command installs the extension from its repository and does not, by itself,
 
 Coverage limitations from the current upstream README:
 
-- The current upstream CLI README says remote reusable workflows referenced by `jobs.<job_id>.uses` are not locked by the tool. However, GitHub's Oct 28, 2026 GA announcement says the platform lockfile feature includes reusable workflow references. This is a material platform-versus-CLI version discrepancy; do not assume CLI v0.4.0 supports the GA capability until the exact pinned CLI release is tested and its generated lockfile is inspected.
+- GitHub's Oct 28, 2026 GA changelog says the platform feature includes reusable workflow references, but the current detailed GitHub Docs page says lockfiles do not pin `jobs.<job_id>.uses`; the current CLI README also says remote reusable workflows are not locked. Upstream CLI issue #179 documents the gap, including a case where `--verify` may pass despite an unlocked reusable workflow call. Treat the changelog wording as ambiguous/inconsistent with the detailed implementation guidance; do not claim reusable-workflow pinning from the caller's lockfile.
 - Local `./...` actions are not followed or locked; handling them requires an explicit supported migration or ignore decision, with review.
 - Container images are not locked; use immutable `@sha256:` digests.
 - A lockfile is not a security review of the pinned dependency itself.
@@ -90,7 +90,7 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 
 ## 5. Coverage boundaries and compensating controls
 
-- GitHub's GA announcement says platform lockfiles include reusable workflow references, but the current upstream CLI README says the CLI does not lock remote reusable workflows. Verify exact extension release behavior before relying on this coverage.
+- The GA changelog's reusable-workflow wording conflicts with the detailed GitHub Docs and current CLI README/issue tracker. Operationally, assume remote reusable workflow calls are NOT pinned by the caller's lockfile or checked by CLI `--verify` until GitHub clarifies and tested evidence proves otherwise.
 - Until verified, pin remote reusable workflow references to full 40-character commit SHAs as a compensating control; separately assess the reusable workflow source repository's own action dependencies and lockfile.
 - Local `./` actions need explicit migration/handling and review.
 - Container images need immutable `@sha256:` digests.
