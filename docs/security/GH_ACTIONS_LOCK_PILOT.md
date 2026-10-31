@@ -52,13 +52,13 @@ Do not assume this Linux asset is suitable for macOS or Windows maintainers; sel
 
 ## 3. Upstream CLI maturity and read-only inspection
 
-The current upstream README does not state a Public Preview label or a maturity guarantee. The latest inspected release is `v0.4.0` (pre-1.0 versioning), so treat CLI behavior and lockfile compatibility as version-sensitive and pin the evaluated release. Official installation is through the authenticated GitHub CLI extension mechanism:
+The GitHub Oct 28, 2026 GA announcement and official Docs describe workflow dependency lockfiles as generally available. The upstream extension README still carries a Public Preview / pre-1.0 warning, so distinguish the platform feature GA from the CLI project's own maturity/versioning: treat CLI behavior and lockfile compatibility as version-sensitive and pin the evaluated release. Official installation is through the authenticated GitHub CLI extension mechanism:
 
 ```bash
 gh extension install github/gh-actions-lock
 ```
 
-The upstream README documents `gh actions-lock --no-fix` as a read-only, online report mode. Prefer this as the first CLI behavior check after installation. `gh actions-lock --verify` is also read-only and performs online verification; `--verify-local` is offline coverage-only and does not verify provenance. `gh actions-lock` and `--relock` write changes and remain gated on explicit review.
+The upstream README documents `gh actions-lock --no-fix` as a read-only, online report mode. Prefer this as the first CLI behavior check after installation. `gh actions-lock --verify` is also read-only and performs online verification, but it requires an existing lockfile to verify; do not run it as a pre-generation acceptance check when `.github/workflows/actions.lock` does not yet exist. `--verify-local` is offline coverage-only and does not verify provenance. `gh actions-lock` and `--relock` write changes and remain gated on explicit review.
 
 Coverage limitations from the current upstream README:
 
@@ -71,21 +71,20 @@ For this target workflow, the baseline inventory found none of those constructs.
 
 ## 4. Scoped generation procedure
 
-Only after installing the pinned CLI extension, re-fetching and reviewing the exact current workflow content, and confirming the baseline has not drifted, start with read-only inspection:
+Only after installing the pinned CLI extension, re-fetching and reviewing the exact current workflow content, and confirming the baseline has not drifted, start with this read-only inspection:
 
 ```bash
 gh actions-lock --no-fix .github/workflows/test.yml
-gh actions-lock --verify
 ```
 
-If both checks are understood and pass, explicitly approve the write step and generate only the target workflow:
+Review the report and resolve every warning/error. Because the lockfile does not exist yet, do not treat `gh actions-lock --verify` as a pre-generation check. Only after the dependency report is reviewed and the write step is explicitly approved, generate only the target workflow:
 
 ```bash
 gh actions-lock .github/workflows/test.yml
 git diff -- .github/workflows/test.yml .github/workflows/actions.lock
 ```
 
-Review every generated action commit as a dependency code change. Confirm the generated owner/repository identity fields and that the resolved commits are the intended upstream repositories. Do not accept unexpected repository identity changes. Re-run `gh actions-lock --verify` after generation.
+Review every generated action commit as a dependency code change. Confirm the generated owner/repository identity fields and that the resolved commits are the intended upstream repositories. Do not accept unexpected repository identity changes. Then run `gh actions-lock --verify` after generation and record its output and exit status.
 
 Capture command output, exit status, exact branch/head SHA, and the subsequent GitHub Actions run/job results. `--verify-local` is only an offline coverage check; it is not provenance verification.
 
@@ -108,7 +107,7 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 - [ ] Record the verified release digest, extension version, and `gh actions-lock --help` output.
 - [ ] Generate lockfile for `.github/workflows/test.yml` only.
 - [ ] Review workflow rewrite and complete lockfile diff.
-- [ ] Run `--verify` and record exit status/output.
+- [ ] After generation, run `gh actions-lock --verify` and record exit status/output; do not run it as a pre-generation check when no lockfile exists.
 - [ ] Run existing workflow on the candidate branch and capture exact-head CI evidence.
 - [ ] Review dependency changes; obtain required reviewers.
 - [ ] Inventory and onboard every workflow that will be in the Require lockfile policy target scope; this repository currently has four workflow files, while this pilot covers only `test.yml`.
