@@ -48,7 +48,26 @@ chmod 0755 /tmp/gh-actions-lock
 
 Do not assume this Linux asset is suitable for macOS or Windows maintainers; select the matching platform asset and verify its own published digest.
 
-## 3. Scoped generation procedure
+## 3. Upstream CLI maturity and read-only inspection
+
+The upstream README currently labels `gh-actions-lock` **Public preview / pre-1.0** and warns that lockfile format, flags, and behavior may change between releases. Treat this pilot as a controlled evaluation, not a stable production dependency. Official installation is through the authenticated GitHub CLI extension mechanism:
+
+```bash
+gh extension install github/gh-actions-lock
+```
+
+The upstream README documents `gh actions-lock --no-fix` as a read-only, online report mode. Prefer this as the first CLI behavior check after installation. `gh actions-lock --verify` is also read-only and performs online verification; `--verify-local` is offline coverage-only and does not verify provenance. `gh actions-lock` and `--relock` write changes and remain gated on explicit review.
+
+Coverage limitations from the current upstream README:
+
+- Remote reusable workflows referenced by `jobs.<job_id>.uses` are not locked by this tool.
+- Local `./...` actions are not followed or locked; handling them requires an explicit supported migration or ignore decision, with review.
+- Container images are not locked; use immutable `@sha256:` digests.
+- A lockfile is not a security review of the pinned dependency itself.
+
+For this target workflow, the baseline inventory found none of those constructs. Re-fetch and inspect the exact candidate workflow before running the tool, and stop if the inventory has drifted.
+
+## 4. Scoped generation procedure
 
 Only after verifying the exact current workflow content and the binary:
 
@@ -67,7 +86,7 @@ Then run:
 
 Capture command output, exit status, exact branch/head SHA, and the subsequent GitHub Actions run/job results. `--verify-local` is only an offline coverage check; it is not provenance verification.
 
-## 4. Coverage boundaries and compensating controls
+## 5. Coverage boundaries and compensating controls
 
 - The caller's lockfile does not pin remote reusable workflow references at `jobs.<job_id>.uses`; independently require full 40-character commit SHAs.
 - The reusable workflow source repository must onboard and lock its own action dependencies.
@@ -78,7 +97,7 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 - Protect lockfile changes with CODEOWNERS and required code-owner review.
 - Dependabot updates should regenerate lockfile entries for already-onboarded workflows.
 
-## 5. Acceptance gates
+## 6. Acceptance gates
 
 - [ ] Re-fetch workflow; confirm expected baseline or review drift.
 - [ ] Download v0.4.0 Linux amd64 asset.
@@ -91,11 +110,11 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 - [ ] Review dependency changes; obtain required reviewers.
 - [ ] Only then consider enabling repository/organization Require lockfile policy.
 
-## 6. Current decision
+## 7. Current decision
 
 **GO:** prepare and execute an isolated, one-workflow pilot.  
 **HOLD:** lockfile enforcement, broad workflow migration, and production rollout until all acceptance gates have evidence.
 
-## 7. Execution truth
+## 8. Execution truth
 
 This document and its preparation branch are committed planning artifacts only. The CLI has not been installed or executed in this environment. No `actions.lock` has been generated, no workflow has been rewritten, and no CI run has been triggered by this preparation step.
