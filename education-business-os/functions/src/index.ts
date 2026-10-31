@@ -39,7 +39,7 @@ export const createEnrollment = onCall(async (request) => {
   const batchRef = db.collection("batches").doc(batchId);
   // A deterministic ID makes duplicate enrollment prevention safe under
   // concurrent requests; a query-then-create check alone is race-prone.
-  const enrollmentId = Buffer.from(studentId + ":" + batchId).toString("base64url");
+  const enrollmentId = Array.from(new TextEncoder().encode(studentId + ":" + batchId), byte => byte.toString(16).padStart(2, "0")).join("");
   const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
   await db.runTransaction(async (tx) => {
     const batch = await tx.get(batchRef);
