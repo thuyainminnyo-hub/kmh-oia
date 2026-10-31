@@ -1,6 +1,6 @@
 # GitHub Actions Lockfile Pilot — KMH OIA
 
-**Status:** preparation branch only; lockfile generation and CI verification are still pending.  
+**Status:** preparation branch only; documentation CI passed on the current PR head, but CLI execution, lockfile generation, and post-generation lockfile verification are still pending.  
 **Target workflow:** `.github/workflows/test.yml`  
 **Repository:** `thuyainminnyo-hub/kmh-oia`
 
@@ -90,7 +90,7 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 
 ## 5. Coverage boundaries and compensating controls
 
-- The GA changelog's reusable-workflow wording conflicts with the detailed GitHub Docs and current CLI README/issue tracker. Operationally, assume remote reusable workflow calls are NOT pinned by the caller's lockfile or checked by CLI `--verify` until GitHub clarifies and tested evidence proves otherwise.
+- The detailed GitHub Docs and current CLI README state that remote reusable workflow calls (`jobs.<id>.uses`) are not pinned by the caller's lockfile; upstream issue #179 documents that the CLI may skip them without a finding. The Oct 28 GA changelog wording is inconsistent with these implementation details. Operationally, do NOT rely on caller lockfile or CLI `--verify` for remote reusable workflow coverage.
 - Pin remote reusable workflow references to full 40-character commit SHAs; separately assess the reusable workflow source repository's own action dependencies and lockfile.
 - Local `./` actions need explicit migration/handling and review.
 - Container images need immutable `@sha256:` digests.
@@ -102,10 +102,7 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 ## 6. Acceptance gates
 
 - [ ] Re-fetch workflow; confirm expected baseline or review drift.
-- [ ] Download v0.4.0 Linux amd64 asset.
-- [ ] Independently verify SHA-256 against the release API digest.
-- [ ] Install the extension with `gh extension install github/gh-actions-lock --pin v0.4.0`; record `gh extension list`, `gh actions-lock --help`, and the installed release tag.
-- [ ] If independently auditing the standalone Linux binary, verify its SHA-256 against the release API digest before execution.
+- [ ] Choose one installation path: (A) install the binary extension pinned to `v0.4.0` using `gh extension install github/gh-actions-lock --pin v0.4.0`, then record `gh extension list` and `gh actions-lock --help`; or (B) independently download the matching platform release asset, verify its SHA-256 against the release API digest, and inspect its version/help. Do not mix the standalone binary path with extension invocation.
 - [ ] Generate lockfile for `.github/workflows/test.yml` only.
 - [ ] Review workflow rewrite and complete lockfile diff.
 - [ ] After generation, run `gh actions-lock --verify` and record exit status/output; do not run it as a pre-generation check when no lockfile exists.
