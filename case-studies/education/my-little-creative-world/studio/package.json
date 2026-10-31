@@ -1,0 +1,14 @@
+{
+  "name": "my-little-creative-world-studio",
+  "version": "1.0.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "test:e2e": "playwright test",
+    "start": "python3 -m http.server 4173"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}
