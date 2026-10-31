@@ -1,0 +1,27 @@
+name: KMH Earth Observation Pilot CI
+on:
+  pull_request:
+    paths:
+      - "src/earth_observation/**"
+      - "tests/test_earth_observation_*.py"
+      - "scripts/earth_observation_*.py"
+      - ".github/workflows/earth-observation-ci.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "src/earth_observation/**"
+      - "tests/test_earth_observation_*.py"
+      - "scripts/earth_observation_*.py"
+      - ".github/workflows/earth-observation-ci.yml"
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m compileall -q src/earth_observation scripts/earth_observation_discovery.py tests/test_earth_observation_stac.py
+      - run: python -m unittest discover -s tests -p 'test_earth_observation_stac.py' -v
+      - run: git diff --check
