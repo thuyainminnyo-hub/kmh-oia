@@ -37,13 +37,17 @@ export const createEnrollment = onCall(async (request) => {
   try { await getAuth().getUser(studentId); }
   catch { throw new HttpsError("not-found", "Student Auth user not found."); }
   const batchRef = db.collection("batches").doc(batchId);
-  const enrollmentRef = db.collection("enrollments").doc();
+  // A deterministic ID makes duplicate enrollment prevention safe under
+  // concurrent requests; a query-then-create check alone is race-prone.
+  const enrollmentId = Buffer.from(studentId + ":" + batchId).toString("base64url");
+  const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
   await db.runTransaction(async (tx) => {
     const batch = await tx.get(batchRef);
     if (!batch.exists) throw new HttpsError("not-found", "Batch not found.");
-    const existing = await tx.get(db.collection("enrollments")
-      .where("studentId", "==", studentId).where("batchId", "==", batchId));
-    if (!existing.empty) throw new HttpsError("already-exists", "Student is already enrolled in this batch.");
+    const existing = await tx.get(enrollmentRef);
+    if (existing.exists) {
+      throw new HttpsError("already-exists", "Student is already enrolled in this batch.");
+    }
     tx.create(enrollmentRef, {
       studentId, batchId, courseId: batch.data()!.courseId ?? "flutter-foundation",
       instructorId, status: "active", enrolledAt: FieldValue.serverTimestamp(),
