@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function role() { return signedIn() ? request.auth.token.role : null; }
+    function isAdmin() { return role() == 'admin'; }
+    function isInstructor() { return role() == 'instructor'; }
+    function isStaff() { return isAdmin() || isInstructor(); }
+    function owns(uid) { return signedIn() && request.auth.uid == uid; }
+    function assignedEnrollment(enrollmentId, studentId, batchId) {
+      let enrollment = get(/databases/$(database)/documents/enrollments/$(enrollmentId)).data;
+      return enrollment.studentId == studentId
+        && enrollment.batchId == batchId
+        && enrollment.instructorId == request.auth.uid;
+    }
+
+    match /users/{uid} {
+      allow read: if owns(uid) || isAdmin();
+      allow create: if owns(uid)
+        && request.resource.data.keys().hasOnly(['displayName', 'email', 'phone', 'createdAt'])
+        && request.resource.data.email == request.auth.token.email;
+      allow update: if owns(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'phone', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+    match /courses/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+    match /batches/{id} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+    match /enrollments/{id} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.studentId == request.auth.uid)
+        || (isInstructor() && resource.data.instructorId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+    match /payments/{id} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.studentId == request.auth.uid)
+        || (isInstructor() && resource.data.instructorId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+    match /attendance/{id} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.studentId == request.auth.uid)
+        || (isInstructor() && resource.data.instructorId == request.auth.uid);
+      // All mutations go through audited callable Cloud Functions.
+      allow create, update, delete: if false;
+    }
+    match /assessments/{id} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.studentId == request.auth.uid)
+        || (isInstructor() && resource.data.instructorId == request.auth.uid);
+      // All mutations go through audited callable Cloud Functions.
+      allow create, update, delete: if false;
+    }
+    match /outcomes/{id} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.studentId == request.auth.uid)
+        || (isInstructor() && resource.data.instructorId == request.auth.uid);
+      // Outcome changes must use the audited callable function.
+      allow create, update, delete: if false;
+    }
+    match /auditLogs/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

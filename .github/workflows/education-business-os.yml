@@ -1,0 +1,113 @@
+name: Education Business OS CI
+on:
+  pull_request:
+    paths:
+      - "education-business-os/**"
+      - ".github/workflows/education-business-os.yml"
+  push:
+    branches: [main]
+    paths:
+      - "education-business-os/**"
+      - ".github/workflows/education-business-os.yml"
+jobs:
+  web-and-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          package-manager-cache: false
+      - name: Build Cloud Functions
+        working-directory: education-business-os/functions
+        run: |
+          npm install
+          npm audit --json > "$GITHUB_WORKSPACE/npm-audit-functions.json" || true
+          npm run build
+      - name: Build Web
+        working-directory: education-business-os/web
+        run: |
+          npm install
+          npm audit --json > "$GITHUB_WORKSPACE/npm-audit-web.json" || true
+          npm run build
+      - name: Upload dependency audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: education-business-os-npm-audit
+          path: npm-audit-*.json
+          if-no-files-found: warn
+          retention-days: 14
+  firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          package-manager-cache: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install rules test dependencies
+        working-directory: education-business-os/tests
+        run: |
+          npm install
+          npm audit --json > "$GITHUB_WORKSPACE/npm-audit-tests.json" || true
+      - name: Upload rules test dependency audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: education-business-os-rules-audit
+          path: npm-audit-tests.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Run Firestore rules tests in emulator
+        working-directory: education-business-os
+        run: |
+          npm install -g firebase-tools
+          firebase emulators:exec --project demo-education-business-os --only firestore "cd tests && npm test"
+  mobile-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Android project scaffolding
+        working-directory: education-business-os/mobile
+        run: flutter create --platforms=android --project-name aptivern_student_app .
+      - name: Resolve Flutter dependencies
+        working-directory: education-business-os/mobile
+        run: flutter pub get
+      - name: Replace generated Flutter template test
+        working-directory: education-business-os/mobile
+        run: |
+          cat > test/widget_test.dart <<'EOF'
+          import 'package:flutter_test/flutter_test.dart';
+          import 'package:aptivern_student_app/main.dart';
+
+          void main() {
+            test('Aptivern app widget can be constructed', () {
+              expect(const AptivernStudentApp(), isA<AptivernStudentApp>());
+            });
+          }
+          EOF
+      - name: Analyze Flutter source
+        working-directory: education-business-os/mobile
+        run: flutter analyze
+      - name: Run Flutter tests
+        working-directory: education-business-os/mobile
+        run: flutter test
+      - name: Build Android debug APK
+        working-directory: education-business-os/mobile
+        run: flutter build apk --debug
+      - name: Upload Android debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: aptivern-student-android-debug
+          path: education-business-os/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
