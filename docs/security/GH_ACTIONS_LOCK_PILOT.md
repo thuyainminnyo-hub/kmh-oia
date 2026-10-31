@@ -18,6 +18,8 @@ Fetched from the default branch before creating this pilot branch:
 
 Re-fetch and compare the workflow before generating a lockfile; the baseline SHA above is not proof that the file is unchanged on this branch.
 
+A fresh inventory of `main` on 2026-10-31 found four workflow files: `nist-seed-reproduction.yml`, `prompt-library-schema-qa.yml`, `test.yml`, and `validation.yml`. All four currently use `actions/checkout@v4` and `actions/setup-python@v5`; `test.yml` and `validation.yml` also use `actions/upload-artifact@v4`. The three non-target workflows were inventoried and showed no remote reusable-workflow calls, no local `uses: ./...` references, and no `container:` declarations. Their current workflow blob SHAs are available from the GitHub API and must be re-fetched before any generation. This pilot intentionally scopes generation to `test.yml`; it does not mean the other three workflows are onboarded.
+
 ## 2. Tool version pin
 
 GitHub Releases API identified immutable release `v0.4.0`:
@@ -109,12 +111,15 @@ Capture command output, exit status, exact branch/head SHA, and the subsequent G
 - [ ] Run `--verify` and record exit status/output.
 - [ ] Run existing workflow on the candidate branch and capture exact-head CI evidence.
 - [ ] Review dependency changes; obtain required reviewers.
-- [ ] Only then consider enabling repository/organization Require lockfile policy.
+- [ ] Inventory and onboard every workflow that will be in the Require lockfile policy target scope; this repository currently has four workflow files, while this pilot covers only `test.yml`.
+- [ ] Add `.github/workflows/actions.lock` to CODEOWNERS and verify required code-owner review / branch rules are configured.
+- [ ] Evaluate the Require lockfile policy against the exact target set and confirm no targeted workflow remains un-onboarded.
+- [ ] Only then consider changing Require lockfile policy from Evaluate to Active. Active policy blocks targeted workflows that are not onboarded.
 
 ## 7. Current decision
 
 **GO:** prepare and execute an isolated, one-workflow pilot.  
-**HOLD:** lockfile enforcement, broad workflow migration, and production rollout until all acceptance gates have evidence.
+**HOLD:** lockfile enforcement, broad workflow migration, and production rollout until all acceptance gates have evidence. A one-workflow pilot is not repository-wide readiness; do not activate Require lockfile across this repository while three workflows remain outside the pilot.
 
 ## 8. Execution truth
 
