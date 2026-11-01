@@ -76,3 +76,23 @@ Sources:
 - Checkerboard inspection preview saved at `/My Little Creative World/Run 35/Thiri_Alpha_Matte_Preview.png`.
 - Alpha inspection JSON saved at `/My Little Creative World/Run 35/Alpha_Matte_Inspection.json`.
 - The RGBA PNG passed technical checks for canvas size, alpha range, transparent four edges and transparent corners. Human silhouette review is still required.
+
+
+## 2nd official-doc review — preferred next iteration
+
+OpenAI's current image-prompting guide provides a more suitable path than deriving alpha from a white matte: request a transparent-background image edit, explicitly ask for an isolated subject and clean alpha edges, use PNG/WebP, and preserve the returned alpha channel. A drawn checkerboard is not transparency. This is the preferred next candidate workflow, but output still needs inspection for halos and silhouette damage.
+
+The current local alpha-matte candidate remains useful as a diagnostic fallback. Because it was extracted from RGB-on-white, edge pixels may carry white-matte contamination despite feathering. Do not promote it to production merely because the alpha channel exists.
+
+For SAM 3.1, the official Python parser can decode the model mask to a row-major binary raster of exactly width × height, or COCO RLE for storage/evaluation. The parser only decodes output; the application remains responsible for sending the API request and verifying completion status. This makes a reproducible mask QA pipeline possible.
+
+### Updated decision
+1. Keep current alpha candidate as **TECHNICAL PREVIEW ONLY**.
+2. Preferred next alpha candidate: GPT Image 2.5 Sunburst edit with transparent background and explicit no-restyle/no-halo prompt.
+3. Independently compare output silhouette and protected features; generated output is not an exact original-pixel preservation method.
+4. SAM 3.1 mask output can be decoded to binary raster; human review and pixel-diff QA remain mandatory.
+
+Sources:
+- OpenAI image prompting / transparent cutout: https://developers.openai.com/api/docs/guides/image-prompting
+- OpenAI image edit API: https://developers.openai.com/api/reference/resources/images/methods/edit
+- Meta SAM parser: https://dev.meta.ai/docs/sam/client-libraries
