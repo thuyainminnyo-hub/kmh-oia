@@ -1,0 +1,47 @@
+{
+  "run": 43,
+  "source": "15312(1).png",
+  "dimensions": [
+    225,
+    431
+  ],
+  "mode": "RGBA",
+  "source_sha256": "c241aa5c9e1a65b58f4b317c291bf7dfd92be9cedf4d62b35f7874ece6193517",
+  "alpha": {
+    "transparent": 35247,
+    "partial": 513,
+    "opaque": 61215,
+    "transparent_percent": 36.346
+  },
+  "components": {
+    "count": 75,
+    "largest": {
+      "pixels": 59523,
+      "bbox_xywh": [
+        0,
+        18,
+        189,
+        413
+      ],
+      "share_percent": 96.428
+    },
+    "second": {
+      "pixels": 1875,
+      "bbox_xywh": [
+        194,
+        85,
+        31,
+        120
+      ]
+    }
+  },
+  "decision": {
+    "intake": "PASS",
+    "main_component": "DIAGNOSTIC_CANDIDATE",
+    "tabs": "PENDING",
+    "clipped_edges": "PENDING_SOURCE",
+    "sublayers": "NOT_RUN",
+    "character_fit": "NOT_RUN",
+    "p01_composite": "NOT_RUN"
+  }
+}
