@@ -1,6 +1,6 @@
 {
   "name": "my-little-creative-world-studio",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "start": "python3 -m http.server 4173"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.55.0"
   }
 }
