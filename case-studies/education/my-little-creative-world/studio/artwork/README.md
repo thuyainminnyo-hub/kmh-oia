@@ -31,3 +31,10 @@ Run the asset-integrity test, inspect transparency, view at 100%, check shoulder
 - [Layers in SketchBook Pro](https://help.autodesk.com/view/SKETPRO/ENU/?guid=SKETPRO_Help_sb_layers_html)
 - [Creating an alpha channel](https://help.autodesk.com/view/SKETPRO/ENU/?guid=SKETPRO_Help_sb_layers_layer_editor_create_alpha_channel_html)
 - [File Saving in SketchBook Pro](https://help.autodesk.com/view/SKETPRO/ENU/?guid=SKETPRO_Help_sb_file_saving_html)
+
+
+## V1.0.8 in-app neutral base implementation
+
+The Studio renders an opaque neutral base SVG over the locked original JPEG in every state, including reset. The base consists of `BODY_BASE_TOP`, `BODY_BASE_LOWER`, and `BASE_NECKLACE` groups. A browser pixel test composites the original JPEG and base SVG, then checks a known lower-htamein source pixel is covered by the neutral base color. The original JPEG itself remains unchanged and continues to pass its source SHA/Git blob integrity gate.
+
+Each selected outfit renders separate addressable `BLOUSE`, `SASH`, `HTAMEIN`, and `DETAILS` SVG groups above the neutral base. These remain interactive concept overlays; they are not yet final hand-authored cultural clothing artwork or a layered PSD master. Human review and detailed asset production remain required.
