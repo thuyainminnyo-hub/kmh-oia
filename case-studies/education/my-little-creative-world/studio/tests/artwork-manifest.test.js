@@ -10,7 +10,7 @@ const root = path.resolve(here, '..');
 const manifest = JSON.parse(await readFile(path.join(root, 'artwork/layer-manifest.json'), 'utf8'));
 
 function gitBlobSha1(buffer) {
-  const header = Buffer.from(`blob ${buffer.length}\\0`, 'utf8');
+  const header = Buffer.from('blob ' + buffer.length + String.fromCharCode(0), 'utf8');
   return createHash('sha1').update(header).update(buffer).digest('hex');
 }
 
@@ -27,7 +27,8 @@ function jpegDimensions(buffer) {
     if (sofMarkers.has(marker)) {
       return {
         height: buffer.readUInt16BE(offset + 3),
-        width: buffer.readUInt16BE(offset + 5)
+        width: buffer.readUInt16BE(offset + 5),
+        components: buffer[offset + 7]
       };
     }
     offset += segmentLength;
@@ -63,5 +64,5 @@ test('repository Thiri source is byte-identical to the immutable original refere
     `Source SHA-256 mismatch: found ${sha256}`);
   assert.equal(gitSha, manifest.source_reference.git_blob_sha1,
     `Git blob SHA mismatch: found ${gitSha}`);
-  assert.deepEqual(dimensions, { width: 450, height: 450 });
+  assert.deepEqual(dimensions, { width: 450, height: 450, components: 3 });
 });
