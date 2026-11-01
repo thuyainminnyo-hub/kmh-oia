@@ -151,3 +151,45 @@ Sources:
 ### MLCW decision
 
 For P01, use separate segmentation requests for blouse, ruby longyi and gold/cream drape, or use localized box/point prompts. Do not send a combined prompt like "blouse, longyi and shawl". Treat model masks as candidate geometry; human-reviewed masks and deterministic pixel QA remain the acceptance authority.
+
+
+## 11. Current official documentation check — 2026-11-01
+
+### OpenAI model availability correction
+The current Image Edit API reference lists GPT Image 2.5 variants:
+- `gpt-image-2.5-sunburst`
+- `gpt-image-2.5-sunburst-2026-09-08`
+- `gpt-image-2.5-flare`
+- `gpt-image-2.5-flare-2026-09-08`
+
+The same reference states that `gpt-image-1` was shut down on October 23, 2026. New integration work should target a currently listed GPT Image 2.5 variant, not the retired `gpt-image-1`.
+
+The API confirms that supported GPT Image 2.5 variants accept up to 16 input images and support transparent background output. For alpha, request PNG or WebP. A mask must be PNG, under 4 MB, and match the first input image's dimensions. Transparent mask pixels indicate editable areas. Mask boundaries are still guidance, not a hard pixel lock.
+
+### SAM 3.1 output and implementation detail
+The current Meta Model API identifies `sam-3.1` at `POST /v1/responses`, returning source-pixel boxes and binary masks. The official `@meta-sam/parser` (TypeScript) and `meta_sam_parser` (Python) libraries parse the special-token output and decode masks to a binary raster of width × height.
+
+SAM prompt rules:
+- Use one short noun phrase per concept request, e.g. "gold blouse".
+- For already located objects, use box/point prompts instead.
+- Do not combine concept text and box/point prompt modes in one request.
+- Several garment types require separate requests.
+- Empty results are valid; check for zero matches rather than assuming a mask exists.
+
+### Revised MLCW P01 implementation plan
+1. Do not run API inference until the user has approved the current reconstruction candidate as the Master Base.
+2. For each P01 garment part, make a separate segmentation request: blouse, ruby longyi, gold/cream drape, decorative trims.
+3. Parse and decode each mask to a full-resolution binary raster.
+4. Human-review masks against source boundaries; manually correct if needed.
+5. Composite with deterministic alpha operations and anchor coordinates.
+6. Calculate target coverage, uncovered pixels, spillover and protected-region pixel differences.
+7. Keep source-preserved pixels distinct from generated/reconstructed pixels in a provenance mask.
+
+### Sources
+- OpenAI Image Edit API: https://developers.openai.com/api/reference/go/resources/images/methods/edit
+- OpenAI Image Generation guide: https://developers.openai.com/api/docs/guides/image-generation
+- Meta SAM segmentation prompts: https://dev.meta.ai/docs/sam/segmenting
+- Meta SAM overview and parser: https://dev.meta.ai/docs/sam/overview
+- Meta SAM model/pricing page: https://dev.meta.ai/models/sam-3-1
+
+**Status unchanged:** the neutral-base candidate awaits user visual approval. No paid API call or model inference has been run. P01 composite and pixel QA remain pending.
