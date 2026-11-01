@@ -3,7 +3,7 @@ character_name: Thiri
 registry_version: 1.0.0
 record_status: draft
 canonical_reference:
-  description: "Full-body Thiri in cream neutral outfit; dark brown hair bun; white flower; gold earrings"
+  description: "Full-body Thiri in cream neutral outfit; dark brown hair bun; white flower ornament; gold earrings"
   source: "User-supplied reference image in ChatGPT conversation"
   project_notion: "https://app.notion.com/p/409fd51bf575815ca6cdf3f76a667fd6"
   binary_asset_committed: false
@@ -28,7 +28,7 @@ qa_policy:
   evidence_required: true
   release_requires_human_review: true
 evidence_boundary:
-  user_reported: ["Run #25: 15078/15078 target pixels covered"]
+  user_reported: ["Run #25 reported 15078 of 15078 target pixels covered"]
   not_independently_verified:
     - "Run #26 boundary and identity pixel QA"
     - "P01-P10 fitted garment alignment"
