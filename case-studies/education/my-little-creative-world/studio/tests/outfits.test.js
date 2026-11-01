@@ -11,12 +11,13 @@ test('ten uniquely identified bilingual outfit concepts', () => {
   }
 });
 
-test('each outfit produces clipped SVG garment layers', () => {
+test('each outfit overlay uses the original square character coordinate system', () => {
   for (const item of outfits) {
     const svg = outfitSvg(item);
-    assert.ok(svg.includes('viewBox="0 0 1024 1536"'));
+    assert.ok(svg.includes('viewBox="0 0 450 450"'));
     assert.ok(svg.includes('clip-path="url(#blouse)"'));
-    assert.ok(svg.includes('clip-path="url(#skirt)"'));
+    assert.ok(svg.includes('clip-path="url(#sash)"'));
+    assert.ok(svg.includes('clip-path="url(#htamein)"'));
     assert.ok(svg.includes(item.color));
   }
 });
