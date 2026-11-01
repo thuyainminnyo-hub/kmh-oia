@@ -3,7 +3,7 @@ character_name: Thiri
 registry_version: 1.0.0
 record_status: draft
 canonical_reference:
-  description: "Full-body Thiri in cream neutral outfit; dark brown hair bun; white flower ornament; gold earrings"
+  description: "Full-body Thiri in cream neutral Myanmar-inspired outfit; dark brown hair bun; white flower ornament; gold earrings"
   source: "User-supplied reference image in ChatGPT conversation"
   project_notion: "https://app.notion.com/p/409fd51bf575815ca6cdf3f76a667fd6"
   binary_asset_committed: false
