@@ -1,3 +1,5 @@
+import { bodyBaseLayers } from './body-base.js';
+
 export const outfits = [
   { id: 'MLCW-OUTFIT-001', name: 'ပန်းရောင်လှိုင်း', en: 'Pink wave motif', color: '#d96b91', accent: '#f4c4d4', pattern: 'wave' },
   { id: 'MLCW-OUTFIT-002', name: 'စိမ်းပြာနှင့် ကောင်းကင်ပြာ', en: 'Teal & sky blue', color: '#318f91', accent: '#9edce0', pattern: 'stripe' },
@@ -11,7 +13,16 @@ export const outfits = [
   { id: 'MLCW-OUTFIT-010', name: 'တော်ဝင်နို့နှစ်နှင့် ရွှေ', en: 'Royal cream & gold', color: '#e4d5ad', accent: '#b98a32', pattern: 'diamond' }
 ];
 
-export function outfitSvg(item) {
+const blousePath = 'M176 239 C171 222 179 207 194 200 C209 193 231 195 251 198 C266 200 271 210 268 225 L249 303 C232 305 211 295 197 285 C182 273 177 257 176 239Z';
+const sashPath = 'M246 199 C257 196 267 203 268 214 L249 302 L231 297 L247 217Z';
+const htameinPath = 'M177 290 C205 300 246 300 271 290 C279 329 280 383 269 428 C240 433 206 431 179 428 C172 382 171 330 177 290Z';
+
+export function outfitSvg(item = null) {
+  const base = bodyBaseLayers();
+  if (!item) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 450" role="img" aria-label="Thiri neutral modest base costume">${base}</svg>`;
+  }
+
   const motifs = {
     wave: '<path d="M0 12 Q12 0 24 12 T48 12"/>',
     stripe: '<path d="M8 0V48 M24 0V48 M40 0V48"/>',
@@ -21,29 +32,33 @@ export function outfitSvg(item) {
     dot: '<circle cx="12" cy="12" r="3"/><circle cx="36" cy="36" r="3"/><circle cx="36" cy="12" r="3"/>'
   };
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 450" preserveAspectRatio="none" role="img" aria-label="${item.en} garment overlay">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 450" role="img" aria-label="${item.en} garment overlay">
     <defs>
       <pattern id="motif" width="48" height="48" patternUnits="userSpaceOnUse">
-        <g fill="none" stroke="${item.accent}" stroke-width="1.8" opacity=".85">${motifs[item.pattern]}</g>
+        <g fill="none" stroke="${item.accent}" stroke-width="1.8" opacity=".9">${motifs[item.pattern]}</g>
       </pattern>
-      <clipPath id="blouse">
-        <path d="M180 239 C174 226 180 211 194 205 C207 198 221 196 237 197 L272 199 C288 200 299 211 300 225 L282 269 C274 285 263 298 248 302 L215 289 C198 282 184 266 180 239Z"/>
-      </clipPath>
-      <clipPath id="sash">
-        <path d="M256 205 C270 198 284 202 292 212 L270 301 L242 299Z"/>
-      </clipPath>
-      <clipPath id="htamein">
-        <path d="M184 297 C205 304 245 304 268 296 C276 329 277 382 268 426 C240 432 209 430 183 425 C176 385 176 331 184 297Z"/>
-      </clipPath>
+      <clipPath id="blouse"><path d="${blousePath}"/></clipPath>
+      <clipPath id="sash"><path d="${sashPath}"/></clipPath>
+      <clipPath id="htamein"><path d="${htameinPath}"/></clipPath>
     </defs>
-    <path d="M180 239 C174 226 180 211 194 205 C207 198 221 196 237 197 L272 199 C288 200 299 211 300 225 L282 269 C274 285 263 298 248 302 L215 289 C198 282 184 266 180 239Z"
-      fill="${item.color}" opacity=".72" clip-path="url(#blouse)"/>
-    <rect x="175" y="194" width="132" height="112" fill="url(#motif)" clip-path="url(#blouse)"/>
-    <path d="M256 205 C270 198 284 202 292 212 L270 301 L242 299Z"
-      fill="${item.color}" opacity=".88" clip-path="url(#sash)"/>
-    <rect x="238" y="198" width="62" height="108" fill="url(#motif)" clip-path="url(#sash)"/>
-    <path d="M184 297 C205 304 245 304 268 296 C276 329 277 382 268 426 C240 432 209 430 183 425 C176 385 176 331 184 297Z"
-      fill="${item.color}" opacity=".76" clip-path="url(#htamein)"/>
-    <rect x="176" y="292" width="100" height="140" fill="url(#motif)" clip-path="url(#htamein)"/>
+    ${base}
+    <g data-layer="${item.id}">
+      <g data-layer="BLOUSE">
+        <path d="${blousePath}" fill="${item.color}" stroke="#6d4d58" stroke-width="1.1" stroke-linejoin="round"/>
+        <rect x="172" y="190" width="102" height="116" fill="url(#motif)" clip-path="url(#blouse)"/>
+      </g>
+      <g data-layer="SASH">
+        <path d="${sashPath}" fill="${item.accent}" stroke="${item.color}" stroke-width="1.2" stroke-linejoin="round"/>
+        <rect x="228" y="190" width="48" height="118" fill="url(#motif)" clip-path="url(#sash)"/>
+      </g>
+      <g data-layer="HTAMEIN">
+        <path d="${htameinPath}" fill="${item.color}" stroke="#6d4d58" stroke-width="1.1" stroke-linejoin="round"/>
+        <rect x="170" y="288" width="108" height="146" fill="url(#motif)" clip-path="url(#htamein)"/>
+      </g>
+      <g data-layer="DETAILS" fill="none" stroke="${item.accent}" stroke-width="2">
+        <path d="M181 406 Q223 413 268 406"/>
+        <path d="M184 412 Q224 419 267 412"/>
+      </g>
+    </g>
   </svg>`;
 }
