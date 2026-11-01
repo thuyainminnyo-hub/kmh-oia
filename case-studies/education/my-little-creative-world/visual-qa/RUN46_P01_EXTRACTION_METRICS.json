@@ -1,0 +1,75 @@
+{
+  "run": 46,
+  "date": "2026-11-02",
+  "source_pdf": "My_Little_Creative_World_Myanmar_Prototype_v1.pdf",
+  "source_page": 3,
+  "source_heading": "02 · Outfit Asset Sheet",
+  "target_working_slot": "P01",
+  "matched_working_label": "03 Gold & maroon",
+  "source_page_render_px": [
+    4678,
+    3308
+  ],
+  "safe_crop_xyxy": [
+    1840,
+    470,
+    2640,
+    1730
+  ],
+  "safe_crop_px": [
+    800,
+    1260
+  ],
+  "candidate": {
+    "file": "P01_Outfit03_Transparent_Candidate_v2.png",
+    "dimensions_px": [
+      617,
+      1148
+    ],
+    "bbox_on_crop_xyxy": [
+      93,
+      41,
+      710,
+      1189
+    ],
+    "foreground_pixels": 464840,
+    "fully_opaque_alpha_pixels": 460101,
+    "partial_alpha_pixels": 4739,
+    "fully_transparent_pixels": 243476
+  },
+  "method": [
+    "OpenCV HSV threshold foreground extraction",
+    "Largest connected component selection",
+    "Five manual tab-exclusion ROIs with chromatic pixel restoration",
+    "Fill only enclosed holes <=90 px",
+    "Antialias estimate at outer silhouette"
+  ],
+  "unit_tests": {
+    "passed": 4,
+    "failed": 0
+  },
+  "limitations": [
+    "Source page is flattened RGB on white, not original layered or transparent artwork.",
+    "True translucent alpha in shawl is unrecoverable from flattened source with this method.",
+    "Residual tab/edge artifacts observed; manual cleanup remains.",
+    "No semantic sublayer separation or Thiri alignment.",
+    "No final composite or identity regression QA.",
+    "SAM 2 and GrabCut were researched, not run."
+  ],
+  "gate": {
+    "reference_source": "PASS",
+    "candidate_cutout": "PASS_DIAGNOSTIC",
+    "alpha_metrics": "PASS",
+    "unit_tests": "PASS_4_OF_4",
+    "tab_removal": "HOLD",
+    "true_drape_alpha": "NOT_AVAILABLE_FROM_FLATTENED_SOURCE",
+    "sublayer_segmentation": "NOT_RUN",
+    "thiri_fit": "NOT_RUN",
+    "final_composite": "NOT_RUN",
+    "production_approval": "HOLD"
+  },
+  "hashes": {
+    "candidate_png": "3c8d96932fdd258d88740320beac970863b302ad93a8a49d32a199153c7788ee",
+    "mask_png": "12d727cb749ae838994f8b20dfd9de632911606c2ef38fc9bab4168a16dbd428"
+  }
+}
