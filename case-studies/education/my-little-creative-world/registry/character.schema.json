@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kmh-oia.example/schemas/mlcw-character.schema.json",
+  "title": "MLCW Canonical Character Registry Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "registry_id",
+    "character_name",
+    "registry_version",
+    "record_status",
+    "canonical_reference",
+    "identity_lock",
+    "replaceable_attributes",
+    "outfit_library",
+    "qa_policy",
+    "evidence_boundary"
+  ],
+  "properties": {
+    "registry_id": {
+      "type": "string",
+      "pattern": "^MLCW-CHAR-[0-9]{3}$"
+    },
+    "character_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "registry_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "record_status": {
+      "enum": [
+        "draft",
+        "active",
+        "archived"
+      ]
+    },
+    "canonical_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "source",
+        "project_notion",
+        "binary_asset_committed"
+      ],
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_notion": {
+          "type": "string",
+          "format": "uri"
+        },
+        "binary_asset_committed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "identity_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "face",
+        "eyes",
+        "hair",
+        "hair_ornament",
+        "skin",
+        "body_proportion",
+        "earrings_and_accessories"
+      ],
+      "properties": {
+        "face": {
+          "const": "preserve"
+        },
+        "eyes": {
+          "const": "preserve"
+        },
+        "hair": {
+          "const": "preserve"
+        },
+        "hair_ornament": {
+          "const": "preserve"
+        },
+        "skin": {
+          "const": "preserve"
+        },
+        "body_proportion": {
+          "const": "preserve"
+        },
+        "earrings_and_accessories": {
+          "const": "preserve"
+        }
+      }
+    },
+    "replaceable_attributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outfit",
+        "pose",
+        "scene",
+        "background"
+      ],
+      "properties": {
+        "outfit": {
+          "const": true
+        },
+        "pose": {
+          "const": true
+        },
+        "scene": {
+          "const": true
+        },
+        "background": {
+          "const": true
+        }
+      }
+    },
+    "outfit_library": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^P(0[1-9]|10)$"
+      }
+    },
+    "qa_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_check_required",
+        "boundary_check_required",
+        "pixel_coverage_check_required",
+        "evidence_required",
+        "release_requires_human_review"
+      ],
+      "properties": {
+        "identity_check_required": {
+          "const": true
+        },
+        "boundary_check_required": {
+          "const": true
+        },
+        "pixel_coverage_check_required": {
+          "const": true
+        },
+        "evidence_required": {
+          "const": true
+        },
+        "release_requires_human_review": {
+          "const": true
+        }
+      }
+    },
+    "evidence_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user_reported",
+        "not_independently_verified",
+        "release_status"
+      ],
+      "properties": {
+        "user_reported": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "not_independently_verified": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "release_status": {
+          "const": "hold_pending_reproducible_artifact_and_test_evidence"
+        }
+      }
+    }
+  }
+}
