@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: kmh-eo-postgis
+    environment:
+      POSTGRES_DB: kmh_eo
+      POSTGRES_USER: kmh
+      POSTGRES_PASSWORD: kmh_dev_only
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kmh -d kmh_eo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  postgis_data:
