@@ -54,3 +54,13 @@ Added `p01_component_extract.py`. It extracts the largest alpha-connected compon
 - Meta SAM segmentation: https://dev.meta.ai/docs/sam/segmenting — localized prompts for object segmentation; masks still need review.
 
 **Run #43 result:** P01 diagnostic extraction completed. Final garment layer is not ready for character compositing.
+
+
+## GitHub Actions verification
+
+- MLCW Visual Pixel QA run #76 (ID `41330247447`): **SUCCESS**.
+- MLCW Character Registry Validation run #96 (ID `41330247485`): **SUCCESS**.
+- KMH OIA Tests run #1433 (ID `41330247570`): **SUCCESS**.
+- KMH OIA Validation run #1352 was still in progress when checked.
+
+These CI workflows validate the existing code/test suites and registry. They do not certify P01 as a production-ready garment or verify the actual character fit.
