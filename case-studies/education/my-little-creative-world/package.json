@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:registry": "node --test case-studies/education/my-little-creative-world/tests/registry.test.mjs"
+    "test:registry": "node --test tests/registry.test.mjs"
   }
 }
