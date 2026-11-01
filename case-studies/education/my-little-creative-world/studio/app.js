@@ -8,7 +8,7 @@ let selected = null;
 
 function selectOutfit(id) {
   selected = outfits.find((item) => item.id === id) ?? null;
-  overlay.innerHTML = selected ? outfitSvg(selected) : '';
+  overlay.innerHTML = outfitSvg(selected);
   document.querySelectorAll('[data-outfit]').forEach((button) => {
     const active = button.dataset.outfit === id;
     button.setAttribute('aria-pressed', String(active));
@@ -16,7 +16,7 @@ function selectOutfit(id) {
   });
   status.textContent = selected
     ? `ရွေးချယ်ထားသည် — ${selected.name} (${selected.en})`
-    : 'မူလဝတ်စုံ · Base outfit restored.';
+    : 'Neutral base restored · အခြေခံဝတ်စုံ ပြန်ထားသည်။';
 }
 
 grid.innerHTML = outfits.map((item, index) => `
@@ -80,7 +80,7 @@ async function exportPng() {
 
     context.drawImage(character, left, top, drawWidth, drawHeight);
 
-    if (selected) {
+    {
       const svgBlob = new Blob([outfitSvg(selected)], {
         type: 'image/svg+xml;charset=utf-8'
       });
