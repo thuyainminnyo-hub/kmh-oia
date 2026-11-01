@@ -1,0 +1,14 @@
+{
+  "run": 41,
+  "image_width": 1024,
+  "image_height": 1536,
+  "protected_mask_pixels": 82611,
+  "fully_opaque_protected_core_pixels": 81164,
+  "exact_rgb_matches_in_opaque_core": 81164,
+  "changed_rgb_pixels_in_opaque_core": 0,
+  "opaque_core_exact_match_ratio": 1.0,
+  "changed_rgb_pixels_in_full_protected_mask": 88,
+  "max_channel_delta_in_opaque_core": 0,
+  "pass": true,
+  "note": "100% exact RGB match applies only to the fully opaque protected-head core. 88 RGB differences are located in the feathered boundary."
+}
