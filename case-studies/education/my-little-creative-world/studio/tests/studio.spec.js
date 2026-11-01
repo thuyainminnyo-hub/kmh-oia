@@ -8,6 +8,30 @@ test('studio loads Thiri and ten outfit choices', async ({ page }) => {
   await expect(page.locator('[data-outfit]')).toHaveCount(10);
 });
 
+test('Thiri image fully decodes and retains the lower purple outfit', async ({ page }) => {
+  await page.goto('/');
+  const image = page.locator('#thiri-base');
+  const sample = await image.evaluate(async (img) => {
+    await img.decode();
+    if (img.naturalWidth !== 450 || img.naturalHeight !== 450) {
+      throw new Error(`Unexpected Thiri dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas 2D context unavailable');
+    context.drawImage(img, 0, 0);
+    const pixel = context.getImageData(220, 400, 1, 1).data;
+    return { red: pixel[0], green: pixel[1], blue: pixel[2] };
+  });
+  // This point is in the lower purple htamein on the original reference.
+  // It detects a partially decoded image that paints a grey block below the fold.
+  expect(sample.red).toBeGreaterThan(80);
+  expect(sample.green).toBeLessThan(90);
+  expect(sample.blue).toBeGreaterThan(70);
+});
+
 test('selection and reset work', async ({ page }) => {
   await page.goto('/');
   const first = page.locator('[data-outfit="MLCW-OUTFIT-001"]');
