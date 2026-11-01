@@ -1,0 +1,36 @@
+registry_id: MLCW-CHAR-001
+character_name: Thiri
+registry_version: 1.0.0
+record_status: draft
+canonical_reference:
+  description: "Full-body Thiri in cream neutral outfit; dark brown hair bun; white flower; gold earrings"
+  source: "User-supplied reference image in ChatGPT conversation"
+  project_notion: "https://app.notion.com/p/409fd51bf575815ca6cdf3f76a667fd6"
+  binary_asset_committed: false
+identity_lock:
+  face: preserve
+  eyes: preserve
+  hair: preserve
+  hair_ornament: preserve
+  skin: preserve
+  body_proportion: preserve
+  earrings_and_accessories: preserve
+replaceable_attributes:
+  outfit: true
+  pose: true
+  scene: true
+  background: true
+outfit_library: [P01, P02, P03, P04, P05, P06, P07, P08, P09, P10]
+qa_policy:
+  identity_check_required: true
+  boundary_check_required: true
+  pixel_coverage_check_required: true
+  evidence_required: true
+  release_requires_human_review: true
+evidence_boundary:
+  user_reported: ["Run #25: 15078/15078 target pixels covered"]
+  not_independently_verified:
+    - "Run #26 boundary and identity pixel QA"
+    - "P01-P10 fitted garment alignment"
+    - "Ten-outfit batch execution"
+  release_status: hold_pending_reproducible_artifact_and_test_evidence
