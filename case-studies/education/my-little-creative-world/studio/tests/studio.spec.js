@@ -29,9 +29,10 @@ test('keyboard activation works', async ({ page }) => {
 
 test('export downloads a PNG with 1024 by 1536 dimensions', async ({ page }) => {
   await page.goto('/');
-  await page.locator('#thiri-base').evaluate((img) => {
-    if (!img.complete || !img.naturalWidth) throw new Error('Thiri base image did not load');
-  });
+  await page.waitForFunction(() => {
+    const img = document.querySelector('#thiri-base');
+    return Boolean(img && img.complete && img.naturalWidth > 0);
+  }, { timeout: 10000 });
   await page.locator('[data-outfit="MLCW-OUTFIT-001"]').click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Export PNG/ }).click();
