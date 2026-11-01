@@ -39,12 +39,13 @@
     },
     {
       "id": "BODY_BASE_RECONSTRUCTION",
-      "type": "base-character",
+      "type": "vector-cover-layer",
       "visible": true,
       "locked": false,
       "opacity": 1,
       "required": true,
-      "status": "not-created"
+      "status": "implemented-in-app-overlay",
+      "source_path": "src/body-base.js"
     },
     {
       "id": "OUTFIT_001",
@@ -52,13 +53,14 @@
       "visible": false,
       "locked": false,
       "required": true,
-      "status": "concept-only",
+      "status": "interactive-svg-concept",
       "layers": [
         "BLOUSE",
         "SASH",
         "HTAMEIN",
         "DETAILS"
-      ]
+      ],
+      "source_path": "src/outfits.js"
     },
     {
       "id": "OUTFIT_002",
@@ -66,13 +68,14 @@
       "visible": false,
       "locked": false,
       "required": true,
-      "status": "concept-only",
+      "status": "interactive-svg-concept",
       "layers": [
         "BLOUSE",
         "SASH",
         "HTAMEIN",
         "DETAILS"
-      ]
+      ],
+      "source_path": "src/outfits.js"
     },
     {
       "id": "OUTFIT_003",
@@ -80,13 +83,14 @@
       "visible": false,
       "locked": false,
       "required": true,
-      "status": "concept-only",
+      "status": "interactive-svg-concept",
       "layers": [
         "BLOUSE",
         "SASH",
         "HTAMEIN",
         "DETAILS"
-      ]
+      ],
+      "source_path": "src/outfits.js"
     },
     {
       "id": "OUTFIT_004",
@@ -94,13 +98,14 @@
       "visible": false,
       "locked": false,
       "required": true,
-      "status": "concept-only",
+      "status": "interactive-svg-concept",
       "layers": [
         "BLOUSE",
         "SASH",
         "HTAMEIN",
         "DETAILS"
-      ]
+      ],
+      "source_path": "src/outfits.js"
     },
     {
       "id": "OUTFIT_005",
@@ -108,13 +113,14 @@
       "visible": false,
       "locked": false,
       "required": true,
-      "status": "concept-only",
+      "status": "interactive-svg-concept",
       "layers": [
         "BLOUSE",
         "SASH",
         "HTAMEIN",
         "DETAILS"
-      ]
+      ],
+      "source_path": "src/outfits.js"
     },
     {
       "id": "OUTFIT_006",
@@ -122,13 +128,14 @@
       "visible": false,
       "locked": false,
       "required": true,
-      "status": "concept-only",
+      "status": "interactive-svg-concept",
       "layers": [
         "BLOUSE",
         "SASH",
         "HTAMEIN",
         "DETAILS"
-      ]
+      ],
+      "source_path": "src/outfits.js"
     },
     {
       "id": "OUTFIT_007",
@@ -136,13 +143,14 @@
       "visible": false,
       "locked": false,
       "required": true,
-      "status": "concept-only",
+      "status": "interactive-svg-concept",
       "layers": [
         "BLOUSE",
         "SASH",
         "HTAMEIN",
         "DETAILS"
-      ]
+      ],
+      "source_path": "src/outfits.js"
     },
     {
       "id": "OUTFIT_008",
@@ -150,13 +158,14 @@
       "visible": false,
       "locked": false,
       "required": true,
-      "status": "concept-only",
+      "status": "interactive-svg-concept",
       "layers": [
         "BLOUSE",
         "SASH",
         "HTAMEIN",
         "DETAILS"
-      ]
+      ],
+      "source_path": "src/outfits.js"
     },
     {
       "id": "OUTFIT_009",
@@ -164,13 +173,14 @@
       "visible": false,
       "locked": false,
       "required": true,
-      "status": "concept-only",
+      "status": "interactive-svg-concept",
       "layers": [
         "BLOUSE",
         "SASH",
         "HTAMEIN",
         "DETAILS"
-      ]
+      ],
+      "source_path": "src/outfits.js"
     },
     {
       "id": "OUTFIT_010",
@@ -178,13 +188,14 @@
       "visible": false,
       "locked": false,
       "required": true,
-      "status": "concept-only",
+      "status": "interactive-svg-concept",
       "layers": [
         "BLOUSE",
         "SASH",
         "HTAMEIN",
         "DETAILS"
-      ]
+      ],
+      "source_path": "src/outfits.js"
     },
     {
       "id": "QA_OVERLAY_GUIDES",
@@ -241,6 +252,22 @@
     "garment boundaries align at neckline, shoulders, waist and hem",
     "transparent garment PNGs have a valid alpha channel",
     "desktop and mobile product E2E tests pass against the exact verified source",
-    "exported PNG is visually inspected before release"
-  ]
+    "exported PNG is visually inspected before release",
+    "neutral base overlay covers the original purple htamein at the tested source pixel without altering the immutable JPEG",
+    "reset state shows neutral base layers instead of exposing the original purple outfit",
+    "selected outfit SVG contains BLOUSE, SASH, HTAMEIN and DETAILS as separately addressable groups"
+  ],
+  "base_layer": {
+    "implementation": "opaque SVG overlay on immutable original JPEG",
+    "source_path": "src/body-base.js",
+    "color": "#f4eadb",
+    "layers": [
+      "BODY_BASE_TOP",
+      "BODY_BASE_LOWER",
+      "BASE_NECKLACE"
+    ],
+    "intent": "cover the original purple blouse, sash and htamein with a modest neutral costume while preserving the immutable character reference",
+    "editable_master_status": "PSD not yet authored"
+  },
+  "notes": "The current clean base is an in-app opaque vector overlay; it is not yet a standalone reconstructed body PNG or editable PSD master. Outfit groups are interactive SVG concepts, not finished cultural costume assets."
 }
