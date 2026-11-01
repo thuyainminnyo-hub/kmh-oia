@@ -43,6 +43,12 @@ def main():
         raise RuntimeError(f"Unexpected geometry type: {geom.geom_type}")
     if props.get("ADM2_EN", "").strip().lower() != "taunggyi":
         raise RuntimeError(f"Unexpected district returned: {props.get('ADM2_EN')!r}")
+    # Calculate area using an equal-area projection and the full polygon.
+    from pyproj import Transformer
+    from shapely.ops import transform
+    equal_area = Transformer.from_crs("EPSG:4326", "EPSG:6933", always_xy=True).transform
+    area_km2 = transform(equal_area, geom).area / 1_000_000
+
     output = {
         "type": "FeatureCollection",
         "name": "Taunggyi District, Shan State, Myanmar",
@@ -64,11 +70,7 @@ def main():
         "pcode": props.get("ADM2_PCODE"),
         "geometry_type": geom.geom_type,
         "bounds_wgs84": geom.bounds,
-        "area_km2_epsg6933": round(
-            __import__("pyproj").Transformer.from_crs(
-                "EPSG:4326", "EPSG:6933", always_xy=True
-            ).transform_bounds(*geom.bounds)[2], 3
-        ) if False else None,
+        "area_km2_epsg6933": round(area_km2, 3),
         "valid": geom.is_valid,
         "feature_count": 1,
     }, ensure_ascii=False, indent=2))
