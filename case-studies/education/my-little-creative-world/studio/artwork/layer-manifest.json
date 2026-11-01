@@ -1,0 +1,244 @@
+{
+  "schema_version": "1.0.0",
+  "project_id": "MLCW-MYANMAR-001",
+  "character_id": "MLCW-CHAR-001",
+  "character_name": "Thiri",
+  "canvas": {
+    "width": 450,
+    "height": 450,
+    "coordinate_system": "source-pixel",
+    "color_mode": "RGB"
+  },
+  "source_reference": {
+    "path": "assets/thiri-base.jpg",
+    "format": "JPEG",
+    "bytes": 11073,
+    "width": 450,
+    "height": 450,
+    "sha256": "7daa71b258bb62622a5ecb9b4e9a0e84cf86822db4a752ea49ffd27a8c24791f",
+    "git_blob_sha1": "ad6df905000a1d29e2ca2fb3a44762f91aa468a9",
+    "handling": "immutable; never overwrite the reference master",
+    "repository_status": "mismatch-confirmed"
+  },
+  "master_document": {
+    "recommended_format": "PSD",
+    "preserve_layers": true,
+    "notes": "Keep the layered master editable. PNG exports are flattened deliverables, not the editable source."
+  },
+  "layer_stack": [
+    {
+      "id": "REFERENCE_ORIGINAL_LOCKED",
+      "type": "reference",
+      "visible": true,
+      "locked": true,
+      "opacity": 1,
+      "required": true,
+      "status": "planned"
+    },
+    {
+      "id": "BODY_BASE_RECONSTRUCTION",
+      "type": "base-character",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "required": true,
+      "status": "not-created"
+    },
+    {
+      "id": "OUTFIT_001",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "concept-only",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ]
+    },
+    {
+      "id": "OUTFIT_002",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "concept-only",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ]
+    },
+    {
+      "id": "OUTFIT_003",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "concept-only",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ]
+    },
+    {
+      "id": "OUTFIT_004",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "concept-only",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ]
+    },
+    {
+      "id": "OUTFIT_005",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "concept-only",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ]
+    },
+    {
+      "id": "OUTFIT_006",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "concept-only",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ]
+    },
+    {
+      "id": "OUTFIT_007",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "concept-only",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ]
+    },
+    {
+      "id": "OUTFIT_008",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "concept-only",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ]
+    },
+    {
+      "id": "OUTFIT_009",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "concept-only",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ]
+    },
+    {
+      "id": "OUTFIT_010",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "concept-only",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ]
+    },
+    {
+      "id": "QA_OVERLAY_GUIDES",
+      "type": "qa-guides",
+      "visible": false,
+      "locked": true,
+      "required": false,
+      "status": "planned"
+    }
+  ],
+  "outfit_layer_requirements": [
+    {
+      "id": "BLOUSE",
+      "purpose": "upper garment"
+    },
+    {
+      "id": "SASH",
+      "purpose": "shoulder sash"
+    },
+    {
+      "id": "HTAMEIN",
+      "purpose": "lower garment"
+    },
+    {
+      "id": "DETAILS",
+      "purpose": "pattern, trim and small decorations"
+    }
+  ],
+  "export": {
+    "app_preview": {
+      "format": "PNG",
+      "width": 1024,
+      "height": 1536,
+      "fit": "contain",
+      "center": true,
+      "stretch": false
+    },
+    "garment_layers": {
+      "format": "PNG",
+      "transparent_background": true,
+      "flattened": true
+    },
+    "master": {
+      "format": "PSD",
+      "preserve_layers": true
+    }
+  },
+  "acceptance_gates": [
+    "source asset byte count, SHA-256 and Git blob SHA match the immutable reference",
+    "source dimensions are 450x450 and RGB",
+    "face, hair, hair ornament, skin, pose and body proportions are unchanged",
+    "clean reconstructed body has no original purple outfit leakage",
+    "each outfit contains separate BLOUSE, SASH, HTAMEIN and DETAILS layers",
+    "garment boundaries align at neckline, shoulders, waist and hem",
+    "transparent garment PNGs have a valid alpha channel",
+    "desktop and mobile product E2E tests pass against the exact verified source",
+    "exported PNG is visually inspected before release"
+  ]
+}
