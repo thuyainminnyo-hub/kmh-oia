@@ -22,7 +22,7 @@ SketchBook layer availability depends on device capability. If the mobile device
 
 ## Before a garment enters the app
 
-Run the asset-integrity test, inspect transparency, view at 100%, check shoulder/neckline/waist/hem alignment, confirm there is no old purple clothing showing through, and run desktop/mobile Playwright tests. The original asset test is intentionally a hard gate and currently reports the repository mismatch until the exact original bytes are committed.
+Run the asset-integrity test, inspect transparency, view at 100%, check shoulder/neckline/waist/hem alignment, confirm there is no old purple clothing showing through, and run desktop/mobile Playwright tests. The immutable original asset integrity test remains a hard gate. The original JPEG is now restored and exact byte identity is verified.
 
 ## Autodesk references
 
@@ -38,3 +38,21 @@ Run the asset-integrity test, inspect transparency, view at 100%, check shoulder
 The Studio renders an opaque neutral base SVG over the locked original JPEG in every state, including reset. The base consists of `BODY_BASE_TOP`, `BODY_BASE_LOWER`, and `BASE_NECKLACE` groups. A browser pixel test composites the original JPEG and base SVG, then checks a known lower-htamein source pixel is covered by the neutral base color. The original JPEG itself remains unchanged and continues to pass its source SHA/Git blob integrity gate.
 
 Each selected outfit renders separate addressable `BLOUSE`, `SASH`, `HTAMEIN`, and `DETAILS` SVG groups above the neutral base. These remain interactive concept overlays; they are not yet final hand-authored cultural clothing artwork or a layered PSD master. Human review and detailed asset production remain required.
+
+
+## Run #24 full visual-structure regression — PASS
+
+On 2026-11-01, MLCW Studio CI Run #24 passed on commit `fb31a80d923443e63432be61eefe4d3e3f18695a`.
+
+- Unit tests: 4/4 passed.
+- Desktop Chromium: 8/8 passed.
+- Mobile Chromium: 8/8 passed.
+- Total browser tests: 16/16 passed.
+- A source-region scan identified 15,078 pixels matching the original purple clothing color range; after compositing the neutral base, zero of those pixels remained purple.
+- All ten selectable outfits were tested on Desktop and Mobile. Each rendered an individual outfit group and separate `BLOUSE`, `SASH`, `HTAMEIN`, and `DETAILS` groups.
+- Selection/reset, keyboard activation, PNG export, source decode and automated accessibility scan passed.
+- KMH OIA Tests #1380 and KMH OIA Validation #1299 also passed on the same branch head.
+
+[Run #24 Playwright report](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41302370006/artifacts/13081532564)
+
+The ten choices still share simplified garment silhouettes and vary by color/pattern at this stage. They are tested interactive SVG concepts, not completed individually illustrated garments, a layered PSD master, or culturally approved outfit artwork. Human visual/cultural review remains required.
