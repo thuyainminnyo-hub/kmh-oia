@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 test('studio loads Thiri and ten outfit choices', async ({ page }) => {
   await page.goto('/');
@@ -36,10 +37,7 @@ test('export downloads a PNG with 1024 by 1536 dimensions', async ({ page }) => 
   await page.getByRole('button', { name: /Export PNG/ }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.png$/i);
-  const stream = await download.createReadStream();
-  const chunks = [];
-  for await (const chunk of stream) chunks.push(chunk);
-  const png = Buffer.concat(chunks);
+  const png = await readFile(await download.path());
   expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect(png.readUInt32BE(16)).toBe(1024);
   expect(png.readUInt32BE(20)).toBe(1536);
