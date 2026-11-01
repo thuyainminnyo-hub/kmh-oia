@@ -39,3 +39,23 @@ Composited on white, dark and saturated magenta backgrounds. The diffuse halo is
 - No P01 garment segmentation, compositing or protected-region QA has been performed.
 
 **Decision:** alpha-cleanup candidate technically generated; visual silhouette review PENDING; Master Base NOT APPROVED; P01 composite NOT RUN.
+
+
+## Run #38 — Multi-background visual review
+
+The saved white, dark and saturated-magenta preview composites were opened and visually inspected at full-image scale (1024×1536).
+
+### Observations
+- The subject silhouette is readable on all three backgrounds.
+- The broad diffuse glow seen in the original Candidate B is no longer visually apparent in these flattened previews.
+- Fine edge details around loose hair strands, flower petals, earring loops, finger gaps, skirt hem and toes still require 100–200% crop inspection.
+- A full-image preview cannot establish exact pixel preservation or face identity similarity.
+
+### Decision
+**Multi-background full-frame review: preliminary PASS.**  
+**Fine-edge review: PENDING.**  
+**Identity comparison against canonical original: NOT RUN.**  
+**Master Base approval: NOT APPROVED.**  
+**P01 segmentation/compositing: NOT RUN.**
+
+The current asset is a generated reconstruction with derived alpha. It must not be described as original-pixel-preserving. Next action: crop and inspect critical boundaries at 200%, then compare protected identity regions with the canonical source before requesting user approval.
