@@ -32,7 +32,7 @@ test('immutable Thiri source fully decodes and retains its original lower pixel'
   expect(sample.blue).toBeGreaterThan(70);
 });
 
-test('neutral body-base overlay hides the original purple htamein without editing the source', async ({ page }) => {
+test('neutral base fully covers every detected original purple garment pixel', async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async () => {
     const original = document.querySelector('#thiri-base');
@@ -48,21 +48,57 @@ test('neutral body-base overlay hides the original purple htamein without editin
       const canvas = document.createElement('canvas');
       canvas.width = 450;
       canvas.height = 450;
-      const context = canvas.getContext('2d');
+      const context = canvas.getContext('2d', { willReadFrequently: true });
       if (!context) throw new Error('Canvas 2D context unavailable');
+
       context.drawImage(original, 0, 0);
+      const source = context.getImageData(0, 0, 450, 450).data;
       context.drawImage(overlay, 0, 0);
-      const pixel = context.getImageData(220, 400, 1, 1).data;
-      return { red: pixel[0], green: pixel[1], blue: pixel[2] };
+      const composed = context.getImageData(0, 0, 450, 450).data;
+
+      const isOriginalPurpleGarment = (r, g, b) =>
+        r > 65 && b > 65 && g < 90 && r > g * 1.7 && b > g * 1.7;
+
+      let sourcePurplePixels = 0;
+      let remainingPurplePixels = 0;
+      for (let y = 190; y < 435; y += 1) {
+        for (let x = 150; x < 300; x += 1) {
+          const offset = (y * 450 + x) * 4;
+          const sourcePixel = source.slice(offset, offset + 3);
+          if (!isOriginalPurpleGarment(...sourcePixel)) continue;
+          sourcePurplePixels += 1;
+          const outputPixel = composed.slice(offset, offset + 3);
+          if (isOriginalPurpleGarment(...outputPixel)) remainingPurplePixels += 1;
+        }
+      }
+      return { sourcePurplePixels, remainingPurplePixels };
     } finally {
       URL.revokeObjectURL(url);
     }
   });
-  expect(result.red).toBeGreaterThan(220);
-  expect(result.green).toBeGreaterThan(200);
-  expect(result.blue).toBeGreaterThan(180);
+
+  // The reference contains more than 10k purple clothing pixels in this region.
+  // All of them must be covered by the neutral overlay in the composed result.
+  expect(result.sourcePurplePixels).toBeGreaterThan(10000);
+  expect(result.remainingPurplePixels).toBe(0);
   await expect(page.locator('#garment-overlay [data-layer="BODY_BASE_TOP"]')).toBeVisible();
   await expect(page.locator('#garment-overlay [data-layer="BODY_BASE_LOWER"]')).toBeVisible();
+});
+
+test('all ten outfits render their own group and four independent garment layers', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('[data-outfit]')).toHaveCount(10);
+
+  for (let index = 1; index <= 10; index += 1) {
+    const id = `MLCW-OUTFIT-${String(index).padStart(3, '0')}`;
+    const choice = page.locator(`[data-outfit="${id}"]`);
+    await choice.click();
+    await expect(choice).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator(`#garment-overlay [data-layer="${id}"]`)).toBeVisible();
+    for (const layer of ['BLOUSE', 'SASH', 'HTAMEIN', 'DETAILS']) {
+      await expect(page.locator(`#garment-overlay [data-layer="${layer}"]`)).toBeVisible();
+    }
+  }
 });
 
 test('selection and reset work', async ({ page }) => {
