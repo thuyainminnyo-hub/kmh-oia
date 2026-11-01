@@ -8,7 +8,7 @@ test('studio loads Thiri and ten outfit choices', async ({ page }) => {
   await expect(page.locator('[data-outfit]')).toHaveCount(10);
 });
 
-test('Thiri image fully decodes and retains the lower purple outfit', async ({ page }) => {
+test('immutable Thiri source fully decodes and retains its original lower pixel', async ({ page }) => {
   await page.goto('/');
   const image = page.locator('#thiri-base');
   const sample = await image.evaluate(async (img) => {
@@ -32,15 +32,53 @@ test('Thiri image fully decodes and retains the lower purple outfit', async ({ p
   expect(sample.blue).toBeGreaterThan(70);
 });
 
+test('neutral body-base overlay hides the original purple htamein without editing the source', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const original = document.querySelector('#thiri-base');
+    await original.decode();
+    const svg = document.querySelector('#garment-overlay svg');
+    if (!svg) throw new Error('Neutral base SVG was not rendered');
+    const markup = new XMLSerializer().serializeToString(svg);
+    const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }));
+    try {
+      const overlay = new Image();
+      overlay.src = url;
+      await overlay.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = 450;
+      canvas.height = 450;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Canvas 2D context unavailable');
+      context.drawImage(original, 0, 0);
+      context.drawImage(overlay, 0, 0);
+      const pixel = context.getImageData(220, 400, 1, 1).data;
+      return { red: pixel[0], green: pixel[1], blue: pixel[2] };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  });
+  expect(result.red).toBeGreaterThan(220);
+  expect(result.green).toBeGreaterThan(200);
+  expect(result.blue).toBeGreaterThan(180);
+  await expect(page.locator('#garment-overlay [data-layer="BODY_BASE_TOP"]')).toBeVisible();
+  await expect(page.locator('#garment-overlay [data-layer="BODY_BASE_LOWER"]')).toBeVisible();
+});
+
 test('selection and reset work', async ({ page }) => {
   await page.goto('/');
   const first = page.locator('[data-outfit="MLCW-OUTFIT-001"]');
   await first.click();
   await expect(first).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#garment-overlay svg')).toBeVisible();
+  await expect(page.locator('#garment-overlay [data-layer="BLOUSE"]')).toBeVisible();
+  await expect(page.locator('#garment-overlay [data-layer="SASH"]')).toBeVisible();
+  await expect(page.locator('#garment-overlay [data-layer="HTAMEIN"]')).toBeVisible();
+  await expect(page.locator('#garment-overlay [data-layer="DETAILS"]')).toBeVisible();
   await page.getByRole('button', { name: /Reset/ }).click();
   await expect(first).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('#garment-overlay')).toBeEmpty();
+  await expect(page.locator('#garment-overlay [data-layer="BODY_BASE_LOWER"]')).toBeVisible();
+  await expect(page.locator('#garment-overlay [data-layer="MLCW-OUTFIT-001"]')).toHaveCount(0);
 });
 
 test('keyboard activation works', async ({ page }) => {
