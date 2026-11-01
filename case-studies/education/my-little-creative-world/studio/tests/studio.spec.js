@@ -66,4 +66,23 @@ test('export downloads a PNG with 1024 by 1536 dimensions', async ({ page }) => 
   expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   expect(png.readUInt32BE(16)).toBe(1024);
   expect(png.readUInt32BE(20)).toBe(1536);
+
+  const margins = await page.evaluate(async (encoded) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${encoded}`;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas 2D context unavailable');
+    context.drawImage(image, 0, 0);
+    return {
+      top: [...context.getImageData(512, 100, 1, 1).data],
+      bottom: [...context.getImageData(512, 1400, 1, 1).data]
+    };
+  }, png.toString('base64'));
+  // A centered square character on a portrait page leaves both vertical margins intact.
+  expect(margins.top).toEqual([255, 250, 245, 255]);
+  expect(margins.bottom).toEqual([255, 250, 245, 255]);
 });
