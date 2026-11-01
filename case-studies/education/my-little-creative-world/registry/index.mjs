@@ -9,7 +9,7 @@ function assertCharacter(record, source) {
   for (const key of required) {
     if (!(key in record)) throw new Error(`Invalid character record ${source}: missing ${key}`);
   }
-  if (!/^MLCW-CHAR-\\d{3}$/.test(record.registry_id)) throw new Error(`Invalid character ID in ${source}`);
+  if (!/^MLCW-CHAR-\d{3}$/.test(record.registry_id)) throw new Error(`Invalid character ID in ${source}`);
   if (!Array.isArray(record.outfit_library) || new Set(record.outfit_library).size !== record.outfit_library.length) {
     throw new Error(`Invalid or duplicate outfit IDs in ${source}`);
   }
