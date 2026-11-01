@@ -56,3 +56,17 @@ The 100% match applies only to the fully opaque core. It does not apply to feath
 - Body proportions: not approved.
 - Master Base: HOLD.
 - P01 outfit composite: NOT RUN.
+
+
+## Remote CI verification
+
+GitHub Actions MLCW Visual Pixel QA run #68 (ID `41329749312`) completed **SUCCESS**:
+- 17 unit tests passed, 0 failed.
+- Includes 4 new neck-seam refinement tests.
+- Existing protected identity, segmentation metrics and pixel QA regression tests also passed.
+
+MLCW Character Registry Validation run #88 (ID `41329749340`) completed **SUCCESS**:
+- JSON/YAML schema and parity validation passed.
+- Registry retrieval tests passed.
+
+CI uses synthetic test fixtures for algorithm regression; it does not itself inspect the actual Thiri artwork. The real v5 composite metrics above were calculated separately from the actual local source, body, mask and output PNG.
