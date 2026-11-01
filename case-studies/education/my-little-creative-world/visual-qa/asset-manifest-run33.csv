@@ -1,13 +1,13 @@
 asset_id,working_slot,file,role,observed_design,width,height,mode,transparent_percent,connected_components,largest_component_pixels,largest_component_share_percent,edge_touches,second_largest_component_pixels,sha256
 MLCW-CHAR-001,,15309(1).png,canonical_identity_reference_not_clean_body_base,Thiri cream blouse and longyi; dark bun; white flower; gold earrings,1024,1536,RGBA,0,1,1572864,100,Left|Right|Top|Bottom,0,6abcdb53c85ef40eaab0f824c3a0ae164cc38ac3ca6fee1a7c823ed0e77f632e
-, P01,15312(1).png,outfit_concept_panel,Gold blouse; ruby red longyi; cream-gold shawl,225,431,RGBA,36.346,75,59523,96.428,Left|Bottom,1875,c241aa5c9e1a65b58f4b317c291bf7dfd92be9cedf4d62b35f7874ece6193517
-, P02,15311(1).png,outfit_concept_panel,Cream blouse; blue longyi; blue shawl,225,432,RGBA,32.394,59,43911,66.822,Left|Bottom,21617,a28d6acb46d095690b17dc238026d3628e55b270da1d5aa48916cf63b23f7526
-, P03,15310(1).png,outfit_concept_panel,Light-blue blouse; navy longyi; blue shawl,225,431,RGBA,34.875,53,63008,99.767,Left|Bottom,36,a2dac9a29797e286fc5f014f7efe87a8b0ed9f920732a752f435ab4861926532
-, P04,15308(1).png,outfit_concept_panel,Green blouse; dark-green longyi; green shawl,225,432,RGBA,38.663,72,59085,99.103,Left|Right|Bottom,188,390db24a4f699f735db8104b110e8ee7d218c207105ec86e1f0a6373f972682f
-, P05,15307(1).png,outfit_concept_panel,Pink outfit; ruffled shawl,225,432,RGBA,32.436,54,44631,67.960,Left|Bottom,20872,86f951ba6d3d3119423ee1aae9fd34459fc4ce09e5ec940d218aff86287e234b
-, P06,15306(1).png,outfit_concept_panel,Lavender blouse; purple longyi,225,431,RGBA,36.765,70,59341,96.770,Left|Bottom,1669,07d939826a1b707d8ee6be8b5b36003b63075c76fd046fde075d784ffc74fe19
-, P07,15305(1).png,outfit_concept_panel,Ornate cream-gold-pink formal outfit,225,432,RGBA,33.487,43,64332,99.507,Left|Right|Bottom,251,ee4ba71fb0fae0161b08bf53bebd963c31b3a09c5739df6ed0dbed8531ac6a21
-, P08,15303(1).png,outfit_concept_panel,Pink blouse; magenta longyi,225,431,RGBA,35.684,53,61458,98.538,Left|Bottom,606,8d359b0cf3deacd42c641041cad4480de469b7c1f37ef0574df1e9e8207c2bec
-, P09,15302(1).png,outfit_concept_panel,Teal blouse; turquoise longyi,225,431,RGBA,39.644,79,56560,96.634,Left|Bottom,1591,b7a1c2848c7ebf384aa0b5dd454f7b98f80dc09729d00514ed12aff0c3c5ee52
-, P10,15301(1).png,outfit_concept_panel,Coral blouse; brown longyi,225,432,RGBA,32.078,95,57164,86.586,Left|Bottom,8523,6dd4fd549e0bcfe4ae5083b877282bccaa27850fe81608f8d6636cd52114c345
+,P01,15312(1).png,outfit_concept_panel,Gold blouse; ruby red longyi; cream-gold shawl,225,431,RGBA,36.346,75,59523,96.428,Left|Bottom,1875,c241aa5c9e1a65b58f4b317c291bf7dfd92be9cedf4d62b35f7874ece6193517
+,P02,15311(1).png,outfit_concept_panel,Cream blouse; blue longyi; blue shawl,225,432,RGBA,32.394,59,43911,66.822,Left|Bottom,21617,a28d6acb46d095690b17dc238026d3628e55b270da1d5aa48916cf63b23f7526
+,P03,15310(1).png,outfit_concept_panel,Light-blue blouse; navy longyi; blue shawl,225,431,RGBA,34.875,53,63008,99.767,Left|Bottom,36,a2dac9a29797e286fc5f014f7efe87a8b0ed9f920732a752f435ab4861926532
+,P04,15308(1).png,outfit_concept_panel,Green blouse; dark-green longyi; green shawl,225,432,RGBA,38.663,72,59085,99.103,Left|Right|Bottom,188,390db24a4f699f735db8104b110e8ee7d218c207105ec86e1f0a6373f972682f
+,P05,15307(1).png,outfit_concept_panel,Pink outfit; ruffled shawl,225,432,RGBA,32.436,54,44631,67.960,Left|Bottom,20872,86f951ba6d3d3119423ee1aae9fd34459fc4ce09e5ec940d218aff86287e234b
+,P06,15306(1).png,outfit_concept_panel,Lavender blouse; purple longyi,225,431,RGBA,36.765,70,59341,96.770,Left|Bottom,1669,07d939826a1b707d8ee6be8b5b36003b63075c76fd046fde075d784ffc74fe19
+,P07,15305(1).png,outfit_concept_panel,Ornate cream-gold-pink formal outfit,225,432,RGBA,33.487,43,64332,99.507,Left|Right|Bottom,251,ee4ba71fb0fae0161b08bf53bebd963c31b3a09c5739df6ed0dbed8531ac6a21
+,P08,15303(1).png,outfit_concept_panel,Pink blouse; magenta longyi,225,431,RGBA,35.684,53,61458,98.538,Left|Bottom,606,8d359b0cf3deacd42c641041cad4480de469b7c1f37ef0574df1e9e8207c2bec
+,P09,15302(1).png,outfit_concept_panel,Teal blouse; turquoise longyi,225,431,RGBA,39.644,79,56560,96.634,Left|Bottom,1591,b7a1c2848c7ebf384aa0b5dd454f7b98f80dc09729d00514ed12aff0c3c5ee52
+,P10,15301(1).png,outfit_concept_panel,Coral blouse; brown longyi,225,432,RGBA,32.078,95,57164,86.586,Left|Bottom,8523,6dd4fd549e0bcfe4ae5083b877282bccaa27850fe81608f8d6636cd52114c345
 MLCW-ACCESSORY-001,,15304(1).png,opaque_accessory_sheet,Hair ornaments; flowers; headpieces; handbags; shoes,1536,169,RGB,,1,,,,,9d84b22f611d714323e9b21a74663a6301c9421074de5ade534884915c571082
