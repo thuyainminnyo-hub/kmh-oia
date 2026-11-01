@@ -1,0 +1,193 @@
+{
+  "run": 45,
+  "uploaded_assets": [
+    {
+      "file": "15301(2).png",
+      "sha256": "6dd4fd549e0bcfe4ae5083b877282bccaa27850fe81608f8d6636cd52114c345",
+      "dimensions_px": [
+        225,
+        432
+      ],
+      "transparent_pct": 32.078,
+      "edge_contacts": [
+        "left",
+        "right",
+        "bottom"
+      ]
+    },
+    {
+      "file": "15302(2).png",
+      "sha256": "b7a1c2848c7ebf384aa0b5dd454f7b98f80dc09729d00514ed12aff0c3c5ee52",
+      "dimensions_px": [
+        225,
+        431
+      ],
+      "transparent_pct": 39.644,
+      "edge_contacts": [
+        "left",
+        "right",
+        "bottom"
+      ]
+    },
+    {
+      "file": "15303(2).png",
+      "sha256": "8d359b0cf3deacd42c641041cad4480de469b7c1f37ef0574df1e9e8207c2bec",
+      "dimensions_px": [
+        225,
+        431
+      ],
+      "transparent_pct": 35.684,
+      "edge_contacts": [
+        "left",
+        "right",
+        "bottom"
+      ]
+    },
+    {
+      "file": "15305(2).png",
+      "sha256": "ee4ba71fb0fae0161b08bf53bebd963c31b3a09c5739df6ed0bed8531ac6a21",
+      "dimensions_px": [
+        225,
+        432
+      ],
+      "transparent_pct": 33.487,
+      "edge_contacts": [
+        "left",
+        "right",
+        "top",
+        "bottom"
+      ]
+    },
+    {
+      "file": "15306(2).png",
+      "sha256": "07d939826a1b707d8ee6be8b5b36003b63075c76fd046fde075d784ffc74fe19",
+      "dimensions_px": [
+        225,
+        431
+      ],
+      "transparent_pct": 36.765,
+      "edge_contacts": [
+        "left",
+        "right",
+        "bottom"
+      ]
+    },
+    {
+      "file": "15307(2).png",
+      "sha256": "86f951ba6d3d3119423ee1aae9fd34459fc4ce09e5ec940d218aff86287e234b",
+      "dimensions_px": [
+        225,
+        432
+      ],
+      "transparent_pct": 32.436,
+      "edge_contacts": [
+        "left",
+        "right",
+        "top",
+        "bottom"
+      ]
+    },
+    {
+      "file": "15308(3).png",
+      "sha256": "390db24a4f699f735db8104b110e8ee7d218c207105ec86e1f0a6373f972682f",
+      "dimensions_px": [
+        225,
+        432
+      ],
+      "transparent_pct": 38.663,
+      "edge_contacts": [
+        "left",
+        "right",
+        "top",
+        "bottom"
+      ]
+    },
+    {
+      "file": "15310(3).png",
+      "sha256": "a2dac9a29797e286fc5f014f7efe87a8b0ed9f920732a752f435ab4861926532",
+      "dimensions_px": [
+        225,
+        431
+      ],
+      "transparent_pct": 34.875,
+      "edge_contacts": [
+        "left",
+        "bottom"
+      ]
+    },
+    {
+      "file": "15311(3).png",
+      "sha256": "a28d6acb46d095690b17dc238026d3628e55b270da1d5aa48916cf63b23f7526",
+      "dimensions_px": [
+        225,
+        432
+      ],
+      "transparent_pct": 32.394,
+      "edge_contacts": [
+        "left",
+        "right",
+        "top",
+        "bottom"
+      ]
+    },
+    {
+      "file": "15312(3).png",
+      "sha256": "c241aa5c9e1a65b58f4b317c291bf7dfd92be9cedf4d62b35f7874ece6193517",
+      "dimensions_px": [
+        225,
+        431
+      ],
+      "transparent_pct": 36.346,
+      "edge_contacts": [
+        "left",
+        "right",
+        "bottom"
+      ]
+    }
+  ],
+  "p01": {
+    "file": "15312(3).png",
+    "visual_match": "PDF page 3 Outfit 03 — Gold & maroon",
+    "same_sha256_as_previously_inspected_panel": true,
+    "dimensions_px": [
+      225,
+      431
+    ],
+    "transparent_pct": 36.346,
+    "partial_alpha_pct": 0.529,
+    "nontransparent_bbox_xyxy": [
+      0,
+      18,
+      225,
+      431
+    ],
+    "edge_contacts": [
+      "left",
+      "right",
+      "bottom"
+    ]
+  },
+  "master_reference": {
+    "pdf": "My_Little_Creative_World_Myanmar_Prototype_v1.pdf",
+    "page": 3,
+    "heading": "02 · Outfit Asset Sheet",
+    "outfit_count": 10,
+    "matched_design": "03 Gold & maroon",
+    "page_render_dpi": 400,
+    "master_reference_crop_dimensions_px": [
+      620,
+      1185
+    ],
+    "master_reference_crop_mode": "RGB",
+    "contains_white_background_and_paper_tabs": true
+  },
+  "gates": {
+    "uploaded_panel_inspection": "PASS",
+    "p01_design_match": "PASS",
+    "uncropped_master_sheet_recovered": "PASS",
+    "clean_transparent_production_export": "NOT_YET",
+    "edge_and_tab_cleanup": "HOLD",
+    "thiri_alignment": "NOT_RUN",
+    "final_composite": "NOT_RUN"
+  }
+}
