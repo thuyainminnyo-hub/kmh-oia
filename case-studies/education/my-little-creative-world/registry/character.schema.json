@@ -56,7 +56,7 @@
         },
         "project_notion": {
           "type": "string",
-          "pattern": "^https://(app\\\\.notion\\\\.com|www\\\\.notion\\\\.so)/"
+          "pattern": "^https://(app[.]notion[.]com|www[.]notion[.]so)/"
         },
         "binary_asset_committed": {
           "type": "boolean"
