@@ -96,3 +96,34 @@ Sources:
 - OpenAI image prompting / transparent cutout: https://developers.openai.com/api/docs/guides/image-prompting
 - OpenAI image edit API: https://developers.openai.com/api/reference/resources/images/methods/edit
 - Meta SAM parser: https://dev.meta.ai/docs/sam/client-libraries
+
+
+## Official documentation refresh — Run #36 preparation (2026-11-01)
+
+OpenAI's current prompting guide gives a concrete transparent-cutout recipe:
+- Request an isolated subject in the prompt and set `background="transparent"`.
+- Preserve the returned PNG/WebP alpha channel; omit `output_compression` for PNG.
+- Explicitly ask for a crisp silhouette and no halos/fringing, and prohibit solid backdrops, checkerboards, scenery and shadows.
+- Repeat the transparent-background requirement in subsequent edits.
+
+The Image Edit API confirms GPT Image 2.5 Sunburst and Flare support transparent output, up to 16 input images, and masks/markup with documented constraints. For the MLCW precision-oriented extraction test, use Sunburst as the first candidate; keep the existing locally-derived alpha as a baseline for comparison, not as a production-approved matte.
+
+Meta SAM 3.1 documentation confirms it returns boxes and masks for measuring, cropping or compositing. Its parser packages decode the output stream into usable mask structures. This is the correct role for SAM in MLCW: garment-region segmentation, not background alpha generation or identity preservation.
+
+### Run #36 controlled comparison protocol
+1. Candidate A: current white-matte-derived RGBA.
+2. Candidate B: native transparent GPT Image 2.5 Sunburst edit of the same approved source.
+3. Composite both over light, dark and saturated checker-free backgrounds.
+4. Inspect hair wisps, flower petals, earring loops, fingers, skirt hem and foot contours at 100% and 200%.
+5. Calculate alpha edge coverage, isolated fringe/halo indicators and connected-component anomalies; keep human review mandatory.
+6. Compare visible identity features to the canonical Thiri reference; generated pixels remain labelled reconstructed.
+7. Do not promote either candidate until user visually approves the silhouette and identity.
+
+### Official sources
+- OpenAI transparent cutout prompting: https://developers.openai.com/api/docs/guides/image-prompting
+- OpenAI image edit API: https://developers.openai.com/api/reference/resources/images/methods/edit
+- OpenAI image generation: https://developers.openai.com/api/docs/guides/image-generation
+- Meta SAM 3.1 overview: https://dev.meta.ai/docs/sam/overview
+- Meta SAM parser libraries: https://dev.meta.ai/docs/sam/client-libraries
+
+**Current gate unchanged:** native transparent candidate has not been generated; current alpha remains technical preview; user visual approval pending; P01 segmentation/composite not run.
