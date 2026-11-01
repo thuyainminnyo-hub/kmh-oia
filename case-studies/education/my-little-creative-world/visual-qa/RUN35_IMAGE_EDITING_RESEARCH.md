@@ -116,3 +116,38 @@ The user has not yet visually approved the generated neutral-base candidate as t
 - Do not start P01 garment fitting/compositing.
 - Do not claim identity preservation or QA pass.
 - Next action is visual approval/revision of the existing candidate.
+
+
+## 10. Official documentation verification (2026-11-01)
+
+### GPT Image 2.5 edit API
+
+The current OpenAI API reference lists GPT Image 2.5 variants including `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`.
+- Up to 16 input images may be supplied.
+- Transparent background is supported on these GPT Image 2.5 variants; PNG or WebP output is required to retain alpha.
+- A mask is a PNG under 4 MB, must match the first input image dimensions, and uses fully transparent pixels to identify the editable area.
+- Transparent markup guidance is supported on GPT Image 2.5/2.6 but cannot be combined with a mask.
+- `input_fidelity` is documented for GPT Image 1.5; omit it for GPT Image 2.x.
+- Mask-based edits are prompt-guided and may not follow the mask boundary exactly.
+
+Sources:
+- https://developers.openai.com/api/reference/go/resources/images/methods/edit
+- https://developers.openai.com/api/docs/guides/image-generation
+- https://developers.openai.com/api/docs/guides/image-prompting
+
+### SAM 3.1 prompt and parser details
+
+Official Meta docs specify:
+- Concept prompt: one short noun phrase per request (e.g. "red blouse"); no multi-concept comma/and list.
+- Or use box/point prompts when the target object is already localized. Do not mix concept and box/point prompts in the same prompt.
+- SAM 3.1 returns a box and mask for each matched object. Masks can be measured, cropped and composited.
+- Meta provides official parser libraries, including Python `meta_sam_parser` and TypeScript `@meta-sam/parser`, for decoding the output mask grammar.
+
+Sources:
+- https://dev.meta.ai/docs/sam/segmenting
+- https://dev.meta.ai/docs/sam/overview
+- https://dev.meta.ai/docs/sam/client-libraries
+
+### MLCW decision
+
+For P01, use separate segmentation requests for blouse, ruby longyi and gold/cream drape, or use localized box/point prompts. Do not send a combined prompt like "blouse, longyi and shawl". Treat model masks as candidate geometry; human-reviewed masks and deterministic pixel QA remain the acceptance authority.
