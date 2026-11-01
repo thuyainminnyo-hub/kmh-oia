@@ -71,3 +71,48 @@ For small details or stylized boundaries, use point/box prompts and inspect each
 - Synthetic QA/metric tests remain software tests only, not evidence of Thiri model accuracy.
 
 **Run #35 status:** research updated; candidate awaits user visual approval. Next gate is approval and protected-region definition, not automatic P01 application.
+
+
+## 7. Precision constraints confirmed from current official API references
+
+### OpenAI GPT Image 2.5 edit
+- Up to 16 input images can be supplied to GPT Image edit.
+- For supported GPT Image 2.5 variants, `background="transparent"` is supported; use PNG or WebP to retain alpha.
+- A mask must be PNG, under 4 MB, and match the first input image dimensions. Fully transparent mask pixels indicate areas that may be edited.
+- A transparent markup overlay is also supported on GPT Image 2.5 and 2.6, but cannot be combined with `mask`.
+- Do not use `input_fidelity` with GPT Image 2.x; the documented high/low control applies to GPT Image 1.5 (and low-only for 1-mini).
+- Mask-based image editing remains generative and prompt-guided. The API's mask is not a hard pixel lock. Keep the original protected pixels and verify output differences deterministically.
+
+Official API reference:
+https://developers.openai.com/api/reference/go/resources/images/methods/edit
+
+### SAM 3.1 prompt rules
+- A request uses either one short concept/noun-phrase prompt OR box/point prompts, not both in the same prompt.
+- For Thiri's already-known garment regions, box/point prompts are likely more controllable than generic text prompts.
+- Use one garment layer per request: blouse, longyi, drape, then trims. A concept prompt can return every matching instance, so broad concepts may capture neighboring fragments.
+- SAM output masks are geometry for measuring/cropping/compositing; they do not perform garment fitting or decide cultural/design correctness.
+
+Official prompt guide:
+https://dev.meta.ai/docs/sam/segmenting
+
+## 8. MLCW Run #35 implementation settings
+
+| Setting | Decision |
+|---|---|
+| Candidate edit model | GPT Image 2.5 supported edit variant |
+| Background | Transparent PNG requested for isolated clean-base output |
+| Input references | Original Thiri + approved reconstruction candidate |
+| Protected region | Face, eyes, hair/bun, white flower, earrings, visible skin and hands |
+| Reconstruction region | Clothing-covered torso/arms/waist/legs only where required for a modest neutral base |
+| Mask size | Exactly same canvas as first input; PNG <4 MB |
+| Segmentation | SAM 3.1 box/point prompts per garment layer |
+| Composite | Deterministic alpha compositing |
+| Acceptance | Pixel diff + human review; generated pixels labelled separately |
+
+## 9. Current hold point — unchanged
+
+The user has not yet visually approved the generated neutral-base candidate as the Master Base. Therefore:
+- Do not create final alpha matte or declare base approved.
+- Do not start P01 garment fitting/compositing.
+- Do not claim identity preservation or QA pass.
+- Next action is visual approval/revision of the existing candidate.
