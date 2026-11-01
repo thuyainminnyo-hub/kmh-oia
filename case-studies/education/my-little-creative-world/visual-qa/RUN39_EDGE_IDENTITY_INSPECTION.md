@@ -1,66 +1,76 @@
 # MLCW V1.0.8 — Run #39 Fine-Edge Inspection & Identity Comparison
 
 **Date:** 2026-11-01  
-**Asset reviewed:** `MLCW_Run36_CandidateB_GlowSuppressed.png`  
-**Dimensions:** 1024×1536 RGBA  
-**SHA-256:** `e78e451a467c23bbf38d5b1701d8f8837d973dd58bb214cf9202f1e0749d50da`
+**Candidate:** `MLCW_Run36_CandidateB_GlowSuppressed.png`  
+**Decision:** PARTIAL EDGE PASS / IDENTITY NOT VERIFIED / MASTER BASE HOLD
 
-## 1. Fine-edge crops (200%)
+## 1. Fine-edge crop inspection
+
+Six regions were cropped from the 1024×1536 RGBA candidate and enlarged to 200% on a saturated magenta inspection background.
 
 | Region | Observation | Result |
 |---|---|---|
-| Hair bun / white flower | Edges readable; minor edge-fringing and fine-strand cleanup remain | PARTIAL |
-| Face / earrings | Features visible; generated face/hair details differ from source | REVIEW |
-| Left hand | Silhouette readable; no major finger-gap loss observed | PRELIMINARY PASS |
-| Right hand | Silhouette readable; no major finger-gap loss observed | PRELIMINARY PASS |
-| Skirt hem | Edge readable; no major clipping observed | PRELIMINARY PASS |
-| Feet / toes | Contours readable; no major clipping observed | PRELIMINARY PASS |
+| Hair bun / white flower | Silhouette visible; minor fringe/edge-cleanup required | PARTIAL |
+| Face / earrings | Visible, but generated features differ from source reference | REVIEW |
+| Left hand | Silhouette readable; no major finger-gap loss seen | PRELIMINARY PASS |
+| Right hand | Silhouette readable; no major finger-gap loss seen | PRELIMINARY PASS |
+| Skirt hem | Edge readable; no obvious clipping | PRELIMINARY PASS |
+| Feet / toes | Contours readable; no obvious clipping | PRELIMINARY PASS |
 
-## 2. Actual alpha measurements
+This is visual inspection, not a pixel-perfect human annotation.
 
+## 2. Alpha measurements from actual PNG
+
+- Dimensions: 1024×1536; mode RGBA.
 - Alpha min/max: 0 / 255.
 - Fully transparent pixels: 1,191,336.
 - Partially transparent pixels: 15,235.
 - Fully opaque pixels: 366,293.
 - Nonzero-alpha connected components: 1.
-- Main nonzero-alpha bbox: `[134,22,884,1502]`.
+- Nonzero-alpha bounding box: `[134,22,884,1502]`.
+- SHA-256: `e78e451a467c23bbf38d5b1701d8f8837d973dd58bb214cf9202f1e0749d50da`.
 
-## 3. Identity comparison — limitation
+## 3. Original-vs-candidate identity comparison
 
-The original Thiri reference and generated candidate were compared in same-canvas crop coordinates. Exploratory raw RGB SSIM values were:
-- Face core: 0.516694
-- Hair + flower: 0.447878
-- Earrings + neck: 0.516999
-- Whole head region: 0.480410
+A same-canvas crop comparison was produced for face core, hair/flower, earrings/neck and whole head.
 
-**These values are not accepted as identity-similarity scores.** No landmark registration or region-specific segmentation masks were applied, and the generated candidate includes different background/lighting/appearance. The correct decision is manual review pending, not numeric pass/fail.
+Exploratory raw RGB SSIM:
+- Face core: 0.516694.
+- Hair + flower: 0.447878.
+- Earrings + neck: 0.516999.
+- Whole head: 0.480410.
 
-The side-by-side comparison visually suggests the broad character styling is similar, but generated details in face, hair volume, earring details and expression are not pixel-identical to the canonical source. Generated pixels are reconstructed, not original.
+**Interpretation warning:** these raw RGB SSIM values are not accepted as identity-similarity scores. No landmark registration or region-specific protected masks were applied, and candidate is newly generated artwork with different color, lighting and rendered details. The score is not a valid identity pass/fail metric.
 
-## 4. Saved evidence
+Visual review indicates broad stylistic similarity, but the generated facial features, hair volume and accessory details are not exact copies of original source pixels. Thus original-pixel identity preservation is not established.
+
+## 4. Evidence artifacts in Library
 
 - `/My Little Creative World/Run 39/Thiri_Edge_Inspection_200pct.jpg`
 - `/My Little Creative World/Run 39/Thiri_Original_vs_Candidate_Head.jpg`
 - `/My Little Creative World/Run 39/Identity_Comparison_Metrics.json`
 
-## 5. Gate decision
+## 5. Research-informed next approach
 
-- Edge readability (hands, skirt hem, feet): preliminary pass.
-- Hair/flower edge cleanup: partial; manual correction required.
-- Face/hair identity consistency: not independently verified.
-- Master Base approval: HOLD pending user review.
-- P01 segmentation/compositing: not run.
+OpenAI's current image prompting guide recommends checking alpha directly, comparing quality on representative inputs, and explicitly requesting transparent backgrounds with crisp silhouette/no halos. It also says to inspect details and ensure the edit changed only the requested content.
 
-## 6. Research notes
+SAM 3.1 accepts either short concept phrases or object-specific box/point prompts (not both modes in one request). Use this to create localized masks, but treat them as candidates requiring human correction.
 
-SAM 3.1 supports either a short concept noun phrase or object-specific boxes/points. For small garment panels, localized prompts are preferable to broad concept requests. Model masks are returned as measurable geometry; they do not prove garment fit or identity preservation.
+**Recommended identity-preserving revision:** preserve the original Thiri head/face/hair/flower/earring pixels from the canonical reference using a human-reviewed protected mask, and reconstruct only the clothed body regions beneath the head. This may preserve the original identity more faithfully than generating the entire character again. A careful neck/hairline seam blend and alignment check will be required.
 
-OpenAI image edits can request transparent output and use PNG masks, but the edit remains generative; MLCW must continue deterministic post-edit QA.
+## 6. Gate status
 
-Official sources:
-- Meta SAM prompt guidance: https://dev.meta.ai/docs/sam/segmenting
-- Meta SAM overview: https://dev.meta.ai/docs/sam/overview
+- Alpha technical integrity: PASS.
+- Multi-background full-frame readability: preliminary PASS.
+- Hair/flower fine-edge cleanup: PARTIAL.
+- Hand/skirt/feet edge readability: preliminary PASS.
+- Face/hair identity: NOT VERIFIED.
+- Master Base approval: HOLD.
+- P01 segmentation/composite: NOT RUN.
+
+## Official references
+- OpenAI image prompting: https://developers.openai.com/api/docs/guides/image-prompting
 - OpenAI Image Edit API: https://developers.openai.com/api/reference/resources/images/methods/edit
-- OpenAI transparent cutout prompt guide: https://developers.openai.com/api/docs/guides/image-prompting
+- Meta SAM 3.1 segmentation: https://dev.meta.ai/docs/sam/segmenting
 
-**Run #39 result:** crop-level inspection completed; edge quality partial; identity QA unresolved; Master Base remains HOLD; P01 composite not run.
+**Run #39 result:** crop-level inspection completed; the current generated candidate is not approved as Master Base. Preserve original protected head pixels in the next reconstruction iteration.
