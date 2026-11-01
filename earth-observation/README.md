@@ -1,4 +1,9 @@
-# KMH Earth Observation Pilot V1 — Myanmar Land Change
+# KMH TerraLens AI — KMH Earth Observation Pilot V1
+
+**Tagline:** See Earth. Understand Change. Act with Intelligence.
+
+**Product:** AI-powered Earth Observation & Land Intelligence Platform  
+**First pilot:** Taunggyi District, Shan State, Myanmar
 
 ## Product objective
 Produce reproducible, evidence-backed land-change assessments for a user-selected area in Myanmar by comparing two Sentinel-2 Level-2A observations.
