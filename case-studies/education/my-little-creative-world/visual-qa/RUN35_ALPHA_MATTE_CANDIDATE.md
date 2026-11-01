@@ -127,3 +127,36 @@ Meta SAM 3.1 documentation confirms it returns boxes and masks for measuring, cr
 - Meta SAM parser libraries: https://dev.meta.ai/docs/sam/client-libraries
 
 **Current gate unchanged:** native transparent candidate has not been generated; current alpha remains technical preview; user visual approval pending; P01 segmentation/composite not run.
+
+
+## Run #36 — Official source validation and execution readiness
+
+### OpenAI transparent edit — verified API parameters
+The official image prompting guide's transparent-cutout example specifies:
+- `model="gpt-image-2.5-sunburst"`
+- `size="1024x1536"`
+- `quality="medium"`
+- `background="transparent"`
+- `output_format="png"`
+- Omit `output_compression` for PNG and preserve the returned alpha bytes.
+
+The edit API confirms 1024×1536 is a supported standard size; arbitrary resolutions are supported when dimensions are divisible by 16 and aspect ratio is between 1:3 and 3:1. The Thiri canvas already meets the standard size requirement.
+
+Important: this API workflow requires an actual Images Edit API request and returned image bytes. A prompt description or a generated mockup is not evidence that this API call happened. No such API call has been made for MLCW Run #36 yet.
+
+### SAM 3.1 — segmentation decision
+Meta's official docs say a concept prompt returns a box and mask for every matching instance. If the target is already located, box/point prompts can target the specific object. For the multi-part P01 sheet, use separately localized boxes/points for blouse, longyi and drape rather than a broad phrase that might capture neighboring garments.
+
+### Run #36 controlled test
+- Baseline A: existing white-matte alpha PNG.
+- Candidate B: native transparent GPT Image 2.5 Sunburst edit (awaiting actual API execution).
+- Compare on light, dark and saturated backgrounds.
+- Inspect at 100% and 200% around hair, flower, earrings, fingers, skirt hem and feet.
+- Keep generated/reconstructed pixels marked separately from source pixels.
+- No Master Base promotion until user reviews and approves the candidate.
+
+### Official references
+- OpenAI transparent cutout prompt and settings: https://developers.openai.com/api/docs/guides/image-prompting
+- OpenAI Image Edit API: https://developers.openai.com/api/reference/go/resources/images/methods/edit
+- Meta SAM prompt segmentation: https://dev.meta.ai/docs/sam/segmenting
+- Meta SAM overview: https://dev.meta.ai/docs/sam/overview
