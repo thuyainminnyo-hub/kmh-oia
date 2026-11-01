@@ -56,3 +56,23 @@ This is a diagnostic extraction method. It is not equivalent to SAM segmentation
 **P01 compositing: NOT RUN.**
 
 Next gate: review the checkerboard preview for halos, missing hair strands, flower details, earrings, finger gaps, feet and skirt edge. After approval, separately review the reconstructed identity features against the canonical reference. Only then can the alpha candidate be promoted to the working base.
+
+
+## Official documentation cross-check (2026-11-01)
+
+- OpenAI's current Image Generation guide recommends requesting a transparent background and preserving the returned PNG/WebP alpha channel; it explicitly warns that a drawn checkerboard is not transparency.
+- OpenAI's Image Edit reference says GPT Image 2.5 Sunburst is the precision-oriented editing choice, while Flare is faster everyday generation. Transparent backgrounds are supported on the documented 2.5 variants.
+- SAM 3.1's parser libraries decode the model's output grammar into binary raster masks; that is separate from creating the subject alpha matte from this local candidate.
+
+Sources:
+- https://developers.openai.com/api/docs/guides/image-prompting
+- https://developers.openai.com/api/docs/guides/image-generation
+- https://developers.openai.com/api/reference/resources/images/methods/edit
+- https://dev.meta.ai/docs/sam/client-libraries
+
+## Output preview artifacts
+
+- Alpha PNG saved to the persistent user Library at `/My Little Creative World/Run 35/Thiri_Clean_Base_Alpha_Candidate.png`.
+- Checkerboard inspection preview saved at `/My Little Creative World/Run 35/Thiri_Alpha_Matte_Preview.png`.
+- Alpha inspection JSON saved at `/My Little Creative World/Run 35/Alpha_Matte_Inspection.json`.
+- The RGBA PNG passed technical checks for canvas size, alpha range, transparent four edges and transparent corners. Human silhouette review is still required.
