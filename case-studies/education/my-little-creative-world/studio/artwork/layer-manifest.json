@@ -253,9 +253,10 @@
     "transparent garment PNGs have a valid alpha channel",
     "desktop and mobile product E2E tests pass against the exact verified source",
     "exported PNG is visually inspected before release",
-    "neutral base overlay covers the original purple htamein at the tested source pixel without altering the immutable JPEG",
     "reset state shows neutral base layers instead of exposing the original purple outfit",
-    "selected outfit SVG contains BLOUSE, SASH, HTAMEIN and DETAILS as separately addressable groups"
+    "selected outfit SVG contains BLOUSE, SASH, HTAMEIN and DETAILS as separately addressable groups",
+    "neutral base overlay covers every detected original purple garment pixel in the defined source region; zero purple garment pixels remain after compositing",
+    "all 10 outfits render as individually selectable groups, each with BLOUSE, SASH, HTAMEIN and DETAILS"
   ],
   "base_layer": {
     "implementation": "opaque SVG overlay on immutable original JPEG",
@@ -269,5 +270,20 @@
     "intent": "cover the original purple blouse, sash and htamein with a modest neutral costume while preserving the immutable character reference",
     "editable_master_status": "PSD not yet authored"
   },
-  "notes": "The current clean base is an in-app opaque vector overlay; it is not yet a standalone reconstructed body PNG or editable PSD master. Outfit groups are interactive SVG concepts, not finished cultural costume assets."
+  "notes": "The current clean base is an in-app opaque vector overlay; it is not yet a standalone reconstructed body PNG or editable PSD master. The ten outfits remain selectable SVG color/pattern concepts using shared garment silhouettes; they have not yet become individually hand-authored clothing artwork or culturally approved designs.",
+  "qa_evidence": {
+    "latest_run": 24,
+    "run_id": "41302370006",
+    "tested_commit": "fb31a80d923443e63432be61eefe4d3e3f18695a",
+    "original_purple_pixels_detected": 15078,
+    "original_purple_pixels_remaining_after_overlay": 0,
+    "desktop_playwright": "8/8 PASS",
+    "mobile_playwright": "8/8 PASS",
+    "total_playwright": "16/16 PASS",
+    "node_tests": "4/4 PASS",
+    "kmh_oia_tests_run": 1380,
+    "kmh_oia_validation_run": 1299,
+    "report_artifact_id": "13081532564",
+    "verified_at": "2026-11-01"
+  }
 }
