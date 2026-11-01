@@ -1,54 +1,51 @@
-# MLCW Run #32 — Segmentation Model Evaluation
-
-Date: 2026-11-01
+# MLCW Run #32 — Segmentation Model Evaluation (updated 2026-11-01)
 
 ## Decision summary
 
-Use a two-stage, human-reviewed segmentation workflow:
-1. Semantic human parser proposes classes and approximate regions.
-2. Promptable segmentation refines boundaries from positive/negative points or boxes.
-3. Human reviewer corrects the masks.
+Use a promptable, human-reviewed segmentation workflow:
+1. Generate candidate masks with text, exemplar, point and box prompts.
+2. Refine boundaries with follow-up positive/negative prompts.
+3. Human reviewer corrects masks and labels protected regions.
 4. Deterministic pixel QA validates the final composite.
 
 Do not auto-promote model masks directly to production.
 
-## Candidate A — FASHN Human Parser
+## Candidate A — Meta SAM 3.1
 
-- Model: SegFormer-B4 fine-tuned for fashion/human parsing.
-- Output: 18 semantic classes: background, face, hair, top, dress, skirt, pants, belt, bag, hat, scarf, glasses, arms, hands, legs, feet, torso, jewelry.
-- Documented input size: 384 x 576.
-- Useful for initial face/hair/clothing/accessory mask proposals.
-- Important limitation: model card says it is optimized for single-person images with clear visibility and fashion/e-commerce imagery. MLCW Thiri is stylized/cartoon artwork, so domain suitability must be tested; class confusion is possible.
+- SAM 3 accepts open-vocabulary text prompts, image exemplars, points, boxes and masks to segment objects in still images and video.
+- SAM 3.1 checkpoints were announced on 2026-03-27. The headline 3.1 update is Object Multiplex and faster multi-object video tracking; do not infer that it improves Thiri's single-image clothing segmentation without testing.
+- Recommended role: primary promptable segmentation candidate for the stylized Thiri artwork. Test short noun prompts and exemplar/point/box prompts for the gold blouse, red patterned longyi and cream-gold shawl separately.
+- Self-hosted upstream setup currently calls for Python 3.12+, PyTorch 2.7+ and CUDA-compatible GPU with CUDA 12.6+; SAM 3.1 checkpoints require the current upstream code.
+- Meta Model API also exposes a hosted `sam-3.1` segmentation endpoint; pricing displayed by Meta is $2.50 per 1,000 still images. API use requires authorized credentials and separate cost approval.
+- License: Meta SAM License (custom terms, not Apache 2.0). Review redistribution, use and commercial terms before product integration.
+
+## Candidate B — FASHN Human Parser
+
+- SegFormer-B4 fine-tuned for fashion/human parsing.
+- 18 semantic classes including face, hair, top, dress, skirt, pants, arms, hands, legs, torso and jewelry.
+- Documented input size: 384 x 576. Resizing its mask back to 1024 x 1536 cannot recover detail lost during downsampling.
+- Useful as a semantic baseline for face/hair/clothing/accessory masks.
+- Limitation: optimized for single-person, clearly visible fashion/e-commerce imagery; MLCW Thiri is stylized/chibi artwork, so domain suitability must be benchmarked.
 - License: NVIDIA Source Code License for SegFormer. Legal review required before commercial use.
-
-## Candidate B — Meta SAM 2.1
-
-- Promptable image segmentation using point/box/mask prompts; supports automatic mask generation.
-- Use for refining manually selected garment boundaries, not semantic classification of clothing types.
-- Upstream install guidance: Linux, Python >=3.10, PyTorch >=2.5.1 and matching torchvision; CUDA recommended for normal GPU setup.
-- Model/checkpoint/demo/training code license is Apache 2.0 according to upstream repository.
-- Can be used as an interactive boundary-refinement step with human review.
 
 ## MLCW recommendation
 
-For stylized Thiri artwork, do not assume the fashion parser is accurate. Run a small benchmark first:
-- Manually annotate ground-truth masks for face, hair, jewelry, top, longyi/skirt and drape on one canonical source.
-- Compare parser class masks to manual masks using IoU and boundary F-score.
-- If parser misses or confuses cartoon regions, use manual prompts + SAM 2.1 refinement.
-- Keep the original pixels for protected identity regions; only composite within approved outfit masks.
-- Store source SHA-256, dimensions, model/checkpoint version, prompts, raw masks, corrected masks, output image, QA JSON and reviewer decision.
+Benchmark SAM 3.1 prompts against FASHN as a semantic baseline on the same human-reviewed masks:
+- annotate face, hair/flower, jewelry, arms/hands, blouse, longyi and drape separately;
+- measure per-class IoU and boundary F-score;
+- preserve source pixels in protected regions;
+- use human correction for small accessories, occlusion and transparent drape;
+- store hashes, dimensions, model/checkpoint version, prompts, raw/corrected masks, output and QA JSON.
 
-## Existing QA harness
+## Run #33 source-asset findings
 
-The synthetic pixel QA GitHub Actions run #2 passed 5/5 tests. This validates the QA harness behavior only; it is not a Thiri image benchmark.
+- Canonical Thiri reference: `15309(1).png`, 1024x1536 RGBA, 0% transparent. It still shows the cream blouse and longyi; it is not a clean body base.
+- P01 source panel: `15312(1).png`, 225x431 RGBA, 36.346% transparent, 75 connected alpha components. Largest component: 59,523 px (96.428% of opaque pixels), bbox `[0,18,189,431]`, touches left and bottom edges. Second largest component: 1,875 px at bbox `[194,85,225,205]` (adjacent purple fragment).
+- All ten outfit panels' largest alpha components touch the left and bottom edges. P02, P05 and P10 have substantial second components.
+- Accessory strip: `15304(1).png`, 1536x169 RGB, opaque, requiring object-level segmentation and transparent exports.
+- P01-P10 are working slots; do not assume they map to legacy `MLCW-OUTFIT-001..010` identifiers by sequence.
 
-## Run #32 acceptance gate
+## Gate
 
-Do not claim actual visual QA PASS until:
-1. Full-resolution Thiri base and P01 source/layers are available.
-2. Human-reviewed target and protected masks are saved.
-3. Actual composite is generated.
-4. Pixel QA report shows zero uncovered target pixels, zero protected-region changes and zero spillover (or approved tolerance with explicit reviewer decision).
-5. Reviewer signs off on visual likeness and garment alignment.
-
-Status: research/design complete; real-image benchmark blocked on source assets.
+**Asset intake: PASS (12 assets inspected).**  
+**Production visual readiness: HOLD.** Need an approved clean Thiri body base and complete uncropped P01 garment layers before reliable compositing. No actual model inference or P01 composite has been run.
