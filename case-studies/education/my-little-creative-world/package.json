@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:registry": "node --test tests/registry.test.mjs",
+    "test:registry": "node --test tests/*.test.mjs",
     "validate:registry": "node scripts/validate-registry.mjs"
   },
   "dependencies": {
