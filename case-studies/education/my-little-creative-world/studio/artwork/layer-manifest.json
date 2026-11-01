@@ -18,7 +18,9 @@
     "sha256": "7daa71b258bb62622a5ecb9b4e9a0e84cf86822db4a752ea49ffd27a8c24791f",
     "git_blob_sha1": "ad6df905000a1d29e2ca2fb3a44762f91aa468a9",
     "handling": "immutable; never overwrite the reference master",
-    "repository_status": "mismatch-confirmed"
+    "repository_status": "exact-match-verified",
+    "restored_commit": "bb290f897db9ecafb196be2300998a5e02af9fd5",
+    "verified_at": "2026-11-01"
   },
   "master_document": {
     "recommended_format": "PSD",
