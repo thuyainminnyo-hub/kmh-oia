@@ -1,4 +1,3 @@
-import hashlib
 import unittest
 
 from src.evidence import (
@@ -52,7 +51,17 @@ class EvidenceAwareKnowledgeTests(unittest.TestCase):
             Claim("claim-2", "Unsupported claim", ("missing",))
         )
         self.assertFalse(result.accepted)
-        self.assertEqual(result.reason, "evidence_not_active")
+        self.assertEqual(result.reason, "evidence_not_found")
+
+    def test_oia_runtime_uses_evidence_knowledge_adapter(self):
+        from src.components import OIARuntime
+        self.registry.activate("ev-001")
+        runtime = OIARuntime(knowledge=EvidenceKnowledgeSource(self.registry))
+        response, stages, events = runtime.execute_detailed("KMH OIA", tool_name="echo")
+        self.assertEqual(response, "KMH OIA")
+        context_event = next(event for event in events if event.stage == "context_assembly")
+        self.assertGreater(int(context_event.metadata["knowledge_chars"]), 0)
+        self.assertIn("context_assembly", stages)
 
     def test_hash_tampering_is_rejected(self):
         tampered = EvidenceRecord(
