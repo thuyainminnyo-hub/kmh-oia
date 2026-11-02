@@ -14,7 +14,7 @@ Serve this directory over HTTP (not file://), for example:
 - [ ] Keyboard can reach all controls and focus is visible.
 - [ ] Burmese glyphs render correctly on Android Chrome and target tablets.
 - [ ] Service worker installs when served on localhost/HTTPS.
-- [ ] Reload after first successful load with network disabled; cached shell remains available.
+- [ ] Reload after first successful load with network disabled; cached shell remains available.\n- [ ] Navigate to an uncached route while offline; branded offline fallback appears.\n- [ ] Confirm missing CSS/JS assets are not incorrectly answered with HTML.\n- [ ] Update deployment and verify old cache is removed and new app shell activates.
 - [ ] Clear site data and verify the app behaves correctly as a first visit.
 
 ## Known limitations
