@@ -1,0 +1,33 @@
+name: KMH Phase 02.8 Semantic Context Contract CI
+
+on:
+  push:
+    branches:
+      - "phase-02-8-semantic-context-research-20261102"
+    paths:
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8-semantic-context-matrix.json"
+      - "case-studies/creative-intelligence-design-studio/evidence/phase-02-8-upstream-research-and-test-design.md"
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_contract.py"
+      - ".github/workflows/phase-02-8-contract-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate JSON contract syntax
+        run: python -m json.tool case-studies/creative-intelligence-design-studio/contracts/phase-02-8-semantic-context-matrix.json
+      - name: Run Phase 02.8 contract tests only
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: python -m unittest discover -s tests -p 'test_phase_02_8_contract.py' -v
+      - name: Check whitespace
+        run: git diff --check
