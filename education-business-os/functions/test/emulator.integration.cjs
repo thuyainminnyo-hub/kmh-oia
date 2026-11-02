@@ -140,7 +140,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
       const deletions = audit.docs.map(doc => doc.ref.delete());
       await Promise.all(deletions);
     }
-    for (const organizationId of ["aptivern", prefix + "-school-b", prefix + "-foreign-school"]) {
+    for (const organizationId of ["aptivern", prefix + "-school-b", prefix + "-foreign-school", prefix + "-single-admin"]) {
       for (const user of accounts) {
         await db.collection("organizations").doc(organizationId).collection("members").doc(user.uid).delete().catch(() => {});
       }
@@ -392,6 +392,27 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
     assert.equal(member.data().role, "admin");
     await db.collection("organizations").doc(otherOrgId).collection("members").doc(platformAdmin.uid).delete();
     await db.collection("organizations").doc(otherOrgId).delete();
+  });
+
+  await t.test("last active organization admin cannot be suspended or demoted", async () => {
+    const singleAdminOrgId = prefix + "-single-admin";
+    await callFunction("bootstrapOrganization", platformAdmin.idToken, {
+      organizationId: singleAdminOrgId,
+      name: "Synthetic Single Admin School"
+    });
+    await assert.rejects(
+      callFunction("setOrganizationMember", platformAdmin.idToken, {
+        organizationId: singleAdminOrgId,
+        uid: platformAdmin.uid,
+        role: "admin",
+        status: "suspended"
+      }),
+      (error) => error && error.code === "FAILED_PRECONDITION"
+    );
+    const membership = await db.collection("organizations").doc(singleAdminOrgId)
+      .collection("members").doc(platformAdmin.uid).get();
+    assert.equal(membership.exists, true);
+    assert.equal(membership.data().status, "active");
   });
 
   await t.test("organization admin cannot use their membership to enroll in another organization", async () => {
