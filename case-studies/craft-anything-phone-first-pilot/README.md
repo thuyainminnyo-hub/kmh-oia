@@ -55,6 +55,10 @@ Free quotas and availability can change. Re-check GitHub's official billing docu
 
 ### P1 — Cloud build feasibility
 
+**Source intake completed 2026-11-02:** see [P1 source intake report](docs/p1-source-intake.md). The upstream repository was inspected at commit `5185f36ab0c38e6446f40fe537763b8c3f8b260b`. The project is MIT OR Apache-2.0, requires Rust 1.97, and is early alpha. Its full AI build path depends on a local coding agent; the documented Claude Code path uses the user's own account and is not assumed free. The browser WASM viewer is a limited file analyzer, not a substitute for the desktop/CLI rebuild workflow. **P1 source intake: PASS WITH LIMITATIONS; cloud build and AI rebuild remain HOLD.**
+
+
+
 - Create a temporary personal Codespace from the upstream repository or a fork/pilot branch.
 - Confirm Rust toolchain version required by the checked-out commit; do not assume a version from a social post.
 - Run read-only inspection first: `rustc --version`, `cargo --version`, `cargo metadata --no-deps`.
