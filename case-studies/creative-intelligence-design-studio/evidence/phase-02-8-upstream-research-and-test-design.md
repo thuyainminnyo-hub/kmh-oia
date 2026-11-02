@@ -78,6 +78,14 @@ Each case must state expected AST context, expected relationship semantics, and 
 - G4 Owner HOLD remains in force.
 - No Graphify extraction, dependency installation, production promotion, or OIA runtime integration is authorized in this phase.
 
+## CI and review evidence
+
+- Phase 02.8 synthetic contract CI: [run 41484180105](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41484180105) — SUCCESS
+- The six contract tests and JSON syntax check passed.
+- Draft integration PR: https://github.com/thuyainminnyo-hub/kmh-oia/pull/190
+- PR base: `phase-02-7S-validator-revalidation-20261102`
+- PR status: OPEN / DRAFT / UNMERGED
+
 ## Decision
 
 **Phase 02.8 research and test-design contract created.** This is not a Graphify compatibility PASS and not an extraction result. The next safe action is to implement the 12 synthetic AST fixtures and contract tests, run CI against those fixtures only, and inspect the pinned upstream Python implementation/tests separately. A new Graphify run requires fresh, explicit owner approval after the test-design gate is reviewed.
