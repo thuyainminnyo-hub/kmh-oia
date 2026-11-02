@@ -1,0 +1,134 @@
+{
+  "run": 48,
+  "source": "P01_Outfit03_Transparent_Candidate_v2(2).png",
+  "dimensions_px": [
+    617,
+    1148
+  ],
+  "source_foreground_pixels_alpha_gt_16": 464840,
+  "run47_assigned_pixels": 432161,
+  "run47_unassigned_pixels": 32679,
+  "run48_assigned_pixels": 463310,
+  "run48_unassigned_pixels": 1530,
+  "run48_coverage_percent": 99.671,
+  "recovered_from_residual_by_layer": {
+    "Gold_Blouse": 8626,
+    "Ruby_Longyi": 414,
+    "Cream_Gold_Drape": 22109
+  },
+  "excluded_component_pixels": 1457,
+  "split_component_garment_pixels": 1099,
+  "residual_pixels_after_masks_including_tab_exclusions": 1530,
+  "unresolved_component_pixels": 73,
+  "component_count": 29,
+  "accepted_component_count": 9,
+  "excluded_component_count": 2,
+  "pairwise_overlap_pixels": {
+    "Gold_Blouse__Ruby_Longyi": 0,
+    "Gold_Blouse__Cream_Gold_Drape": 0,
+    "Ruby_Longyi__Cream_Gold_Drape": 0
+  },
+  "layers": {
+    "Gold_Blouse": {
+      "run47_mask_pixels": 107079,
+      "run48_mask_pixels": 115705,
+      "added_pixels": 8626,
+      "partial_alpha_pixels": 2155,
+      "bbox_xyxy": [
+        0,
+        0,
+        589,
+        509
+      ]
+    },
+    "Ruby_Longyi": {
+      "run47_mask_pixels": 231353,
+      "run48_mask_pixels": 231767,
+      "added_pixels": 414,
+      "partial_alpha_pixels": 1304,
+      "bbox_xyxy": [
+        106,
+        355,
+        443,
+        1148
+      ]
+    },
+    "Cream_Gold_Drape": {
+      "run47_mask_pixels": 93729,
+      "run48_mask_pixels": 115838,
+      "added_pixels": 22109,
+      "partial_alpha_pixels": 822,
+      "bbox_xyxy": [
+        363,
+        78,
+        617,
+        961
+      ]
+    }
+  },
+  "manual_review_rules": [
+    "Assign left shoulder/sleeve contour components to Gold Blouse based on full-resolution crop review.",
+    "Split the long right-edge component at y=505: upper sleeve contour to blouse, lower drape contour to shawl.",
+    "Assign the large inner lower trailing-panel component and small lower tip to Drape.",
+    "Assign the bottom hem strip to Ruby Longyi.",
+    "Split the connected upper-right paper tab from the underlying blouse shoulder contour using a manually drawn quadrilateral.",
+    "Exclude the left-side rectangular attachment tab.",
+    "Keep all other tiny/ambiguous components unassigned rather than guessing."
+  ],
+  "limitations": [
+    "Run48 is a manually reviewed diagnostic refinement, not SAM segmentation.",
+    "Component-to-layer assignments are based on visual inspection of the source candidate and crops.",
+    "A few tiny/ambiguous residual pixels remain unassigned.",
+    "Drape alpha remains inherited from a flattened white-background PDF-derived silhouette; true textile transmission alpha is not recovered.",
+    "The transparent source crop does not contain hidden blouse/longyi pixels under the shawl.",
+    "No Thiri v5 alignment or final P01 composite performed."
+  ],
+  "gate": {
+    "major_residual_component_audit": "PASS_DIAGNOSTIC",
+    "three_masks_refined": "PASS_DIAGNOSTIC",
+    "unassigned_pixels_reduced": "PASS_DIAGNOSTIC",
+    "manual_human_approval": "PENDING",
+    "true_drape_alpha": "NOT_RECOVERED",
+    "thiri_alignment": "NOT_RUN",
+    "final_composite": "NOT_RUN",
+    "production": "HOLD"
+  },
+  "residual_recovery_percent": 95.318,
+  "excluded_tabs_and_remaining": {
+    "tab_candidate_pixels": 1457,
+    "unresolved_pixels": 73,
+    "interpretation": "1,457 pixels were classified as paper-tab candidates and withheld from garment masks; 73 pixels remain ambiguous and unassigned."
+  },
+  "local_tests": {
+    "passed": 5,
+    "failed": 0,
+    "scope": "synthetic component-classification tests; not a full visual boundary acceptance test"
+  },
+  "web_research": [
+    {
+      "topic": "SAM 3.1 box and positive/negative point prompt segmentation",
+      "url": "https://dev.meta.ai/docs/sam/segmenting"
+    },
+    {
+      "topic": "Photoshop selection/mask refinement; view modes, Color Aware and Object Aware",
+      "url": "https://helpx.adobe.com/photoshop/desktop/make-selections/refine-modify-selections/refine-your-selection-and-mask.html"
+    },
+    {
+      "topic": "2026 research on separate foreground segmentation and alpha transparency prediction for transparent objects",
+      "url": "https://doi.org/10.1145/3785468"
+    }
+  ],
+  "residual_attribution": {
+    "Gold_Blouse_added_pixels": 8626,
+    "Ruby_Longyi_added_pixels": 414,
+    "Cream_Gold_Drape_added_pixels": 22109,
+    "connected_top_right_component": {
+      "total_pixels": 2415,
+      "blouse_shoulder_pixels": 1099,
+      "paper_tab_candidate_pixels": 1316
+    },
+    "left_side_tab_candidates_pixels": 141,
+    "unresolved_pixels": 73
+  },
+  "run48_coverage_definition": "463,310 / 464,840 source alpha-foreground pixels included in one of the three garment masks. 1,457 paper-tab candidate pixels and 73 uncertain pixels are withheld."
+}
