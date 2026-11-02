@@ -72,6 +72,9 @@ export function settlePayment(
     throw new Error("verified must be boolean.");
   }
 
+  if (pendingAmount < amount) {
+    throw new Error("Pending amount is lower than the payment being settled.");
+  }
   const nextPaid = paidAmount + (verified ? amount : 0);
   if (nextPaid > totalFee) {
     throw new Error("Verification would overpay the course fee; manual reconciliation is required.");
