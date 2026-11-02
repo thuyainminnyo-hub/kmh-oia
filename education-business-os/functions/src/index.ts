@@ -136,10 +136,19 @@ export const createEnrollment = onCall(async (request) => {
     .digest("hex");
   const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
   const studentMembershipRef = db.collection("organizations").doc(organizationId).collection("members").doc(studentId);
+  const instructorMembershipRef = instructorId
+    ? db.collection("organizations").doc(organizationId).collection("members").doc(instructorId)
+    : null;
+
+  if (instructorId) {
+    try { await getAuth().getUser(instructorId); }
+    catch { throw new HttpsError("not-found", "Instructor Auth user not found."); }
+  }
 
   const createdStatus = await db.runTransaction(async (tx) => {
     const batch = await tx.get(batchRef);
     const studentMembership = await tx.get(studentMembershipRef);
+    const instructorMembership = instructorMembershipRef ? await tx.get(instructorMembershipRef) : null;
     const existing = await tx.get(enrollmentRef);
     if (!batch.exists) throw new HttpsError("not-found", "Batch not found.");
     if (!existing.exists && (!studentMembership.exists ||
@@ -149,6 +158,11 @@ export const createEnrollment = onCall(async (request) => {
     }
     if (existing.exists) {
       throw new HttpsError("already-exists", "Student is already enrolled in this batch.");
+    }
+    if (instructorId && (!instructorMembership?.exists ||
+        instructorMembership.data()?.status !== "active" ||
+        instructorMembership.data()?.role !== "instructor")) {
+      throw new HttpsError("failed-precondition", "Instructor must have an active instructor membership in this organization.");
     }
     const batchData = batch.data()!;
     if (batchData.organizationId !== organizationId) {
