@@ -278,6 +278,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       itemCount: docs.length,
                       itemBuilder: (context, index) {
                         final data = docs[index].data();
+                        final enrollmentStatus =
+                            data['status']?.toString() ?? 'pending';
                         return Card(
                           margin: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -288,9 +290,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             title: Text(
                               data['batchId']?.toString() ?? 'Course batch',
                             ),
-                            subtitle: Text(
-                              'Status: ${data['status'] ?? 'pending'}',
-                            ),
+                            subtitle: Text('Status: $enrollmentStatus'),
                             trailing: const Icon(Icons.chevron_right),
                           ),
                         );
