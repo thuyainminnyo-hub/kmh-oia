@@ -24,7 +24,7 @@ jobs:
       - name: Compile production adapter and tests
         run: python -m compileall -q src tests
       - name: Run focused local video adapter tests
-        run: python -m unittest tests.test_local_video_adapter -v
+        run: python -m unittest discover -s tests -p 'test_local_video_adapter.py' -v
       - name: Run full KMH OIA test suite
         run: python -m unittest discover -s tests -v
       - name: Check patch whitespace
