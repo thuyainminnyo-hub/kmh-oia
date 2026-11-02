@@ -254,6 +254,11 @@ def _matching_nodes(nodes, source_file, label, line, scan_root):
 
 
 def _matching_edges(edges, source_id, target_id, relation, source_file, line, context):
+    """Match graph evidence by identity, relation, and source provenance.
+
+    A None context deliberately means the extractor does not emit a context
+    discriminator for this relation (currently class inheritance).
+    """
     return [
         edge for edge in edges
         if isinstance(edge, dict)
@@ -265,6 +270,36 @@ def _matching_edges(edges, source_id, target_id, relation, source_file, line, co
         and edge.get("source_location") == f"L{line}"
         and (context is None or edge.get("context") == context)
     ]
+
+
+def _coalesced_parameter_return(scope: ast.AST, local_name: str, line: int) -> bool:
+    """True only when the same imported name is both parameter and return type
+    on the same function-signature line, allowing one deduplicated graph edge
+    to evidence identity without pretending its context is return-specific.
+    """
+    if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return False
+    parameter_annotations = [
+        arg.annotation
+        for arg in [
+            *scope.args.posonlyargs, *scope.args.args, *scope.args.kwonlyargs,
+            *([scope.args.vararg] if scope.args.vararg else []),
+            *([scope.args.kwarg] if scope.args.kwarg else []),
+        ]
+        if arg.annotation is not None
+    ]
+    parameter_match = any(
+        isinstance(annotation, ast.Name)
+        and annotation.id == local_name
+        and annotation.lineno == line
+        for annotation in parameter_annotations
+    )
+    return_match = (
+        isinstance(scope.returns, ast.Name)
+        and scope.returns.id == local_name
+        and scope.returns.lineno == line
+    )
+    return parameter_match and return_match
 
 
 def _candidate(raw: dict[str, Any]) -> dict[str, Any]:
@@ -431,10 +466,42 @@ def validate_graph(graph: dict[str, Any], scan_root: Path, baseline: dict[str, A
                     warnings.append({"code": "RUNTIME_BODY_REFERENCE_REVIEW_ONLY", **record})
                     semantic_links.append(record)
                     continue
+                match_context = ref["context"]
+                context_match_mode = "exact"
+                if ref["relation"] == "inherits":
+                    # Graphify v0.9.100 records inheritance provenance and
+                    # canonical endpoints, but emits no context field.
+                    match_context = None
+                    context_match_mode = "relation_and_provenance"
                 raw_matches = _matching_edges(
                     edges, source_node["id"], target["id"], ref["relation"],
-                    imp["importer_file"], ref["line"], ref["context"]
+                    imp["importer_file"], ref["line"], match_context
                 )
+                if (
+                    not raw_matches
+                    and ref["context"] == "return_type"
+                    and _coalesced_parameter_return(scope, imp["local_name"], ref["line"])
+                ):
+                    # Graphify emitted one parameter_type edge for a signature
+                    # whose parameter and return annotations share a source line.
+                    # Preserve that limitation as a warning, not as a false claim
+                    # that the edge independently identifies return_type.
+                    coalesced = _matching_edges(
+                        edges, source_node["id"], target["id"], ref["relation"],
+                        imp["importer_file"], ref["line"], "parameter_type"
+                    )
+                    if len(coalesced) == 1:
+                        raw_matches = coalesced
+                        match_context = "parameter_type"
+                        context_match_mode = "coalesced_signature_annotation"
+                        warnings.append({
+                            "code": "SIGNATURE_ANNOTATION_EDGE_COALESCED",
+                            "message": "One EXTRACTED edge represents a same-line parameter and return annotation; return-specific context is not independently encoded.",
+                            "source_file": imp["importer_file"],
+                            "source_line": f"L{ref['line']}",
+                            "target_node_id": target["id"],
+                            "observed_edge_context": "parameter_type",
+                        })
                 if len(raw_matches) != 1:
                     errors.append({
                         "code": "CANONICAL_SEMANTIC_EDGE_NOT_UNIQUE",
@@ -442,6 +509,8 @@ def validate_graph(graph: dict[str, Any], scan_root: Path, baseline: dict[str, A
                         **record,
                     })
                 record["raw_extracted_edge_matches"] = len(raw_matches)
+                record["matched_edge_context"] = match_context
+                record["context_match_mode"] = context_match_mode
                 semantic_links.append(record)
 
     # Same-label declarations in different packages must stay distinct and imports
@@ -509,7 +578,8 @@ def validate_graph(graph: dict[str, Any], scan_root: Path, baseline: dict[str, A
             continue
         match = _matching_edges(
             candidate_edges, link["source_node_id"], link["target_node_id"],
-            link["relation"], link["importer_file"], int(link["source_line"][1:]), link["context"]
+            link["relation"], link["importer_file"], int(link["source_line"][1:]),
+            link.get("matched_edge_context", link["context"])
         )
         if len(match) != 1:
             errors.append({
