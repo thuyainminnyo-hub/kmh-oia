@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   assertFails, assertSucceeds, initializeTestEnvironment
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore";
 
 const projectId = "demo-education-business-os";
 let env;
@@ -14,74 +14,172 @@ before(async () => {
   env = await initializeTestEnvironment({ projectId, firestore: { rules } });
   await env.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
+    const memberships = [
+      ["org-a", "admin-a", "admin"],
+      ["org-a", "student-a", "student"],
+      ["org-a", "teacher-a", "instructor"],
+      ["org-a", "finance-a", "finance"],
+      ["org-b", "admin-b", "admin"],
+      ["org-b", "student-b", "student"],
+      ["org-b", "teacher-b", "instructor"]
+    ];
+    await setDoc(doc(db, "organizations/org-a"), { name: "School A", status: "active" });
+    await setDoc(doc(db, "organizations/org-b"), { name: "School B", status: "active" });
+    for (const [orgId, uid, role] of memberships) {
+      await setDoc(doc(db, `organizations/${orgId}/members/${uid}`), {
+        uid, role, status: "active", organizationId: orgId
+      });
+    }
+
+    await setDoc(doc(db, "courses/course-a"), { organizationId: "org-a", name: "Course A" });
+    await setDoc(doc(db, "courses/course-b"), { organizationId: "org-b", name: "Course B" });
+    await setDoc(doc(db, "batches/batch-a"), { organizationId: "org-a", courseId: "course-a" });
+    await setDoc(doc(db, "batches/batch-b"), { organizationId: "org-b", courseId: "course-b" });
+
     await setDoc(doc(db, "enrollments/enr-a"), {
-      studentId: "student-a", instructorId: "teacher-a", batchId: "APT-FLUTTER-B5", status: "active"
+      organizationId: "org-a", studentId: "student-a", instructorId: "teacher-a",
+      batchId: "batch-a", status: "active"
     });
     await setDoc(doc(db, "enrollments/enr-b"), {
-      studentId: "student-b", instructorId: "teacher-b", batchId: "APT-FLUTTER-B5", status: "active"
+      organizationId: "org-b", studentId: "student-b", instructorId: "teacher-b",
+      batchId: "batch-b", status: "active"
     });
-    await setDoc(doc(db, "payments/pay-a"), { studentId: "student-a", instructorId: "teacher-a", status: "pending" });
+    await setDoc(doc(db, "payments/pay-a"), {
+      organizationId: "org-a", studentId: "student-a", instructorId: "teacher-a",
+      status: "pending", amount: 100000
+    });
+    await setDoc(doc(db, "attendance/att-a"), {
+      organizationId: "org-a", studentId: "student-a", instructorId: "teacher-a",
+      enrollmentId: "enr-a", batchId: "batch-a"
+    });
+    await setDoc(doc(db, "assessments/ass-a"), {
+      organizationId: "org-a", studentId: "student-a", instructorId: "teacher-a",
+      enrollmentId: "enr-a", batchId: "batch-a"
+    });
   });
 });
 
 after(async () => { await env.cleanup(); });
 
-test("student can read own enrollment", async () => {
-  const db = env.authenticatedContext("student-a", { role: "student" }).firestore();
+test("student can read own enrollment inside their organization", async () => {
+  const db = env.authenticatedContext("student-a").firestore();
   await assertSucceeds(getDoc(doc(db, "enrollments/enr-a")));
 });
 
-test("student cannot read another student's enrollment", async () => {
-  const db = env.authenticatedContext("student-a", { role: "student" }).firestore();
+test("student cannot read another student's enrollment in the same organization", async () => {
+  const db = env.authenticatedContext("student-a").firestore();
+  await assertFails(getDoc(doc(db, "enrollments/enr-b")));
+});
+
+test("student cannot read another organization's course", async () => {
+  const db = env.authenticatedContext("student-a").firestore();
+  await assertFails(getDoc(doc(db, "courses/course-b")));
+});
+
+test("student can read their own organization's course", async () => {
+  const db = env.authenticatedContext("student-a").firestore();
+  await assertSucceeds(getDoc(doc(db, "courses/course-a")));
+});
+
+test("student cannot read another organization's batch", async () => {
+  const db = env.authenticatedContext("student-a").firestore();
+  await assertFails(getDoc(doc(db, "batches/batch-b")));
+});
+
+test("unaffiliated user cannot read organization or course data", async () => {
+  const db = env.authenticatedContext("unaffiliated-user").firestore();
+  await assertFails(getDoc(doc(db, "organizations/org-a")));
+  await assertFails(getDoc(doc(db, "courses/course-a")));
+});
+
+test("organization admin can read their organization but not another school", async () => {
+  const db = env.authenticatedContext("admin-a").firestore();
+  await assertSucceeds(getDoc(doc(db, "organizations/org-a")));
+  await assertFails(getDoc(doc(db, "organizations/org-b")));
+  await assertSucceeds(getDoc(doc(db, "courses/course-a")));
+  await assertFails(getDoc(doc(db, "courses/course-b")));
+});
+
+test("organization-scoped course query succeeds with an organizationId constraint", async () => {
+  const db = env.authenticatedContext("student-a").firestore();
+  const scoped = query(collection(db, "courses"), where("organizationId", "==", "org-a"));
+  const result = await assertSucceeds(getDocs(scoped));
+  assert.equal(result.size, 1);
+});
+
+test("unscoped cross-organization course query is denied", async () => {
+  const db = env.authenticatedContext("student-a").firestore();
+  await assertFails(getDocs(collection(db, "courses")));
+});
+
+test("finance role can read their organization's payment but not another school's data", async () => {
+  const db = env.authenticatedContext("finance-a").firestore();
+  await assertSucceeds(getDoc(doc(db, "payments/pay-a")));
   await assertFails(getDoc(doc(db, "enrollments/enr-b")));
 });
 
 test("student cannot write payment records directly", async () => {
-  const db = env.authenticatedContext("student-a", { role: "student" }).firestore();
-  await assertFails(setDoc(doc(db, "payments/forged"), { studentId: "student-a", amount: 300000 }));
+  const db = env.authenticatedContext("student-a").firestore();
+  await assertFails(setDoc(doc(db, "payments/forged"), {
+    organizationId: "org-a", studentId: "student-a", amount: 300000
+  }));
 });
 
-test("unauthenticated users cannot read course data", async () => {
+test("unauthenticated users cannot read organization data", async () => {
   const db = env.unauthenticatedContext().firestore();
-  await assertFails(getDoc(doc(db, "courses/flutter-foundation")));
+  await assertFails(getDoc(doc(db, "courses/course-a")));
 });
 
-test("student cannot promote own role", async () => {
-  const db = env.authenticatedContext("student-a", { role: "student" }).firestore();
+test("student cannot promote own role or edit membership", async () => {
+  const db = env.authenticatedContext("student-a").firestore();
   await assertFails(setDoc(doc(db, "users/student-a"), {
     displayName: "Student", email: "student@example.com", role: "admin"
+  }));
+  await assertFails(setDoc(doc(db, "organizations/org-a/members/student-a"), {
+    uid: "student-a", role: "admin", status: "active", organizationId: "org-a"
   }));
 });
 
 test("student cannot create enrollment directly", async () => {
-  const db = env.authenticatedContext("student-a", { role: "student" }).firestore();
+  const db = env.authenticatedContext("student-a").firestore();
   await assertFails(setDoc(doc(db, "enrollments/forged"), {
-    studentId: "student-a", batchId: "APT-FLUTTER-B5", status: "active"
+    organizationId: "org-a", studentId: "student-a", batchId: "batch-a", status: "active"
   }));
 });
 
-test("instructor cannot bypass audited attendance function", async () => {
-  const db = env.authenticatedContext("teacher-a", { role: "instructor" }).firestore();
-  await assertFails(setDoc(doc(db, "attendance/forged"), {
-    enrollmentId: "enr-a", studentId: "student-a", instructorId: "teacher-a",
-    batchId: "APT-FLUTTER-B5", sessionNo: 1, status: "present", markedBy: "teacher-a"
-  }));
-});
-
-
-test("instructor can read an enrollment assigned to them", async () => {
-  const db = env.authenticatedContext("teacher-a", { role: "instructor" }).firestore();
+test("instructor can read assigned enrollment inside their organization", async () => {
+  const db = env.authenticatedContext("teacher-a").firestore();
   await assertSucceeds(getDoc(doc(db, "enrollments/enr-a")));
 });
 
-test("instructor cannot read an enrollment assigned to another instructor", async () => {
-  const db = env.authenticatedContext("teacher-a", { role: "instructor" }).firestore();
+test("instructor cannot read enrollment assigned to another instructor", async () => {
+  const db = env.authenticatedContext("teacher-a").firestore();
   await assertFails(getDoc(doc(db, "enrollments/enr-b")));
 });
 
-test("admin cannot write outcomes directly outside audited callable functions", async () => {
-  const db = env.authenticatedContext("admin-a", { role: "admin" }).firestore();
-  await assertFails(setDoc(doc(db, "outcomes/forged"), {
-    enrollmentId: "enr-a", studentId: "student-a", outcome: "completed"
+test("instructor cannot bypass audited attendance function", async () => {
+  const db = env.authenticatedContext("teacher-a").firestore();
+  await assertFails(setDoc(doc(db, "attendance/forged"), {
+    organizationId: "org-a", enrollmentId: "enr-a", studentId: "student-a",
+    instructorId: "teacher-a", batchId: "batch-a", sessionNo: 1,
+    status: "present", markedBy: "teacher-a"
   }));
+});
+
+test("admin cannot write outcomes directly outside audited callable functions", async () => {
+  const db = env.authenticatedContext("admin-a").firestore();
+  await assertFails(setDoc(doc(db, "outcomes/forged"), {
+    organizationId: "org-a", enrollmentId: "enr-a", studentId: "student-a", outcome: "completed"
+  }));
+});
+
+test("inactive organization member loses all organization access", async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "organizations/org-a/members/student-a"), {
+      uid: "student-a", role: "student", status: "suspended", organizationId: "org-a"
+    });
+  });
+  const db = env.authenticatedContext("student-a").firestore();
+  await assertFails(getDoc(doc(db, "courses/course-a")));
+  await assertFails(getDoc(doc(db, "enrollments/enr-a")));
 });
