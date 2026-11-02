@@ -96,7 +96,7 @@ Before installation, require a clean `pip-audit` result for the exported base ru
 
 ## 7. Intake gates
 
-**Phase 02.1 CI evidence (2026-11-02):** Creative Studio QA run [41420358082](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420358082) passed source-intake policy validation and 19 unit tests. KMH OIA Tests run [41420358172](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420358172) passed 462 tests and the performance baseline. KMH OIA Validation run [41420358239](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420358239) passed repository validation, tests, performance evidence and deployment evidence bundle.
+**Phase 02.1 CI evidence (2026-11-02):** Creative Studio QA run [41420680611](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680611) passed source-intake and dependency-audit policy validation, Graphify scope preflight, 20 unit tests and diff check. KMH OIA Tests run [41420680434](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680434) passed 462 tests and the performance baseline. KMH OIA Validation run [41420680438](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680438) passed repository validation, tests, performance evidence and deployment evidence bundle.
 
 | Gate | Evidence | State |
 |---|---|---|
