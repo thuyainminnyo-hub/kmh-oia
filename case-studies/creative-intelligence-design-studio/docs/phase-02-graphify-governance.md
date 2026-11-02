@@ -67,6 +67,10 @@ The exact commands are recorded in [Phase 02.1 Source & Version Intake](phase-02
 | G4 — False-connection review | Expected import/call edges present; unsupported links rejected; INFERRED edges separately reviewed | NOT RUN |
 | G5 — Owner authorization | Technical owner and data owner approve any scope expansion | PENDING |
 
+**Actual pilot evidence:** [Run 41430984629](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41430984629) produced 12 graph nodes and 17 edges, including 6 cross-file relationships. The traceability validator returned PASS with zero errors. One INFERRED `uses` edge at `outfit_flow.py:L6` remains for human false-connection review. Evidence artifact: [13134475847](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41430984629/artifacts/13134475847).
+
+The workflow's final cleanup step was marked failed because `WORK_ROOT` was not passed to that step. Graph extraction, traceability and artifact upload had already completed successfully. GitHub-hosted runner VMs are ephemeral and are destroyed after the job; the workflow cleanup command is corrected to use `$RUNNER_TEMP` directly. Automatic push triggering is removed; the consumed approval contract blocks a repeat run.
+
 ## Hard stop conditions
 
 Stop and reject the run if the validator fails, a symlink or unapproved file is present, output includes a sensitive path, any model backend is selected, the scanner targets a path outside graphify-sandbox, or a reviewer cannot resolve an edge to source evidence. Preserve only sanitized QA findings; do not commit generated graph output.

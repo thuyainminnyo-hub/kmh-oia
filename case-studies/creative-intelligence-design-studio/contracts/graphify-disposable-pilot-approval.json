@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "status": "approved_single_disposable_run",
+  "status": "consumed_single_disposable_run",
   "approval_date": "2026-11-02",
   "approval_basis": "Explicit user instruction in this conversation: Owner Approval -> Disposable Installation -> Real Graph Extraction -> Source Traceability QA - let's go.",
   "approval_scope": "One run on a disposable GitHub-hosted ephemeral runner, using Graphify v0.9.100 and only the two synthetic Python fixtures.",
@@ -45,5 +45,58 @@
     "artifact_retention_days": 14,
     "commit_generated_graph_to_repository": false,
     "delete_temporary_workspace": true
+  },
+  "execution_record": {
+    "completed_at": "2026-11-02",
+    "workflow_run_id": 41430984629,
+    "commit_sha": "97cbd528c604fdd9606ec8071fc49de64060eb22",
+    "graphify_version": "0.9.100",
+    "graphify_source_commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "uv_lock_blob": "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e",
+    "uv_version": "0.13.6",
+    "graph": {
+      "status": "PASS",
+      "node_count": 12,
+      "edge_count": 17,
+      "cross_file_edge_count": 6,
+      "confidence_counts": {
+        "EXTRACTED": 16,
+        "INFERRED": 1,
+        "AMBIGUOUS": 0
+      },
+      "source_files": [
+        "src/contract_guard.py",
+        "src/outfit_flow.py"
+      ],
+      "source_node_counts": {
+        "src/contract_guard.py": 7,
+        "src/outfit_flow.py": 4
+      },
+      "source_edge_counts": {
+        "src/contract_guard.py": 8,
+        "src/outfit_flow.py": 9
+      },
+      "validator_errors": [],
+      "unanchored_external_reference_nodes": 1
+    },
+    "traceability": {
+      "status": "PASS",
+      "output_symbols_verified": [
+        "DesignToken",
+        "is_approved_token",
+        "select_outfit"
+      ],
+      "source_line_checks": "PASS",
+      "cross_file_edges": "PASS",
+      "inferred_edge_manual_review_required": 1
+    },
+    "artifact_id": 13134475847,
+    "artifact_name": "kmh-graphify-disposable-pilot-41430984629",
+    "artifact_retention_days": 14,
+    "cleanup_step": {
+      "status": "failed",
+      "cause": "WORK_ROOT was created in a prior step but was not exported into the cleanup step environment",
+      "runner_disposal": "GitHub-hosted runner VM is ephemeral and is destroyed by GitHub after the job; explicit rm step did not execute successfully"
+    }
   }
 }

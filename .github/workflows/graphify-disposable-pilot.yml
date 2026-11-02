@@ -1,14 +1,7 @@
 name: KMH Graphify Disposable Synthetic Pilot
 
 on:
-  push:
-    branches: ["feat/kmh-creative-intelligence-design-studio-pilot"]
-    paths:
-      - ".github/workflows/graphify-disposable-pilot.yml"
-      - "case-studies/creative-intelligence-design-studio/contracts/graphify-disposable-pilot-approval.json"
-      - "case-studies/creative-intelligence-design-studio/scripts/validate_graphify_output.py"
-      - "case-studies/creative-intelligence-design-studio/graphify-sandbox/**"
-      - "case-studies/creative-intelligence-design-studio/tests/test_graphify_output.py"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -164,4 +157,4 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf "$WORK_ROOT"
+          rm -rf "$RUNNER_TEMP/kmh-graphify-disposable"

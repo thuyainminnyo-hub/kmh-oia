@@ -1,6 +1,6 @@
 # Phase 02.2 — Graphify Disposable Execution
 
-Approval: Project-owner approval recorded 2026-11-02 for one disposable GitHub-hosted synthetic run.
+Approval: Consumed single-run project-owner approval, recorded 2026-11-02.
 Candidate: Graphify v0.9.100, source commit f5155badddaa3286c78a51653791131e9e2e4d29.
 Input scope: Only src/contract_guard.py and src/outfit_flow.py, copied into an external runner directory.
 Execution boundary: No local installation, assistant skill, Git hook, MCP server, model API, global graph, OIA production runtime or production deployment.
@@ -26,6 +26,24 @@ Execution boundary: No local installation, assistant skill, Git hook, MCP server
 - At least one cross-file edge connects the two fixtures.
 - Confidence labels are restricted to EXTRACTED, INFERRED and AMBIGUOUS.
 - INFERRED and AMBIGUOUS edges are reported for human review and never automatically promoted to facts.
+
+## Actual execution result
+
+Workflow run [41430984629](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41430984629) executed Graphify v0.9.100 on a GitHub-hosted ubuntu-24.04 runner.
+
+- Source commit and uv.lock blob pin checks: PASS.
+- Temporary venv installation from the frozen upstream source: PASS; installed package version 0.9.100.
+- External scan snapshot: exactly three files (.graphifyignore plus the two synthetic Python fixtures); snapshot read-only; SHA-256 manifest created.
+- Code-only extraction: PASS.
+- Graph JSON: 12 nodes, 17 edges.
+- Cross-file links: 6.
+- Confidence: 16 EXTRACTED, 1 INFERRED, 0 AMBIGUOUS.
+- Traceability validator: PASS, zero errors; source nodes and source lines stayed within the two-file allowlist.
+- One unanchored external-reference node represents the standard-library `dataclasses` import and was not counted as source-backed evidence.
+- One INFERRED `uses` edge connects `select_outfit()` to `DesignToken` at `outfit_flow.py:L6`. It appears to overlap with the EXTRACTED type-reference edge at the same line and is flagged for manual false-connection review, not promoted to a fact.
+- Evidence artifact [13134475847](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41430984629/artifacts/13134475847) uploaded successfully.
+
+**Workflow conclusion:** The overall job is marked FAILED only because the final explicit cleanup shell step did not receive the `WORK_ROOT` variable. Extraction, graph generation, traceability validation and artifact upload had already passed. GitHub-hosted runners are ephemeral VMs, so GitHub destroys the runner VM after the job; the explicit `rm -rf` step itself did not succeed. The workflow was corrected to use `$RUNNER_TEMP` directly, and automatic push triggering was removed so this consumed one-run approval cannot launch a second extraction accidentally.
 
 ## Evidence and gate interpretation
 
