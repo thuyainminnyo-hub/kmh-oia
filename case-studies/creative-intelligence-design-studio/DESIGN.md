@@ -34,7 +34,7 @@ Use `contracts/design-contract.json` as the machine-readable source of truth. Do
 - Base spacing unit: 4 px.
 - Use a consistent spacing scale; align related controls and group related content.
 - Mobile-first layout. No horizontal page scrolling at 320 CSS px width.
-- Touch targets: minimum 44 × 44 CSS px unless a platform-specific exception is documented.
+- Touch targets: internal design baseline of 44 × 44 CSS px. This is stricter than WCAG 2.2 AA's 24 × 24 CSS px minimum target-size criterion and aligns with the 44 × 44 CSS px AAA enhanced criterion, subject to its exceptions.
 - Keep character art, garment previews, and selection controls visually separate so the user can understand what is interactive.
 
 ## Components and states
@@ -56,7 +56,8 @@ Every interactive component must define default, hover/focus, pressed, selected,
 
 ## Accessibility and localization
 
-- Text contrast target: WCAG AA 4.5:1 for normal text and 3:1 for large text and meaningful non-text UI boundaries.
+- Text contrast target: WCAG AA 4.5:1 for normal text and 3:1 for large text.
+- Non-text UI boundaries should meet at least 3:1 where WCAG 2.2 requires it.
 - Every action must be keyboard reachable and have an accessible name.
 - Do not convey success, error, selection, or status by color alone.
 - Support Burmese and English without clipping; test actual Myanmar font rendering, line-height, wrapping, and focus order.
