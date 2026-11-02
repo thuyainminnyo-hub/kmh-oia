@@ -12,6 +12,11 @@
 - [ ] Organization A cannot read or mutate Organization B's courses, batches, enrollments, payments or learning records.
 - [ ] Unscoped collection queries that could cross organization boundaries are denied.
 - [ ] Platform admin bootstrap is protected by a server-managed `platformAdmin` custom claim.
+- [ ] Web app initializes App Check with reCAPTCHA Enterprise before Auth/Firestore/Functions.
+- [ ] Android release app initializes App Check with Play Integrity; debug tokens are registered only for development.
+- [ ] All Firebase platform apps are registered in App Check before enforcement is enabled.
+- [ ] App Check request metrics are reviewed before enforcement for Firestore and Callable Functions.
+- [ ] No App Check debug token is committed or included in a production build.
 - [ ] Unauthenticated reads and writes are denied.
 - [ ] Student reads only own records.
 - [ ] Instructor reads only assigned batch records (assignment constraints must be completed before production).
