@@ -1,0 +1,80 @@
+name: KMH Phase 02.7-S Artifact Revalidation
+
+on:
+  push:
+    branches:
+      - "phase-02-7S-validator-revalidation-20261102"
+    paths:
+      - "case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py"
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_7_graph.py"
+      - ".github/workflows/phase-02-7S-validator-revalidation.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  artifact-revalidation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download the immutable one-run Phase 02.7-R evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: kmh-graphify-phase-02-7-one-run-41475845115
+          repository: ${{ github.repository }}
+          run-id: 41475845115
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/phase-02-7R-evidence
+      - name: Revalidate archived raw graph without running Graphify
+        working-directory: case-studies/creative-intelligence-design-studio
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/validate_phase_02_7_graph.py \
+            --graph "${RUNNER_TEMP}/phase-02-7R-evidence/graph.json" \
+            --scan-root graphify-phase-02-7-sandbox \
+            --baseline contracts/phase-02-7-compatibility-baseline.json \
+            --candidate-out "${RUNNER_TEMP}/phase-02-7S-candidate.json" \
+            --summary-out "${RUNNER_TEMP}/phase-02-7S-validation-summary.json"
+      - name: Verify raw and candidate hashes against original archived evidence
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          evidence = root / "phase-02-7R-evidence"
+          old = json.loads((evidence / "phase-02-7-validation-summary.json").read_text())
+          new = json.loads((root / "phase-02-7S-validation-summary.json").read_text())
+          assert new["status"] == "PASS", new["errors"]
+          assert new["raw_graph"]["sha256_canonical_json"] == old["raw_graph"]["sha256_canonical_json"]
+          assert new["candidate_graph"]["sha256_canonical_json"] == old["candidate_graph"]["sha256_canonical_json"]
+          assert new["raw_graph"]["edge_count"] == 83
+          assert new["candidate_graph"]["edge_count"] == 73
+          assert new["candidate_graph"]["contains_non_extracted_edges"] is False
+          assert new["governance"]["raw_graph_mutated"] is False
+          assert new["governance"]["inferred_edges_promoted"] is False
+          print("PASS: archived raw/candidate hashes are unchanged; no extraction or promotion occurred")
+          print("Warnings:", len(new["warnings"]))
+          PY
+      - name: Run focused Phase 02.7 validator regression tests
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: python -m unittest discover -s tests -p 'test_phase_02_7_graph.py' -v
+      - name: Check whitespace
+        run: git diff --check
+      - name: Upload independent revalidation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-phase-02-7S-revalidation-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/phase-02-7S-validation-summary.json
+            ${{ runner.temp }}/phase-02-7S-candidate.json
+          if-no-files-found: error
+          retention-days: 14
