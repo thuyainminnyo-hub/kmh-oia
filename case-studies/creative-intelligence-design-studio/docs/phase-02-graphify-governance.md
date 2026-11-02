@@ -58,7 +58,7 @@ The exact commands are recorded in [Phase 02.1 Source & Version Intake](phase-02
 
 | Gate | Required evidence | Current state |
 |---|---|---|
-| G0 — Source and version intake | Official source, license, dependency, exact candidate and advisory review | PASS — v0.9.100 candidate reviewed; explicit install approval remains pending under G5 |
+| G0 — Source and version intake | Official source, license, exact candidate and known advisory review | PASS — see Phase 02.1; locked runtime dependency audit and install approval remain pending |
 | G1 — Scope guard | Validator and unit tests pass in GitHub CI | PASS — Creative Studio QA run 41419384917; 14/14 tests and diff check passed |
 | G2 — Isolated code-only extraction | Reproducible graph from synthetic Python fixture | NOT RUN |
 | G3 — Source traceability | Sampled EXTRACTED edges resolve to source file/line | NOT RUN |
