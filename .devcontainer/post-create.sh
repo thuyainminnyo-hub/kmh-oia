@@ -32,7 +32,7 @@ sdkmanager --sdk_root="$ANDROID_HOME" \
   "platforms;android-36" \
   "build-tools;36.0.0"
 flutter precache --android
-flutter doctor --android-licenses
+yes | flutter doctor --android-licenses >/dev/null
 
 npm install --global firebase-tools
 dart pub global activate flutterfire_cli
