@@ -597,7 +597,8 @@ def validate_graph(graph: dict[str, Any], scan_root: Path, baseline: dict[str, A
         "schema_version": "1.0.0",
         "phase": "02.7",
         "baseline_id": baseline.get("baseline_id"),
-        "status": "PASS" if not errors else "FAIL",
+        "status": "FAIL" if errors else "PASS_WITH_WARNINGS" if warnings else "PASS",
+        "semantic_context_fidelity": "PARTIAL_WITH_WARNINGS" if any(isinstance(w, dict) and w.get("code") == "SIGNATURE_ANNOTATION_EDGE_COALESCED" for w in warnings) else "VERIFIED",
         "errors": errors,
         "warnings": warnings,
         "raw_graph": {
@@ -671,7 +672,7 @@ def main() -> int:
     print("Inferred/ambiguous promotion: NOT AUTHORIZED")
     for error in summary.get("errors", []):
         print(f"FAIL: {error}")
-    return 0 if summary.get("status") == "PASS" else 1
+    return 0 if summary.get("status") in {"PASS", "PASS_WITH_WARNINGS"} else 1
 
 
 if __name__ == "__main__":
