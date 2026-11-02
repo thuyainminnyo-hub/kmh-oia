@@ -1,7 +1,7 @@
 # Phase 02.7 — Cross-file Resolution Compatibility Matrix
 
 **Owner authorization:** Explicitly granted in conversation on 2026-11-02 for one fresh disposable extraction.  
-**Execution state:** Preparation code and fixtures committed; one-run extraction approval will be recorded separately and consumed by one GitHub-hosted run.  
+**Execution state:** Preparation code and isolated fixtures committed; a separate one-run approval and dedicated launch branch will control the GitHub-hosted extraction.  
 **Graphify:** v0.9.100, exact source commit and frozen `uv.lock` pin from the reviewed intake.  
 **Production:** Not authorized.
 
