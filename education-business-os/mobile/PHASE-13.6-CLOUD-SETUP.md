@@ -4,30 +4,21 @@ This workflow deliberately does not guess an Android package ID or create a seco
 
 ## 1. Open the feature branch in GitHub Codespaces
 
-Create a Codespace on `feat/education-business-os-aptivern-pilot`, then open a terminal.
+Create a Codespace on `feat/education-business-os-aptivern-pilot` from the repository's Code → Codespaces menu. Wait for the post-create setup to finish, then open a **new terminal**.
 
-## 2. Install and authenticate the toolchain
+## 2. Verify the cloud toolchain and authenticate interactively
+
+The repository-root `.devcontainer` setup provisions Flutter stable, Android command-line tools, Java 21, Firebase CLI, and FlutterFire CLI. Do not repeat the manual apt/clone installation unless the automated setup failed.
+
+From the repository root:
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y curl git unzip zip xz-utils libglu1-mesa openjdk-21-jdk
-
-git clone https://github.com/flutter/flutter.git -b stable "$HOME/development/flutter"
-export PATH="$HOME/development/flutter/bin:$PATH"
-echo 'export PATH="$HOME/development/flutter/bin:$PATH"' >> ~/.bashrc
-flutter doctor -v
-
-npm install -g firebase-tools
+.devcontainer/check-toolchain.sh
 firebase login --no-localhost
-
-dart pub global activate flutterfire_cli
-export PATH="$PATH:$HOME/.pub-cache/bin"
-echo 'export PATH="$PATH:$HOME/.pub-cache/bin"' >> ~/.bashrc
-
-firebase --version
-flutter --version
-flutterfire --version
+firebase projects:list
 ```
+
+Confirm that `aptivern-education-os` is visible in the project list. If it is absent, stop and resolve Google account/project access before proceeding. Do not paste access tokens or credentials into chat.
 
 ## 3. Inspect Firebase registrations before generating Android
 
