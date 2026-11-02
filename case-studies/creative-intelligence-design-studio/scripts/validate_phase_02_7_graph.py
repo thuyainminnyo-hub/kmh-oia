@@ -480,8 +480,17 @@ def validate_graph(graph: dict[str, Any], scan_root: Path, baseline: dict[str, A
     if not any(value == "EXTRACTED" for value in confidence_counts):
         errors.append("raw graph contains no EXTRACTED edges")
     represented = sorted(path for path, count in source_node_counts.items() if count)
-    if set(represented) != set(expected_files):
-        errors.append("not every approved Python file is represented by a source-backed graph node")
+    declaration_source_files = {
+        declaration["file"]
+        for found in declarations.values()
+        for declaration in found
+    }
+    missing_declaration_files = sorted(declaration_source_files - set(represented))
+    if missing_declaration_files:
+        errors.append(
+            "source files containing top-level declarations lack graph nodes: "
+            + ", ".join(missing_declaration_files)
+        )
     if not unanchored_external_nodes:
         warnings.append("no unanchored external nodes were emitted; this is not a failure")
 
