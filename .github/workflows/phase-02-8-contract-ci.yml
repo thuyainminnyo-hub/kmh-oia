@@ -7,6 +7,8 @@ on:
       - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8-semantic-context-matrix.json"
       - "case-studies/creative-intelligence-design-studio/evidence/phase-02-8-upstream-research-and-test-design.md"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_contract.py"
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_ast_fixtures.py"
+      - "case-studies/creative-intelligence-design-studio/tests/fixtures/phase_02_8/**"
       - ".github/workflows/phase-02-8-contract-ci.yml"
   push:
     branches:
@@ -35,6 +37,8 @@ jobs:
         run: python -m json.tool case-studies/creative-intelligence-design-studio/contracts/phase-02-8-semantic-context-matrix.json
       - name: Run Phase 02.8 contract tests only
         working-directory: case-studies/creative-intelligence-design-studio
-        run: python -m unittest discover -s tests -p 'test_phase_02_8_contract.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_phase_02_8_contract.py' -v
+          python -m unittest discover -s tests -p 'test_phase_02_8_ast_fixtures.py' -v
       - name: Check whitespace
         run: git diff --check
