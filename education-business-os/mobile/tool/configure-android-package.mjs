@@ -16,20 +16,26 @@ if (!target) {
   process.exit(0);
 }
 
-const packagePattern = /^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$/;
+const packagePattern = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
 if (!packagePattern.test(target) || target === "com.example" || target.startsWith("com.example.")) {
   console.error("FAIL: APTIVERN_ANDROID_PACKAGE_NAME must be the exact registered Android package ID, not a placeholder.");
   process.exit(1);
 }
 
 let gradle = readFileSync(gradlePath, "utf8");
+const valuePattern = /^(\s*(?:namespace|applicationId)\s*(?:=\s*)?)(["'])([^"']+)\2\s*$/;
 function setGradleValue(source, key) {
-  const expression = new RegExp(`(^\\s*${key}\\s*(?:=\\s*)?)(["\\\'])([^"\\\']+)\\2`, "m");
-  if (!expression.test(source)) {
-    console.error(`FAIL: ${key} was not found in ${gradlePath}.`);
+  const lines = source.split(/\r?\n/);
+  const index = lines.findIndex((line) => {
+    const trimmed = line.trimStart();
+    return trimmed.startsWith(`${key} `) || trimmed.startsWith(`${key}=`);
+  });
+  if (index < 0 || !valuePattern.test(lines[index])) {
+    console.error(`FAIL: ${key} was not found as a string property in ${gradlePath}.`);
     process.exit(1);
   }
-  return source.replace(expression, (_match, prefix, quote) => `${prefix}${quote}${target}${quote}`);
+  lines[index] = lines[index].replace(valuePattern, (_match, prefix, quote) => `${prefix}${quote}${target}${quote}`);
+  return lines.join("\n");
 }
 gradle = setGradleValue(gradle, "namespace");
 gradle = setGradleValue(gradle, "applicationId");
@@ -41,7 +47,7 @@ function findMainActivities(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) found.push(...findMainActivities(path));
-    else if (entry.isFile() && /^MainActivity\\.(kt|java)$/.test(entry.name)) found.push(path);
+    else if (entry.isFile() && /^MainActivity\.(kt|java)$/.test(entry.name)) found.push(path);
   }
   return found;
 }
@@ -55,11 +61,12 @@ if (activityFiles.length === 0) {
 }
 for (const file of activityFiles) {
   let source = readFileSync(file, "utf8");
-  if (!/^package\\s+[A-Za-z0-9_.]+\\s*;/m.test(source) && !/^package\\s+[A-Za-z0-9_.]+\\s*$/m.test(source)) {
+  const packagePattern = /^package\s+[A-Za-z0-9_.]+\s*;?\s*$/m;
+  if (!packagePattern.test(source)) {
     console.error(`FAIL: MainActivity package declaration missing in ${file}.`);
     process.exit(1);
   }
-  source = source.replace(/^package\\s+[A-Za-z0-9_.]+\\s*;?/m, `package ${target}`);
+  source = source.replace(packagePattern, `package ${target}`);
   writeFileSync(file, source);
 }
 
