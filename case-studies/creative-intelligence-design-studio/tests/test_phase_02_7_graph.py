@@ -24,7 +24,7 @@ class Phase027GraphValidationTests(unittest.TestCase):
         (self.root / "src/pkg/models.py").write_text(self.models, encoding="utf-8")
         (self.root / "src/pkg/service.py").write_text(self.service, encoding="utf-8")
         (self.root / "src/pkg_other").mkdir(parents=True)
-        (self.root / "src/pkg_other/types.py").write_text("class Widget:\\n    pass\\n", encoding="utf-8")
+        (self.root / "src/pkg_other/types.py").write_text("class Widget:\n    pass\n", encoding="utf-8")
         self.source_files = ["src/pkg/__init__.py", "src/pkg/models.py", "src/pkg/service.py", "src/pkg_other/types.py"]
         self.baseline = {
             "baseline_id": "TEST-PHASE-02.7",
