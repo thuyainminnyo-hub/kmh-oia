@@ -54,14 +54,14 @@ The exact commands are recorded in [Phase 02.1 Source & Version Intake](phase-02
 
 ## Acceptance gates
 
-**Dependency audit evidence:** [Run 41422855820](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41422855820) passed hash-enforced PyPI and OSV scans of the exact frozen Graphify v0.9.100 base-runtime lock snapshot. Both returned no known vulnerabilities. [Evidence artifact 13129673852](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41422855820/artifacts/13129673852).
+**Dependency audit evidence:** Latest run [41423344454](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344454) passed hash-enforced PyPI and OSV scans of the exact frozen Graphify v0.9.100 base-runtime lock snapshot. Both returned no known vulnerabilities. [Evidence artifact 13131340453](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344454/artifacts/13131340453).
 
-**CI evidence (2026-11-02):** On source-intake policy commit `1b0e9514ec11da4db8d22c3d486045f5d0a58982`, Creative Studio QA run [41420680611](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680611) passed design contract, Graphify scope preflight, 20 unit tests, and `git diff --check`. KMH OIA Tests run [41420680434](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680434) passed 462 tests and the performance baseline. KMH OIA Validation run [41420680438](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680438) passed repository validation, tests, performance evidence, and deployment evidence bundle.
+**Latest CI evidence (2026-11-02):** Creative Studio QA run [41423333319](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423333319) passed 28 tests and diff check. KMH OIA Tests run [41423344597](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344597) passed 462 tests and performance baseline. KMH OIA Validation run [41423344325](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344325) passed repository validation, tests, performance evidence and the deployment evidence bundle.
 
 | Gate | Required evidence | Current state |
 |---|---|---|
 | G0 — Source and version intake | Official source, license, exact candidate, known advisory and frozen base-runtime dependency audit | PASS — dependency audit run 41422855820; install approval remains pending |
-| G1 — Scope guard | Validator and unit tests pass in GitHub CI | PASS — Creative Studio QA run 41420680611; 20/20 tests and diff check passed |
+| G1 — Scope guard | Validator and unit tests pass in GitHub CI | PASS — Creative Studio QA run 41423333319; 28/28 tests and diff check passed |
 | G2 — Isolated code-only extraction | Reproducible graph from synthetic Python fixture | NOT RUN |
 | G3 — Source traceability | Sampled EXTRACTED edges resolve to source file/line | NOT RUN |
 | G4 — False-connection review | Expected import/call edges present; unsupported links rejected; INFERRED edges separately reviewed | NOT RUN |
