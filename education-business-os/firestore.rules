@@ -2,71 +2,98 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function role() { return signedIn() ? request.auth.token.role : null; }
-    function isAdmin() { return role() == 'admin'; }
-    function isInstructor() { return role() == 'instructor'; }
-    function isStaff() { return isAdmin() || isInstructor(); }
     function owns(uid) { return signedIn() && request.auth.uid == uid; }
-    function assignedEnrollment(enrollmentId, studentId, batchId) {
-      let enrollment = get(/databases/$(database)/documents/enrollments/$(enrollmentId)).data;
-      return enrollment.studentId == studentId
-        && enrollment.batchId == batchId
-        && enrollment.instructorId == request.auth.uid;
+    function isPlatformAdmin() {
+      return signedIn() && request.auth.token.platformAdmin == true;
+    }
+    function memberPath(orgId, uid) {
+      return /databases/$(database)/documents/organizations/$(orgId)/members/$(uid);
+    }
+    function activeMember(orgId) {
+      return signedIn()
+        && orgId is string
+        && exists(memberPath(orgId, request.auth.uid))
+        && get(memberPath(orgId, request.auth.uid)).data.status == 'active';
+    }
+    function hasOrgRole(orgId, roles) {
+      return activeMember(orgId)
+        && roles.hasAny([get(memberPath(orgId, request.auth.uid)).data.role]);
+    }
+    function canReadOrg(orgId) {
+      return hasOrgRole(orgId, ['admin', 'academic_manager', 'instructor', 'finance', 'student', 'creator', 'moderator']);
+    }
+    function canManageOrg(orgId) {
+      return hasOrgRole(orgId, ['admin']);
+    }
+    function canReadEnrollment(data) {
+      return canManageOrg(data.organizationId)
+        || (hasOrgRole(data.organizationId, ['student']) && data.studentId == request.auth.uid)
+        || (hasOrgRole(data.organizationId, ['instructor']) && data.instructorId == request.auth.uid);
+    }
+    function canReadFinancialRecord(data) {
+      return canManageOrg(data.organizationId)
+        || (hasOrgRole(data.organizationId, ['finance']))
+        || (hasOrgRole(data.organizationId, ['student']) && data.studentId == request.auth.uid)
+        || (hasOrgRole(data.organizationId, ['instructor']) && data.instructorId == request.auth.uid);
     }
 
+    // User profile is global identity data, not a shortcut to organization access.
     match /users/{uid} {
-      allow read: if owns(uid) || isAdmin();
+      allow get: if owns(uid) || isPlatformAdmin();
+      allow list: if isPlatformAdmin();
       allow create: if owns(uid)
         && request.resource.data.keys().hasOnly(['displayName', 'email', 'phone', 'createdAt'])
         && request.resource.data.email == request.auth.token.email;
       allow update: if owns(uid)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'phone', 'updatedAt']);
-      allow delete: if isAdmin();
+      allow delete: if isPlatformAdmin();
     }
+
+    // Organization metadata and memberships are controlled by callable functions.
+    match /organizations/{orgId} {
+      allow get: if canReadOrg(orgId) || isPlatformAdmin();
+      allow list: if isPlatformAdmin();
+      allow create, update, delete: if false;
+
+      match /members/{uid} {
+        allow get: if owns(uid) || canManageOrg(orgId) || isPlatformAdmin();
+        allow list: if canManageOrg(orgId) || isPlatformAdmin();
+        allow create, update, delete: if false;
+      }
+    }
+
+    // Every tenant-owned record must carry organizationId and be queried within that tenant.
     match /courses/{id} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      allow read: if canReadOrg(resource.data.organizationId) || isPlatformAdmin();
+      allow create, update, delete: if false;
     }
     match /batches/{id} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      allow read: if canReadOrg(resource.data.organizationId) || isPlatformAdmin();
+      allow create, update, delete: if false;
     }
     match /enrollments/{id} {
-      allow read: if isAdmin()
-        || (signedIn() && resource.data.studentId == request.auth.uid)
-        || (isInstructor() && resource.data.instructorId == request.auth.uid);
+      allow read: if canReadEnrollment(resource.data) || isPlatformAdmin();
       allow create, update, delete: if false;
     }
     match /payments/{id} {
-      allow read: if isAdmin()
-        || (signedIn() && resource.data.studentId == request.auth.uid)
-        || (isInstructor() && resource.data.instructorId == request.auth.uid);
+      allow read: if canReadFinancialRecord(resource.data) || isPlatformAdmin();
       allow create, update, delete: if false;
     }
     match /attendance/{id} {
-      allow read: if isAdmin()
-        || (signedIn() && resource.data.studentId == request.auth.uid)
-        || (isInstructor() && resource.data.instructorId == request.auth.uid);
-      // All mutations go through audited callable Cloud Functions.
+      allow read: if canReadEnrollment(resource.data) || isPlatformAdmin();
       allow create, update, delete: if false;
     }
     match /assessments/{id} {
-      allow read: if isAdmin()
-        || (signedIn() && resource.data.studentId == request.auth.uid)
-        || (isInstructor() && resource.data.instructorId == request.auth.uid);
-      // All mutations go through audited callable Cloud Functions.
+      allow read: if canReadEnrollment(resource.data) || isPlatformAdmin();
       allow create, update, delete: if false;
     }
     match /outcomes/{id} {
-      allow read: if isAdmin()
-        || (signedIn() && resource.data.studentId == request.auth.uid)
-        || (isInstructor() && resource.data.instructorId == request.auth.uid);
-      // Outcome changes must use the audited callable function.
+      allow read: if canReadEnrollment(resource.data) || isPlatformAdmin();
       allow create, update, delete: if false;
     }
     match /auditLogs/{id} {
-      allow read: if isAdmin();
-      allow write: if false;
+      allow read: if canManageOrg(resource.data.organizationId) || isPlatformAdmin();
+      allow create, update, delete: if false;
     }
     match /{document=**} {
       allow read, write: if false;
