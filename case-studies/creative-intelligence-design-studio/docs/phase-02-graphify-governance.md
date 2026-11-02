@@ -50,14 +50,18 @@ Run from a disposable workstation or container with network and filesystem permi
 
     uv tool install "graphifyy==APPROVED_VERSION"
 
-5. Build only the synthetic Python graph. Use an output directory outside the repository.
+5. Build only the synthetic Python graph. Use the documented absolute output-directory override so Graphify writes outside the repository. Keep backend autodetection disabled and run the code-only path.
 
-    GRAPHIFY_BACKEND=none GRAPHIFY_VIZ_NODE_LIMIT=0 GRAPHIFY_OUT=/tmp/kmh-creative-studio-graphify-out graphify extract "$PWD/case-studies/creative-intelligence-design-studio/graphify-sandbox" --code-only --exclude "private/**" --exclude "learner-data/**" --exclude "raw-assets/**" --exclude "media/**"
+    GRAPHIFY_OUT=/tmp/kmh-creative-studio-graphify-out GRAPHIFY_BACKEND=none graphify extract "$PWD/case-studies/creative-intelligence-design-studio/graphify-sandbox" --code-only --exclude ".env" --exclude ".env.*" --exclude "**/*.pem" --exclude "**/*.key" --exclude "**/private/**" --exclude "**/learner-data/**" --exclude "**/raw-assets/**" --exclude "**/media/**"
 
-6. Review graph.json and GRAPH_REPORT.md. Confirm that every sampled EXTRACTED edge resolves to a real file and line inside graphify-sandbox/src/.
-7. Treat INFERRED edges as hypotheses. Record them separately and do not promote one to a project fact without independent source evidence and human approval.
+6. Review graph.json and GRAPH_REPORT.md in the external output directory. Confirm that every sampled EXTRACTED edge resolves to a real file and line inside graphify-sandbox/src/.
+7. Treat INFERRED or AMBIGUOUS edges as hypotheses. Record them separately and do not promote one to a project fact without independent source evidence and human approval.
 8. Record tool version, package/source pin, command, runner details, commit SHA, graph counts, sampled edges, false positives, exclusions, and reviewer decision.
-9. Delete the temporary graph output and confirm it is absent from the repository.
+9. Delete the temporary graph output and confirm that it is absent from the repository and workstation after evidence capture.
+
+The output override, backend selector, code-only flag, and repeatable exclude flag are documented in the upstream source:
+- https://github.com/Graphify-Labs/graphify/blob/v8/graphify/paths.py
+- https://github.com/Graphify-Labs/graphify/blob/v8/graphify/cli.py
 
 The command above is an approved future procedure template only; it has NOT been run in this execution.
 
