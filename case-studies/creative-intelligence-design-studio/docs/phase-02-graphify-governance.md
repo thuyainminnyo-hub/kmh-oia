@@ -1,6 +1,6 @@
 # Phase 02 — Governed Graphify Integration
 
-**Status:** Guarded preflight scaffold implemented; Graphify installation and indexing are NOT RUN.  
+**Status:** Disposable synthetic Graphify extraction and source traceability passed. Phase 02.3 review candidate is prepared; project-owner confirmation is pending. Production is not approved.  
 **Release status:** Not approved for production.  
 **Target:** A disposable, synthetic-only code fixture inside this Creative Studio module.
 
@@ -74,6 +74,9 @@ The exact commands are recorded in [Phase 02.1 Source & Version Intake](phase-02
 | G5 — Owner authorization | Single disposable synthetic-run approval | PASS — consumed by run 41430984629; no repeat run authorized |
 
 The disposable workflow run is marked FAILED solely because its final explicit cleanup shell step did not receive the `WORK_ROOT` variable. Extraction, graph generation, traceability validation and artifact upload passed. GitHub-hosted runner VMs are ephemeral and are destroyed by GitHub after the job; the cleanup command is corrected to use `$RUNNER_TEMP`. Automatic push triggering is removed and the approval contract is marked consumed.
+
+
+**Phase 02.3 controlled review:** The raw graph SHA-256 is pinned to `c5ad7ea7fdd6b6c65c81726a0aec51c5bead7a3cf29ff85a59051eb6bd95abeb`. The only INFERRED edge at `outfit_flow.py:L6` duplicates an EXTRACTED `references / parameter_type` relationship on the same source, target and line. Recommendation: HOLD it out of the canonical candidate, without calling it a proven false positive. The EXTRACTED-only candidate contains 12 nodes and 16 edges; candidate SHA-256 `c2053e83445e8b4c94d5c29a9a3ef816ccf15561c5a76cd8139e2412584123c1`. Owner confirmation remains pending. See [Phase 02.3 review](phase-02-3-human-graph-review.md).
 
 ## Hard stop conditions
 

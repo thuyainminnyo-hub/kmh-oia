@@ -64,3 +64,7 @@ The run artifact is named kmh-graphify-disposable-pilot-<run-id>. Generated grap
 | G4 — Human false-connection review | OPEN | One INFERRED type-annotation edge at outfit_flow.py:L6 |
 
 Production approval remains out of scope.
+
+## Phase 02.3 review handoff
+
+The raw graph artifact is SHA-256 pinned and remains immutable. The source-level review identified one INFERRED `uses` edge at `outfit_flow.py:L6` that duplicates a more precise EXTRACTED `references / parameter_type` edge. Recommendation: HOLD it out of the extracted-only candidate, not classify it as a proven false positive. The 12-node / 16-edge candidate and its hash are recorded in [Phase 02.3](phase-02-3-human-graph-review.md). Project-owner confirmation is still pending.

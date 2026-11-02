@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0.0",
+  "review_status": "ASSISTANT_REVIEW_RECOMMENDATION_OWNER_CONFIRMATION_PENDING",
+  "promotion_policy": {
+    "candidate_rule": "Only source-backed EXTRACTED edges enter the candidate graph.",
+    "non_extracted_rule": "INFERRED and AMBIGUOUS edges remain excluded and must have an explicit review decision.",
+    "raw_graph_immutable": true,
+    "production_promotion_allowed": false
+  },
+  "source_artifact": {
+    "repository": "thuyainminnyo-hub/kmh-oia",
+    "workflow_run_id": 41430984629,
+    "artifact_id": 13134475847,
+    "artifact_name": "kmh-graphify-disposable-pilot-41430984629",
+    "graph_file": "graph.json",
+    "graph_sha256": "c5ad7ea7fdd6b6c65c81726a0aec51c5bead7a3cf29ff85a59051eb6bd95abeb",
+    "graphify_version": "0.9.100",
+    "graphify_source_commit": "f5155badddaa3286c78a51653791131e9e2e4d29"
+  },
+  "edge_decisions": [
+    {
+      "edge_fingerprint": "f3f463148fad99ea22391ba177933acab4de6a5aefff01ddfe8c260275d9fde3",
+      "edge_identity": {
+        "source": "src_outfit_flow_select_outfit",
+        "target": "src_contract_guard_designtoken",
+        "relation": "uses",
+        "confidence": "INFERRED",
+        "source_file": "src/outfit_flow.py",
+        "source_location": "L6"
+      },
+      "disposition": "HOLD_NOT_PROMOTED",
+      "reason_code": "DUPLICATE_OF_EXTRACTED_TYPE_REFERENCE",
+      "rationale": "The same source node, target node, file and line already have an EXTRACTED references edge with context=parameter_type. The source at outfit_flow.py:L6 is `def select_outfit(token: DesignToken)`, so the explicit references edge is the precise, source-backed representation. The broader INFERRED uses edge is semantically compatible but redundant for the canonical candidate. This is not classified as a proven false positive.",
+      "superseded_by_edge": {
+        "edge_fingerprint": "a2862edf8aad97705966889fc749500789b5abba3130914e08ed10bff636a455",
+        "edge_identity": {
+          "source": "src_outfit_flow_select_outfit",
+          "target": "src_contract_guard_designtoken",
+          "relation": "references",
+          "confidence": "EXTRACTED",
+          "source_file": "src/outfit_flow.py",
+          "source_location": "L6"
+        },
+        "context": "parameter_type"
+      },
+      "reviewer": "Assistant-assisted evidence review; project-owner confirmation outstanding.",
+      "owner_confirmation": "PENDING"
+    }
+  ]
+}
