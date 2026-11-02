@@ -23,7 +23,9 @@ class Phase027GraphValidationTests(unittest.TestCase):
         )
         (self.root / "src/pkg/models.py").write_text(self.models, encoding="utf-8")
         (self.root / "src/pkg/service.py").write_text(self.service, encoding="utf-8")
-        self.source_files = ["src/pkg/__init__.py", "src/pkg/models.py", "src/pkg/service.py"]
+        (self.root / "src/pkg_other").mkdir(parents=True)
+        (self.root / "src/pkg_other/types.py").write_text("class Widget:\\n    pass\\n", encoding="utf-8")
+        self.source_files = ["src/pkg/__init__.py", "src/pkg/models.py", "src/pkg/service.py", "src/pkg_other/types.py"]
         self.baseline = {
             "baseline_id": "TEST-PHASE-02.7",
             "source_files": self.source_files,
@@ -38,6 +40,7 @@ class Phase027GraphValidationTests(unittest.TestCase):
                 {"id": "pkg_build", "label": "build()", "file_type": "code", "source_file": "src/pkg/service.py", "source_location": "L3"},
                 {"id": "pkg_file", "label": "service.py", "file_type": "code", "source_file": "src/pkg/service.py", "source_location": "L1"},
                 {"id": "models_file", "label": "models.py", "file_type": "code", "source_file": "src/pkg/models.py", "source_location": "L1"},
+                {"id": "pkg_other_widget", "label": "Widget", "file_type": "code", "source_file": "src/pkg_other/types.py", "source_location": "L1"},
             ],
             "edges": [
                 {"source": "pkg_build", "target": "pkg_widget", "relation": "references", "context": "parameter_type", "confidence": "EXTRACTED", "source_file": "src/pkg/service.py", "source_location": "L3"},
@@ -60,19 +63,21 @@ class Phase027GraphValidationTests(unittest.TestCase):
         raw["edges"][0]["target"] = "ghost_widget"
         result, _ = validate_graph(raw, self.root, self.baseline)
         self.assertEqual(result["status"], "FAIL")
-        self.assertTrue(any(e.get("code") == "CANONICAL_SEMANTIC_EDGE_NOT_UNIQUE" for e in result["errors"]))
+        self.assertTrue(any(isinstance(e, dict) and e.get("code") == "CANONICAL_SEMANTIC_EDGE_NOT_UNIQUE" for e in result["errors"]))
 
     def test_dangling_endpoint_fails(self):
         raw = copy.deepcopy(self.raw)
         raw["edges"][0]["target"] = "missing-node"
         result, _ = validate_graph(raw, self.root, self.baseline)
         self.assertEqual(result["status"], "FAIL")
-        self.assertTrue(any("target endpoint is unresolved" in e for e in result["errors"]))
+        self.assertTrue(any(isinstance(e, str) and "target endpoint is unresolved" in e for e in result["errors"]))
 
     def test_same_label_duplicate_definitions_have_separate_canonical_ids(self):
         result, _ = validate_graph(copy.deepcopy(self.raw), self.root, self.baseline)
         self.assertEqual(result["status"], "PASS", result["errors"])
-        self.assertEqual(result["same_named_definition_groups"], {})
+        group = result["same_named_definition_groups"]["Widget"]
+        self.assertEqual({entry[0] for entry in group}, {"src/pkg/models.py", "src/pkg_other/types.py"})
+        self.assertEqual(len({entry[1] for entry in group}), 2)
 
     def test_unapproved_file_in_snapshot_fails(self):
         (self.root / "src/pkg/secret.py").write_text("password = 'no'\n", encoding="utf-8")
