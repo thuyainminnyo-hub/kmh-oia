@@ -1,11 +1,42 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+const recaptchaEnterpriseSiteKey = String.fromEnvironment(
+  'RECAPTCHA_ENTERPRISE_SITE_KEY',
+);
+
+Future<void> activateAptivernAppCheck() async {
+  if (kIsWeb) {
+    await FirebaseAppCheck.instance.activate(
+      providerWeb: kDebugMode
+          ? WebDebugProvider()
+          : ReCaptchaEnterpriseProvider(recaptchaEnterpriseSiteKey),
+    );
+  } else if (defaultTargetPlatform == TargetPlatform.android) {
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: kDebugMode
+          ? const AndroidDebugProvider()
+          : const AndroidPlayIntegrityProvider(),
+    );
+  } else if (defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.macOS) {
+    await FirebaseAppCheck.instance.activate(
+      providerApple: kDebugMode
+          ? const AppleDebugProvider()
+          : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+    );
+  }
+  await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await activateAptivernAppCheck();
   runApp(const AptivernStudentApp());
 }
 
