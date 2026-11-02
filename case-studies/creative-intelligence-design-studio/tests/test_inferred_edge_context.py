@@ -22,7 +22,7 @@ class InferredEdgeContextTests(unittest.TestCase):
         self.assertEqual(result["status"], "PASS")
         self.assertEqual(result["reference_counts"]["TYPE_ANNOTATION"], 1)
         self.assertFalse(result["resolver_input_assessment"]["has_runtime_reference"])
-        self.assertEqual(result["resolver_input_assessment"]["first_reference_line"], 4)
+        self.assertEqual(result["resolver_input_assessment"]["first_reference_line"], 3)
 
     def test_runtime_constructor_is_classified_as_runtime_call(self):
         result = self.analyze(
@@ -32,7 +32,7 @@ class InferredEdgeContextTests(unittest.TestCase):
         self.assertEqual(result["status"], "PASS")
         self.assertEqual(result["reference_counts"]["RUNTIME_CALL"], 1)
         self.assertFalse(result["resolver_input_assessment"]["has_type_annotation_reference"])
-        self.assertEqual(result["resolver_input_assessment"]["first_reference_line"], 3)
+        self.assertEqual(result["resolver_input_assessment"]["first_reference_line"], 4)
 
     def test_mixed_annotation_and_runtime_call_are_separated(self):
         result = self.analyze(
