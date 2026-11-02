@@ -42,7 +42,7 @@ class Phase027GraphValidationTests(unittest.TestCase):
             "nodes": [
                 {"id": "pkg_widget", "label": "Widget", "file_type": "code", "source_file": "src/pkg/models.py", "source_location": "L1"},
                 {"id": "pkg_build", "label": "build()", "file_type": "code", "source_file": "src/pkg/service.py", "source_location": "L3"},
-                {"id": "pkg_child", "label": "Child", "file_type": "code", "source_file": "src/pkg/service.py", "source_location": "L7"},
+                {"id": "pkg_child", "label": "Child", "file_type": "code", "source_file": "src/pkg/service.py", "source_location": "L6"},
                 {"id": "pkg_file", "label": "service.py", "file_type": "code", "source_file": "src/pkg/service.py", "source_location": "L1"},
                 {"id": "models_file", "label": "models.py", "file_type": "code", "source_file": "src/pkg/models.py", "source_location": "L1"},
                 {"id": "pkg_other_widget", "label": "Widget", "file_type": "code", "source_file": "src/pkg_other/types.py", "source_location": "L1"},
@@ -50,7 +50,7 @@ class Phase027GraphValidationTests(unittest.TestCase):
             "edges": [
                 {"source": "pkg_build", "target": "pkg_widget", "relation": "references", "context": "parameter_type", "confidence": "EXTRACTED", "source_file": "src/pkg/service.py", "source_location": "L3"},
                 {"source": "pkg_build", "target": "pkg_widget", "relation": "calls", "context": "call", "confidence": "EXTRACTED", "source_file": "src/pkg/service.py", "source_location": "L4"},
-                {"source": "pkg_child", "target": "pkg_widget", "relation": "inherits", "confidence": "EXTRACTED", "source_file": "src/pkg/service.py", "source_location": "L7"},
+                {"source": "pkg_child", "target": "pkg_widget", "relation": "inherits", "confidence": "EXTRACTED", "source_file": "src/pkg/service.py", "source_location": "L6"},
                 {"source": "pkg_build", "target": "pkg_widget", "relation": "uses", "confidence": "INFERRED", "source_file": "src/pkg/service.py", "source_location": "L3"},
             ],
         }
