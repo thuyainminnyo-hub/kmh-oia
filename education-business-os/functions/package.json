@@ -7,7 +7,8 @@
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test test/*.test.cjs"
+    "test": "npm run build && node --test test/*.test.cjs",
+    "test:emulator": "node --test test/emulator.integration.cjs"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
