@@ -163,8 +163,31 @@ def validate_graphify_scope(policy: dict[str, Any], project_root: Path) -> list[
                 errors.append("runtime dependency audit must scan both PyPI and OSV services")
             if dependency_audit.get("source_lock") != "uv.lock from exact v0.9.100 source tag; blob 1fd2344a28be6b14c4f6f41c4901c70cadc2be0e":
                 errors.append("runtime dependency audit must use the exact release uv.lock")
-            if dependency_audit.get("status") != "pending":
-                errors.append("runtime dependency audit must remain pending until evidence is attached")
+            audit_status = dependency_audit.get("status")
+            if audit_status not in {"pending", "passed"}:
+                errors.append("runtime dependency audit status must be pending or passed")
+            if audit_status == "passed":
+                evidence = dependency_audit.get("evidence")
+                if not isinstance(evidence, dict):
+                    errors.append("passed runtime dependency audit requires evidence")
+                else:
+                    expected_evidence = {
+                        "run_id": 41422855820,
+                        "commit_sha": "0a4643362e92b6d7b252008a2a3ae586740ec9b2",
+                        "artifact_id": 13129673852,
+                        "uv_version": "0.13.6",
+                        "pip_audit_version": "2.10.1",
+                        "pypi_exit_code": 0,
+                        "osv_exit_code": 0,
+                        "pypi_result": "no_known_vulnerabilities_found",
+                        "osv_result": "no_known_vulnerabilities_found",
+                        "requirements_hashes": "present_and_required",
+                        "pypi_hash_verification": "passed",
+                        "osv_hash_verification": "presence_only",
+                    }
+                    for key, value in expected_evidence.items():
+                        if evidence.get(key) != value:
+                            errors.append(f"passed runtime dependency audit evidence mismatch: {key}")
             if dependency_audit.get("fail_on_known_vulnerability") is not True:
                 errors.append("runtime dependency audit must fail on known vulnerabilities")
 

@@ -3,7 +3,7 @@
 **Review date:** 2026-11-02  
 **Candidate:** Graphify `v0.9.100`  
 **Package:** PyPI `graphifyy` (official package name; CLI command is `graphify`)  
-**Decision:** Source candidate verified; installation/indexing still NOT AUTHORIZED and NOT RUN. The release's locked runtime dependencies have not yet passed a separate vulnerability audit.
+**Decision:** Source and dependency intake verified. The frozen v0.9.100 base runtime dependency snapshot passed PyPI and OSV audits. Graphify installation/indexing remain NOT AUTHORIZED and NOT RUN.
 
 ## 1. Release identity and provenance
 
@@ -33,7 +33,7 @@ The following are optional extras, not required for the first Python-only fixtur
 
 **Pilot dependency decision:** do not install `[all]` or any optional extra. Use the exact release tag's `uv.lock` with uv 0.13.6 and `uv sync --frozen --no-dev --python 3.12`. The upstream v0.9.100 CI explicitly uses `--frozen` to consume the committed lock without re-resolving or rewriting it. Pin the exact `uv.lock` Git blob `1fd2344a28be6b14c4f6f41c4901c70cadc2be0e`. No assistant skill, git hook, MCP server, model SDK or global integration is enabled.
 
-A separate runtime dependency audit remains mandatory before installation. The uv lockfile format is specific to uv, so export the exact selected runtime dependency set from the frozen source snapshot and pass the resulting fully pinned requirements file to PyPA's `pip-audit`. The audit tool is pinned to `pip-audit==2.10.1` (the latest listed PyPI release at this review). Run both the PyPI and OSV vulnerability services. The tool is invoked with `--strict --require-hashes --disable-pip`: `--strict` fails when dependency collection is incomplete, and `--require-hashes` checks that every pinned requirement includes a hash. This is preferred to `--no-deps` when the exported requirements file contains hashes. Do not claim the lockfile or transitive dependencies are vulnerability-free until both audit reports produce clean evidence.
+A separate runtime dependency audit remains mandatory before installation. The uv lockfile format is specific to uv, so export the exact selected runtime dependency set from the frozen source snapshot and pass the resulting fully pinned requirements file to PyPA's `pip-audit`. The audit tool is pinned to `pip-audit==2.10.1` (the latest listed PyPI release at this review). Run both the PyPI and OSV vulnerability services. The tool is invoked with `--strict --require-hashes --disable-pip`: `--strict` fails when dependency collection is incomplete, and `--require-hashes` checks that every pinned requirement includes a hash. This is preferred to `--no-deps` when the exported requirements file contains hashes. Do not generalize the clean result to optional extras, development dependencies, or a fresh PyPI resolver graph. The completed audit covers only the exact upstream frozen base-runtime snapshot.
 
 **Lockfile compatibility note:** A first `uv export --frozen` check failed because uv determined that the release tag's `uv.lock` needed updating against its `pyproject.toml`. Upstream v0.9.100 CI deliberately uses `uv sync --frozen` and `uv run --frozen` to consume the committed lock without re-resolving it. The audit therefore mirrors the upstream frozen lock policy, pins uv 0.13.6 and verifies the exact lock blob SHA. This audits the dependency snapshot upstream CI actually consumes; it does not assert that the published PyPI installation resolver will select the same graph if package metadata is independently re-resolved.
 
@@ -53,7 +53,7 @@ The package install, assistant skill install, graph extraction, and later agent 
 
 ## 6. Exact future procedure — only after explicit owner approval
 
-The dependency-only audit is automated by [graphify-dependency-audit.yml](../../../../.github/workflows/graphify-dependency-audit.yml) on relevant branch changes. It exports the exact locked base requirements and CycloneDX SBOM, runs the pinned audit tool against PyPI and OSV, and uploads sanitized audit evidence. It does not install or execute Graphify. The commands below remain a manual operator runbook for the later, separately approved isolated extraction; they have NOT been run.
+The dependency-only audit is automated by [graphify-dependency-audit.yml](../../../../.github/workflows/graphify-dependency-audit.yml) on relevant policy/workflow changes. It exports the exact frozen base requirements and CycloneDX SBOM, runs the pinned hash-enforced audit tool against PyPI and OSV, and uploads evidence. It does not install or execute Graphify. The commands below remain a manual operator runbook for the later, separately approved isolated extraction; they have NOT been run.
 
 ```bash
 set -euo pipefail
@@ -108,6 +108,8 @@ Before installation, require clean PyPI and OSV `pip-audit` 2.10.1 results for t
 
 ## 7. Intake gates
 
+**Completed dependency audit (2026-11-02):** Run [41422855820](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41422855820) verified source commit `f5155badddaa3286c78a51653791131e9e2e4d29`, exact `uv.lock` blob `1fd2344a28be6b14c4f6f41c4901c70cadc2be0e`, uv 0.13.6, and pip-audit 2.10.1. Frozen requirements and CycloneDX SBOM exports passed. Hash-enforced `--strict --require-hashes --disable-pip` audits returned exit code 0 for both PyPI and OSV; both logs reported no known vulnerabilities. PyPI service verified requirement hashes; OSV confirmed hash presence and returned no known vulnerabilities. Evidence artifact [13129673852](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41422855820/artifacts/13129673852) was uploaded successfully.
+
 The automated dependency-audit workflow is a read-only source-metadata and vulnerability-check job. Its only package tool installation is the isolated, version-pinned `pip-audit==2.10.1` utility; the Graphify CLI itself is not installed or executed by this workflow.
 
 
@@ -118,7 +120,7 @@ The automated dependency-audit workflow is a read-only source-metadata and vulne
 | G0.1 — Official source identity | PyPI package, source tag and provenance commit match | PASS |
 | G0.2 — License and dependency review | Apache-2.0 declaration, NOTICE/MIT legacy note, base/optional dependency split and lockfile reviewed | PASS |
 | G0.3 — Known advisory review | GHSA range/fix reviewed; v0.9.100 Fortran patch inspected | PASS |
-| G0.4 — Frozen runtime dependency audit | Exact verified uv.lock blob exported with uv 0.13.6 --frozen; clean PyPI and OSV pip-audit reports | PENDING |
+| G0.4 — Frozen runtime dependency audit | Exact frozen lock snapshot; hash-enforced PyPI and OSV reports; retained evidence artifact | PASS — run 41422855820, artifact 13129673852 |
 | G0.5 — Owner install approval | Explicit approval for isolated tool install and fixture execution | PENDING |
 | G1 — Scope guard | Project validator and 14 CI tests | PASS |
 | G2 — Isolated Graphify extraction | Actual run from the exact release in disposable workspace | NOT RUN |

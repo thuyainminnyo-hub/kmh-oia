@@ -122,12 +122,42 @@ class GraphifyScopeTests(unittest.TestCase):
         errors = validate_graphify_scope(policy, root)
         self.assertTrue(any("optional_extras_enabled" in error for error in errors))
 
-    def test_runtime_dependency_audit_cannot_be_claimed_complete_without_evidence(self):
+    def test_passed_runtime_dependency_audit_requires_evidence(self):
         root = self.temporary_project()
         policy = copy.deepcopy(self.policy)
         policy["source_intake"]["runtime_dependency_audit"]["status"] = "passed"
         errors = validate_graphify_scope(policy, root)
-        self.assertTrue(any("runtime dependency audit must remain pending" in error for error in errors))
+        self.assertTrue(any("passed runtime dependency audit requires evidence" in error for error in errors))
+
+    def test_passed_runtime_dependency_audit_accepts_exact_ci_evidence(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        audit = policy["source_intake"]["runtime_dependency_audit"]
+        audit["status"] = "passed"
+        audit["evidence"] = {
+            "run_id": 41422855820,
+            "commit_sha": "0a4643362e92b6d7b252008a2a3ae586740ec9b2",
+            "artifact_id": 13129673852,
+            "uv_version": "0.13.6",
+            "pip_audit_version": "2.10.1",
+            "pypi_exit_code": 0,
+            "osv_exit_code": 0,
+            "pypi_result": "no_known_vulnerabilities_found",
+            "osv_result": "no_known_vulnerabilities_found",
+            "requirements_hashes": "present_and_required",
+            "pypi_hash_verification": "passed",
+            "osv_hash_verification": "presence_only",
+        }
+        self.assertEqual(validate_graphify_scope(policy, root), [])
+
+    def test_passed_runtime_dependency_audit_rejects_modified_evidence(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        audit = policy["source_intake"]["runtime_dependency_audit"]
+        audit["status"] = "passed"
+        audit["evidence"] = {"run_id": 1}
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("evidence mismatch" in error for error in errors))
 
     def test_dependency_audit_tool_must_be_exactly_pinned(self):
         root = self.temporary_project()
