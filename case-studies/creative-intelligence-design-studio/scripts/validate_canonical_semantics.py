@@ -353,6 +353,30 @@ def validate(raw_graph: dict, candidate_graph: dict, manifest: dict, graph_basel
                         })
                     semantic_edges.append(record)
 
+    # Every versioned semantic expectation must be present in the source-derived
+    # relationships. This prevents replacing an expected internal import with an
+    # external import (or deleting the reference) from silently passing.
+    for expected in semantic_baseline.get("semantic_expectations", []):
+        matches = [
+            item for item in semantic_edges
+            if item.get("source_symbol") == expected.get("source_symbol")
+            and item.get("imported_name") == expected.get("imported_name")
+            and item.get("category") == expected.get("category")
+            and item.get("relation") == expected.get("relation")
+            and item.get("source_file") == expected.get("source_file")
+            and item.get("source_line") == int(str(expected.get("source_location", "L0")).removeprefix("L"))
+            and item.get("target_file") == expected.get("target_file")
+            and item.get("target_symbol") == expected.get("target_symbol")
+            and item.get("target_definition_line") == expected.get("target_definition")
+            and item.get("context") == expected.get("context")
+        ]
+        if len(matches) != 1:
+            errors.append({
+                "code": "VERSIONED_SEMANTIC_EXPECTATION_MISSING_OR_NONUNIQUE",
+                "expected": expected,
+                "match_count": len(matches),
+            })
+
     # The held INFERRED uses edge must still be present in raw, absent from the
     # candidate, and backed by the exact owner-confirmed manifest decision.
     held = semantic_baseline.get("held_edge", {})
