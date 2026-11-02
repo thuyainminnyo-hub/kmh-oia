@@ -25,29 +25,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Validate static app files
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          root = Path("apps/dhammaverse/web")
-          required = ["index.html", "styles.css", "app.js", "manifest.webmanifest", "sw.js"]
-          missing = [name for name in required if not (root / name).is_file()]
-          if missing:
-              raise SystemExit(f"Missing required files: {missing}")
-          manifest = json.loads((root / "manifest.webmanifest").read_text(encoding="utf-8"))
-          if manifest.get("start_url") != "./index.html":
-              raise SystemExit("Unexpected PWA start_url")
-          html = (root / "index.html").read_text(encoding="utf-8")
-          for marker in ['id="language-toggle"', 'id="quiz-feedback"', 'id="reflection"', 'app.js']:
-              if marker not in html:
-                  raise SystemExit(f"Required UI marker missing: {marker}")
-          print("DhammaVerse static app validation: PASS")
-          PY
-      - name: Run bilingual lesson validation
+      - name: Run static and bilingual validation
         run: python apps/dhammaverse/web/validate.py
-      - name: Upload static site artifact
-          PY
       - name: Configure GitHub Pages
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v5
