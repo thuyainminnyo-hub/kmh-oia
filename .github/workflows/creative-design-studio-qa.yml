@@ -39,6 +39,15 @@ jobs:
           path: ${{ runner.temp }}/kmh-held-edge-source-evidence.json
           if-no-files-found: error
           retention-days: 14
+      - name: Classify imported DesignToken references in the pilot fixture
+        run: python scripts/analyze_inferred_edge_context.py --source graphify-sandbox/src/outfit_flow.py --module contract_guard --imported-name DesignToken --symbol select_outfit --report-out "$RUNNER_TEMP/kmh-held-edge-context-report.json"
+      - name: Preserve imported-symbol AST context report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-graphify-held-edge-context-${{ github.run_id }}
+          path: ${{ runner.temp }}/kmh-held-edge-context-report.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Check whitespace errors
