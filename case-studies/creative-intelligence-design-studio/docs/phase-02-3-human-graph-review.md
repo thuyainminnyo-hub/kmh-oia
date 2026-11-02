@@ -62,7 +62,7 @@ Independent standard-library AST inspection corroborates:
 - `outfit_flow.py:L10` reads `token.token_name`.
 - `contract_guard.py:L7-L9` defines `DesignToken` and its `token_name` / `approved` fields.
 
-The new `scripts/validate_inferred_edge_evidence.py` checks these source facts using Python's standard-library AST. A PASS means the source structure is present; it does **not** change the edge's confidence or authorize promotion.
+The new `scripts/validate_inferred_edge_evidence.py` checks the current synthetic fixture using Python's standard-library AST. Actual GitHub Actions run [41438633133](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41438633133) passed the check with zero errors and uploaded [source-evidence artifact 13136524575](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41438633133/artifacts/13136524575). A PASS means the source structure is present; it does **not** change the edge's confidence or authorize promotion.
 
 The precise unresolved question is semantic scope: whether this inferred `uses` relation should stand as a trusted, broader dependency fact in addition to the EXTRACTED type-reference edge. No further Graphify extraction is performed under the consumed one-run approval. A future controlled comparison would require a separate approval and fixtures that distinguish type-annotation-only references from body-level imported-object use.
 
@@ -90,7 +90,14 @@ The deterministic review tool `scripts/review_graphify_edges.py` creates a new c
 
 The review tool requires the exact raw graph SHA, validates the edge fingerprint and decision identity, requires an explicit decision for every non-EXTRACTED edge, rejects duplicate edge identities, and refuses to promote inferred edges. Eight unit tests cover those controls.
 
-Review-tool and held-edge source-evidence tests are independently run in the Creative Studio CI. The owner-confirmed HOLD is encoded in the machine-readable decision manifest and promotion report.
+Latest verified PR-head CI on `a3c2bb6fa59441ae98db69ddb924fa7420443a0b`:
+
+- Creative Studio QA: **50/50 tests PASS**, including live held-edge source corroboration and report artifact upload — [run 41438633133](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41438633133).
+- KMH OIA Tests: **462/462 PASS** and performance baseline — [run 41438640569](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41438640569).
+- KMH OIA Validation: **SUCCESS**, including repository validation and deployment evidence bundle — [run 41438640593](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41438640593).
+- Graphify dependency audit: **SUCCESS** — [run 41438640641](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41438640641).
+
+The owner-confirmed HOLD is encoded in the machine-readable decision manifest and promotion report.
 
 ## 5. Gate status
 
