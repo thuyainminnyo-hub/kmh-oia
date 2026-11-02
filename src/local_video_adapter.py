@@ -90,6 +90,7 @@ class LocalFFmpegVideoAdapter:
                 raise LocalVideoAdapterError("input video must be an existing non-empty file")
             if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
                 raise LocalVideoAdapterError("ffmpeg and ffprobe must both be installed")
+            output_root.mkdir(parents=True, exist_ok=True)
             gpu = self._probe_gpu()
             encoders = self._run(
                 ["ffmpeg", "-hide_banner", "-encoders"],
