@@ -1,1 +1,0 @@
-"""Synthetic package beta."""
