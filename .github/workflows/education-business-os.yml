@@ -10,6 +10,7 @@ on:
     paths:
       - "education-business-os/**"
       - ".github/workflows/education-business-os.yml"
+      - ".devcontainer/**"
 jobs:
   codespaces-config:
     runs-on: ubuntu-latest
