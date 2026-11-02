@@ -3,7 +3,7 @@
 **Review date:** 2026-11-02  
 **Candidate:** Graphify `v0.9.100`  
 **Package:** PyPI `graphifyy` (official package name; CLI command is `graphify`)  
-**Decision:** Source and dependency intake verified. The frozen v0.9.100 base runtime dependency snapshot passed PyPI and OSV audits. Graphify installation/indexing remain NOT AUTHORIZED and NOT RUN.
+**Decision:** Source and dependency intake verified. The frozen v0.9.100 base runtime dependency snapshot passed strict, hash-checked PyPI and OSV audits. Graphify installation/indexing remain NOT AUTHORIZED and NOT RUN.
 
 ## 1. Release identity and provenance
 
@@ -108,12 +108,12 @@ Before installation, require clean PyPI and OSV `pip-audit` 2.10.1 results for t
 
 ## 7. Intake gates
 
-**Completed dependency audit (2026-11-02):** Run [41422855820](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41422855820) verified source commit `f5155badddaa3286c78a51653791131e9e2e4d29`, exact `uv.lock` blob `1fd2344a28be6b14c4f6f41c4901c70cadc2be0e`, uv 0.13.6, and pip-audit 2.10.1. Frozen requirements and CycloneDX SBOM exports passed. Hash-enforced `--strict --require-hashes --disable-pip` audits returned exit code 0 for both PyPI and OSV; both logs reported no known vulnerabilities. PyPI service verified requirement hashes; OSV confirmed hash presence and returned no known vulnerabilities. Evidence artifact [13129673852](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41422855820/artifacts/13129673852) was uploaded successfully.
+**Latest completed dependency audit (2026-11-02):** Run [41423344454](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344454) on branch commit `2044454d633cf099305da60bdddc041fda6ddc07` verified source commit `f5155badddaa3286c78a51653791131e9e2e4d29`, exact `uv.lock` blob `1fd2344a28be6b14c4f6f41c4901c70cadc2be0e`, uv 0.13.6, and pip-audit 2.10.1. Frozen requirements and CycloneDX SBOM exports passed. Hash-enforced `--strict --require-hashes --disable-pip` audits returned exit code 0 for both PyPI and OSV; both logs reported no known vulnerabilities. PyPI service verified requirement hashes; OSV confirmed hash presence and returned no known vulnerabilities. Evidence artifact [13131340453](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344454/artifacts/13131340453) was uploaded successfully.
 
 The automated dependency-audit workflow is a read-only source-metadata and vulnerability-check job. Its only package tool installation is the isolated, version-pinned `pip-audit==2.10.1` utility; the Graphify CLI itself is not installed or executed by this workflow.
 
 
-**Phase 02.1 CI evidence (2026-11-02):** Creative Studio QA run [41420680611](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680611) passed source-intake and dependency-audit policy validation, Graphify scope preflight, 20 unit tests and diff check. KMH OIA Tests run [41420680434](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680434) passed 462 tests and the performance baseline. KMH OIA Validation run [41420680438](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680438) passed repository validation, tests, performance evidence and deployment evidence bundle.
+**Latest Phase 02.1 CI evidence (2026-11-02):** Creative Studio QA run [41423333319](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423333319) passed Graphify scope and audit-evidence validation with 28 tests. KMH OIA Tests run [41423344597](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344597) passed 462 tests and performance baseline. KMH OIA Validation run [41423344325](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344325) passed repository validation, tests, performance evidence and deployment evidence bundle.
 
 | Gate | Evidence | State |
 |---|---|---|
