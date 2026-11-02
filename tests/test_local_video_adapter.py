@@ -65,6 +65,8 @@ class LocalVideoAdapterTests(unittest.TestCase):
             commands.append(command)
             if command[0] == "nvidia-smi":
                 return SimpleNamespace(returncode=0, stdout="NVIDIA Test GPU, 555.1", stderr="")
+            if command[:2] == ["ffmpeg", "-version"]:
+                return SimpleNamespace(returncode=0, stdout="ffmpeg version test", stderr="")
             if command[:3] == ["ffmpeg", "-hide_banner", "-encoders"]:
                 return SimpleNamespace(returncode=0, stdout=" V..... h264_nvenc NVIDIA NVENC", stderr="")
             if command[0] == "ffmpeg":
