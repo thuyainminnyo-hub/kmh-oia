@@ -2,6 +2,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { initialPaymentState, reservePayment, settlePayment } from "./payment-state";
 
 initializeApp();
 const db = getFirestore();
@@ -37,10 +38,11 @@ export const createEnrollment = onCall(async (request) => {
   try { await getAuth().getUser(studentId); }
   catch { throw new HttpsError("not-found", "Student Auth user not found."); }
   const batchRef = db.collection("batches").doc(batchId);
-  // A deterministic ID makes duplicate enrollment prevention safe under
-  // concurrent requests; a query-then-create check alone is race-prone.
+  // Deterministic ID prevents duplicate student/batch enrollments under concurrency.
   const enrollmentId = Array.from(new TextEncoder().encode(studentId + ":" + batchId), byte => byte.toString(16).padStart(2, "0")).join("");
   const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
+  let createdStatus: "active" | "pending_payment" = "pending_payment";
+
   await db.runTransaction(async (tx) => {
     const batch = await tx.get(batchRef);
     if (!batch.exists) throw new HttpsError("not-found", "Batch not found.");
@@ -48,17 +50,44 @@ export const createEnrollment = onCall(async (request) => {
     if (existing.exists) {
       throw new HttpsError("already-exists", "Student is already enrolled in this batch.");
     }
+
+    const batchData = batch.data()!;
+    const fee = batchData.fee;
+    if (!Number.isSafeInteger(fee) || (fee as number) < 0) {
+      throw new HttpsError("failed-precondition", "Batch fee must be a non-negative integer before enrollment.");
+    }
+    const currency = typeof batchData.currency === "string" ? batchData.currency : "MMK";
+    if (currency !== "MMK") {
+      throw new HttpsError("failed-precondition", "Pilot currently supports MMK enrollment fees only.");
+    }
+    const paymentState = initialPaymentState(fee as number);
+    createdStatus = paymentState.status;
+
     tx.create(enrollmentRef, {
-      studentId, batchId, courseId: batch.data()!.courseId ?? "flutter-foundation",
-      instructorId, status: "active", enrolledAt: FieldValue.serverTimestamp(),
+      studentId,
+      batchId,
+      courseId: batchData.courseId ?? "flutter-foundation",
+      instructorId,
+      feeAmount: paymentState.totalFee,
+      currency,
+      paidAmount: paymentState.paidAmount,
+      pendingAmount: paymentState.pendingAmount,
+      balanceDue: paymentState.balanceDue,
+      status: paymentState.status,
+      enrolledAt: FieldValue.serverTimestamp(),
+      ...(paymentState.status === "active" ? { activatedAt: FieldValue.serverTimestamp() } : {}),
       createdBy: actor.uid
     });
     tx.create(db.collection("auditLogs").doc(), {
-      action: "enrollment.created", actorUid: actor.uid, targetId: enrollmentRef.id,
+      action: paymentState.status === "active" ? "enrollment.created_free" : "enrollment.created_pending_payment",
+      actorUid: actor.uid,
+      targetId: enrollmentRef.id,
+      feeAmount: paymentState.totalFee,
+      currency,
       createdAt: FieldValue.serverTimestamp()
     });
   });
-  return { enrollmentId: enrollmentRef.id, status: "active" };
+  return { enrollmentId: enrollmentRef.id, status: createdStatus };
 });
 
 export const recordPayment = onCall(async (request) => {
@@ -67,8 +96,8 @@ export const recordPayment = onCall(async (request) => {
   const amount = request.data?.amount;
   const method = request.data?.method;
   const reference = request.data?.reference;
-  if (!Number.isInteger(amount) || (amount as number) <= 0 || (amount as number) > 100000000) {
-    throw new HttpsError("invalid-argument", "Amount must be a positive integer in MMK.");
+  if (!Number.isSafeInteger(amount) || (amount as number) <= 0 || (amount as number) > 100000000) {
+    throw new HttpsError("invalid-argument", "Amount must be a positive safe integer in MMK.");
   }
   if (!["cash", "bank_transfer", "other"].includes(String(method))) {
     throw new HttpsError("invalid-argument", "Unsupported payment method.");
@@ -76,6 +105,7 @@ export const recordPayment = onCall(async (request) => {
   if (reference !== undefined && (typeof reference !== "string" || reference.length > 120)) {
     throw new HttpsError("invalid-argument", "Reference is too long.");
   }
+
   const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
   const paymentRef = db.collection("payments").doc();
   await db.runTransaction(async (tx) => {
@@ -85,14 +115,52 @@ export const recordPayment = onCall(async (request) => {
     if (actor.role === "instructor" && data.instructorId !== actor.uid) {
       throw new HttpsError("permission-denied", "Instructor is not assigned to this enrollment.");
     }
+    if (data.status === "cancelled" || data.status === "withdrawn" || data.status === "suspended") {
+      throw new HttpsError("failed-precondition", "Payment cannot be recorded for this enrollment status.");
+    }
+
+    const batchRef = db.collection("batches").doc(String(data.batchId));
+    const batch = typeof data.feeAmount === "number" ? null : await tx.get(batchRef);
+    const feeAmount = typeof data.feeAmount === "number" ? data.feeAmount : batch?.data()?.fee;
+    if (!Number.isSafeInteger(feeAmount) || (feeAmount as number) < 0) {
+      throw new HttpsError("failed-precondition", "Enrollment has no valid course fee; reconcile this enrollment first.");
+    }
+    const paidAmount = typeof data.paidAmount === "number" ? data.paidAmount : 0;
+    const pendingAmount = typeof data.pendingAmount === "number" ? data.pendingAmount : 0;
+    let reserved: ReturnType<typeof reservePayment>;
+    try {
+      reserved = reservePayment(feeAmount as number, paidAmount, pendingAmount, amount as number);
+    } catch (error) {
+      throw new HttpsError("failed-precondition", error instanceof Error ? error.message : "Payment amount is invalid.");
+    }
+
+    tx.update(enrollmentRef, {
+      feeAmount,
+      currency: data.currency ?? batch?.data()?.currency ?? "MMK",
+      pendingAmount: reserved.pendingAmount,
+      balanceDue: reserved.balanceDue,
+      availableToSubmit: reserved.availableToSubmit,
+      updatedAt: FieldValue.serverTimestamp()
+    });
     tx.create(paymentRef, {
-      enrollmentId, studentId: data.studentId, instructorId: data.instructorId ?? null,
-      batchId: data.batchId, amount, currency: "MMK", method,
-      reference: reference ?? null, status: "pending", recordedBy: actor.uid,
+      enrollmentId,
+      studentId: data.studentId,
+      instructorId: data.instructorId ?? null,
+      batchId: data.batchId,
+      amount,
+      currency: data.currency ?? batch?.data()?.currency ?? "MMK",
+      method,
+      reference: reference ?? null,
+      status: "pending",
+      recordedBy: actor.uid,
       createdAt: FieldValue.serverTimestamp()
     });
     tx.create(db.collection("auditLogs").doc(), {
-      action: "payment.pending.created", actorUid: actor.uid, targetId: paymentRef.id,
+      action: "payment.pending.created",
+      actorUid: actor.uid,
+      targetId: paymentRef.id,
+      enrollmentId,
+      amount,
       createdAt: FieldValue.serverTimestamp()
     });
   });
@@ -108,24 +176,76 @@ export const verifyPayment = onCall(async (request) => {
   if (note !== undefined && (typeof note !== "string" || note.length > 500)) {
     throw new HttpsError("invalid-argument", "Note must be at most 500 characters.");
   }
-  const ref = db.collection("payments").doc(paymentId);
+
+  const paymentRef = db.collection("payments").doc(paymentId);
+  let resultingEnrollmentStatus = "unknown";
   await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpsError("not-found", "Payment not found.");
-    if (snap.data()!.status !== "pending") {
+    const payment = await tx.get(paymentRef);
+    if (!payment.exists) throw new HttpsError("not-found", "Payment not found.");
+    const paymentData = payment.data()!;
+    if (paymentData.status !== "pending") {
       throw new HttpsError("failed-precondition", "Only pending payments can be verified.");
     }
-    const status = verified ? "verified" : "rejected";
-    tx.update(ref, {
-      status, verifiedBy: actor.uid, verifiedAt: FieldValue.serverTimestamp(),
+    const enrollmentRef = db.collection("enrollments").doc(String(paymentData.enrollmentId));
+    const enrollment = await tx.get(enrollmentRef);
+    if (!enrollment.exists) throw new HttpsError("not-found", "Related enrollment not found.");
+    const enrollmentData = enrollment.data()!;
+
+    const batchRef = db.collection("batches").doc(String(enrollmentData.batchId));
+    const batch = typeof enrollmentData.feeAmount === "number" ? null : await tx.get(batchRef);
+    const feeAmount = typeof enrollmentData.feeAmount === "number" ? enrollmentData.feeAmount : batch?.data()?.fee;
+    if (!Number.isSafeInteger(feeAmount) || (feeAmount as number) < 0) {
+      throw new HttpsError("failed-precondition", "Enrollment has no valid course fee; reconcile this enrollment first.");
+    }
+    const paidAmount = typeof enrollmentData.paidAmount === "number" ? enrollmentData.paidAmount : 0;
+    const pendingAmount = typeof enrollmentData.pendingAmount === "number" ? enrollmentData.pendingAmount : 0;
+    if (!Number.isSafeInteger(paymentData.amount) || paymentData.amount <= 0) {
+      throw new HttpsError("failed-precondition", "Payment record has an invalid amount.");
+    }
+
+    let nextState;
+    try {
+      nextState = settlePayment(
+        feeAmount as number,
+        paidAmount,
+        pendingAmount,
+        paymentData.amount,
+        verified
+      );
+    } catch (error) {
+      throw new HttpsError("failed-precondition", error instanceof Error ? error.message : "Payment settlement failed.");
+    }
+    const nextPaymentStatus = verified ? "verified" : "rejected";
+    const wasActive = enrollmentData.status === "active";
+
+    tx.update(paymentRef, {
+      status: nextPaymentStatus,
+      verifiedBy: actor.uid,
+      verifiedAt: FieldValue.serverTimestamp(),
       verificationNote: note ?? null
     });
+    tx.update(enrollmentRef, {
+      feeAmount: nextState.totalFee,
+      paidAmount: nextState.paidAmount,
+      pendingAmount: nextState.pendingAmount,
+      balanceDue: nextState.balanceDue,
+      availableToSubmit: nextState.availableToSubmit,
+      status: nextState.status,
+      updatedAt: FieldValue.serverTimestamp(),
+      ...(nextState.status === "active" && !wasActive ? { activatedAt: FieldValue.serverTimestamp() } : {})
+    });
     tx.create(db.collection("auditLogs").doc(), {
-      action: "payment." + status, actorUid: actor.uid, targetId: paymentId,
+      action: "payment." + nextPaymentStatus,
+      actorUid: actor.uid,
+      targetId: paymentId,
+      enrollmentId: enrollmentRef.id,
+      amount: paymentData.amount,
+      enrollmentStatus: nextState.status,
       createdAt: FieldValue.serverTimestamp()
     });
+    resultingEnrollmentStatus = nextState.status;
   });
-  return { paymentId, status: verified ? "verified" : "rejected" };
+  return { paymentId, status: verified ? "verified" : "rejected", enrollmentStatus: resultingEnrollmentStatus };
 });
 
 export const markAttendance = onCall(async (request) => {
