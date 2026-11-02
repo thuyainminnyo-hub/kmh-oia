@@ -21,8 +21,11 @@
 ## Multi-organization
 - [ ] Platform admin can bootstrap an organization and its first admin membership.
 - [ ] Organization admin can provision and suspend members using an audited callable function.
+- [ ] Last active organization admin cannot be suspended or demoted until another active admin exists.
+- [ ] Enrollment assignment accepts only an active instructor membership from the same organization.
 - [ ] A user with active membership in one organization cannot use its role in another organization.
 - [ ] Suspended membership loses organization access.
+- [ ] Organization identifiers are validated as safe single document IDs.
 - [ ] Same-school student ownership and instructor assignment restrictions remain enforced.
 
 ## Workflows
