@@ -48,7 +48,7 @@ async function callFunction(name, idToken, data) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: "Bearer " + idToken
+        ...(idToken ? { authorization: "Bearer " + idToken } : {})
       },
       body: JSON.stringify({ data })
     }
@@ -162,14 +162,13 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
     assert.equal(state.balanceDue, 300000);
   });
 
-  await t.test("student cannot record or verify payment through privileged functions", async () => {
+  await t.test("duplicate enrollment is rejected", async () => {
     await assert.rejects(
-      callFunction("recordPayment", student.idToken, {
-        enrollmentId: enrollment.enrollmentId,
-        amount: 100000,
-        method: "cash"
+      callFunction("createEnrollment", admin.idToken, {
+        studentId: student.uid,
+        batchId
       }),
-      assertCallablePermissionDenied
+      (error) => error && error.code === "ALREADY_EXISTS"
     );
   });
 
@@ -182,6 +181,34 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
     assert.equal(state.status, "pending_payment");
     assert.equal(state.pendingAmount, 300000);
     assert.equal(state.availableToSubmit, 0);
+  });
+
+  await t.test("student cannot record or verify payments through privileged functions", async () => {
+    await assert.rejects(
+      callFunction("recordPayment", student.idToken, {
+        enrollmentId: enrollment.enrollmentId,
+        amount: 100000,
+        method: "cash"
+      }),
+      assertCallablePermissionDenied
+    );
+    await assert.rejects(
+      callFunction("verifyPayment", student.idToken, {
+        paymentId: firstPayment.paymentId,
+        verified: true
+      }),
+      assertCallablePermissionDenied
+    );
+  });
+
+  await t.test("unauthenticated caller cannot verify payment", async () => {
+    await assert.rejects(
+      callFunction("verifyPayment", null, {
+        paymentId: firstPayment.paymentId,
+        verified: true
+      }),
+      (error) => error && error.code === "UNAUTHENTICATED"
+    );
   });
 
   await t.test("first verified installment leaves a balance and enrollment pending", async () => {
@@ -220,7 +247,8 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
       callFunction("verifyPayment", admin.idToken, {
         paymentId: firstPayment.paymentId,
         verified: true
-      })
+      }),
+      (error) => error && error.code === "FAILED_PRECONDITION"
     );
     const state = await getEnrollment(enrollment.enrollmentId);
     assert.equal(state.paidAmount, 300000);
