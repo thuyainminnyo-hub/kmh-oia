@@ -122,6 +122,13 @@ class GraphifyScopeTests(unittest.TestCase):
         errors = validate_graphify_scope(policy, root)
         self.assertTrue(any("optional_extras_enabled" in error for error in errors))
 
+    def test_runtime_dependency_audit_cannot_be_claimed_complete_without_evidence(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["runtime_dependency_audit"]["status"] = "passed"
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("runtime dependency audit must remain pending" in error for error in errors))
+
     def test_secret_file_is_rejected(self):
         root = self.temporary_project()
         (root / "graphify-sandbox" / ".env").write_text(

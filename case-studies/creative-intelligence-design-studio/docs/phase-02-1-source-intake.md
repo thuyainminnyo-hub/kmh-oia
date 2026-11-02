@@ -3,7 +3,7 @@
 **Review date:** 2026-11-02  
 **Candidate:** Graphify `v0.9.100`  
 **Package:** PyPI `graphifyy` (official package name; CLI command is `graphify`)  
-**Decision:** Source candidate verified; installation/indexing still NOT AUTHORIZED and NOT RUN.
+**Decision:** Source candidate verified; installation/indexing still NOT AUTHORIZED and NOT RUN. The release's locked runtime dependencies have not yet passed a separate vulnerability audit.
 
 ## 1. Release identity and provenance
 
@@ -32,6 +32,8 @@ The following are optional extras, not required for the first Python-only fixtur
 - Extra language extractors and visualisation features.
 
 **Pilot dependency decision:** do not install `[all]` or any optional extra. Use the exact release tag's `uv.lock` with `uv sync --locked --no-dev --python 3.12`. This uses the upstream locked resolution and skips the development dependency group and optional extras. No assistant skill, git hook, MCP server, model SDK or global integration is enabled.
+
+A separate runtime dependency audit remains mandatory before installation. The uv lockfile format is specific to uv, so export the exact selected runtime dependency set from the locked source tree and pass the resulting fully pinned requirements file to PyPA's `pip-audit`. Do not claim the lockfile or transitive dependencies are vulnerability-free until this audit produces evidence.
 
 ## 4. Security advisory review
 
@@ -90,12 +92,15 @@ After review, record the source version, lockfile, runner details, source commit
 
 ## 7. Intake gates
 
+**Phase 02.1 CI evidence (2026-11-02):** Creative Studio QA run [41420358082](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420358082) passed source-intake policy validation and 19 unit tests. KMH OIA Tests run [41420358172](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420358172) passed 462 tests and the performance baseline. KMH OIA Validation run [41420358239](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420358239) passed repository validation, tests, performance evidence and deployment evidence bundle.
+
 | Gate | Evidence | State |
 |---|---|---|
 | G0.1 — Official source identity | PyPI package, source tag and provenance commit match | PASS |
 | G0.2 — License and dependency review | Apache-2.0 declaration, NOTICE/MIT legacy note, base/optional dependency split and lockfile reviewed | PASS |
 | G0.3 — Known advisory review | GHSA range/fix reviewed; v0.9.100 Fortran patch inspected | PASS |
-| G0.4 — Owner install approval | Explicit approval for isolated tool install and fixture execution | PENDING |
+| G0.4 — Locked runtime dependency audit | Exact base requirements exported from v0.9.100 uv.lock; pip-audit report with no known vulnerabilities | PENDING |
+| G0.5 — Owner install approval | Explicit approval for isolated tool install and fixture execution | PENDING |
 | G1 — Scope guard | Project validator and 14 CI tests | PASS |
 | G2 — Isolated Graphify extraction | Actual run from the exact release in disposable workspace | NOT RUN |
 | G3 — Source traceability | Sampled EXTRACTED edges verified against the three-file snapshot | NOT RUN |

@@ -91,6 +91,13 @@
         "candidate_assessment": "0.9.100 is outside the affected range; tagged source inspected and confirmed include directives are stripped before cpp reads sanitized stdin."
       }
     ],
-    "owner_install_approval": "pending"
+    "owner_install_approval": "pending",
+    "runtime_dependency_audit": {
+      "tool": "pip-audit",
+      "source_lock": "uv.lock from exact v0.9.100 source tag",
+      "status": "pending",
+      "runbook": "Export the locked base runtime requirements with uv; audit pinned requirements only, with no dependency resolution; include no optional extras or dev group.",
+      "fail_on_known_vulnerability": true
+    }
   }
 }

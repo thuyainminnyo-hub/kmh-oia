@@ -143,6 +143,18 @@ def validate_graphify_scope(policy: dict[str, Any], project_root: Path) -> list[
             for item in advisories
         ):
             errors.append("known Graphify Fortran advisory review must remain recorded")
+        dependency_audit = intake.get("runtime_dependency_audit")
+        if not isinstance(dependency_audit, dict):
+            errors.append("runtime_dependency_audit must be an object")
+        else:
+            if dependency_audit.get("tool") != "pip-audit":
+                errors.append("runtime dependency audit tool must remain pip-audit")
+            if dependency_audit.get("source_lock") != "uv.lock from exact v0.9.100 source tag":
+                errors.append("runtime dependency audit must use the exact release uv.lock")
+            if dependency_audit.get("status") != "pending":
+                errors.append("runtime dependency audit must remain pending until evidence is attached")
+            if dependency_audit.get("fail_on_known_vulnerability") is not True:
+                errors.append("runtime dependency audit must fail on known vulnerabilities")
 
     scope = policy.get("scope")
     if not isinstance(scope, dict):
