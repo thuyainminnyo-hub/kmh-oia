@@ -30,7 +30,6 @@ jobs:
       GRAPHIFY_TAG: v0.9.100
       GRAPHIFY_COMMIT: f5155badddaa3286c78a51653791131e9e2e4d29
       AUDIT_TOOL: pip-audit==2.10.1
-      AUDIT_DIR: ${{ runner.temp }}/kmh-graphify-dependency-audit
     steps:
       - name: Checkout KMH OIA policy
         uses: actions/checkout@v4
@@ -42,7 +41,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          AUDIT_DIR="$RUNNER_TEMP/kmh-graphify-dependency-audit"
           mkdir -p "$AUDIT_DIR"
+          echo "AUDIT_DIR=$AUDIT_DIR" >> "$GITHUB_ENV"
           git clone --filter=blob:none --depth 1 --branch "$GRAPHIFY_TAG" \
             https://github.com/Graphify-Labs/graphify.git "$AUDIT_DIR/graphify-source"
           ACTUAL_COMMIT="$(git -C "$AUDIT_DIR/graphify-source" rev-parse HEAD)"
@@ -50,10 +51,10 @@ jobs:
           printf '%s\n' "$ACTUAL_COMMIT" > "$AUDIT_DIR/source-commit.txt"
 
       - name: Export locked runtime requirements and CycloneDX SBOM
-        working-directory: ${{ runner.temp }}/kmh-graphify-dependency-audit/graphify-source
         shell: bash
         run: |
           set -euo pipefail
+          cd "$AUDIT_DIR/graphify-source"
           uv export --locked --no-dev --no-emit-project \
             --format requirements.txt \
             --output-file "$AUDIT_DIR/runtime-requirements.txt"
