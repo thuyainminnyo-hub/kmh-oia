@@ -44,6 +44,10 @@ jobs:
                   raise SystemExit(f"Required UI marker missing: {marker}")
           print("DhammaVerse static app validation: PASS")
           PY
+      - name: Run bilingual lesson validation
+        run: python apps/dhammaverse/web/validate.py
+      - name: Upload static site artifact
+          PY
       - name: Configure GitHub Pages
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v5
