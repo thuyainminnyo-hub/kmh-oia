@@ -27,6 +27,7 @@ service cloud.firestore {
     }
     function canReadEnrollment(data) {
       return canManageOrg(data.organizationId)
+        || hasOrgRole(data.organizationId, ['academic_manager'])
         || (hasOrgRole(data.organizationId, ['student']) && data.studentId == request.auth.uid)
         || (hasOrgRole(data.organizationId, ['instructor']) && data.instructorId == request.auth.uid);
     }
