@@ -33,9 +33,11 @@ for url in [
 ]:
     assert url in html, f"Missing source link: {url}"
 
-for asset in ["./index.html", "./styles.css", "./app.js", "./manifest.webmanifest"]:
+for asset in ["./index.html", "./offline.html", "./styles.css", "./app.js", "./manifest.webmanifest"]:
     assert asset in sw, f"Service worker cache missing: {asset}"
 assert 'rel="noopener noreferrer"' in html
-assert "./offline.html" in sw, "Offline fallback not included in service worker"\nassert "request.mode===\"navigate\"" in sw, "Navigation fallback handler missing"\nassert "localStorage" in js
+assert 'request.mode==="navigate"' in sw, "Navigation fallback handler missing"
+assert 'caches.match("./offline.html")' in sw, "Offline fallback handler missing"
+assert "localStorage" in js
 assert "fetch(" not in js, "Unexpected app network request added"
 print("DhammaVerse structural and bilingual-content checks: PASS")
