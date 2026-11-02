@@ -72,6 +72,9 @@ export function settlePayment(
     throw new Error("verified must be boolean.");
   }
 
+  if (paidAmount + pendingAmount > totalFee) {
+    throw new Error("Existing paid and pending amounts exceed the course fee.");
+  }
   if (pendingAmount < amount) {
     throw new Error("Pending amount is lower than the payment being settled.");
   }
