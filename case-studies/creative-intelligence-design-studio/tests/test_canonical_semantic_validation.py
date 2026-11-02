@@ -38,14 +38,14 @@ class CanonicalSemanticValidationTests(unittest.TestCase):
         (self.root / "src/contract_guard.py").write_text(self.guard, encoding="utf-8")
         self.nodes = [
             {"id": "src_outfit_flow_select_outfit", "label": "select_outfit()", "file_type": "code", "source_file": "src/outfit_flow.py", "source_location": "L5", "_callable": True},
-            {"id": "src_outfit_flow_outfitchild", "label": "OutfitChild", "file_type": "code", "source_file": "src/outfit_flow.py", "source_location": "L9", "_callable": True, "_callable_class": True},
+            {"id": "src_outfit_flow_outfitchild", "label": "OutfitChild", "file_type": "code", "source_file": "src/outfit_flow.py", "source_location": "L10", "_callable": True, "_callable_class": True},
             {"id": "src_contract_guard_designtoken", "label": "DesignToken", "file_type": "code", "source_file": "src/contract_guard.py", "source_location": "L6", "_callable": True, "_callable_class": True},
             {"id": "src_contract_guard_is_approved_token", "label": "is_approved_token()", "file_type": "code", "source_file": "src/contract_guard.py", "source_location": "L10", "_callable": True},
         ]
         self.edges = [
             {"source": "src_outfit_flow_select_outfit", "target": "src_contract_guard_designtoken", "relation": "references", "context": "parameter_type", "confidence": "EXTRACTED", "source_file": "src/outfit_flow.py", "source_location": "L5"},
             {"source": "src_outfit_flow_select_outfit", "target": "src_contract_guard_is_approved_token", "relation": "calls", "context": "call", "confidence": "EXTRACTED", "source_file": "src/outfit_flow.py", "source_location": "L6"},
-            {"source": "src_outfit_flow_outfitchild", "target": "src_contract_guard_designtoken", "relation": "inherits", "context": "base", "confidence": "EXTRACTED", "source_file": "src/outfit_flow.py", "source_location": "L9"},
+            {"source": "src_outfit_flow_outfitchild", "target": "src_contract_guard_designtoken", "relation": "inherits", "context": "base", "confidence": "EXTRACTED", "source_file": "src/outfit_flow.py", "source_location": "L10"},
             {"source": "src_outfit_flow_select_outfit", "target": "src_contract_guard_designtoken", "relation": "uses", "confidence": "INFERRED", "confidence_score": 0.95, "source_file": "src/outfit_flow.py", "source_location": "L5"},
         ]
         self.raw = {"nodes": copy.deepcopy(self.nodes), "edges": copy.deepcopy(self.edges), "hyperedges": []}
@@ -73,7 +73,7 @@ class CanonicalSemanticValidationTests(unittest.TestCase):
             "semantic_expectations": [
                 {"source_symbol": "select_outfit()", "imported_name": "DesignToken", "category": "TYPE_ANNOTATION", "relation": "references", "source_file": "src/outfit_flow.py", "source_location": "L5", "target_file": "src/contract_guard.py", "target_symbol": "DesignToken", "target_definition": "L6", "context": "parameter_type"},
                 {"source_symbol": "select_outfit()", "imported_name": "is_approved_token", "category": "RUNTIME_CALL", "relation": "calls", "source_file": "src/outfit_flow.py", "source_location": "L6", "target_file": "src/contract_guard.py", "target_symbol": "is_approved_token()", "target_definition": "L10", "context": "call"},
-                {"source_symbol": "OutfitChild", "imported_name": "DesignToken", "category": "CLASS_BASE", "relation": "inherits", "source_file": "src/outfit_flow.py", "source_location": "L9", "target_file": "src/contract_guard.py", "target_symbol": "DesignToken", "target_definition": "L6", "context": "base"},
+                {"source_symbol": "OutfitChild", "imported_name": "DesignToken", "category": "CLASS_BASE", "relation": "inherits", "source_file": "src/outfit_flow.py", "source_location": "L10", "target_file": "src/contract_guard.py", "target_symbol": "DesignToken", "target_definition": "L6", "context": "base"},
             ],
             "graphify": {"version": "0.9.100", "source_commit": "f" * 40},
             "held_edge": {
