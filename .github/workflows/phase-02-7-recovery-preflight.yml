@@ -1,0 +1,71 @@
+name: KMH Graphify Phase 02.7-R Recovery Preflight
+
+on:
+  push:
+    branches:
+      - "phase-02-7-recovery-once-20261102-r1"
+    paths:
+      - ".github/workflows/phase-02-7-disposable-extraction.yml"
+      - ".github/workflows/phase-02-7-recovery-preflight.yml"
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-7-recovery-preflight-trigger.json"
+
+permissions:
+  contents: read
+
+jobs:
+  recovery-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate repaired workflow expressions and frozen extraction boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          workflow = Path(".github/workflows/phase-02-7-disposable-extraction.yml").read_text()
+          assert "\\${{" not in workflow, "escaped GitHub expression remains"
+          for expression in (
+              "${{ github.ref_name }}",
+              "${{ github.token }}",
+              "${{ github.event.before }}",
+              "${{ github.run_attempt }}",
+              "${{ github.run_id }}",
+              "${{ runner.temp }}",
+          ):
+              assert expression in workflow, f"missing expression: {expression}"
+          assert "rerun_allowed" in workflow
+          assert "test \"$RUN_ATTEMPT\" = \"1\"" in workflow
+          assert "--code-only --no-dedup --no-cluster" in workflow
+          assert "global_graph_merge_allowed" in workflow
+          assert "production_deployment_allowed" in workflow
+
+          project = Path("case-studies/creative-intelligence-design-studio")
+          baseline = json.loads((project / "contracts/phase-02-7-compatibility-baseline.json").read_text())
+          expected = sorted(baseline["source_files"])
+          sandbox = project / "graphify-phase-02-7-sandbox"
+          observed = sorted(
+              p.relative_to(sandbox).as_posix()
+              for p in sandbox.rglob("*")
+              if p.is_file() and p.name != ".graphifyignore"
+          )
+          assert observed == expected, {"expected": expected, "observed": observed}
+          assert len(expected) == 10
+          assert (sandbox / ".graphifyignore").is_file()
+          print("PASS: workflow expressions, one-run boundaries, and exact 10-file fixture")
+          PY
+      - name: Compile and inspect independent validators
+        run: |
+          python -m py_compile \
+            case-studies/creative-intelligence-design-studio/scripts/validate_graphify_scope.py \
+            case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py
+          python case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py --help >/dev/null
+          git diff --check
