@@ -12,7 +12,7 @@ class HeldEdgeSourceEvidenceTests(unittest.TestCase):
         self.root = Path(temp.name)
         (self.root / "src").mkdir()
         (self.root / "src" / "outfit_flow.py").write_text(
-            "from contract_guard import DesignToken, is_approved_token\n\n"
+            "from contract_guard import DesignToken, is_approved_token\n\n\n\n\n"
             "def select_outfit(token: DesignToken) -> dict[str, str]:\n"
             "    if not is_approved_token(token):\n"
             "        raise ValueError('not approved')\n"
