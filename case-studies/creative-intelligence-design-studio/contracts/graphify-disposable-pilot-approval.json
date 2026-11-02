@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "status": "approved_single_disposable_run",
+  "approval_date": "2026-11-02",
+  "approval_basis": "Explicit user instruction in this conversation: Owner Approval -> Disposable Installation -> Real Graph Extraction -> Source Traceability QA - let's go.",
+  "approval_scope": "One run on a disposable GitHub-hosted ephemeral runner, using Graphify v0.9.100 and only the two synthetic Python fixtures.",
+  "max_runs": 1,
+  "source": {
+    "repository": "https://github.com/Graphify-Labs/graphify",
+    "package": "graphifyy",
+    "version": "0.9.100",
+    "tag": "v0.9.100",
+    "commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "uv_lock_blob": "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e",
+    "uv_version": "0.13.6",
+    "frozen_lock": true,
+    "optional_extras": [],
+    "dev_dependencies": false
+  },
+  "target": {
+    "runner": "GitHub-hosted ubuntu-24.04 ephemeral runner",
+    "install_location": "RUNNER_TEMP only",
+    "scan_files": [
+      "src/contract_guard.py",
+      "src/outfit_flow.py",
+      ".graphifyignore"
+    ],
+    "scan_read_only": true,
+    "output_outside_scan_root": true
+  },
+  "execution": {
+    "install_cli_allowed": true,
+    "code_only_extraction_allowed": true,
+    "model_credentials_present": false,
+    "assistant_skill_install_allowed": false,
+    "git_hook_install_allowed": false,
+    "mcp_server_setup_allowed": false,
+    "model_backed_semantic_extraction_allowed": false,
+    "global_graph_merge_allowed": false,
+    "oia_runtime_integration_allowed": false,
+    "production_deployment_allowed": false
+  },
+  "evidence": {
+    "upload_artifact": true,
+    "artifact_retention_days": 14,
+    "commit_generated_graph_to_repository": false,
+    "delete_temporary_workspace": true
+  }
+}
