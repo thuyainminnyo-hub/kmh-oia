@@ -84,13 +84,13 @@ This would test actual Graphify edge emission and source anchors, not just Pytho
 
 ## 6. CI evidence and gate status
 
-Verified PR-head workflows on `61200d6a723ad5cd1dc88fbdaebf229e249a5e0f`:
-- Creative Studio QA [run 41453288854](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453288854): **58/58 tests PASS**; held-edge source corroboration and AST-context classification both PASS; two evidence artifacts uploaded.
-- Held-edge source evidence [artifact 13145421874](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453288854/artifacts/13145421874).
-- Imported-symbol context evidence [artifact 13145371926](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453288854/artifacts/13145371926).
-- KMH OIA Tests [run 41453288851](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453288851): **462/462 tests PASS** and performance baseline PASS.
-- KMH OIA Validation [run 41453288760](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453288760): SUCCESS, including deployment evidence bundle.
-- Graphify runtime dependency audit [run 41453288773](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453288773): SUCCESS.
+Verified PR-head workflows on `cc64691fb750099a5b47f5d2f89a9c73c09f1186`:
+- Creative Studio QA [run 41453693011](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453693011): **58/58 tests PASS**; held-edge source corroboration and AST-context classification both PASS; two evidence artifacts uploaded.
+- Held-edge source evidence [artifact 13145084217](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453693011/artifacts/13145084217).
+- Imported-symbol context evidence [artifact 13145199045](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453693011/artifacts/13145199045).
+- KMH OIA Tests [run 41453692965](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453692965): **462/462 tests PASS** and performance baseline PASS.
+- KMH OIA Validation [run 41453693026](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453693026): SUCCESS, including deployment evidence bundle.
+- Graphify runtime dependency audit [run 41453692956](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453692956): SUCCESS.
 
 - G4 — Owner decision: CONFIRMED HOLD; DO NOT PROMOTE.
 - G4 — Independent semantic evidence: OPEN until reviewers agree on the intended semantics of `uses` and the residual cross-file type-resolution risk is tested.
