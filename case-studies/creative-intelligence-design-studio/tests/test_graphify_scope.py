@@ -136,6 +136,20 @@ class GraphifyScopeTests(unittest.TestCase):
         errors = validate_graphify_scope(policy, root)
         self.assertTrue(any("pinned to pip-audit 2.10.1" in error for error in errors))
 
+    def test_dependency_audit_strict_mode_is_required(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["runtime_dependency_audit"]["strict_mode_required"] = False
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("--strict" in error for error in errors))
+
+    def test_dependency_audit_requires_both_vulnerability_services(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["runtime_dependency_audit"]["services"] = ["pypi"]
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("both PyPI and OSV" in error for error in errors))
+
     def test_secret_file_is_rejected(self):
         root = self.temporary_project()
         (root / "graphify-sandbox" / ".env").write_text(
