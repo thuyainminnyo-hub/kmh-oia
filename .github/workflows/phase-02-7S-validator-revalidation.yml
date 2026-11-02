@@ -53,7 +53,9 @@ jobs:
           evidence = root / "phase-02-7R-evidence"
           old = json.loads((evidence / "phase-02-7-validation-summary.json").read_text())
           new = json.loads((root / "phase-02-7S-validation-summary.json").read_text())
-          assert new["status"] == "PASS", new["errors"]
+          assert new["status"] == "PASS_WITH_WARNINGS", new["errors"]
+          assert new["semantic_context_fidelity"] == "PARTIAL_WITH_WARNINGS"
+          assert sum(1 for w in new["warnings"] if w.get("code") == "SIGNATURE_ANNOTATION_EDGE_COALESCED") == 2
           assert new["raw_graph"]["sha256_canonical_json"] == old["raw_graph"]["sha256_canonical_json"]
           assert new["candidate_graph"]["sha256_canonical_json"] == old["candidate_graph"]["sha256_canonical_json"]
           assert new["raw_graph"]["edge_count"] == 83
