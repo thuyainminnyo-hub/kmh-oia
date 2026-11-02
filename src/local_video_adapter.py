@@ -7,6 +7,7 @@ separate gates.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -92,6 +93,11 @@ class LocalFFmpegVideoAdapter:
                 raise LocalVideoAdapterError("ffmpeg and ffprobe must both be installed")
             output_root.mkdir(parents=True, exist_ok=True)
             gpu = self._probe_gpu()
+            ffmpeg_version = self._run(
+                ["ffmpeg", "-version"], timeout=15, capture_output=True, text=True, check=False
+            )
+            if ffmpeg_version.returncode != 0:
+                raise LocalVideoAdapterError("could not read FFmpeg version")
             encoders = self._run(
                 ["ffmpeg", "-hide_banner", "-encoders"],
                 timeout=30,
@@ -150,8 +156,11 @@ class LocalFFmpegVideoAdapter:
                 "elapsed_seconds": round(self.clock() - start_clock, 3),
                 "compute": {"requested": "nvidia-nvenc", "gpu_probe": gpu,
                             "encoder": self.config.video_codec},
-                "source": {"path": str(source), "size_bytes": source.stat().st_size},
+                "ffmpeg_version": (ffmpeg_version.stdout or "").splitlines()[0],
+                "source": {"path": str(source), "size_bytes": source.stat().st_size,
+                           "sha256": self._sha256(source)},
                 "output": {"path": str(output_path), "size_bytes": output_path.stat().st_size,
+                           "sha256": self._sha256(output_path),
                            "duration_seconds": duration, "streams": streams},
                 "render_config": asdict(self.config),
                 "ffmpeg_exit_code": render.returncode,
@@ -166,6 +175,14 @@ class LocalFFmpegVideoAdapter:
             output_path.unlink(missing_ok=True)
             manifest_path.unlink(missing_ok=True)
             return AdapterResult(False, error_message=f"{type(exc).__name__}: {exc}")
+
+    @staticmethod
+    def _sha256(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
 
     def _probe_gpu(self) -> dict:
         if shutil.which("nvidia-smi") is None:
