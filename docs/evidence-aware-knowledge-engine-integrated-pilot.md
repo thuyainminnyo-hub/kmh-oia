@@ -48,7 +48,7 @@ python -m unittest tests.test_evidence -v
 python -m unittest discover -s tests -v
 ```
 
-CI must pass on the exact feature-branch head SHA. Then inspect the workflow run and review the diff before opening/merging a PR.
+CI must pass on the exact pull-request head SHA. Inspect the workflow run and review the diff before any merge decision. The pilot PR is intentionally Draft.
 
 ## Release gates
 
