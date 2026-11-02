@@ -4,12 +4,27 @@ on:
     paths:
       - "education-business-os/**"
       - ".github/workflows/education-business-os.yml"
+      - ".devcontainer/**"
   push:
     branches: [main]
     paths:
       - "education-business-os/**"
       - ".github/workflows/education-business-os.yml"
 jobs:
+  codespaces-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          package-manager-cache: false
+      - name: Validate Codespaces devcontainer JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('.devcontainer/devcontainer.json', 'utf8')); console.log('PASS: devcontainer JSON')"
+      - name: Validate Codespaces bootstrap shell scripts
+        run: |
+          bash -n .devcontainer/post-create.sh
+          bash -n .devcontainer/check-toolchain.sh
   web-and-functions:
     runs-on: ubuntu-latest
     steps:
