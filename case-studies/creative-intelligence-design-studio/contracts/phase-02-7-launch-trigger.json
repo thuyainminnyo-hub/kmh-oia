@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0.0",
+  "approval_id": "KMH-CREATIVE-GRAPHIFY-PHASE-02-7-2026-11-02-RUN-01",
+  "launch_once": true,
+  "base_commit_sha": "7c2a0b3702ad253bcfef9e0b77125fc09275f2d8",
+  "launch_branch": "phase-02-7-disposable-run-once-20261102",
+  "launch_date": "2026-11-02",
+  "note": "This file is the sole push trigger for the one-run Phase 02.7 extraction workflow. The workflow requires this commit's parent to equal base_commit_sha and rejects every later/repeated run."
+}
