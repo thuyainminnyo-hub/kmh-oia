@@ -1,6 +1,6 @@
 # Phase 02 — Governed Graphify Integration
 
-**Status:** Disposable synthetic Graphify extraction and source traceability passed. Phase 02.3 review candidate is prepared; project-owner confirmation is pending. Production is not approved.  
+**Status:** Disposable synthetic Graphify extraction and source traceability passed. Phase 02.3 owner HOLD is confirmed; the INFERRED edge remains under review pending additional evidence. Production is not approved.  
 **Release status:** Not approved for production.  
 **Target:** A disposable, synthetic-only code fixture inside this Creative Studio module.
 
@@ -19,7 +19,7 @@ The policy is fail-closed. The scan root is fixed to graphify-sandbox; the allow
 - scripts/validate_graphify_output.py — checks extracted graph source paths, line references, edge endpoints and cross-file evidence.
 - scripts/review_graphify_edges.py — creates an EXTRACTED-only candidate from a hash-pinned review manifest without mutating raw graph evidence.
 - tests/ — scope, extraction-traceability and controlled-promotion guard tests.
-- artifacts/phase-02-3/ — candidate-only graph and machine-readable review report; raw Graphify graph remains in the original workflow artifact.
+- artifacts/phase-02-3/ — extracted-only candidate graph and machine-readable review report; immutable raw Graphify graph remains separately in original workflow artifact 13134475847.
 
 ## Data-flow boundary
 
@@ -60,13 +60,13 @@ No further Graphify installation or extraction is authorized by the consumed one
 | G1 — Scope guard and automated tests | Preflight validator and 36 Creative Studio tests | PASS |
 | G2 — Isolated code-only extraction | Graph generated from only two synthetic Python fixtures on a disposable runner | PASS — 12 nodes, 17 edges |
 | G3 — Source traceability | Source-backed nodes and edges have valid file/line provenance; cross-file evidence exists | PASS — 6 cross-file edges; 0 validator errors |
-| G4 — Human graph review | Source-level analysis of inferred edges and project-owner confirmation | Recommendation READY — HOLD the redundant INFERRED `uses` edge; owner confirmation PENDING. See Phase 02.3 report. |
+| G4 — Human graph review | Source-level analysis of inferred edges and project-owner confirmation | Owner decision CONFIRMED — keep the INFERRED `uses` edge under review; do not promote; gather more evidence. See Phase 02.3 report. |
 | G5 — Owner authorization | Single disposable synthetic-run approval | PASS — consumed by run 41430984629; no repeat run authorized |
 
 The disposable workflow run is marked FAILED solely because its final explicit cleanup shell step did not receive the `WORK_ROOT` variable. Extraction, graph generation, traceability validation and artifact upload passed. GitHub-hosted runner VMs are ephemeral and are destroyed by GitHub after the job; the cleanup command is corrected to use `$RUNNER_TEMP`. Automatic push triggering is removed and the approval contract is marked consumed.
 
 
-**Phase 02.3 controlled review:** The raw graph SHA-256 is pinned to `c5ad7ea7fdd6b6c65c81726a0aec51c5bead7a3cf29ff85a59051eb6bd95abeb`. The only INFERRED edge at `outfit_flow.py:L6` duplicates an EXTRACTED `references / parameter_type` relationship on the same source, target and line. Recommendation: HOLD it out of the canonical candidate, without calling it a proven false positive. The EXTRACTED-only candidate contains 12 nodes and 16 edges; candidate SHA-256 `c2053e83445e8b4c94d5c29a9a3ef816ccf15561c5a76cd8139e2412584123c1`. The candidate graph and machine-readable promotion report are stored under artifacts/phase-02-3/. Owner confirmation remains pending. See [Phase 02.3 review](phase-02-3-human-graph-review.md).
+**Phase 02.3 controlled review:** The raw graph SHA-256 is pinned to `c5ad7ea7fdd6b6c65c81726a0aec51c5bead7a3cf29ff85a59051eb6bd95abeb`. The only INFERRED edge at `outfit_flow.py:L6` duplicates an EXTRACTED `references / parameter_type` relationship on the same source, target and line. Owner-confirmed decision: HOLD it out of the EXTRACTED-only candidate, retain it in raw evidence, do not call it a proven false positive, and gather more evidence. The EXTRACTED-only candidate contains 12 nodes and 16 edges; candidate SHA-256 `c2053e83445e8b4c94d5c29a9a3ef816ccf15561c5a76cd8139e2412584123c1`. The candidate graph and machine-readable promotion report are stored under artifacts/phase-02-3/. Owner HOLD confirmation is recorded; independent semantic review remains OPEN. See [Phase 02.3 review](phase-02-3-human-graph-review.md).
 
 ## Hard stop conditions
 
