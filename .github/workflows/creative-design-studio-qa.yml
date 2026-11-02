@@ -74,6 +74,23 @@ jobs:
           path: ${{ runner.temp }}/kmh-graph-evidence-comparison.json
           if-no-files-found: error
           retention-days: 14
+      - name: Validate cross-file canonical identities and semantic edges
+        run: >-
+          python scripts/validate_canonical_semantics.py
+          --raw-graph "${{ runner.temp }}/kmh-graphify-raw/graph.json"
+          --candidate-graph artifacts/phase-02-3/extracted-only-candidate-graph.json
+          --decision-manifest contracts/graph-review-decisions.json
+          --graph-evidence-baseline contracts/graph-evidence-baseline.json
+          --semantic-baseline contracts/canonical-semantic-baseline.json
+          --scan-root graphify-sandbox
+          --report-out "${{ runner.temp }}/kmh-canonical-semantic-validation.json"
+      - name: Preserve canonical semantic validation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-canonical-semantic-validation-${{ github.run_id }}
+          path: ${{ runner.temp }}/kmh-canonical-semantic-validation.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Check whitespace errors
