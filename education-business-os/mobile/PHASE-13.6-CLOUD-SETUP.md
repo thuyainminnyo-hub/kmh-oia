@@ -35,7 +35,7 @@ From the mobile directory:
 
 ```bash
 cd education-business-os/mobile
-firebase apps:list ANDROID --project aptivern-education-os
+firebase apps:list --project aptivern-education-os
 ```
 
 Record the existing Android app's package name and Firebase App ID. Do not paste API keys, access tokens, or service-account credentials into chat.
@@ -114,7 +114,7 @@ After the Codespace opens, start a fresh terminal and run:
 .devcontainer/check-toolchain.sh
 firebase login --no-localhost
 cd education-business-os/mobile
-firebase apps:list ANDROID --project aptivern-education-os
+firebase apps:list --project aptivern-education-os
 ```
 
 Inspect the existing Android package name and Firebase App ID before generating or configuring a native Android app. FlutterFire's setup guide says it attempts to match apps already registered in the selected Firebase project using the current Flutter project configuration, but its workflow can create a Firebase app for a selected platform if no match is found. Do not accept a create-new-app prompt until the existing registrations have been checked.
