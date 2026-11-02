@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   design-contract:
@@ -46,6 +47,31 @@ jobs:
         with:
           name: kmh-graphify-held-edge-context-${{ github.run_id }}
           path: ${{ runner.temp }}/kmh-held-edge-context-report.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Download immutable original Graphify raw-graph artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kmh-graphify-disposable-pilot-41430984629
+          repository: ${{ github.repository }}
+          run-id: 41430984629
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/kmh-graphify-raw
+      - name: Compare raw graph, extracted-only candidate, and versioned evidence baseline
+        run: >-
+          python scripts/validate_graph_pair.py
+          --raw-graph "${{ runner.temp }}/kmh-graphify-raw/graph.json"
+          --candidate-graph artifacts/phase-02-3/extracted-only-candidate-graph.json
+          --decision-manifest contracts/graph-review-decisions.json
+          --promotion-report artifacts/phase-02-3/promotion-report.json
+          --evidence-baseline contracts/graph-evidence-baseline.json
+          --scan-root graphify-sandbox
+          --report-out "${{ runner.temp }}/kmh-graph-evidence-comparison.json"
+      - name: Preserve versioned graph integrity comparison report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-graph-evidence-comparison-${{ github.run_id }}
+          path: ${{ runner.temp }}/kmh-graph-evidence-comparison.json
           if-no-files-found: error
           retention-days: 14
       - name: Run unit tests
