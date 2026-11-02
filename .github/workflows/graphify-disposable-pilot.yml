@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 25
     env:
       GRAPHIFY_TAG: v0.9.100
-      GRAPHIFY_COMMIT: f5155badddaa3286c78a51653791131e9e2d4d29
+      GRAPHIFY_COMMIT: f5155badddaa3286c78a51653791131e9e2e4d29
     steps:
       - name: Checkout KMH OIA policy and synthetic fixtures
         uses: actions/checkout@v4
