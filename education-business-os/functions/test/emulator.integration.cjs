@@ -140,7 +140,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
       const deletions = audit.docs.map(doc => doc.ref.delete());
       await Promise.all(deletions);
     }
-    for (const organizationId of ["aptivern", prefix + "-school-b"]) {
+    for (const organizationId of ["aptivern", prefix + "-school-b", prefix + "-foreign-school"]) {
       for (const user of accounts) {
         await db.collection("organizations").doc(organizationId).collection("members").doc(user.uid).delete().catch(() => {});
       }
@@ -188,6 +188,45 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
     assert.equal(state.feeAmount, 300000);
     assert.equal(state.paidAmount, 0);
     assert.equal(state.balanceDue, 300000);
+  });
+
+  await t.test("only an active instructor member of the same organization can be assigned", async () => {
+    const instructor = await account("instructor");
+    const foreignInstructor = await account("foreignInstructor");
+    await callFunction("setOrganizationMember", platformAdmin.idToken, {
+      organizationId: "aptivern", uid: instructor.uid, role: "instructor"
+    });
+
+    const assignedBatchId = await createBatch(50000);
+    const assigned = await callFunction("createEnrollment", admin.idToken, {
+      organizationId: "aptivern",
+      studentId: student.uid,
+      batchId: assignedBatchId,
+      instructorId: instructor.uid
+    });
+    enrollmentIds.push(assigned.enrollmentId);
+    const assignedRecord = await getEnrollment(assigned.enrollmentId);
+    assert.equal(assignedRecord.instructorId, instructor.uid);
+
+    const otherOrgId = prefix + "-foreign-school";
+    await callFunction("bootstrapOrganization", platformAdmin.idToken, {
+      organizationId: otherOrgId,
+      name: "Synthetic Foreign School"
+    });
+    await callFunction("setOrganizationMember", platformAdmin.idToken, {
+      organizationId: otherOrgId, uid: foreignInstructor.uid, role: "instructor"
+    });
+
+    const unassignedBatchId = await createBatch(50000);
+    await assert.rejects(
+      callFunction("createEnrollment", admin.idToken, {
+        organizationId: "aptivern",
+        studentId: student.uid,
+        batchId: unassignedBatchId,
+        instructorId: foreignInstructor.uid
+      }),
+      (error) => error && error.code === "FAILED_PRECONDITION"
+    );
   });
 
   await t.test("duplicate enrollment is rejected", async () => {
