@@ -1,0 +1,278 @@
+{
+  "nodes": [
+    {
+      "id": "src_contract_guard",
+      "label": "contract_guard.py",
+      "file_type": "code",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "src_contract_guard_designtoken",
+      "label": "DesignToken",
+      "file_type": "code",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L7",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "src_contract_guard_is_approved_token",
+      "label": "is_approved_token()",
+      "file_type": "code",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L12",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "src_contract_guard_protects_character_identity",
+      "label": "protects_character_identity()",
+      "file_type": "code",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L17",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "src_contract_guard_rationale_1",
+      "label": "Synthetic fixture used only to test Graphify source traceability.",
+      "file_type": "rationale",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "src_contract_guard_rationale_13",
+      "label": "Return true only for a named token explicitly approved by review.",
+      "file_type": "rationale",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L13",
+      "_origin": "ast"
+    },
+    {
+      "id": "src_contract_guard_rationale_18",
+      "label": "Check that the synthetic protected-region set is complete.",
+      "file_type": "rationale",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L18",
+      "_origin": "ast"
+    },
+    {
+      "id": "src_outfit_flow",
+      "label": "outfit_flow.py",
+      "file_type": "code",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "src_outfit_flow_select_outfit",
+      "label": "select_outfit()",
+      "file_type": "code",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L6",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "src_outfit_flow_rationale_1",
+      "label": "Synthetic outfit selection flow; contains no real character or learner data.",
+      "file_type": "rationale",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "src_outfit_flow_rationale_7",
+      "label": "Select only a synthetic outfit token after its approval check.",
+      "file_type": "rationale",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L7",
+      "_origin": "ast"
+    },
+    {
+      "id": "dataclasses",
+      "label": "dataclasses",
+      "file_type": "concept",
+      "type": "external",
+      "external": true,
+      "source_file": ""
+    }
+  ],
+  "edges": [
+    {
+      "source": "src_contract_guard",
+      "target": "dataclasses",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_contract_guard",
+      "target": "src_contract_guard_designtoken",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_contract_guard",
+      "target": "src_contract_guard_is_approved_token",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_contract_guard_is_approved_token",
+      "target": "src_contract_guard_designtoken",
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_contract_guard",
+      "target": "src_contract_guard_protects_character_identity",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_contract_guard_rationale_1",
+      "target": "src_contract_guard",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_contract_guard_rationale_13",
+      "target": "src_contract_guard_is_approved_token",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_contract_guard_rationale_18",
+      "target": "src_contract_guard_protects_character_identity",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/contract_guard.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_outfit_flow",
+      "target": "src_contract_guard",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_outfit_flow",
+      "target": "src_outfit_flow_select_outfit",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_outfit_flow_select_outfit",
+      "target": "src_contract_guard_designtoken",
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_outfit_flow_rationale_1",
+      "target": "src_outfit_flow",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_outfit_flow_rationale_7",
+      "target": "src_outfit_flow_select_outfit",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_outfit_flow",
+      "target": "src_contract_guard_designtoken",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_outfit_flow",
+      "target": "src_contract_guard_is_approved_token",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "src_outfit_flow_select_outfit",
+      "target": "src_contract_guard_is_approved_token",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast"
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "multigraph": true
+}
