@@ -31,9 +31,9 @@ class GraphReviewTests(unittest.TestCase):
                 "edge_fingerprint": edge_fingerprint(inferred),
                 "edge_identity": edge_identity(inferred),
                 "disposition": "HOLD_NOT_PROMOTED",
-                "reason_code": "DUPLICATE_OF_EXTRACTED_TYPE_REFERENCE",
-                "rationale": "The exact source line already has a more precise EXTRACTED references edge.",
-                "superseded_by_edge": edge_identity(extracted),
+                "reason_code": "INFERRED_EDGE_REQUIRES_INDEPENDENT_SEMANTIC_REVIEW",
+                "rationale": "The pinned Graphify cross-file resolver emits an inferred uses edge for a reference to an imported name; retain it under review pending semantic confirmation.",
+                "related_extracted_edge": edge_identity(extracted),
                 "owner_confirmation": "PENDING",
             }],
         }
@@ -74,11 +74,21 @@ class GraphReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(ReviewError, "cannot be promoted"):
             build_candidate(self.raw_bytes, self.graph, manifest)
 
-    def test_owner_confirmation_must_remain_pending(self):
+    def test_owner_confirmation_must_be_pending_or_confirmed_hold(self):
         manifest = copy.deepcopy(self.manifest)
         manifest["edge_decisions"][0]["owner_confirmation"] = "APPROVED"
-        with self.assertRaisesRegex(ReviewError, "must remain pending"):
+        with self.assertRaisesRegex(ReviewError, "PENDING or CONFIRMED_HOLD"):
             build_candidate(self.raw_bytes, self.graph, manifest)
+
+    def test_confirmed_hold_keeps_inferred_edge_excluded(self):
+        manifest = copy.deepcopy(self.manifest)
+        manifest["edge_decisions"][0]["owner_confirmation"] = "CONFIRMED_HOLD"
+        candidate, report = build_candidate(self.raw_bytes, self.graph, manifest)
+        self.assertEqual(len(candidate["edges"]), 1)
+        self.assertEqual(candidate["edges"][0]["relation"], "references")
+        self.assertEqual(report["owner_confirmation"], "CONFIRMED_HOLD")
+        self.assertEqual(report["promotion_status"], "CANDIDATE_ONLY_HOLD_CONFIRMED_NOT_PROMOTED")
+        self.assertEqual(report["production_promotion"], "NOT_AUTHORIZED")
 
     def test_duplicate_edge_identity_is_rejected(self):
         graph = copy.deepcopy(self.graph)
