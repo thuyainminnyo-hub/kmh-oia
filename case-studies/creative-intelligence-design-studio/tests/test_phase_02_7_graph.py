@@ -20,6 +20,9 @@ class Phase027GraphValidationTests(unittest.TestCase):
             "from .models import Widget as W\n\n"
             "def build(value: W) -> W:\n"
             "    return W()\n"
+            "\n"
+            "class Child(W):\n"
+            "    pass\n"
         )
         (self.root / "src/pkg/models.py").write_text(self.models, encoding="utf-8")
         (self.root / "src/pkg/service.py").write_text(self.service, encoding="utf-8")
@@ -32,12 +35,14 @@ class Phase027GraphValidationTests(unittest.TestCase):
             "coverage_matrix": [
                 {"importer_file": "src/pkg/service.py", "imported_name": "Widget", "target_file": "src/pkg/models.py", "category": "TYPE_ANNOTATION", "relation": "references"},
                 {"importer_file": "src/pkg/service.py", "imported_name": "Widget", "target_file": "src/pkg/models.py", "category": "RUNTIME_CALL", "relation": "calls"},
+                {"importer_file": "src/pkg/service.py", "imported_name": "Widget", "target_file": "src/pkg/models.py", "category": "CLASS_BASE", "relation": "inherits"},
             ],
         }
         self.raw = {
             "nodes": [
                 {"id": "pkg_widget", "label": "Widget", "file_type": "code", "source_file": "src/pkg/models.py", "source_location": "L1"},
                 {"id": "pkg_build", "label": "build()", "file_type": "code", "source_file": "src/pkg/service.py", "source_location": "L3"},
+                {"id": "pkg_child", "label": "Child", "file_type": "code", "source_file": "src/pkg/service.py", "source_location": "L7"},
                 {"id": "pkg_file", "label": "service.py", "file_type": "code", "source_file": "src/pkg/service.py", "source_location": "L1"},
                 {"id": "models_file", "label": "models.py", "file_type": "code", "source_file": "src/pkg/models.py", "source_location": "L1"},
                 {"id": "pkg_other_widget", "label": "Widget", "file_type": "code", "source_file": "src/pkg_other/types.py", "source_location": "L1"},
@@ -46,6 +51,7 @@ class Phase027GraphValidationTests(unittest.TestCase):
                 {"source": "pkg_build", "target": "pkg_widget", "relation": "references", "context": "parameter_type", "confidence": "EXTRACTED", "source_file": "src/pkg/service.py", "source_location": "L3"},
                 {"source": "pkg_build", "target": "pkg_widget", "relation": "references", "context": "return_type", "confidence": "EXTRACTED", "source_file": "src/pkg/service.py", "source_location": "L3"},
                 {"source": "pkg_build", "target": "pkg_widget", "relation": "calls", "context": "call", "confidence": "EXTRACTED", "source_file": "src/pkg/service.py", "source_location": "L4"},
+                {"source": "pkg_child", "target": "pkg_widget", "relation": "inherits", "confidence": "EXTRACTED", "source_file": "src/pkg/service.py", "source_location": "L7"},
                 {"source": "pkg_build", "target": "pkg_widget", "relation": "uses", "confidence": "INFERRED", "source_file": "src/pkg/service.py", "source_location": "L3"},
             ],
         }
@@ -53,10 +59,14 @@ class Phase027GraphValidationTests(unittest.TestCase):
     def test_valid_alias_relative_import_and_extracted_candidate(self):
         result, candidate = validate_graph(copy.deepcopy(self.raw), self.root, self.baseline)
         self.assertEqual(result["status"], "PASS", result["errors"])
-        self.assertEqual(len(result["canonical_semantic_links"]), 3)
-        self.assertEqual(len(candidate["edges"]), 3)
+        self.assertEqual(len(result["canonical_semantic_links"]), 4)
+        self.assertEqual(len(candidate["edges"]), 4)
         self.assertFalse(any(e["confidence"] != "EXTRACTED" for e in candidate["edges"]))
-        self.assertEqual(result["candidate_graph"]["edge_count"], 3)
+        self.assertEqual(result["candidate_graph"]["edge_count"], 4)
+        self.assertTrue(any(w.get("code") == "SIGNATURE_ANNOTATION_EDGE_COALESCED" for w in result["warnings"]))
+        inherited = [link for link in result["canonical_semantic_links"] if link["relation"] == "inherits"]
+        self.assertEqual(len(inherited), 1)
+        self.assertEqual(inherited[0]["context_match_mode"], "relation_and_provenance")
 
     def test_wrong_cross_file_target_fails(self):
         raw = copy.deepcopy(self.raw)
@@ -91,7 +101,7 @@ class Phase027GraphValidationTests(unittest.TestCase):
         self.assertEqual(self.raw, before)
         self.assertEqual(candidate["nodes"], self.raw["nodes"])
         self.assertEqual(len(candidate["edges"]), 3)
-        self.assertEqual(result["raw_graph"]["edge_count"], 4)
+        self.assertEqual(result["raw_graph"]["edge_count"], 5)
 
 
 if __name__ == "__main__":
