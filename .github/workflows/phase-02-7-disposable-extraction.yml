@@ -12,7 +12,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: kmh-graphify-phase-02-7-\${{ github.ref_name }}
+  group: kmh-graphify-phase-02-7-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -48,9 +48,9 @@ jobs:
       - name: Enforce one-run approval, launch-base binding and no-prior-run guard
         shell: bash
         env:
-          GH_TOKEN: \${{ github.token }}
-          EVENT_BEFORE: \${{ github.event.before }}
-          RUN_ATTEMPT: \${{ github.run_attempt }}
+          GH_TOKEN: ${{ github.token }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = "phase-02-7-disposable-run-once-20261102"
@@ -224,8 +224,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kmh-graphify-phase-02-7-one-run-\${{ github.run_id }}
-          path: \${{ runner.temp }}/kmh-graphify-phase-02-7/evidence/
+          name: kmh-graphify-phase-02-7-one-run-${{ github.run_id }}
+          path: ${{ runner.temp }}/kmh-graphify-phase-02-7/evidence/
           if-no-files-found: warn
           retention-days: 14
 
