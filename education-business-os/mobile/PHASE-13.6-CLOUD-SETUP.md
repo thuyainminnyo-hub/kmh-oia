@@ -64,11 +64,11 @@ flutterfire configure \
 
 Copy the exact package argument from `firebase apps:list --project aptivern-education-os` or Firebase Project Settings → Your apps. Stop if the CLI proposes creating an unintended duplicate.
 
-Expected output includes `lib/firebase_options.dart` and, when native Gradle configuration is applied, `android/app/google-services.json`.
+Expected output includes `lib/firebase_options.dart`. FlutterFire's generated Dart options are the configuration consumed by this Flutter app; this verification gate does not require a separate `google-services.json` file.
 
 ## 6. Initialize Firebase explicitly
 
-In `lib/main.dart`, import `firebase_options.dart` and initialize with `DefaultFirebaseOptions.currentPlatform` before activating App Check and before any Auth/Firestore access:
+In `lib/main.dart`, import `firebase_options.dart` and initialize with `DefaultFirebaseOptions.currentPlatform` before activating App Check and before any Auth/Firestore access. The app must use the generated Android options at runtime; after the file is generated, wire this initialization before running device QA:
 
 ```dart
 await Firebase.initializeApp(
@@ -89,7 +89,7 @@ flutter build apk --debug
 cd android && ./gradlew signingReport
 ```
 
-The Firebase preflight requires a real `google-services.json`; do not fabricate one. Keep service-account keys, release keystores, passwords, and App Check debug tokens out of Git.
+The Firebase preflight requires the real FlutterFire-generated `lib/firebase_options.dart`; do not fabricate it. The verifier checks the Android Firebase project ID, project number, Android App ID format, and (when configured) the exact Gradle package identity. Keep service-account keys, release keystores, passwords, and App Check debug tokens out of Git.
 
 ## 8. Evidence boundary
 
