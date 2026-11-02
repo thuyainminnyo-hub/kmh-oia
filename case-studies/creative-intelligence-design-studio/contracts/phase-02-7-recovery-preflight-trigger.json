@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "preflight_id": "KMH-CREATIVE-GRAPHIFY-PHASE-02-7R-PREFLIGHT-2026-11-02-01",
+  "purpose": "Repair-only CI preflight; does not authorize or invoke Graphify extraction.",
+  "extraction_authorized": false,
+  "source_branch": "phase-02-7-recovery-once-20261102-r1",
+  "checks": [
+    "workflow-expression-interpolation",
+    "one-run-guard-preservation",
+    "pinned-Graphify-version",
+    "exact-ten-file-synthetic-fixture",
+    "validator-syntax"
+  ]
+}
