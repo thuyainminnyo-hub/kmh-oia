@@ -2,7 +2,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { initialPaymentState, reservePayment, settlePayment } from "./payment-state";
+import { initialPaymentState, reservePayment, settlePayment, type EnrollmentPaymentState } from "./payment-state";
 
 initializeApp();
 const db = getFirestore();
@@ -199,7 +199,7 @@ export const verifyPayment = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "Payment record has an invalid amount.");
     }
 
-    let nextState;
+    let nextState: EnrollmentPaymentState;
     try {
       nextState = settlePayment(
         feeAmount as number,
@@ -216,8 +216,8 @@ export const verifyPayment = onCall(async (request) => {
 
     tx.update(paymentRef, {
       status: nextPaymentStatus,
-      verifiedBy: actor.uid,
-      verifiedAt: FieldValue.serverTimestamp(),
+      reviewedBy: actor.uid,
+      reviewedAt: FieldValue.serverTimestamp(),
       verificationNote: note ?? null
     });
     tx.update(enrollmentRef, {
