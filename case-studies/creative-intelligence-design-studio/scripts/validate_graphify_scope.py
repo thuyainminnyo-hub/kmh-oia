@@ -6,6 +6,7 @@ This script never installs Graphify, starts indexing, invokes a model, or runs a
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -105,6 +106,43 @@ def validate_graphify_scope(policy: dict[str, Any], project_root: Path) -> list[
             errors.append("approved_version must remain unset before owner review")
         if provider.get("version_pin_required") is not True:
             errors.append("version_pin_required must be true")
+
+    intake = policy.get("source_intake")
+    if not isinstance(intake, dict):
+        errors.append("source_intake must be an object")
+    else:
+        if intake.get("status") != "verified_candidate_pending_owner_install_approval":
+            errors.append("source_intake status must remain verified_candidate_pending_owner_install_approval")
+        if intake.get("candidate_version") != "0.9.100" or intake.get("release_tag") != "v0.9.100":
+            errors.append("candidate Graphify version must remain pinned to reviewed v0.9.100")
+        if intake.get("release_commit_sha") != "f5155badddaa3286c78a51653791131e9e2e4d29":
+            errors.append("candidate source commit must match the reviewed v0.9.100 release")
+        if intake.get("package") != "graphifyy":
+            errors.append("package must remain the official graphifyy distribution")
+        if intake.get("license_expression") != "Apache-2.0":
+            errors.append("license_expression must match the reviewed v0.9.100 source")
+        if intake.get("requires_python") != ">=3.10":
+            errors.append("requires_python must remain >=3.10")
+        if intake.get("trusted_publishing_provenance") != "verified":
+            errors.append("PyPI trusted-publishing provenance must be verified")
+        wheel_sha = intake.get("pypi_wheel_sha256")
+        if not isinstance(wheel_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", wheel_sha):
+            errors.append("pypi_wheel_sha256 must be a 64-character lowercase SHA-256")
+        if intake.get("optional_extras_enabled") != []:
+            errors.append("optional_extras_enabled must remain empty for the first pilot")
+        if intake.get("owner_install_approval") != "pending":
+            errors.append("owner_install_approval must remain pending until explicit approval")
+        if provider.get("approved_version") is not None:
+            errors.append("approved_version must remain unset until explicit owner approval")
+        advisories = intake.get("known_advisories")
+        if not isinstance(advisories, list) or not any(
+            isinstance(item, dict)
+            and item.get("id") == "GHSA-pcc4-rvhr-2pr8"
+            and item.get("patched_version") == "0.9.70"
+            and "0.9.100 is outside the affected range" in str(item.get("candidate_assessment", ""))
+            for item in advisories
+        ):
+            errors.append("known Graphify Fortran advisory review must remain recorded")
 
     scope = policy.get("scope")
     if not isinstance(scope, dict):

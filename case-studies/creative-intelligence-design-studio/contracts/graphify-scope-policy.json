@@ -68,5 +68,29 @@
     "generated_graph_is_checked_for_sensitive_content",
     "output_is_removed_after_evidence_capture",
     "human_owner_approves_any_expansion"
-  ]
+  ],
+  "source_intake": {
+    "status": "verified_candidate_pending_owner_install_approval",
+    "candidate_version": "0.9.100",
+    "release_tag": "v0.9.100",
+    "release_commit_sha": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "package": "graphifyy",
+    "pypi_wheel": "graphifyy-0.9.100-py3-none-any.whl",
+    "pypi_wheel_sha256": "64c5ed6f2dcc8c28b6a96c87023851c1644c16f55a87f45dbc9127119eb6e769",
+    "trusted_publishing_provenance": "verified",
+    "license_expression": "Apache-2.0",
+    "legacy_license_note": "Upstream NOTICE states that portions contributed before relicensing remain under MIT terms; retain LICENSE, LICENSE-MIT, and NOTICE when redistributing source.",
+    "requires_python": ">=3.10",
+    "dependency_strategy": "Use uv.lock from the exact v0.9.100 source tag with uv sync --locked --no-dev; install no optional extras.",
+    "optional_extras_enabled": [],
+    "known_advisories": [
+      {
+        "id": "GHSA-pcc4-rvhr-2pr8",
+        "affected_range": ">=0.7.2,<0.9.70",
+        "patched_version": "0.9.70",
+        "candidate_assessment": "0.9.100 is outside the affected range; tagged source inspected and confirmed include directives are stripped before cpp reads sanitized stdin."
+      }
+    ],
+    "owner_install_approval": "pending"
+  }
 }

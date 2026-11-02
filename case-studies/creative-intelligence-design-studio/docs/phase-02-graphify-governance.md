@@ -6,7 +6,7 @@
 
 ## Decision
 
-Graphify is the selected Phase 02 candidate, subject to source/version review and owner approval. The first experiment is deliberately limited to deterministic Python AST extraction from two synthetic files. It must not scan the KMH OIA repository root, MLCW source assets, learner records, private project documents, PDFs, images, audio, or video.
+Graphify v0.9.100 is the selected Phase 02 candidate. Source identity, release provenance, license, dependency profile and the published Fortran advisory have been reviewed in [Phase 02.1 Source & Version Intake](phase-02-1-source-intake.md). Explicit owner approval is still required before installation or indexing. The first experiment is deliberately limited to deterministic Python AST extraction from two synthetic files. It must not scan the KMH OIA repository root, MLCW source assets, learner records, private project documents, PDFs, images, audio, or video.
 
 The policy is fail-closed. The scan root is fixed to graphify-sandbox; the allowed filesystem entries are .graphifyignore and Python files under src/. A Python validator enforces this boundary before an operator can consider a run. The Graphify ignore rules and CLI exclusions are defense in depth, not the primary positive allowlist.
 
@@ -34,36 +34,23 @@ Graphify documents deterministic local tree-sitter AST parsing for code and a se
 
 - Official source: https://github.com/Graphify-Labs/graphify
 - Official package name: graphifyy (the CLI command is graphify).
-- Review the current release, tag/commit, license, dependencies, install scripts, hooks, and permissions at execution time.
-- Pin an exact approved package version; the policy intentionally leaves approved_version unset.
+- See [Phase 02.1 Source & Version Intake](phase-02-1-source-intake.md) for the reviewed candidate v0.9.100, exact release commit, PyPI wheel checksum, Apache-2.0 license, dependency profile and advisory evidence.
+- The machine-readable policy records v0.9.100 as a candidate, not an approval. `approved_version` intentionally remains null; installation remains disabled.
 - Do not register the assistant skill, install project hooks, or add the project to a global graph during this initial code-only test.
 - Do not use .graphifyinclude; current Graphify documentation states that it is no longer supported.
 
 ## Operator procedure after approval
 
-Run from a disposable workstation or container with network and filesystem permissions restricted to the approved task.
+Run from a disposable workstation or container with filesystem access restricted to the task. The source snapshot below prevents the scanner from receiving any file beyond the three explicitly copied synthetic fixtures.
 
-1. Review the official source and pin the exact package version. Replace no policy values until the technical owner approves the change.
-2. Clone or materialize only this feature branch in a disposable workspace.
-3. Run the deterministic scope validator and unit tests.
-4. Install the reviewed CLI in its isolated tool environment, not into the repository or a global agent configuration.
+1. Confirm that the technical owner has explicitly approved v0.9.100 and the data owner has approved this exact fixture.
+2. Verify the source tag resolves to commit `f5155badddaa3286c78a51653791131e9e2e4d29`.
+3. In the exact release checkout, install only locked runtime dependencies with `uv sync --locked --no-dev --python 3.12`. Do not add extras.
+4. Create an external temporary workspace and copy only the approved fixture files into a new scan root. Do not point Graphify at the repository or the original feature branch directory.
+5. Make the snapshot read-only and verify it contains exactly three files before execution.
+6. Run code-only extraction with model backend disabled and graph output stored outside the scan root. Do not execute `graphify install`, hook installation, MCP setup, or a model-backed semantic pass.
 
-    uv tool install "graphifyy==APPROVED_VERSION"
-
-5. Build only the synthetic Python graph. Use the documented absolute output-directory override so Graphify writes outside the repository. Keep backend autodetection disabled and run the code-only path.
-
-    GRAPHIFY_OUT=/tmp/kmh-creative-studio-graphify-out GRAPHIFY_BACKEND=none graphify extract "$PWD/case-studies/creative-intelligence-design-studio/graphify-sandbox" --code-only --exclude ".env" --exclude ".env.*" --exclude "**/*.pem" --exclude "**/*.key" --exclude "**/private/**" --exclude "**/learner-data/**" --exclude "**/raw-assets/**" --exclude "**/media/**"
-
-6. Review graph.json and GRAPH_REPORT.md in the external output directory. Confirm that every sampled EXTRACTED edge resolves to a real file and line inside graphify-sandbox/src/.
-7. Treat INFERRED or AMBIGUOUS edges as hypotheses. Record them separately and do not promote one to a project fact without independent source evidence and human approval.
-8. Record tool version, package/source pin, command, runner details, commit SHA, graph counts, sampled edges, false positives, exclusions, and reviewer decision.
-9. Delete the temporary graph output and confirm that it is absent from the repository and workstation after evidence capture.
-
-The output override, backend selector, code-only flag, and repeatable exclude flag are documented in the upstream source:
-- https://github.com/Graphify-Labs/graphify/blob/v8/graphify/paths.py
-- https://github.com/Graphify-Labs/graphify/blob/v8/graphify/cli.py
-
-The command above is an approved future procedure template only; it has NOT been run in this execution.
+The exact commands are recorded in [Phase 02.1 Source & Version Intake](phase-02-1-source-intake.md). They are an operator runbook only and have NOT been run.
 
 ## Acceptance gates
 
@@ -71,7 +58,7 @@ The command above is an approved future procedure template only; it has NOT been
 
 | Gate | Required evidence | Current state |
 |---|---|---|
-| G0 — Source and version intake | Official source, license, dependency and version review | PENDING |
+| G0 — Source and version intake | Official source, license, dependency, exact candidate and advisory review | PASS — v0.9.100 candidate reviewed; explicit install approval remains pending under G5 |
 | G1 — Scope guard | Validator and unit tests pass in GitHub CI | PASS — Creative Studio QA run 41419384917; 14/14 tests and diff check passed |
 | G2 — Isolated code-only extraction | Reproducible graph from synthetic Python fixture | NOT RUN |
 | G3 — Source traceability | Sampled EXTRACTED edges resolve to source file/line | NOT RUN |

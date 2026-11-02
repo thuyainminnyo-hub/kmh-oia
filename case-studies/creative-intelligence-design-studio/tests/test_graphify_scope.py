@@ -87,6 +87,41 @@ class GraphifyScopeTests(unittest.TestCase):
         errors = validate_graphify_scope(policy, root)
         self.assertTrue(any("semantic_backend" in error for error in errors))
 
+    def test_candidate_release_is_exactly_reviewed_v0_9_100(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["candidate_version"] = "latest"
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("candidate Graphify version" in error for error in errors))
+
+    def test_release_commit_must_match_verified_tag(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["release_commit_sha"] = "deadbeef"
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("candidate source commit" in error for error in errors))
+
+    def test_unverified_or_missing_wheel_checksum_fails(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["pypi_wheel_sha256"] = "not-a-checksum"
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("pypi_wheel_sha256" in error for error in errors))
+
+    def test_owner_install_approval_must_remain_pending(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["owner_install_approval"] = "approved"
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("owner_install_approval" in error for error in errors))
+
+    def test_optional_extras_must_remain_disabled(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["optional_extras_enabled"] = ["pdf", "video", "openai"]
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("optional_extras_enabled" in error for error in errors))
+
     def test_secret_file_is_rejected(self):
         root = self.temporary_project()
         (root / "graphify-sandbox" / ".env").write_text(
