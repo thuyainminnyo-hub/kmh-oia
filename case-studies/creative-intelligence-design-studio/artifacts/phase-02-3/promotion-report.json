@@ -84,7 +84,23 @@
     "fixture_corroboration": "outfit_flow.py imports DesignToken at L3; select_outfit declares token: DesignToken at L6, checks token with is_approved_token at L8 and reads token.token_name at L10; contract_guard.py defines DesignToken with token_name and approved fields.",
     "interpretation": "The edge has a documented upstream derivation and source corroboration. Its source anchor at L6 is the type annotation, while the function also uses the typed parameter at runtime. The broader uses relation remains INFERRED and is not independently accepted as a trusted graph fact."
   },
-  "source_corroboration_status": "PENDING_CI_AST_VALIDATION",
+  "source_corroboration_status": "PASS",
   "source_corroboration_report_path": "reports/phase-02-3/held-edge-source-evidence.json",
-  "further_review_status": "OPEN_ADDITIONAL_EVIDENCE_REQUIRED"
+  "further_review_status": "OPEN_ADDITIONAL_EVIDENCE_REQUIRED",
+  "source_corroboration_artifact": {
+    "workflow_run_id": 41438633133,
+    "artifact_id": 13136524575,
+    "artifact_name": "kmh-graphify-held-edge-source-evidence-41438633133",
+    "report_file": "kmh-held-edge-source-evidence.json",
+    "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41438633133/artifacts/13136524575",
+    "checks": {
+      "imported_from_contract_guard_line": 3,
+      "parameter_type_reference_line": 6,
+      "approval_call_line": 8,
+      "runtime_field_read_line": 10,
+      "DesignToken_definition_line": 7,
+      "source_validator": "PASS",
+      "errors": 0
+    }
+  }
 }
