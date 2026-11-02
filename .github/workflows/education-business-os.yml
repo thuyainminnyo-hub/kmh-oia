@@ -76,6 +76,10 @@ jobs:
         with:
           node-version: 20
           package-manager-cache: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
       - name: Install Functions dependencies and compile
         working-directory: education-business-os/functions
         run: |
