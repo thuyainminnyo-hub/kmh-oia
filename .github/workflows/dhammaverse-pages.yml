@@ -1,0 +1,66 @@
+name: DhammaVerse Pages
+
+on:
+  pull_request:
+    paths:
+      - "apps/dhammaverse/web/**"
+      - ".github/workflows/dhammaverse-pages.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/dhammaverse/web/**"
+      - ".github/workflows/dhammaverse-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dhammaverse-pages
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate static app files
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("apps/dhammaverse/web")
+          required = ["index.html", "styles.css", "app.js", "manifest.webmanifest", "sw.js"]
+          missing = [name for name in required if not (root / name).is_file()]
+          if missing:
+              raise SystemExit(f"Missing required files: {missing}")
+          manifest = json.loads((root / "manifest.webmanifest").read_text(encoding="utf-8"))
+          if manifest.get("start_url") != "./index.html":
+              raise SystemExit("Unexpected PWA start_url")
+          html = (root / "index.html").read_text(encoding="utf-8")
+          for marker in ['id="language-toggle"', 'id="quiz-feedback"', 'id="reflection"', 'app.js']:
+              if marker not in html:
+                  raise SystemExit(f"Required UI marker missing: {marker}")
+          print("DhammaVerse static app validation: PASS")
+          PY
+      - name: Upload static site artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/dhammaverse/web
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
