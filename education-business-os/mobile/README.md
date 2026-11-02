@@ -58,4 +58,4 @@ This client provides sign-in, organization selection and read-only enrollment di
 
 ## Phase 13.6 cloud Firebase configuration
 
-See [PHASE-13.6-CLOUD-SETUP.md](PHASE-13.6-CLOUD-SETUP.md) for the Codespaces toolchain, existing Firebase Android app inspection, package ID matching, FlutterFire configuration, and acceptance evidence. The CI package gate uses the repository Actions variable `APTIVERN_ANDROID_ORG`; leave it unset until the existing Firebase Android package has been confirmed. An unset variable is reported as PENDING, not as a verified Firebase registration.
+See [PHASE-13.6-CLOUD-SETUP.md](PHASE-13.6-CLOUD-SETUP.md) for the Codespaces toolchain, existing Firebase Android app inspection, package ID matching, FlutterFire configuration, and acceptance evidence. The CI package gate uses the repository Actions variable `APTIVERN_ANDROID_PACKAGE_NAME`; leave it unset until the existing Firebase Android package has been confirmed. An unset variable is reported as PENDING, not as a verified Firebase registration.
