@@ -41,9 +41,7 @@ export const createEnrollment = onCall(async (request) => {
   // Deterministic ID prevents duplicate student/batch enrollments under concurrency.
   const enrollmentId = Array.from(new TextEncoder().encode(studentId + ":" + batchId), byte => byte.toString(16).padStart(2, "0")).join("");
   const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
-  let createdStatus: "active" | "pending_payment" = "pending_payment";
-
-  await db.runTransaction(async (tx) => {
+  const createdStatus = await db.runTransaction(async (tx) => {
     const batch = await tx.get(batchRef);
     if (!batch.exists) throw new HttpsError("not-found", "Batch not found.");
     const existing = await tx.get(enrollmentRef);
@@ -61,8 +59,6 @@ export const createEnrollment = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "Pilot currently supports MMK enrollment fees only.");
     }
     const paymentState = initialPaymentState(fee as number);
-    createdStatus = paymentState.status;
-
     tx.create(enrollmentRef, {
       studentId,
       batchId,
@@ -86,6 +82,7 @@ export const createEnrollment = onCall(async (request) => {
       currency,
       createdAt: FieldValue.serverTimestamp()
     });
+    return paymentState.status;
   });
   return { enrollmentId: enrollmentRef.id, status: createdStatus };
 });
@@ -178,8 +175,7 @@ export const verifyPayment = onCall(async (request) => {
   }
 
   const paymentRef = db.collection("payments").doc(paymentId);
-  let resultingEnrollmentStatus = "unknown";
-  await db.runTransaction(async (tx) => {
+  const resultingEnrollmentStatus = await db.runTransaction(async (tx) => {
     const payment = await tx.get(paymentRef);
     if (!payment.exists) throw new HttpsError("not-found", "Payment not found.");
     const paymentData = payment.data()!;
@@ -243,7 +239,7 @@ export const verifyPayment = onCall(async (request) => {
       enrollmentStatus: nextState.status,
       createdAt: FieldValue.serverTimestamp()
     });
-    resultingEnrollmentStatus = nextState.status;
+    return nextState.status;
   });
   return { paymentId, status: verified ? "verified" : "rejected", enrollmentStatus: resultingEnrollmentStatus };
 });
