@@ -51,7 +51,7 @@ The package install, assistant skill install, graph extraction, and later agent 
 
 ## 6. Exact future procedure — only after explicit owner approval
 
-The commands below are an operator runbook, not an execution record. They have NOT been run.
+The dependency-only audit is automated by [graphify-dependency-audit.yml](../../../../.github/workflows/graphify-dependency-audit.yml) on relevant branch changes. It exports the exact locked base requirements and CycloneDX SBOM, runs the pinned audit tool against PyPI and OSV, and uploads sanitized audit evidence. It does not install or execute Graphify. The commands below remain a manual operator runbook for the later, separately approved isolated extraction; they have NOT been run.
 
 ```bash
 set -euo pipefail
@@ -103,6 +103,9 @@ test -s "$OUT_ROOT/graphify-out/GRAPH_REPORT.md"
 Before installation, require clean PyPI and OSV `pip-audit` 2.10.1 results for the exported base runtime dependency set; retain the CycloneDX SBOM, requirements export, both audit JSON reports and exact audit-tool version. Do not proceed if known vulnerabilities or incomplete dependency collection are reported. `--strict` is supported and deliberately included to fail on dependency-collection errors; `--no-deps` and `--disable-pip` are the documented flags for fully pinned requirements. After review, record the source version, lockfile, runner details, source commit, dependency evidence, scan manifest, output graph counts, source references, edge confidence, false connections and reviewer decision. Remove the temporary workspace after exporting sanitized evidence. Do not commit generated `graph.json` or graph reports.
 
 ## 7. Intake gates
+
+The automated dependency-audit workflow is a read-only source-metadata and vulnerability-check job. Its only package tool installation is the isolated, version-pinned `pip-audit==2.10.1` utility; the Graphify CLI itself is not installed or executed by this workflow.
+
 
 **Phase 02.1 CI evidence (2026-11-02):** Creative Studio QA run [41420680611](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680611) passed source-intake and dependency-audit policy validation, Graphify scope preflight, 20 unit tests and diff check. KMH OIA Tests run [41420680434](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680434) passed 462 tests and the performance baseline. KMH OIA Validation run [41420680438](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680438) passed repository validation, tests, performance evidence and deployment evidence bundle.
 
