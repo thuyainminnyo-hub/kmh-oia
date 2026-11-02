@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "review_status": "ASSISTANT_REVIEW_RECOMMENDATION_OWNER_CONFIRMATION_PENDING",
+  "review_status": "OWNER_CONFIRMED_HOLD_PENDING_ADDITIONAL_EVIDENCE",
   "promotion_policy": {
     "candidate_rule": "Only source-backed EXTRACTED edges enter the candidate graph.",
     "non_extracted_rule": "INFERRED and AMBIGUOUS edges remain excluded and must have an explicit review decision.",
@@ -29,10 +29,11 @@
         "source_location": "L6"
       },
       "disposition": "HOLD_NOT_PROMOTED",
-      "reason_code": "DUPLICATE_OF_EXTRACTED_TYPE_REFERENCE",
-      "rationale": "The same source node, target node, file and line already have an EXTRACTED references edge with context=parameter_type. The source at outfit_flow.py:L6 is `def select_outfit(token: DesignToken)`, so the explicit references edge is the precise, source-backed representation. The broader INFERRED uses edge is semantically compatible but redundant for the canonical candidate. This is not classified as a proven false positive.",
-      "superseded_by_edge": {
-        "edge_fingerprint": "a2862edf8aad97705966889fc749500789b5abba3130914e08ed10bff636a455",
+      "reason_code": "INFERRED_EDGE_REQUIRES_INDEPENDENT_SEMANTIC_REVIEW",
+      "rationale": "The edge has a documented upstream derivation and source corroboration. Its source anchor at L6 is the type annotation, while the function also uses the typed parameter at runtime. The broader uses relation remains INFERRED and is not independently accepted as a trusted graph fact. Keep it under owner-confirmed HOLD pending additional evidence; do not promote or classify it as a proven false positive.",
+      "reviewer": "Assistant-assisted source review; project owner explicitly confirmed HOLD.",
+      "owner_confirmation": "CONFIRMED_HOLD",
+      "related_extracted_edge": {
         "edge_identity": {
           "source": "src_outfit_flow_select_outfit",
           "target": "src_contract_guard_designtoken",
@@ -41,10 +42,26 @@
           "source_file": "src/outfit_flow.py",
           "source_location": "L6"
         },
-        "context": "parameter_type"
-      },
-      "reviewer": "Assistant-assisted evidence review; project-owner confirmation outstanding.",
-      "owner_confirmation": "PENDING"
+        "context": "parameter_type",
+        "role": "Directly describes the type-annotation aspect; it does not replace the held inferred uses edge."
+      }
     }
-  ]
+  ],
+  "owner_decision": {
+    "decision": "KEEP_INFERRED_EDGE_UNDER_REVIEW_DO_NOT_PROMOTE",
+    "recorded_on": "2026-11-02",
+    "authority": "Explicit project-owner instruction in the current conversation",
+    "scope": "Graphify INFERRED uses edge from select_outfit() to DesignToken at src/outfit_flow.py:L6",
+    "additional_evidence_required": true,
+    "raw_graph_immutable": true,
+    "extracted_only_candidate_remains_separate": true,
+    "production_promotion": "NOT_AUTHORIZED"
+  },
+  "review_context": {
+    "upstream_source_url": "https://github.com/Graphify-Labs/graphify/blob/f5155badddaa3286c78a51653791131e9e2e4d29/graphify/extractors/resolution.py#L3039-L3218",
+    "upstream_file_sha": "9821e1e528bc6179521edc64f5e51f47f3ae8fa0",
+    "upstream_algorithm_summary": "The pinned Graphify v0.9.100 Python cross-file import-resolution pass builds imported-name targets, walks AST identifiers inside each local class/function, and emits an INFERRED uses edge when the local symbol references an imported name. In this fixture, the matching DesignToken identifier is the parameter type annotation at outfit_flow.py:L6.",
+    "fixture_corroboration": "outfit_flow.py imports DesignToken at L3; select_outfit declares token: DesignToken at L6, checks token with is_approved_token at L8 and reads token.token_name at L10; contract_guard.py defines DesignToken with token_name and approved fields.",
+    "interpretation": "The edge has a documented upstream derivation and source corroboration. Its source anchor at L6 is the type annotation, while the function also uses the typed parameter at runtime. The broader uses relation remains INFERRED and is not independently accepted as a trusted graph fact."
+  }
 }
