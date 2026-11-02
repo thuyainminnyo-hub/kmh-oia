@@ -20,7 +20,8 @@ jobs:
           node-version: 20
           package-manager-cache: false
       - name: Validate Codespaces devcontainer JSON
-        run: node -e "JSON.parse(require('fs').readFileSync('.devcontainer/devcontainer.json', 'utf8')); console.log('PASS: devcontainer JSON')"
+        run: |
+          node -e 'JSON.parse(require("fs").readFileSync(".devcontainer/devcontainer.json", "utf8")); console.log("PASS devcontainer JSON")'
       - name: Validate Codespaces bootstrap shell scripts
         run: |
           bash -n .devcontainer/post-create.sh
