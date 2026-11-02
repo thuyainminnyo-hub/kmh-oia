@@ -1,0 +1,72 @@
+{
+  "policy_version": "1.0.0",
+  "status": "preflight_only",
+  "provider": {
+    "name": "Graphify",
+    "source_repository": "https://github.com/Graphify-Labs/graphify",
+    "package_name": "graphifyy",
+    "cli_command": "graphify",
+    "approved_version": null,
+    "version_pin_required": true
+  },
+  "scope": {
+    "scan_root": "graphify-sandbox",
+    "allowed_paths": [
+      ".graphifyignore",
+      "src/"
+    ],
+    "allowed_extensions": [
+      ".py"
+    ],
+    "max_files": 20,
+    "allow_symlinks": false
+  },
+  "execution": {
+    "install_allowed": false,
+    "index_allowed": false,
+    "semantic_backend": "none",
+    "code_only_required": true,
+    "assistant_skill_install_allowed": false,
+    "git_hook_install_allowed": false,
+    "global_graph_merge_allowed": false
+  },
+  "deny_patterns": [
+    ".env",
+    ".env.*",
+    ".envrc",
+    "**/.env",
+    "**/.env.*",
+    "**/.envrc",
+    "**/*.pem",
+    "**/*.key",
+    "**/*.p12",
+    "**/*.pfx",
+    "**/*.crt",
+    "**/*secret*",
+    "**/*credential*",
+    "**/.netrc",
+    "**/.npmrc",
+    "**/.pypirc",
+    "**/.git-credentials",
+    "**/id_rsa",
+    "**/id_ed25519",
+    "**/.ssh/**",
+    "**/private/**",
+    "**/learner-data/**",
+    "**/raw-assets/**",
+    "**/generated-media/**",
+    "**/media/**",
+    "**/graphify-out/**"
+  ],
+  "review_gates": [
+    "technical_owner_approves_source_and_pinned_version",
+    "data_owner_approves_exact_scan_root",
+    "scope_validator_passes_in_disposable_environment",
+    "code_only_run_uses_backend_none",
+    "every_sampled_extracted_edge_resolves_to_source",
+    "inferred_edges_are_reviewed_and_never_auto_promoted",
+    "generated_graph_is_checked_for_sensitive_content",
+    "output_is_removed_after_evidence_capture",
+    "human_owner_approves_any_expansion"
+  ]
+}
