@@ -53,7 +53,7 @@ if (!gradle.includes("com.google.gms.google-services")) {
   fail("Google Services Gradle plugin is not applied in the Android app module.");
 }
 
-const appIdMatch = gradle.match(/applicationId\\s*(?:=\\s*)?["']([^"']+)["']/);
+const appIdMatch = gradle.match(/applicationId\s*(?:=\s*)?["']([^"']+)["']/);
 if (!appIdMatch) {
   fail("Could not read applicationId from the Android app Gradle file.");
 }
