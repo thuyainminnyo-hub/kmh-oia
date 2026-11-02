@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
@@ -121,7 +122,9 @@ export const createEnrollment = onCall(async (request) => {
   try { await getAuth().getUser(studentId); }
   catch { throw new HttpsError("not-found", "Student Auth user not found."); }
   const batchRef = db.collection("batches").doc(batchId);
-  const enrollmentId = Array.from(new TextEncoder().encode(organizationId + ":" + studentId + ":" + batchId), byte => byte.toString(16).padStart(2, "0")).join("");
+  const enrollmentId = createHash("sha256")
+    .update(organizationId + ":" + studentId + ":" + batchId)
+    .digest("hex");
   const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
   const studentMembershipRef = db.collection("organizations").doc(organizationId).collection("members").doc(studentId);
 
