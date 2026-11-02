@@ -66,8 +66,8 @@ test("verification cannot settle more than the pending ledger", () => {
   assert.throws(() => settlePayment(300000, 0, 50000, 100000, true), /lower than the payment/);
 });
 
-test("verification cannot overpay the course fee", () => {
-  assert.throws(() => settlePayment(300000, 250000, 100000, 100000, true), /overpay/);
+test("settlement rejects an inconsistent paid and pending ledger", () => {
+  assert.throws(() => settlePayment(300000, 250000, 100000, 100000, true), /exceed the course fee/);
 });
 
 test("invalid or unsafe currency values are rejected", () => {
