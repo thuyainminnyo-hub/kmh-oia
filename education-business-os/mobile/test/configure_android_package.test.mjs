@@ -7,13 +7,29 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const script = resolve(fileURLToPath(new URL("../tool/configure-android-package.mjs", import.meta.url)));
+
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "aptivern-package-gate-"));
   const app = join(root, "android/app");
-  const activity = join(app, "src/main/kotlin/com/example/aptivern_student_app/MainActivity.kt");
-  mkdirSync(join(app, "src/main/kotlin/com/example/aptivern_student_app"), { recursive: true });
-  writeFileSync(join(app, "build.gradle.kts"), `android {\\n    namespace = "com.example.aptivern_student_app"\\n    defaultConfig { applicationId = "com.example.aptivern_student_app" }\\n}\\n`);
-  writeFileSync(activity, `package com.example.aptivern_student_app\\n\\nimport io.flutter.embedding.android.FlutterActivity\\nclass MainActivity: FlutterActivity()\\n`);
+  const kotlinDir = join(app, "src/main/kotlin/com/example/aptivern_student_app");
+  const activity = join(kotlinDir, "MainActivity.kt");
+  mkdirSync(kotlinDir, { recursive: true });
+  writeFileSync(join(app, "build.gradle.kts"), [
+    "android {",
+    '    namespace = "com.example.aptivern_student_app"',
+    "    defaultConfig {",
+    '        applicationId = "com.example.aptivern_student_app"',
+    "    }",
+    "}",
+    ""
+  ].join("\n"));
+  writeFileSync(activity, [
+    "package com.example.aptivern_student_app",
+    "",
+    "import io.flutter.embedding.android.FlutterActivity",
+    "class MainActivity: FlutterActivity()",
+    ""
+  ].join("\n"));
   return { root, gradle: join(app, "build.gradle.kts"), activity };
 }
 
