@@ -76,7 +76,7 @@ class GraphifyOutputTraceabilityTests(unittest.TestCase):
         self.assertTrue(any("lacks a valid L<number> source_location" in x for x in result["errors"]))
 
     def test_graph_must_contain_cross_file_evidence(self):
-        graph = {**self.graph, "edges": [{**self.graph["edges"][0], "target": "token"}]}
+        graph = {**self.graph, "edges": [{**self.graph["edges"][0], "target": "outfit_file"}]}
         result = validate_graph(graph, self.root)
         self.assertTrue(any("no cross-file edge" in x for x in result["errors"]))
 

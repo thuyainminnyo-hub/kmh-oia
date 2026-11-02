@@ -24,8 +24,7 @@ jobs:
     timeout-minutes: 25
     env:
       GRAPHIFY_TAG: v0.9.100
-      GRAPHIFY_COMMIT: f5155badddaa3286c78a51653791131e9e2e4d29
-      WORK_ROOT: ${{ runner.temp }}/kmh-graphify-disposable
+      GRAPHIFY_COMMIT: f5155badddaa3286c78a51653791131e9e2d4d29
     steps:
       - name: Checkout KMH OIA policy and synthetic fixtures
         uses: actions/checkout@v4
@@ -75,6 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          WORK_ROOT="$RUNNER_TEMP/kmh-graphify-disposable"
           SOURCE_DIR="$WORK_ROOT/graphify-source"
           SCAN_ROOT="$WORK_ROOT/scan"
           OUTPUT_ROOT="$WORK_ROOT/output"
@@ -82,6 +82,7 @@ jobs:
           VENV_DIR="$WORK_ROOT/venv"
           HOME_DIR="$WORK_ROOT/home"
           TMP_DIR="$WORK_ROOT/tmp"
+          echo "WORK_ROOT=$WORK_ROOT" >> "$GITHUB_ENV"
           mkdir -p "$WORK_ROOT" "$SCAN_ROOT/src" "$OUTPUT_ROOT" "$EVIDENCE_ROOT" "$HOME_DIR" "$TMP_DIR"
           echo "SOURCE_DIR=$SOURCE_DIR" >> "$GITHUB_ENV"
           echo "SCAN_ROOT=$SCAN_ROOT" >> "$GITHUB_ENV"
