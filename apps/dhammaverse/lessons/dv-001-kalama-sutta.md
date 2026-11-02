@@ -18,6 +18,16 @@ The Kālāma discourse addresses people who are confused by competing teachers a
 
 **အရေးကြီးသော မှတ်ချက်:** “ကိုယ်ထင်တာမှန်သမျှ ယုံပါ” ဟု ဆိုလိုခြင်းမဟုတ်ပါ။ ခေတ်သစ်သိပ္ပံနည်းကျ စမ်းသပ်မှုနှင့်လည်း အတိအကျ တူညီသည်ဟု မဆိုသင့်ပါ။ ကိုယ်တိုင်စိစစ်မှုအပြင် ကျင့်ဝတ်ဆိုင်ရာ အကဲဖြတ်မှုနှင့် ပညာရှိသူတို့၏ အမြင်ကိုပါ ထည့်သွင်းထားသည်။
 
+
+## Context that must not be omitted
+The discourse does not end with a slogan about independent verification. Its later sections discuss the disciple's mind free from hostility and ill will, developed through the four immeasurable states: loving-kindness, compassion, appreciative joy, and equanimity. The lesson's short format may summarize this ending, but must not imply that the earlier criteria are the whole discourse.
+
+## Source and rights handling
+- The Pāli source is the canonical reference; record the exact edition and passage locator during specialist review.
+- Bhikkhu Sujato's English translation is listed as CC0 by SuttaCentral, but SuttaCentral's licensing policy requests no scraping and no use in AI training datasets, AI model/algorithm development, or AI-derived technologies. This project therefore keeps a human-accessed link only and must not ingest the translation into AI retrieval, generation, training, or content-production workflows unless written clarification is obtained.
+- Bhikkhu Bodhi's English translation is identified as CC BY-NC-ND 3.0. Keep it as a link-only reading reference; do not copy, adapt, or redistribute it without permission.
+- The bilingual learner explanation below is an original editorial paraphrase, not a translation or a quotation from the Buddha.
+
 ## Practical reflection / လက်တွေ့ပြန်လည်သုံးသပ်ရန်
 1. What claim am I being asked to accept? / ဘယ်အဆိုကို လက်ခံဖို့ တိုက်တွန်းခံနေရသလဲ။
 2. What is its source, and can I check it? / ရင်းမြစ်က ဘာလဲ၊ ပြန်စစ်ဆေးနိုင်သလား။
