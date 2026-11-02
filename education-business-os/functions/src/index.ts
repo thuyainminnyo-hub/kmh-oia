@@ -21,6 +21,27 @@ function requireRole(request: CallableRequest, allowed: string[]) {
   return { uid: request.auth.uid, role };
 }
 
+async function requireOrganizationRole(
+  request: CallableRequest,
+  organizationId: string,
+  allowed: string[]
+) {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign-in required.");
+  if (request.auth.token.platformAdmin === true) {
+    return { uid: request.auth.uid, role: "platformAdmin", organizationId };
+  }
+  const membership = await db.collection("organizations").doc(organizationId)
+    .collection("members").doc(request.auth.uid).get();
+  if (!membership.exists || membership.data()?.status !== "active") {
+    throw new HttpsError("permission-denied", "Active organization membership required.");
+  }
+  const role = membership.data()?.role;
+  if (typeof role !== "string" || !allowed.includes(role)) {
+    throw new HttpsError("permission-denied", "Insufficient organization role.");
+  }
+  return { uid: request.auth.uid, role, organizationId };
+}
+
 function requiredString(value: unknown, field: string, max = 120): string {
   if (typeof value !== "string" || value.trim().length === 0 || value.length > max) {
     throw new HttpsError("invalid-argument", field + " is required and must be at most " + max + " characters.");
@@ -28,8 +49,45 @@ function requiredString(value: unknown, field: string, max = 120): string {
   return value.trim();
 }
 
+export const setOrganizationMember = onCall(async (request) => {
+  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const actor = await requireOrganizationRole(request, organizationId, ["admin"]);
+  const uid = requiredString(request.data?.uid, "uid");
+  const role = request.data?.role;
+  const allowedRoles = ["admin", "academic_manager", "instructor", "finance", "student", "creator", "moderator"];
+  if (typeof role !== "string" || !allowedRoles.includes(role)) {
+    throw new HttpsError("invalid-argument", "Unsupported organization role.");
+  }
+  const status = request.data?.status ?? "active";
+  if (status !== "active" && status !== "suspended") {
+    throw new HttpsError("invalid-argument", "Membership status must be active or suspended.");
+  }
+  try { await getAuth().getUser(uid); }
+  catch { throw new HttpsError("not-found", "Firebase Auth user not found."); }
+
+  const memberRef = db.collection("organizations").doc(organizationId).collection("members").doc(uid);
+  await db.runTransaction(async (tx) => {
+    const organizationRef = db.collection("organizations").doc(organizationId);
+    const organization = await tx.get(organizationRef);
+    if (!organization.exists || organization.data()?.status !== "active") {
+      throw new HttpsError("not-found", "Active organization not found.");
+    }
+    tx.set(memberRef, {
+      organizationId, uid, role, status,
+      updatedBy: actor.uid, updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    tx.create(db.collection("auditLogs").doc(), {
+      organizationId, action: "organization.member.updated",
+      actorUid: actor.uid, targetId: uid, role, status,
+      createdAt: FieldValue.serverTimestamp()
+    });
+  });
+  return { organizationId, uid, role, status };
+});
+
 export const createEnrollment = onCall(async (request) => {
-  const actor = requireRole(request, ["admin"]);
+  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const actor = await requireOrganizationRole(request, organizationId, ["admin"]);
   const studentId = requiredString(request.data?.studentId, "studentId");
   const batchId = requiredString(request.data?.batchId, "batchId");
   const instructorId = request.data?.instructorId == null
@@ -38,30 +96,36 @@ export const createEnrollment = onCall(async (request) => {
   try { await getAuth().getUser(studentId); }
   catch { throw new HttpsError("not-found", "Student Auth user not found."); }
   const batchRef = db.collection("batches").doc(batchId);
-  // Deterministic ID prevents duplicate student/batch enrollments under concurrency.
-  const enrollmentId = Array.from(new TextEncoder().encode(studentId + ":" + batchId), byte => byte.toString(16).padStart(2, "0")).join("");
+  const enrollmentId = Array.from(new TextEncoder().encode(organizationId + ":" + studentId + ":" + batchId), byte => byte.toString(16).padStart(2, "0")).join("");
   const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
+  const studentMembershipRef = db.collection("organizations").doc(organizationId).collection("members").doc(studentId);
+
   const createdStatus = await db.runTransaction(async (tx) => {
     const batch = await tx.get(batchRef);
-    if (!batch.exists) throw new HttpsError("not-found", "Batch not found.");
+    const studentMembership = await tx.get(studentMembershipRef);
     const existing = await tx.get(enrollmentRef);
+    if (!batch.exists) throw new HttpsError("not-found", "Batch not found.");
+    if (!existing.exists && (!studentMembership.exists ||
+        studentMembership.data()?.status !== "active" ||
+        studentMembership.data()?.role !== "student")) {
+      throw new HttpsError("failed-precondition", "Student must have an active membership in this organization.");
+    }
     if (existing.exists) {
       throw new HttpsError("already-exists", "Student is already enrolled in this batch.");
     }
-
     const batchData = batch.data()!;
+    if (batchData.organizationId !== organizationId) {
+      throw new HttpsError("permission-denied", "Batch belongs to another organization.");
+    }
     const fee = batchData.fee;
     if (!Number.isSafeInteger(fee) || (fee as number) < 0) {
       throw new HttpsError("failed-precondition", "Batch fee must be a non-negative integer before enrollment.");
     }
     const currency = typeof batchData.currency === "string" ? batchData.currency : "MMK";
-    if (currency !== "MMK") {
-      throw new HttpsError("failed-precondition", "Pilot currently supports MMK enrollment fees only.");
-    }
+    if (currency !== "MMK") throw new HttpsError("failed-precondition", "Pilot currently supports MMK enrollment fees only.");
     const paymentState = initialPaymentState(fee as number);
     tx.create(enrollmentRef, {
-      studentId,
-      batchId,
+      organizationId, studentId, batchId,
       courseId: batchData.courseId ?? "flutter-foundation",
       instructorId,
       feeAmount: paymentState.totalFee,
@@ -75,6 +139,7 @@ export const createEnrollment = onCall(async (request) => {
       createdBy: actor.uid
     });
     tx.create(db.collection("auditLogs").doc(), {
+      organizationId,
       action: paymentState.status === "active" ? "enrollment.created_free" : "enrollment.created_pending_payment",
       actorUid: actor.uid,
       targetId: enrollmentRef.id,
@@ -88,7 +153,8 @@ export const createEnrollment = onCall(async (request) => {
 });
 
 export const recordPayment = onCall(async (request) => {
-  const actor = requireRole(request, ["admin", "instructor"]);
+  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const actor = await requireOrganizationRole(request, organizationId, ["admin", "instructor", "finance"]);
   const enrollmentId = requiredString(request.data?.enrollmentId, "enrollmentId");
   const amount = request.data?.amount;
   const method = request.data?.method;
@@ -109,15 +175,20 @@ export const recordPayment = onCall(async (request) => {
     const enrollment = await tx.get(enrollmentRef);
     if (!enrollment.exists) throw new HttpsError("not-found", "Enrollment not found.");
     const data = enrollment.data()!;
+    if (data.organizationId !== organizationId) {
+      throw new HttpsError("permission-denied", "Enrollment belongs to another organization.");
+    }
     if (actor.role === "instructor" && data.instructorId !== actor.uid) {
       throw new HttpsError("permission-denied", "Instructor is not assigned to this enrollment.");
     }
     if (data.status === "cancelled" || data.status === "withdrawn" || data.status === "suspended") {
       throw new HttpsError("failed-precondition", "Payment cannot be recorded for this enrollment status.");
     }
-
     const batchRef = db.collection("batches").doc(String(data.batchId));
     const batch = typeof data.feeAmount === "number" ? null : await tx.get(batchRef);
+    if (batch && batch.data()?.organizationId !== organizationId) {
+      throw new HttpsError("permission-denied", "Batch belongs to another organization.");
+    }
     const feeAmount = typeof data.feeAmount === "number" ? data.feeAmount : batch?.data()?.fee;
     if (!Number.isSafeInteger(feeAmount) || (feeAmount as number) < 0) {
       throw new HttpsError("failed-precondition", "Enrollment has no valid course fee; reconcile this enrollment first.");
@@ -130,29 +201,27 @@ export const recordPayment = onCall(async (request) => {
     } catch (error) {
       throw new HttpsError("failed-precondition", error instanceof Error ? error.message : "Payment amount is invalid.");
     }
-
+    const currency = data.currency ?? batch?.data()?.currency ?? "MMK";
     tx.update(enrollmentRef, {
-      feeAmount,
-      currency: data.currency ?? batch?.data()?.currency ?? "MMK",
+      feeAmount, currency,
       pendingAmount: reserved.pendingAmount,
       balanceDue: reserved.balanceDue,
       availableToSubmit: reserved.availableToSubmit,
       updatedAt: FieldValue.serverTimestamp()
     });
     tx.create(paymentRef, {
-      enrollmentId,
+      organizationId, enrollmentId,
       studentId: data.studentId,
       instructorId: data.instructorId ?? null,
       batchId: data.batchId,
-      amount,
-      currency: data.currency ?? batch?.data()?.currency ?? "MMK",
-      method,
+      amount, currency, method,
       reference: reference ?? null,
       status: "pending",
       recordedBy: actor.uid,
       createdAt: FieldValue.serverTimestamp()
     });
     tx.create(db.collection("auditLogs").doc(), {
+      organizationId,
       action: "payment.pending.created",
       actorUid: actor.uid,
       targetId: paymentRef.id,
@@ -165,7 +234,8 @@ export const recordPayment = onCall(async (request) => {
 });
 
 export const verifyPayment = onCall(async (request) => {
-  const actor = requireRole(request, ["admin"]);
+  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const actor = await requireOrganizationRole(request, organizationId, ["admin", "finance"]);
   const paymentId = requiredString(request.data?.paymentId, "paymentId");
   const verified = request.data?.verified;
   const note = request.data?.note;
@@ -179,6 +249,9 @@ export const verifyPayment = onCall(async (request) => {
     const payment = await tx.get(paymentRef);
     if (!payment.exists) throw new HttpsError("not-found", "Payment not found.");
     const paymentData = payment.data()!;
+    if (paymentData.organizationId !== organizationId) {
+      throw new HttpsError("permission-denied", "Payment belongs to another organization.");
+    }
     if (paymentData.status !== "pending") {
       throw new HttpsError("failed-precondition", "Only pending payments can be verified.");
     }
@@ -186,9 +259,14 @@ export const verifyPayment = onCall(async (request) => {
     const enrollment = await tx.get(enrollmentRef);
     if (!enrollment.exists) throw new HttpsError("not-found", "Related enrollment not found.");
     const enrollmentData = enrollment.data()!;
-
+    if (enrollmentData.organizationId !== organizationId) {
+      throw new HttpsError("permission-denied", "Enrollment belongs to another organization.");
+    }
     const batchRef = db.collection("batches").doc(String(enrollmentData.batchId));
     const batch = typeof enrollmentData.feeAmount === "number" ? null : await tx.get(batchRef);
+    if (batch && batch.data()?.organizationId !== organizationId) {
+      throw new HttpsError("permission-denied", "Batch belongs to another organization.");
+    }
     const feeAmount = typeof enrollmentData.feeAmount === "number" ? enrollmentData.feeAmount : batch?.data()?.fee;
     if (!Number.isSafeInteger(feeAmount) || (feeAmount as number) < 0) {
       throw new HttpsError("failed-precondition", "Enrollment has no valid course fee; reconcile this enrollment first.");
@@ -198,22 +276,14 @@ export const verifyPayment = onCall(async (request) => {
     if (!Number.isSafeInteger(paymentData.amount) || paymentData.amount <= 0) {
       throw new HttpsError("failed-precondition", "Payment record has an invalid amount.");
     }
-
     let nextState: EnrollmentPaymentState;
     try {
-      nextState = settlePayment(
-        feeAmount as number,
-        paidAmount,
-        pendingAmount,
-        paymentData.amount,
-        verified
-      );
+      nextState = settlePayment(feeAmount as number, paidAmount, pendingAmount, paymentData.amount, verified);
     } catch (error) {
       throw new HttpsError("failed-precondition", error instanceof Error ? error.message : "Payment settlement failed.");
     }
     const nextPaymentStatus = verified ? "verified" : "rejected";
     const wasActive = enrollmentData.status === "active";
-
     tx.update(paymentRef, {
       status: nextPaymentStatus,
       reviewedBy: actor.uid,
@@ -231,6 +301,7 @@ export const verifyPayment = onCall(async (request) => {
       ...(nextState.status === "active" && !wasActive ? { activatedAt: FieldValue.serverTimestamp() } : {})
     });
     tx.create(db.collection("auditLogs").doc(), {
+      organizationId,
       action: "payment." + nextPaymentStatus,
       actorUid: actor.uid,
       targetId: paymentId,
@@ -245,7 +316,8 @@ export const verifyPayment = onCall(async (request) => {
 });
 
 export const markAttendance = onCall(async (request) => {
-  const actor = requireRole(request, ["admin", "instructor"]);
+  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const actor = await requireOrganizationRole(request, organizationId, ["admin", "instructor", "academic_manager"]);
   const enrollmentId = requiredString(request.data?.enrollmentId, "enrollmentId");
   const sessionNo = request.data?.sessionNo;
   const status = request.data?.status;
@@ -261,24 +333,26 @@ export const markAttendance = onCall(async (request) => {
     const enrollment = await tx.get(enrollmentRef);
     if (!enrollment.exists) throw new HttpsError("not-found", "Enrollment not found.");
     const data = enrollment.data()!;
+    if (data.organizationId !== organizationId) throw new HttpsError("permission-denied", "Enrollment belongs to another organization.");
     if (actor.role === "instructor" && data.instructorId !== actor.uid) {
       throw new HttpsError("permission-denied", "Instructor is not assigned to this enrollment.");
     }
     tx.set(attendanceRef, {
-      enrollmentId, studentId: data.studentId, batchId: data.batchId,
+      organizationId, enrollmentId, studentId: data.studentId, batchId: data.batchId,
       instructorId: data.instructorId ?? actor.uid, sessionNo, status,
       markedBy: actor.uid, markedAt: FieldValue.serverTimestamp()
     }, { merge: true });
     tx.create(db.collection("auditLogs").doc(), {
-      action: "attendance." + status, actorUid: actor.uid, targetId: attendanceRef.id,
-      createdAt: FieldValue.serverTimestamp()
+      organizationId, action: "attendance." + status, actorUid: actor.uid,
+      targetId: attendanceRef.id, createdAt: FieldValue.serverTimestamp()
     });
   });
   return { attendanceId: attendanceRef.id, status };
 });
 
 export const recordAssessment = onCall(async (request) => {
-  const actor = requireRole(request, ["admin", "instructor"]);
+  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const actor = await requireOrganizationRole(request, organizationId, ["admin", "instructor", "academic_manager"]);
   const enrollmentId = requiredString(request.data?.enrollmentId, "enrollmentId");
   const projectName = requiredString(request.data?.projectName, "projectName", 100);
   const score = request.data?.score;
@@ -296,29 +370,29 @@ export const recordAssessment = onCall(async (request) => {
     const enrollment = await tx.get(enrollmentRef);
     if (!enrollment.exists) throw new HttpsError("not-found", "Enrollment not found.");
     const data = enrollment.data()!;
+    if (data.organizationId !== organizationId) throw new HttpsError("permission-denied", "Enrollment belongs to another organization.");
     if (actor.role === "instructor" && data.instructorId !== actor.uid) {
       throw new HttpsError("permission-denied", "Instructor is not assigned to this enrollment.");
     }
     tx.set(assessmentRef, {
-      enrollmentId, studentId: data.studentId, batchId: data.batchId,
+      organizationId, enrollmentId, studentId: data.studentId, batchId: data.batchId,
       instructorId: data.instructorId ?? actor.uid, projectName, score, feedback,
       status: "reviewed", updatedBy: actor.uid, updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
     tx.create(db.collection("auditLogs").doc(), {
-      action: "assessment.recorded", actorUid: actor.uid, targetId: assessmentRef.id,
-      createdAt: FieldValue.serverTimestamp()
+      organizationId, action: "assessment.recorded", actorUid: actor.uid,
+      targetId: assessmentRef.id, createdAt: FieldValue.serverTimestamp()
     });
   });
   return { assessmentId, score, status: "reviewed" };
 });
-
 
 /**
  * Admin-managed role assignment. Bootstrap the first admin out-of-band with
  * a trusted Firebase Admin SDK session; never expose service-account keys.
  */
 export const setUserRole = onCall(async (request) => {
-  const actor = requireRole(request, ["admin"]);
+  const actor = requireRole(request, ["platformAdmin"]);
   const uid = requiredString(request.data?.uid, "uid");
   const role = request.data?.role;
   if (!["admin", "instructor", "student"].includes(String(role))) {
@@ -340,44 +414,88 @@ export const setUserRole = onCall(async (request) => {
 
 
 export const createCourseBatch = onCall(async (request) => {
-  const actor = requireRole(request, ["admin"]);
-  const courseId = requiredString(request.data?.courseId, "courseId", 80);
+  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const actor = await requireOrganizationRole(request, organizationId, ["admin"]);
+  const courseIdInput = requiredString(request.data?.courseId, "courseId", 80);
   const courseName = requiredString(request.data?.courseName, "courseName", 120);
   const batchId = requiredString(request.data?.batchId, "batchId", 80);
   const startDate = requiredString(request.data?.startDate, "startDate", 10);
   const fee = request.data?.fee;
   const currency = request.data?.currency ?? "MMK";
   const schedule = request.data?.schedule;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate)) {
     throw new HttpsError("invalid-argument", "startDate must use YYYY-MM-DD.");
   }
-  if (!Number.isInteger(fee) || (fee as number) < 0 || (fee as number) > 100000000) {
-    throw new HttpsError("invalid-argument", "fee must be a non-negative integer.");
+  if (!Number.isSafeInteger(fee) || (fee as number) < 0 || (fee as number) > 100000000) {
+    throw new HttpsError("invalid-argument", "fee must be a non-negative safe integer.");
   }
   if (currency !== "MMK") throw new HttpsError("invalid-argument", "Pilot currently supports MMK only.");
   if (!Array.isArray(schedule) || schedule.length === 0 || schedule.length > 7 ||
       schedule.some((day) => typeof day !== "string" || !["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].includes(day))) {
     throw new HttpsError("invalid-argument", "schedule must contain valid weekday names.");
   }
+  // Prefix course IDs with tenant ID to prevent cross-organization document collisions.
+  const courseId = organizationId + "__" + courseIdInput;
   const courseRef = db.collection("courses").doc(courseId);
   const batchRef = db.collection("batches").doc(batchId);
   await db.runTransaction(async (tx) => {
     const existing = await tx.get(batchRef);
     if (existing.exists) throw new HttpsError("already-exists", "Batch ID already exists.");
+    const course = await tx.get(courseRef);
+    if (course.exists && course.data()?.organizationId !== organizationId) {
+      throw new HttpsError("permission-denied", "Course ID collision across organizations.");
+    }
     tx.set(courseRef, {
-      name: courseName, updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid
+      organizationId, name: courseName,
+      updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid
     }, { merge: true });
     tx.create(batchRef, {
-      courseId, name: courseName, startDate, fee, currency,
+      organizationId, courseId, name: courseName, startDate, fee, currency,
       schedule, status: "planned", createdAt: FieldValue.serverTimestamp(),
       createdBy: actor.uid
     });
     tx.create(db.collection("auditLogs").doc(), {
-      action: "course.batch.created", actorUid: actor.uid, targetId: batchId,
-      createdAt: FieldValue.serverTimestamp()
+      organizationId, action: "course.batch.created", actorUid: actor.uid,
+      targetId: batchId, createdAt: FieldValue.serverTimestamp()
     });
   });
-  return { courseId, batchId, status: "planned" };
+  return { organizationId, courseId, batchId, status: "planned" };
+});
+
+export const recordOutcome = onCall(async (request) => {
+  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const actor = await requireOrganizationRole(request, organizationId, ["admin", "instructor", "academic_manager"]);
+  const enrollmentId = requiredString(request.data?.enrollmentId, "enrollmentId");
+  const outcome = request.data?.outcome;
+  const evidence = request.data?.evidence ?? "";
+  if (!["completed", "not_completed", "withdrawn"].includes(String(outcome))) {
+    throw new HttpsError("invalid-argument", "Unsupported outcome.");
+  }
+  if (typeof evidence !== "string" || evidence.length > 1000) {
+    throw new HttpsError("invalid-argument", "Evidence note must be at most 1000 characters.");
+  }
+  const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
+  const outcomeRef = db.collection("outcomes").doc(enrollmentId);
+  await db.runTransaction(async (tx) => {
+    const enrollment = await tx.get(enrollmentRef);
+    if (!enrollment.exists) throw new HttpsError("not-found", "Enrollment not found.");
+    const data = enrollment.data()!;
+    if (data.organizationId !== organizationId) throw new HttpsError("permission-denied", "Enrollment belongs to another organization.");
+    if (actor.role === "instructor" && data.instructorId !== actor.uid) {
+      throw new HttpsError("permission-denied", "Instructor is not assigned to this enrollment.");
+    }
+    tx.set(outcomeRef, {
+      organizationId, enrollmentId, studentId: data.studentId, batchId: data.batchId,
+      instructorId: data.instructorId ?? actor.uid, outcome, evidence,
+      recordedBy: actor.uid, recordedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    tx.update(enrollmentRef, { status: outcome === "completed" ? "completed" : outcome });
+    tx.create(db.collection("auditLogs").doc(), {
+      organizationId, action: "student.outcome.recorded", actorUid: actor.uid,
+      targetId: enrollmentId, outcome, createdAt: FieldValue.serverTimestamp()
+    });
+  });
+  return { organizationId, enrollmentId, outcome };
 });
 
 export const recordOutcome = onCall(async (request) => {
