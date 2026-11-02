@@ -1,7 +1,34 @@
 # KMH OIA Production Module V1 — Local Video Pilot
 
 **Status:** implementation branch / controlled pilot; real GPU execution not yet verified.
-**Scope:** one existing source video rendered to H.264 MP4 using local NVIDIA NVENC through FFmpeg.
+**Scope:** one existing source video rendered to H.264 MP4 using local compute. Android MediaCodec via Termux is the phone-first path; NVIDIA NVENC remains an optional desktop adapter.
+
+## Phone-first compute decision
+
+The primary operator environment is Android phone/tablet. Do not require an NVIDIA GPU for the V1 pilot.
+
+- Preferred Android path: Termux + FFmpeg `h264_mediacodec` hardware encoder when exposed by the device/build.
+- Explicit fallback: `libx264` CPU encoding is disabled by default and may only be enabled with `--allow-cpu-fallback`.
+- Optional desktop path: the existing NVIDIA NVENC adapter remains separate and requires `nvidia-smi` plus `h264_nvenc`.
+- Hardware codec availability and stability are device/build dependent. A mocked CI pass is not proof that the phone's codec actually works.
+
+Install in Termux:
+
+```bash
+pkg update && pkg upgrade
+pkg install python ffmpeg
+termux-setup-storage
+ffmpeg -hide_banner -encoders | grep -E 'h264_mediacodec|libx264'
+ffprobe -version
+```
+
+Run from the repository root:
+
+```bash
+python -m scripts.run_android_video_pilot --input ~/storage/shared/Movies/source.mp4 --output-dir ~/kmh-oia-output --width 1280 --height 720 --fps 30
+```
+
+If the phone does not expose `h264_mediacodec`, the default behavior is HOLD. Only after explicit approval for CPU use, rerun with `--allow-cpu-fallback`. The report must record which encoder actually ran.
 
 ## Architecture
 
