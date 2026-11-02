@@ -18,12 +18,12 @@ jobs:
         with:
           node-version: 20
           package-manager-cache: false
-      - name: Build Cloud Functions
+      - name: Build Cloud Functions and run payment state tests
         working-directory: education-business-os/functions
         run: |
           npm install
           npm audit --json > "$GITHUB_WORKSPACE/npm-audit-functions.json" || true
-          npm run build
+          npm test
       - name: Build Web
         working-directory: education-business-os/web
         run: |
