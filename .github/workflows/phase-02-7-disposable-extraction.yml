@@ -3,7 +3,7 @@ name: KMH Graphify Phase 02.7 Disposable Compatibility Extraction
 on:
   push:
     branches:
-      - "phase-02-7-disposable-run-once-20261102"
+      - "phase-02-7-recovery-once-20261102-r1"
     paths:
       - "case-studies/creative-intelligence-design-studio/contracts/phase-02-7-launch-trigger.json"
 
@@ -53,7 +53,7 @@ jobs:
           RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = "phase-02-7-disposable-run-once-20261102"
+          test "$GITHUB_REF_NAME" = "phase-02-7-recovery-once-20261102-r1"
           test "$RUN_ATTEMPT" = "1"
           python - <<'PY'
           import json
