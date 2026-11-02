@@ -1,0 +1,24 @@
+{
+  "run": 47,
+  "date": "2026-11-02",
+  "input": "Run46/P01_Outfit03_Transparent_Candidate_v2.png",
+  "canvas_px": [617, 1148],
+  "method": "Manually authored polygon ROIs intersected with existing Run 46 alpha; masks partition visible regions without overlap.",
+  "layers": {
+    "Gold_Blouse": {"mask_pixels": 107079, "partial_alpha_pixels": 684, "bbox_xyxy": [4, 40, 582, 503]},
+    "Ruby_Longyi": {"mask_pixels": 231353, "partial_alpha_pixels": 1208, "bbox_xyxy": [106, 355, 443, 1142]},
+    "Cream_Gold_Drape": {"mask_pixels": 93729, "partial_alpha_pixels": 146, "bbox_xyxy": [363, 78, 613, 930]}
+  },
+  "foreground_coverage": {"source_alpha_pixels_alpha_gt_16": 464840, "assigned_pixels": 432161, "unassigned_pixels": 32679, "coverage_percent": 92.97},
+  "overlap_pixels": {"blouse_longyi": 0, "blouse_drape": 0, "longyi_drape": 0},
+  "tests": {"passed": 4, "failed": 0, "scope": "synthetic helper tests; not visual boundary certification"},
+  "research_vs_execution": {"sam_3_1": "researched_not_executed", "sam_2": "researched_not_executed", "grabcut": "researched_not_executed", "actual_execution": "manual_polygons_plus_existing_alpha_mask"},
+  "limitations": [
+    "32,679 source foreground pixels remain unassigned; includes tabs and unreviewed garment/edge regions.",
+    "First-pass polygon boundaries need human visual review.",
+    "Drape alpha is not true textile transmission alpha; source is flattened RGB on white.",
+    "Hidden blouse and longyi pixels under the drape were not reconstructed.",
+    "No Thiri v5 alignment, P01 composite or protected-identity QA was run."
+  ],
+  "gate": {"three_mask_candidates": "PASS_DIAGNOSTIC", "local_tests": "PASS_4_OF_4", "visible_foreground_coverage": "92.97_PERCENT_INCOMPLETE", "manual_boundary_acceptance": "PENDING", "true_drape_alpha": "NOT_RECOVERED", "thiri_alignment": "NOT_RUN", "p01_composite": "NOT_RUN", "production_approval": "HOLD"}
+}
