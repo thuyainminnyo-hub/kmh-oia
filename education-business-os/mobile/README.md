@@ -59,3 +59,7 @@ This client provides sign-in, organization selection and read-only enrollment di
 ## Phase 13.6 cloud Firebase configuration
 
 See [PHASE-13.6-CLOUD-SETUP.md](PHASE-13.6-CLOUD-SETUP.md) for the Codespaces toolchain, existing Firebase Android app inspection, package ID matching, FlutterFire configuration, and acceptance evidence. The CI package gate uses the repository Actions variable `APTIVERN_ANDROID_PACKAGE_NAME`; leave it unset until the existing Firebase Android package has been confirmed. An unset variable is reported as PENDING, not as a verified Firebase registration.
+
+## GitHub Codespaces
+
+Open this feature branch in GitHub Codespaces. The repository root `.devcontainer` configuration provisions Flutter stable, Android command-line tools, Java 21, Firebase CLI and FlutterFire CLI. After setup completes, run `.devcontainer/check-toolchain.sh`, then authenticate with `firebase login --no-localhost`. Follow [PHASE-13.6-CLOUD-SETUP.md](PHASE-13.6-CLOUD-SETUP.md) to inspect the existing Android Firebase registration before running `flutterfire configure`.
