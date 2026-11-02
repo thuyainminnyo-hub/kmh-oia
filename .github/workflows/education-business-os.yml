@@ -173,7 +173,7 @@ jobs:
       - name: Upload Android debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: aptivern-student-android-debug
+          name: aptivern-student-android-debug-${{ vars.APTIVERN_ANDROID_PACKAGE_NAME != '' && 'configured' || 'scaffold' }}
           path: education-business-os/mobile/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 7
