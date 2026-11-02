@@ -32,15 +32,16 @@ If the phone does not expose `h264_mediacodec`, the default behavior is HOLD. On
 
 ## Architecture
 
-`ProductionJob(queued) → ProductionExecutionBridge → LocalFFmpegVideoAdapter → FFmpeg/NVENC → MP4 + execution manifest → output verification → qa_pending → content QA → human approval`
+`ProductionJob(queued) → ProductionExecutionBridge → AndroidMediaCodecVideoAdapter → FFmpeg/MediaCodec → MP4 + execution manifest → output verification → qa_pending → content QA → human approval`
 
 The existing `ProductionJob` and `ProductionExecutionBridge` remain the job envelope and fail-closed execution boundary. The new adapter is deliberately separate from the image-only ComfyUI adapter.
 
 ## V1 guardrails
 
 - Local-only execution; the adapter accepts a local source path and does not call a remote rendering service.
-- NVIDIA GPU acceleration is explicit: `nvidia-smi` must identify a GPU and FFmpeg must advertise `h264_nvenc`.
-- No silent CPU fallback. If NVENC is unavailable, the job fails before rendering.
+- Android hardware acceleration is explicit: FFmpeg must advertise `h264_mediacodec`; the selected encoder is recorded in the manifest.
+- No silent CPU fallback. If MediaCodec is unavailable, the job fails unless the operator explicitly enables `--allow-cpu-fallback`.
+- Desktop NVIDIA NVENC is an optional separate adapter, not a V1 phone prerequisite.
 - FFmpeg is invoked as an argument array, never through a shell.
 - Input must be a non-empty file. Output must be a non-empty MP4 with a valid positive duration and H.264 video stream according to ffprobe.
 - Adapter success is not content QA. The bridge must leave the job at `qa_pending`; a separate reviewer must approve it.
@@ -50,38 +51,40 @@ The existing `ProductionJob` and `ProductionExecutionBridge` remain the job enve
 
 1. [x] Reuse existing immutable ProductionJob contract.
 2. [x] Reuse fail-closed ProductionExecutionBridge.
-3. [x] Add local FFmpeg/NVENC adapter with explicit no-CPU-fallback behavior.
-4. [x] Add deterministic unit tests with mocked system commands.
+3. [x] Add Android FFmpeg/MediaCodec adapter with explicit CPU fallback approval.
+4. [x] Add deterministic unit tests for Android MediaCodec and desktop NVENC adapters.
 5. [ ] Add independent content QA (audio/video playback, scene correctness, sync, visual quality).
 6. [ ] Add signed/append-only audit persistence and operator identity.
 7. [ ] Run exact-head GitHub CI.
-8. [ ] Run a real local GPU smoke test on the operator's machine with a permitted source clip.
-9. [ ] Capture real execution manifest, ffprobe output, GPU evidence and QA decision.
+8. [ ] Run a real Android MediaCodec smoke test on the operator's phone with a permitted source clip.
+9. [ ] Capture real execution manifest, ffprobe output, device/encoder evidence and QA decision.
 10. [ ] Obtain human approval before release/promotion.
 
 ## Local prerequisites
 
-- NVIDIA GPU and compatible driver.
-- FFmpeg build that includes `h264_nvenc`.
+- Android phone/tablet with Termux.
+- FFmpeg exposing `h264_mediacodec` for hardware encoding, or explicit approval for `libx264` CPU fallback.
 - `ffprobe` available on PATH.
 - A permitted, non-sensitive input video file.
 - Python environment with the KMH OIA repository dependencies.
 
-Check readiness:
+Install and check in Termux:
 
 ```bash
-nvidia-smi
-ffmpeg -hide_banner -encoders | grep h264_nvenc
+pkg update && pkg upgrade
+pkg install python ffmpeg
+termux-setup-storage
+ffmpeg -hide_banner -encoders | grep -E 'h264_mediacodec|libx264'
 ffprobe -version
 ```
 
-A missing GPU/encoder must remain a HOLD; do not switch to CPU and label it a GPU run.
-
-Run one controlled pilot job (the output directory is also the bridge allowlist):
+Run one controlled Android pilot job (the output directory is also the bridge allowlist):
 
 ```bash
-python -m scripts.run_local_video_pilot --input media/source.mp4 --output-dir artifacts/video --width 1920 --height 1080 --fps 30
+python -m scripts.run_android_video_pilot --input ~/storage/shared/Movies/source.mp4 --output-dir ~/kmh-oia-output --width 1280 --height 720 --fps 30
 ```
+
+If `h264_mediacodec` is unavailable, the job remains HOLD by default. Only after explicit operator approval for local CPU rendering, rerun with `--allow-cpu-fallback`. Desktop NVIDIA NVENC execution remains available through `python -m scripts.run_local_video_pilot`, but is not required for the phone-first pilot.
 
 The command returns `qa_pending` on successful rendering. It never approves or publishes the video. Review the adjacent `.execution.json` manifest and perform the separate content-QA and human-approval steps.
 
