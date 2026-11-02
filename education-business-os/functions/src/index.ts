@@ -50,9 +50,22 @@ function requiredString(value: unknown, field: string, max = 120): string {
   return value.trim();
 }
 
+function requiredOrganizationId(value: unknown): string {
+  const organizationId = requiredString(value, "organizationId", 80);
+  if (
+    organizationId === "." ||
+    organizationId === ".." ||
+    organizationId.includes("/") ||
+    organizationId.includes(String.fromCharCode(92))
+  ) {
+    throw new HttpsError("invalid-argument", "organizationId must be a single safe document ID.");
+  }
+  return organizationId;
+}
+
 export const bootstrapOrganization = onCall(async (request) => {
   const actor = requireRole(request, ["platformAdmin"]);
-  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const organizationId = requiredOrganizationId(request.data?.organizationId);
   const name = requiredString(request.data?.name, "name", 160);
   const organizationRef = db.collection("organizations").doc(organizationId);
   const memberRef = organizationRef.collection("members").doc(actor.uid);
@@ -80,7 +93,7 @@ export const bootstrapOrganization = onCall(async (request) => {
 });
 
 export const setOrganizationMember = onCall(async (request) => {
-  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const organizationId = requiredOrganizationId(request.data?.organizationId);
   const actor = await requireOrganizationRole(request, organizationId, ["admin"]);
   const uid = requiredString(request.data?.uid, "uid");
   const role = request.data?.role;
@@ -132,7 +145,7 @@ export const setOrganizationMember = onCall(async (request) => {
 });
 
 export const createEnrollment = onCall(async (request) => {
-  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const organizationId = requiredOrganizationId(request.data?.organizationId);
   const actor = await requireOrganizationRole(request, organizationId, ["admin"]);
   const studentId = requiredString(request.data?.studentId, "studentId");
   const batchId = requiredString(request.data?.batchId, "batchId");
@@ -215,7 +228,7 @@ export const createEnrollment = onCall(async (request) => {
 });
 
 export const recordPayment = onCall(async (request) => {
-  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const organizationId = requiredOrganizationId(request.data?.organizationId);
   const actor = await requireOrganizationRole(request, organizationId, ["admin", "instructor", "finance"]);
   const enrollmentId = requiredString(request.data?.enrollmentId, "enrollmentId");
   const amount = request.data?.amount;
@@ -296,7 +309,7 @@ export const recordPayment = onCall(async (request) => {
 });
 
 export const verifyPayment = onCall(async (request) => {
-  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const organizationId = requiredOrganizationId(request.data?.organizationId);
   const actor = await requireOrganizationRole(request, organizationId, ["admin", "finance"]);
   const paymentId = requiredString(request.data?.paymentId, "paymentId");
   const verified = request.data?.verified;
@@ -378,7 +391,7 @@ export const verifyPayment = onCall(async (request) => {
 });
 
 export const markAttendance = onCall(async (request) => {
-  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const organizationId = requiredOrganizationId(request.data?.organizationId);
   const actor = await requireOrganizationRole(request, organizationId, ["admin", "instructor", "academic_manager"]);
   const enrollmentId = requiredString(request.data?.enrollmentId, "enrollmentId");
   const sessionNo = request.data?.sessionNo;
@@ -413,7 +426,7 @@ export const markAttendance = onCall(async (request) => {
 });
 
 export const recordAssessment = onCall(async (request) => {
-  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const organizationId = requiredOrganizationId(request.data?.organizationId);
   const actor = await requireOrganizationRole(request, organizationId, ["admin", "instructor", "academic_manager"]);
   const enrollmentId = requiredString(request.data?.enrollmentId, "enrollmentId");
   const projectName = requiredString(request.data?.projectName, "projectName", 100);
@@ -476,7 +489,7 @@ export const setUserRole = onCall(async (request) => {
 
 
 export const createCourseBatch = onCall(async (request) => {
-  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const organizationId = requiredOrganizationId(request.data?.organizationId);
   const actor = await requireOrganizationRole(request, organizationId, ["admin"]);
   const courseIdInput = requiredString(request.data?.courseId, "courseId", 80);
   const courseName = requiredString(request.data?.courseName, "courseName", 120);
@@ -525,7 +538,7 @@ export const createCourseBatch = onCall(async (request) => {
 });
 
 export const recordOutcome = onCall(async (request) => {
-  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const organizationId = requiredOrganizationId(request.data?.organizationId);
   const actor = await requireOrganizationRole(request, organizationId, ["admin", "instructor", "academic_manager"]);
   const enrollmentId = requiredString(request.data?.enrollmentId, "enrollmentId");
   const outcome = request.data?.outcome;
