@@ -3,10 +3,10 @@
   "phase": "02.4",
   "evidence_kind": "independent_python_ast_context_report",
   "source_run": {
-    "workflow_run_id": 41453288854,
-    "commit_sha": "61200d6a723ad5cd1dc88fbdaebf229e249a5e0f",
-    "artifact_id": 13145371926,
-    "artifact_url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453288854/artifacts/13145371926"
+    "workflow_run_id": 41453693011,
+    "commit_sha": "cc64691fb750099a5b47f5d2f89a9c73c09f1186",
+    "artifact_id": 13145199045,
+    "artifact_url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453693011/artifacts/13145199045"
   },
   "analysis_mode": "stdlib_ast_context_only_not_graphify_execution",
   "status": "PASS",
@@ -64,5 +64,9 @@
   "immutable_graphs": {
     "raw_sha256": "c5ad7ea7fdd6b6c65c81726a0aec51c5bead7a3cf29ff85a59051eb6bd95abeb",
     "extracted_only_candidate_sha256": "c2053e83445e8b4c94d5c29a9a3ef816ccf15561c5a76cd8139e2412584123c1"
+  },
+  "held_edge_source_evidence_artifact": {
+    "artifact_id": 13145084217,
+    "artifact_url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453693011/artifacts/13145084217"
   }
 }
