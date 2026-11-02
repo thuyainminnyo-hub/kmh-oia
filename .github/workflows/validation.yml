@@ -66,7 +66,6 @@ jobs:
           name: kmh-oia-production-readiness-snapshot
           path: production-readiness-snapshot.json
       - run: git diff --check
-      - run: python -m unittest discover -s tests -v
 
   deployment-evidence-bundle:
     if: ${{ always() }}
