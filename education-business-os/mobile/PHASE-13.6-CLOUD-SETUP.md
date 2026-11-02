@@ -51,13 +51,13 @@ Compare Firebase package name with Gradle `applicationId`. Do not create another
 
 ## 4. Set the Cloud CI variable only after comparison
 
-The workflow expects the reverse-DNS organization part of the confirmed package name in GitHub repository variable `APTIVERN_ANDROID_ORG`.
+The workflow expects the full, exact registered Android package name in GitHub repository variable `APTIVERN_ANDROID_PACKAGE_NAME`.
 
-For example, if (and only if) Firebase shows `org.example.aptivern_student_app`, the variable would be `org.example`. This is an illustration, not the real value.
+For example, if (and only if) Firebase shows `org.example.aptivern_student_app`, the variable would be `org.example.aptivern_student_app`. This is an illustration, not the real value.
 
 Set it at GitHub repository Settings → Secrets and variables → Actions → Variables → New repository variable. It is a package identifier, not a secret.
 
-CI derives `<APTIVERN_ANDROID_ORG>.aptivern_student_app` and fails on a mismatch or placeholder `com.example`. Until the variable is set, CI reports the package gate as PENDING and does not claim Firebase package verification.
+CI derives `APTIVERN_ANDROID_PACKAGE_NAME` exactly as supplied and fails on a mismatch or placeholder `com.example`. Until the variable is set, CI reports the package gate as PENDING and does not claim Firebase package verification.
 
 ## 5. Run FlutterFire against the existing registration
 
