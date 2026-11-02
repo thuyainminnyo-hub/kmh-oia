@@ -1,6 +1,6 @@
 # Phase 02.5 — Independent Graph Integrity & Versioned Evidence Comparison
 
-**Status:** Validator and 11 regression tests implemented; real raw/candidate pair locally verified. PR CI verification follows.  
+**Status:** Validator and 11 regression tests implemented; real raw/candidate pair passes both local validation and GitHub-hosted PR CI.  
 **Owner decision:** G4 `CONFIRMED_HOLD` — keep the `uses / INFERRED` edge under review; do not promote.  
 **Graphify execution:** Not performed.  
 **Production promotion:** Not authorized.
@@ -70,13 +70,13 @@ Eleven tests cover:
 10. External references are not classified as ghosts.
 11. Input graph objects are not mutated.
 
-Local result: **11/11 PASS**. The actual graph-pair validator returned **PASS / zero errors** against the downloaded raw artifact, committed candidate, source fixtures, owner decision, promotion report, and baseline.
+Local result: **11/11 PASS**. The actual graph-pair validator returned **PASS / zero errors** against the downloaded raw artifact, committed candidate, source fixtures, owner decision, promotion report, and baseline. The integrated Creative Studio CI runs all module tests: **69/69 PASS**.
 
 ## 5. CI provenance
 
 The Creative Studio workflow downloads the exact raw artifact from a previous workflow run. GitHub's `actions/download-artifact` supports cross-run downloads when supplied with a token and run ID; this workflow requests read-only `actions: read` permission. See [GitHub download-artifact documentation](https://github.com/actions/download-artifact#download-artifacts-from-other-workflow-runs-or-repositories) and [GitHub workflow artifact guidance](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts).
 
-The comparison report is uploaded as a 14-day workflow artifact and includes:
+The exact cross-run raw artifact download, hash/provenance comparison, and report upload were all verified in Creative Studio QA run [41456607754](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41456607754). The resulting [Phase 02.5 graph-integrity report artifact 13147061986](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41456607754/artifacts/13147061986) has status **PASS** with zero errors and includes:
 - baseline identifier and version;
 - raw and candidate SHA-256;
 - node/edge and confidence counts;
@@ -87,12 +87,19 @@ The comparison report is uploaded as a 14-day workflow artifact and includes:
 
 This is evidence provenance and hash pinning, not a signed build attestation. No new token-write permission, artifact attestation action, Graphify re-installation or extraction is introduced.
 
-## 6. Gate status
+## 6. CI verification and gate status
+
+Verified on PR head `d96890fc45cf610e662cf7a72bdec13a260ed3ef`:
+- Creative Studio QA [run 41456607754](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41456607754): **69/69 tests PASS**; raw artifact download PASS; Phase 02.5 integrity report PASS.
+- Phase 02.5 graph comparison [artifact 13147061986](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41456607754/artifacts/13147061986): raw/candidate pair PASS, zero errors.
+- KMH OIA Tests [run 41456607789](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41456607789): **462/462 tests PASS**; performance baseline PASS.
+- KMH OIA Validation [run 41456607756](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41456607756): SUCCESS; deployment evidence bundle PASS.
+- Graphify dependency audit [run 41456607763](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41456607763): SUCCESS.
 
 - G4 — Owner HOLD: CONFIRMED; `uses / INFERRED` stays under review.
-- G8 — Raw/candidate integrity comparison: IMPLEMENTED; local actual-pair PASS, CI verification pending.
-- G8 — Canonical node/source identity: local PASS; CI verification pending.
-- G8 — Versioned evidence baseline: CREATED.
+- G8 — Raw/candidate integrity comparison: IMPLEMENTED and CI-VERIFIED; exact raw artifact download and hash comparison PASS.
+- G8 — Canonical node/source identity: PASS; duplicate and ghost indicators 0.
+- G8 — Versioned evidence baseline: CREATED and CI-VERIFIED.
 - Raw graph / candidate mutation: NO.
 - Graphify execution in Phase 02.5: NO.
 - Production promotion / OIA runtime integration: NOT AUTHORIZED.
