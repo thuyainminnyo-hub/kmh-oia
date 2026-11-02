@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0.0",
+  "phase": "02.4",
+  "evidence_kind": "independent_python_ast_context_report",
+  "source_run": {
+    "workflow_run_id": 41453288854,
+    "commit_sha": "61200d6a723ad5cd1dc88fbdaebf229e249a5e0f",
+    "artifact_id": 13145371926,
+    "artifact_url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41453288854/artifacts/13145371926"
+  },
+  "analysis_mode": "stdlib_ast_context_only_not_graphify_execution",
+  "status": "PASS",
+  "source_file": "graphify-sandbox/src/outfit_flow.py",
+  "import": {
+    "module": "contract_guard",
+    "imported_name": "DesignToken",
+    "local_name": "DesignToken",
+    "line": 3
+  },
+  "local_symbol": {
+    "name": "select_outfit",
+    "kind": "FunctionDef",
+    "line": 6
+  },
+  "reference_sites": [
+    {
+      "line": 6,
+      "column": 25,
+      "context": "TYPE_ANNOTATION"
+    }
+  ],
+  "reference_counts": {
+    "TYPE_ANNOTATION": 1,
+    "RUNTIME_CALL": 0,
+    "RUNTIME_BODY_REFERENCE": 0
+  },
+  "resolver_input_assessment": {
+    "imported_name_referenced_in_local_symbol": true,
+    "first_reference_line": 6,
+    "has_type_annotation_reference": true,
+    "has_runtime_reference": false
+  },
+  "interpretation": "The held Graphify source location is exactly the DesignToken parameter annotation. token.token_name is a field access through the typed parameter, not a runtime reference to the imported identifier DesignToken.",
+  "governance": {
+    "owner_disposition": "CONFIRMED_HOLD",
+    "edge_confidence": "INFERRED",
+    "promotion": "NOT_AUTHORIZED",
+    "raw_graph_mutated": false,
+    "candidate_graph_mutated": false,
+    "graphify_extraction_performed": false
+  },
+  "regression_matrix_tests": 8,
+  "creative_studio_tests": 58,
+  "creative_studio_result": "PASS",
+  "oia_tests": 462,
+  "oia_result": "PASS",
+  "upstream_residual_risk": {
+    "issue": "https://github.com/Graphify-Labs/graphify/issues/1186",
+    "observed_version": "0.8.35",
+    "status_observed": "OPEN",
+    "relevance": "Reports cross-file type annotation/inheritance ghost nodes and downgraded uses/INFERRED edges in older Graphify. The current two-file v0.9.100 fixture does not reproduce the ghost-node symptom, but does not clear the broader risk.",
+    "required_follow_up": "A new owner-approved Graphify extraction over separate synthetic annotation, return-type, class-base, and canonical-ID fixtures."
+  },
+  "immutable_graphs": {
+    "raw_sha256": "c5ad7ea7fdd6b6c65c81726a0aec51c5bead7a3cf29ff85a59051eb6bd95abeb",
+    "extracted_only_candidate_sha256": "c2053e83445e8b4c94d5c29a9a3ef816ccf15561c5a76cd8139e2412584123c1"
+  }
+}
