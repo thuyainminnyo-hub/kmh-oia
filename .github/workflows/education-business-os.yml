@@ -125,7 +125,7 @@ jobs:
       - name: Verify Android package identity gate
         working-directory: education-business-os/mobile
         env:
-          APTIVERN_ANDROID_ORG: ${{ vars.APTIVERN_ANDROID_ORG }}
+          APTIVERN_ANDROID_PACKAGE_NAME: ${{ vars.APTIVERN_ANDROID_PACKAGE_NAME }}
         run: node tool/verify-android-package.mjs
       - name: Analyze Flutter source
         working-directory: education-business-os/mobile
