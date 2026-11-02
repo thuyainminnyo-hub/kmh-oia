@@ -10,6 +10,7 @@ from src.local_video_adapter import (
     VideoRenderConfig,
 )
 from src.production_job import ProductionJob
+from src.production_execution import ProductionExecutionBridge
 
 
 class LocalVideoAdapterTests(unittest.TestCase):
@@ -96,6 +97,42 @@ class LocalVideoAdapterTests(unittest.TestCase):
         result = adapter.execute(self.running)
         self.assertFalse(result.success)
         self.assertIn("ffmpeg", result.error_message)
+
+
+    @patch("src.local_video_adapter.shutil.which", return_value="/usr/bin/tool")
+    def test_end_to_end_bridge_stops_at_qa_pending(self, _which):
+        commands = []
+        def runner(command, **kwargs):
+            commands.append(command)
+            if command[0] == "nvidia-smi":
+                return SimpleNamespace(returncode=0, stdout="NVIDIA Test GPU, 555.1", stderr="")
+            if command[:2] == ["ffmpeg", "-version"]:
+                return SimpleNamespace(returncode=0, stdout="ffmpeg version test", stderr="")
+            if command[:3] == ["ffmpeg", "-hide_banner", "-encoders"]:
+                return SimpleNamespace(returncode=0, stdout=" V..... h264_nvenc NVIDIA NVENC", stderr="")
+            if command[0] == "ffmpeg":
+                Path(command[-1]).write_bytes(b"fake-mp4")
+                return SimpleNamespace(returncode=0, stdout="progress=end", stderr="")
+            if command[0] == "ffprobe":
+                return SimpleNamespace(returncode=0, stdout=json.dumps({
+                    "format": {"duration": "2.5", "format_name": "mov,mp4"},
+                    "streams": [{"codec_type": "video", "codec_name": "h264",
+                                 "width": 640, "height": 360}],
+                }), stderr="")
+            raise AssertionError(command)
+
+        adapter = LocalFFmpegVideoAdapter(self.config, runner=runner)
+        bridge = ProductionExecutionBridge(adapter, allowed_output_root=self.output)
+        result = bridge.execute(self.job)
+        self.assertEqual(result.status, "qa_pending")
+        self.assertEqual(result.attempt, 1)
+        self.assertTrue(Path(result.output_path).is_file())
+        self.assertFalse(hasattr(result, "approved_by"))
+        manifest = next(self.output.glob("*.execution.json"))
+        data = json.loads(manifest.read_text())
+        self.assertEqual(len(data["source"]["sha256"]), 64)
+        self.assertEqual(len(data["output"]["sha256"]), 64)
+        self.assertEqual(data["status"], "rendered_qa_pending")
 
 
 if __name__ == "__main__":
