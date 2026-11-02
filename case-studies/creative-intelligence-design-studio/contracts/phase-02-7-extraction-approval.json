@@ -1,13 +1,13 @@
 {
   "schema_version": "1.0.0",
-  "approval_id": "KMH-CREATIVE-GRAPHIFY-PHASE-02-7-2026-11-02-RUN-01",
+  "approval_id": "KMH-CREATIVE-GRAPHIFY-PHASE-02-7R-2026-11-02-RUN-01",
   "status": "approved_single_disposable_run",
   "approval_date": "2026-11-02",
-  "authorization_basis": "Explicit user instruction in this conversation: '@Web search Extraction အသစ်အတွက် Owner Approvalလိုအပ်ရင်let's go ပါ'.",
-  "approval_scope": "Exactly one fresh disposable Graphify v0.9.100 code-only extraction, using only the ten approved synthetic Python files in graphify-phase-02-7-sandbox.",
+  "authorization_basis": "Explicit owner approval in conversation: Phase 02.7-R Recovery + New One-time Extraction; workflow repair, preflight CI, new approval, then one disposable extraction.",
+  "approval_scope": "Exactly one fresh disposable Graphify v0.9.100 code-only extraction after repaired workflow passes preflight CI, using only the ten approved synthetic Python files in graphify-phase-02-7-sandbox.",
   "max_runs": 1,
-  "launch_branch": "phase-02-7-disposable-run-once-20261102",
-  "previous_run_guard": "Dedicated branch + base-commit event check + GitHub workflow run-history check + run_attempt==1 + concurrency serialization",
+  "launch_branch": "phase-02-7-recovery-once-20261102-r1",
+  "previous_run_guard": "Fresh dedicated recovery branch + exact base-commit event binding + GitHub workflow run-history guard + run_attempt==1 + concurrency serialization; prior failed branch is not reused.",
   "source": {
     "repository": "https://github.com/Graphify-Labs/graphify",
     "package": "graphifyy",
