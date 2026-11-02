@@ -2,7 +2,7 @@
   "manifest_version": "1.0",
   "project": "DhammaVerse AI",
   "lesson_id": "DV-001",
-  "source_policy": "canonical-source-first; translations are attributed; adaptations are labelled",
+  "source_policy": "canonical-source-first; translations attributed; adaptations labelled; rights reviewed per source; do not ingest restricted translations into AI workflows",
   "sources": [
     {
       "source_id": "AN3.65-PI",
@@ -11,7 +11,8 @@
       "language": "Pali",
       "url": "https://suttacentral.net/an3.65/pli/ms",
       "role": "canonical_text_reference",
-      "verification": "reference_registered; exact text and edition review pending"
+      "verification": "reference registered; edition provenance recorded; qualified review pending",
+      "rights_note": "Pali canonical text is public-domain material; retain edition provenance and verify exact transcription"
     },
     {
       "source_id": "AN3.65-EN-SUJATO",
@@ -21,7 +22,10 @@
       "translator": "Bhikkhu Sujato",
       "url": "https://suttacentral.net/an3.65/en/sujato",
       "role": "translation_reference",
-      "verification": "reference_registered; translation comparison pending"
+      "verification": "license and AI restriction reviewed; full text not copied or ingested",
+      "license": "CC0 as displayed by SuttaCentral for this translation",
+      "ai_use_restriction": "SuttaCentral licensing policy requests no scraping and no use in AI training datasets, model/algorithm development, or AI-derived technologies; do not ingest into DhammaVerse AI workflows; link-only reference pending written clarification",
+      "permitted_project_use": "human-accessed link/reference only pending clarification"
     },
     {
       "source_id": "AN3.65-EN-BODHI",
@@ -31,7 +35,10 @@
       "translator": "Bhikkhu Bodhi",
       "url": "https://suttacentral.net/AN3.65/en/bodhi",
       "role": "independent_translation_comparison",
-      "verification": "reference_registered; translation comparison pending"
+      "verification": "license reviewed; no translation text copied",
+      "license": "CC BY-NC-ND 3.0 Unported",
+      "ai_use_restriction": "No copying, adaptation, or redistribution in this project without permission; link-only reference",
+      "permitted_project_use": "link-only reference; seek permission for reuse"
     },
     {
       "source_id": "NCCIH-MEDITATION-SAFETY",
