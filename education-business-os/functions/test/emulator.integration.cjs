@@ -140,6 +140,12 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
       const deletions = audit.docs.map(doc => doc.ref.delete());
       await Promise.all(deletions);
     }
+    for (const organizationId of ["aptivern", prefix + "-school-b"]) {
+      for (const user of accounts) {
+        await db.collection("organizations").doc(organizationId).collection("members").doc(user.uid).delete().catch(() => {});
+      }
+      await db.collection("organizations").doc(organizationId).delete().catch(() => {});
+    }
     for (const user of accounts) await auth.deleteUser(user.uid).catch(() => {});
     await deleteApp(app);
   });
@@ -148,14 +154,16 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   const student = await account("student");
   const platformAdmin = await account("platformAdmin");
 
-  await db.collection("organizations").doc("aptivern").set({
-    organizationId: "aptivern", name: "Aptivern Pilot", status: "active"
+  const organization = await callFunction("bootstrapOrganization", platformAdmin.idToken, {
+    organizationId: "aptivern",
+    name: "Aptivern Pilot"
   });
-  await db.collection("organizations").doc("aptivern").collection("members").doc(admin.uid).set({
-    organizationId: "aptivern", uid: admin.uid, role: "admin", status: "active"
+  assert.equal(organization.status, "active");
+  await callFunction("setOrganizationMember", platformAdmin.idToken, {
+    organizationId: "aptivern", uid: admin.uid, role: "admin"
   });
-  await db.collection("organizations").doc("aptivern").collection("members").doc(student.uid).set({
-    organizationId: "aptivern", uid: student.uid, role: "student", status: "active"
+  await callFunction("setOrganizationMember", platformAdmin.idToken, {
+    organizationId: "aptivern", uid: student.uid, role: "student"
   });
 
   const batchId = await createBatch(300000);
