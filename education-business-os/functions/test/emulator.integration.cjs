@@ -169,6 +169,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   const batchId = await createBatch(300000);
 
   let enrollment;
+  let primaryEnrollmentId;
   await t.test("paid enrollment is pending until full verified payment", async () => {
     const created = await callFunction("createEnrollment", admin.idToken, {
       organizationId: "aptivern",
@@ -177,6 +178,9 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
     });
     enrollmentIds.push(created.enrollmentId);
     enrollment = created;
+    primaryEnrollmentId = created.enrollmentId;
+    assert.equal(typeof primaryEnrollmentId, "string");
+    assert.ok(primaryEnrollmentId.length > 0);
     assert.equal(created.status, "pending_payment");
 
     const state = await getEnrollment(created.enrollmentId);
@@ -200,9 +204,11 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   let firstPayment;
   let secondPayment;
   await t.test("partial payments are reserved without activating enrollment", async () => {
-    firstPayment = await recordPayment(admin, enrollment.enrollmentId, 100000);
-    secondPayment = await recordPayment(admin, enrollment.enrollmentId, 200000);
-    const state = await getEnrollment(enrollment.enrollmentId);
+    firstPayment = await recordPayment(admin, primaryEnrollmentId, 100000);
+    secondPayment = await recordPayment(admin, primaryEnrollmentId, 200000);
+    assert.ok(firstPayment.paymentId);
+    assert.ok(secondPayment.paymentId);
+    const state = await getEnrollment(primaryEnrollmentId);
     assert.equal(state.status, "pending_payment");
     assert.equal(state.pendingAmount, 300000);
     assert.equal(state.availableToSubmit, 0);
@@ -212,7 +218,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
     await assert.rejects(
       callFunction("recordPayment", student.idToken, {
         organizationId: "aptivern",
-        enrollmentId: enrollment.enrollmentId,
+        enrollmentId: primaryEnrollmentId,
         amount: 100000,
         method: "cash"
       }),
@@ -248,7 +254,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
     });
     assert.equal(result.status, "verified");
     assert.equal(result.enrollmentStatus, "pending_payment");
-    const state = await getEnrollment(enrollment.enrollmentId);
+    const state = await getEnrollment(primaryEnrollmentId);
     assert.equal(state.paidAmount, 100000);
     assert.equal(state.pendingAmount, 200000);
     assert.equal(state.balanceDue, 200000);
