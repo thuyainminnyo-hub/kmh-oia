@@ -74,7 +74,7 @@ The deterministic review tool `scripts/review_graphify_edges.py` creates a new c
 
 The review tool requires the exact raw graph SHA, validates the edge fingerprint and decision identity, requires an explicit decision for every non-EXTRACTED edge, rejects duplicate edge identities, and refuses to promote inferred edges. Eight unit tests cover those controls.
 
-Local test result: **8/8 PASS**. The repository CI must independently pass on the updated PR head before the review candidate is accepted.
+Local review-tool test result: **8/8 PASS**. Latest repository CI on PR head `3aceca8e4af93a56ca0c6c663969899cb5496b93` also passed: Creative Studio QA **44/44 tests**, KMH OIA **462/462 tests**, KMH OIA Validation (including deployment evidence bundle) **SUCCESS**, and Graphify base-runtime dependency audit **SUCCESS**.
 
 ## 5. Gate status
 
