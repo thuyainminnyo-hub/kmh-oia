@@ -37,6 +37,12 @@ The tests cover:
 
 **Interpretation boundary:** This is an independent source-context model. It is not Graphify's Tree-sitter execution and does not claim to reproduce Graphify output. It tells reviewers what kind of source reference exists before any new Graphify run is considered.
 
+### Current pilot fixture classification
+
+The same independent analyzer classifies the current `graphify-sandbox/src/outfit_flow.py` fixture as one `TYPE_ANNOTATION` reference at L6 and zero imported-name `RUNTIME_CALL` / `RUNTIME_BODY_REFERENCE` sites inside `select_outfit()`. The later `token.token_name` access is a runtime field access through the parameter, not a second reference to the imported identifier `DesignToken`.
+
+This statement is source-context classification only; it does not re-run Graphify and it does not promote the held edge.
+
 ## 3. Test matrix and expected source evidence
 
 | Fixture shape | Expected source classification | What it proves |
