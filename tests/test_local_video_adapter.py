@@ -59,7 +59,9 @@ class LocalVideoAdapterTests(unittest.TestCase):
 
     @patch("src.local_video_adapter.shutil.which", return_value="/usr/bin/tool")
     def test_success_writes_manifest_and_returns_output(self, _which):
+        commands = []
         def runner(command, **kwargs):
+            commands.append(command)
             if command[0] == "nvidia-smi":
                 return SimpleNamespace(returncode=0, stdout="NVIDIA Test GPU, 555.1", stderr="")
             if command[:3] == ["ffmpeg", "-hide_banner", "-encoders"]:
@@ -84,8 +86,9 @@ class LocalVideoAdapterTests(unittest.TestCase):
         self.assertEqual(data["compute"]["requested"], "nvidia-nvenc")
         self.assertEqual(data["output"]["duration_seconds"], 2.5)
         self.assertIn("h264_nvenc", data["render_config"]["video_codec"])
-        self.assertIn("-progress", data["render_config"].get("unused", "") if False else
-                      ["-progress", "pipe:1"][-2])
+        render_command = next(command for command in commands if command[0] == "ffmpeg" and "-i" in command)
+        self.assertIn("h264_nvenc", render_command)
+        self.assertEqual(render_command[render_command.index("-progress") + 1], "pipe:1")
 
     @patch("src.local_video_adapter.shutil.which", return_value=None)
     def test_missing_ffmpeg_fails_closed(self, _which):
