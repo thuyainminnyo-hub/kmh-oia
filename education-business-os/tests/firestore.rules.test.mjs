@@ -17,7 +17,9 @@ before(async () => {
     const memberships = [
       ["org-a", "admin-a", "admin"],
       ["org-a", "student-a", "student"],
+      ["org-a", "student-c", "student"],
       ["org-a", "teacher-a", "instructor"],
+      ["org-a", "teacher-c", "instructor"],
       ["org-a", "finance-a", "finance"],
       ["org-b", "admin-b", "admin"],
       ["org-b", "student-b", "student"],
@@ -38,6 +40,10 @@ before(async () => {
 
     await setDoc(doc(db, "enrollments/enr-a"), {
       organizationId: "org-a", studentId: "student-a", instructorId: "teacher-a",
+      batchId: "batch-a", status: "active"
+    });
+    await setDoc(doc(db, "enrollments/enr-a-other"), {
+      organizationId: "org-a", studentId: "student-c", instructorId: "teacher-c",
       batchId: "batch-a", status: "active"
     });
     await setDoc(doc(db, "enrollments/enr-b"), {
@@ -68,7 +74,7 @@ test("student can read own enrollment inside their organization", async () => {
 
 test("student cannot read another student's enrollment in the same organization", async () => {
   const db = env.authenticatedContext("student-a").firestore();
-  await assertFails(getDoc(doc(db, "enrollments/enr-b")));
+  await assertFails(getDoc(doc(db, "enrollments/enr-a-other")));
 });
 
 test("student cannot read another organization's course", async () => {
@@ -154,7 +160,7 @@ test("instructor can read assigned enrollment inside their organization", async 
 
 test("instructor cannot read enrollment assigned to another instructor", async () => {
   const db = env.authenticatedContext("teacher-a").firestore();
-  await assertFails(getDoc(doc(db, "enrollments/enr-b")));
+  await assertFails(getDoc(doc(db, "enrollments/enr-a-other")));
 });
 
 test("instructor cannot bypass audited attendance function", async () => {
