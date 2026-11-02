@@ -67,10 +67,12 @@ The command above is an approved future procedure template only; it has NOT been
 
 ## Acceptance gates
 
+**CI evidence (2026-11-02):** Creative Studio QA run [41419384917](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41419384917) passed the design-contract validator, Graphify scope preflight, 14 unit tests, and `git diff --check`. KMH OIA Tests run [41419384909](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41419384909) passed 462 tests and the performance baseline. KMH OIA Validation run [41419385104](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41419385104) passed repository validation, tests, performance evidence, and the deployment evidence bundle.
+
 | Gate | Required evidence | Current state |
 |---|---|---|
 | G0 — Source and version intake | Official source, license, dependency and version review | PENDING |
-| G1 — Scope guard | Validator and unit tests pass in GitHub CI | CI pending |
+| G1 — Scope guard | Validator and unit tests pass in GitHub CI | PASS — Creative Studio QA run 41419384917; 14/14 tests and diff check passed |
 | G2 — Isolated code-only extraction | Reproducible graph from synthetic Python fixture | NOT RUN |
 | G3 — Source traceability | Sampled EXTRACTED edges resolve to source file/line | NOT RUN |
 | G4 — False-connection review | Expected import/call edges present; unsupported links rejected; INFERRED edges separately reviewed | NOT RUN |
