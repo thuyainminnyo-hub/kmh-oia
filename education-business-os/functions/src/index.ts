@@ -498,36 +498,3 @@ export const recordOutcome = onCall(async (request) => {
   return { organizationId, enrollmentId, outcome };
 });
 
-export const recordOutcome = onCall(async (request) => {
-  const actor = requireRole(request, ["admin", "instructor"]);
-  const enrollmentId = requiredString(request.data?.enrollmentId, "enrollmentId");
-  const outcome = request.data?.outcome;
-  const evidence = request.data?.evidence ?? "";
-  if (!["completed", "not_completed", "withdrawn"].includes(String(outcome))) {
-    throw new HttpsError("invalid-argument", "Unsupported outcome.");
-  }
-  if (typeof evidence !== "string" || evidence.length > 1000) {
-    throw new HttpsError("invalid-argument", "Evidence note must be at most 1000 characters.");
-  }
-  const enrollmentRef = db.collection("enrollments").doc(enrollmentId);
-  const outcomeRef = db.collection("outcomes").doc(enrollmentId);
-  await db.runTransaction(async (tx) => {
-    const enrollment = await tx.get(enrollmentRef);
-    if (!enrollment.exists) throw new HttpsError("not-found", "Enrollment not found.");
-    const data = enrollment.data()!;
-    if (actor.role === "instructor" && data.instructorId !== actor.uid) {
-      throw new HttpsError("permission-denied", "Instructor is not assigned to this enrollment.");
-    }
-    tx.set(outcomeRef, {
-      enrollmentId, studentId: data.studentId, batchId: data.batchId,
-      instructorId: data.instructorId ?? actor.uid, outcome, evidence,
-      recordedBy: actor.uid, recordedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
-    tx.update(enrollmentRef, { status: outcome === "completed" ? "completed" : outcome });
-    tx.create(db.collection("auditLogs").doc(), {
-      action: "student.outcome.recorded", actorUid: actor.uid, targetId: enrollmentId,
-      outcome, createdAt: FieldValue.serverTimestamp()
-    });
-  });
-  return { enrollmentId, outcome };
-});
