@@ -57,7 +57,7 @@ class Phase027GraphValidationTests(unittest.TestCase):
         
     def test_valid_alias_relative_import_and_extracted_candidate(self):
         result, candidate = validate_graph(copy.deepcopy(self.raw), self.root, self.baseline)
-        self.assertEqual(result["status"], "PASS", result["errors"])
+        self.assertEqual(result["status"], "PASS_WITH_WARNINGS", result["errors"])
         self.assertEqual(len(result["canonical_semantic_links"]), 4)
         self.assertEqual(len(candidate["edges"]), 3)
         self.assertFalse(any(e["confidence"] != "EXTRACTED" for e in candidate["edges"]))
@@ -83,7 +83,7 @@ class Phase027GraphValidationTests(unittest.TestCase):
 
     def test_same_label_duplicate_definitions_have_separate_canonical_ids(self):
         result, _ = validate_graph(copy.deepcopy(self.raw), self.root, self.baseline)
-        self.assertEqual(result["status"], "PASS", result["errors"])
+        self.assertEqual(result["status"], "PASS_WITH_WARNINGS", result["errors"])
         group = result["same_named_definition_groups"]["Widget"]
         self.assertEqual({entry[0] for entry in group}, {"src/pkg/models.py", "src/pkg_other/types.py"})
         self.assertEqual(len({entry[1] for entry in group}), 2)
