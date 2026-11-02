@@ -56,6 +56,8 @@ export const bootstrapOrganization = onCall(async (request) => {
   const name = requiredString(request.data?.name, "name", 160);
   const organizationRef = db.collection("organizations").doc(organizationId);
   const memberRef = organizationRef.collection("members").doc(actor.uid);
+  const userMembershipRef = db.collection("userOrganizationMemberships").doc(actor.uid)
+    .collection("organizations").doc(organizationId);
   await db.runTransaction(async (tx) => {
     const existing = await tx.get(organizationRef);
     if (existing.exists) throw new HttpsError("already-exists", "Organization ID already exists.");
@@ -63,10 +65,12 @@ export const bootstrapOrganization = onCall(async (request) => {
       organizationId, name, status: "active",
       createdBy: actor.uid, createdAt: FieldValue.serverTimestamp()
     });
-    tx.create(memberRef, {
+    const membership = {
       organizationId, uid: actor.uid, role: "admin", status: "active",
-      createdBy: actor.uid, createdAt: FieldValue.serverTimestamp()
-    });
+      organizationName: name, createdBy: actor.uid, createdAt: FieldValue.serverTimestamp()
+    };
+    tx.create(memberRef, membership);
+    tx.create(userMembershipRef, membership);
     tx.create(db.collection("auditLogs").doc(), {
       organizationId, action: "organization.created", actorUid: actor.uid,
       targetId: organizationId, createdAt: FieldValue.serverTimestamp()
@@ -92,16 +96,21 @@ export const setOrganizationMember = onCall(async (request) => {
   catch { throw new HttpsError("not-found", "Firebase Auth user not found."); }
 
   const memberRef = db.collection("organizations").doc(organizationId).collection("members").doc(uid);
+  const userMembershipRef = db.collection("userOrganizationMemberships").doc(uid)
+    .collection("organizations").doc(organizationId);
   await db.runTransaction(async (tx) => {
     const organizationRef = db.collection("organizations").doc(organizationId);
     const organization = await tx.get(organizationRef);
     if (!organization.exists || organization.data()?.status !== "active") {
       throw new HttpsError("not-found", "Active organization not found.");
     }
-    tx.set(memberRef, {
+    const membership = {
       organizationId, uid, role, status,
+      organizationName: organization.data()?.name ?? organizationId,
       updatedBy: actor.uid, updatedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
+    };
+    tx.set(memberRef, membership, { merge: true });
+    tx.set(userMembershipRef, membership, { merge: true });
     tx.create(db.collection("auditLogs").doc(), {
       organizationId, action: "organization.member.updated",
       actorUid: actor.uid, targetId: uid, role, status,
