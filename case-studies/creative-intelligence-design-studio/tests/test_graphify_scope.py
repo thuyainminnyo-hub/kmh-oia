@@ -125,7 +125,9 @@ class GraphifyScopeTests(unittest.TestCase):
     def test_passed_runtime_dependency_audit_requires_evidence(self):
         root = self.temporary_project()
         policy = copy.deepcopy(self.policy)
-        policy["source_intake"]["runtime_dependency_audit"]["status"] = "passed"
+        audit = policy["source_intake"]["runtime_dependency_audit"]
+        audit["status"] = "passed"
+        audit.pop("evidence", None)
         errors = validate_graphify_scope(policy, root)
         self.assertTrue(any("passed runtime dependency audit requires evidence" in error for error in errors))
 
