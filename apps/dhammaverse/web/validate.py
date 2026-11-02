@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 root = Path(__file__).resolve().parent
-required = ["index.html", "styles.css", "app.js", "manifest.webmanifest", "sw.js"]
+required = ["index.html", "offline.html", "styles.css", "app.js", "manifest.webmanifest", "sw.js"]
 missing = [name for name in required if not (root / name).is_file()]
 assert not missing, f"Missing files: {missing}"
 
@@ -36,6 +36,6 @@ for url in [
 for asset in ["./index.html", "./styles.css", "./app.js", "./manifest.webmanifest"]:
     assert asset in sw, f"Service worker cache missing: {asset}"
 assert 'rel="noopener noreferrer"' in html
-assert "localStorage" in js
+assert "./offline.html" in sw, "Offline fallback not included in service worker"\nassert "request.mode===\"navigate\"" in sw, "Navigation fallback handler missing"\nassert "localStorage" in js
 assert "fetch(" not in js, "Unexpected app network request added"
 print("DhammaVerse structural and bilingual-content checks: PASS")
