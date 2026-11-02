@@ -14,7 +14,7 @@ type CallableRequest = {
 
 function requireRole(request: CallableRequest, allowed: string[]) {
   if (!request.auth) throw new HttpsError("unauthenticated", "Sign-in required.");
-  const role = request.auth.token.role;
+  const role = request.auth.token.platformAdmin === true ? "platformAdmin" : request.auth.token.role;
   if (typeof role !== "string" || !allowed.includes(role)) {
     throw new HttpsError("permission-denied", "Insufficient role.");
   }
@@ -48,6 +48,31 @@ function requiredString(value: unknown, field: string, max = 120): string {
   }
   return value.trim();
 }
+
+export const bootstrapOrganization = onCall(async (request) => {
+  const actor = requireRole(request, ["platformAdmin"]);
+  const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
+  const name = requiredString(request.data?.name, "name", 160);
+  const organizationRef = db.collection("organizations").doc(organizationId);
+  const memberRef = organizationRef.collection("members").doc(actor.uid);
+  await db.runTransaction(async (tx) => {
+    const existing = await tx.get(organizationRef);
+    if (existing.exists) throw new HttpsError("already-exists", "Organization ID already exists.");
+    tx.create(organizationRef, {
+      organizationId, name, status: "active",
+      createdBy: actor.uid, createdAt: FieldValue.serverTimestamp()
+    });
+    tx.create(memberRef, {
+      organizationId, uid: actor.uid, role: "admin", status: "active",
+      createdBy: actor.uid, createdAt: FieldValue.serverTimestamp()
+    });
+    tx.create(db.collection("auditLogs").doc(), {
+      organizationId, action: "organization.created", actorUid: actor.uid,
+      targetId: organizationId, createdAt: FieldValue.serverTimestamp()
+    });
+  });
+  return { organizationId, name, ownerUid: actor.uid, status: "active" };
+});
 
 export const setOrganizationMember = onCall(async (request) => {
   const organizationId = requiredString(request.data?.organizationId, "organizationId", 80);
