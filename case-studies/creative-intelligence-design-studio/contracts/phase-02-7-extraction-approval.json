@@ -83,5 +83,31 @@
       "validator-compilation",
       "validator-cli-inspection"
     ]
+  },
+  "execution_result": {
+    "workflow_run_id": 41475845115,
+    "workflow_run_url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41475845115",
+    "run_attempt": 1,
+    "extraction_step": "success",
+    "validation_step": "failure",
+    "overall_conclusion": "failure",
+    "graphify_execution_count": 1,
+    "artifact_id": 13156014468,
+    "artifact_name": "kmh-graphify-phase-02-7-one-run-41475845115",
+    "artifact_sha256": "1f43d0ee2ee0156ae92fc759c89041750fd56377e7e395155cc43a2b76b55e3d",
+    "artifact_expires_at": "2026-11-16T15:52:40Z",
+    "rerun_allowed": false,
+    "production_promotion_allowed": false
+  },
+  "post_run_governance": {
+    "raw_graph_mutated": false,
+    "candidate_graph_is_separate": true,
+    "candidate_contains_only_extracted_edges": true,
+    "inferred_edges_promoted": false,
+    "ambiguous_edges_promoted": false,
+    "model_credentials_present": false,
+    "production_promotion": "NOT_AUTHORIZED",
+    "oia_runtime_integration": "NOT_AUTHORIZED",
+    "owner_hold": "PRESERVED"
   }
 }
