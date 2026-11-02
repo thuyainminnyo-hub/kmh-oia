@@ -33,7 +33,7 @@ The following are optional extras, not required for the first Python-only fixtur
 
 **Pilot dependency decision:** do not install `[all]` or any optional extra. Use the exact release tag's `uv.lock` with `uv sync --locked --no-dev --python 3.12`. This uses the upstream locked resolution and skips the development dependency group and optional extras. No assistant skill, git hook, MCP server, model SDK or global integration is enabled.
 
-A separate runtime dependency audit remains mandatory before installation. The uv lockfile format is specific to uv, so export the exact selected runtime dependency set from the locked source tree and pass the resulting fully pinned requirements file to PyPA's `pip-audit`. Do not claim the lockfile or transitive dependencies are vulnerability-free until this audit produces evidence.
+A separate runtime dependency audit remains mandatory before installation. The uv lockfile format is specific to uv, so export the exact selected runtime dependency set from the locked source tree and pass the resulting fully pinned requirements file to PyPA's `pip-audit`. The audit tool is pinned to `pip-audit==2.10.1` (the latest listed PyPI release at this review). Run both the PyPI and OSV vulnerability services. The tool is invoked with `--no-deps --disable-pip`, which is supported for fully pinned requirements and avoids a second dependency-resolution step. Do not claim the lockfile or transitive dependencies are vulnerability-free until both audit reports produce clean evidence.
 
 ## 4. Security advisory review
 
@@ -69,8 +69,15 @@ test "$(git -C "$GRAPHIFY_REPO" rev-parse HEAD)" = "$EXPECTED_SOURCE_COMMIT"
   cd "$GRAPHIFY_REPO"
   uv export --locked --no-dev --no-emit-project --format requirements.txt --output-file "$WORK/runtime-requirements.txt"
   uv export --locked --no-dev --no-emit-project --format cyclonedx1.5 --output-file "$WORK/runtime-sbom.json"
-  uvx --from pip-audit pip-audit --version > "$WORK/pip-audit-version.txt"
-  uvx --from pip-audit pip-audit --strict --no-deps --disable-pip --requirement "$WORK/runtime-requirements.txt" --format json --output "$WORK/dependency-audit.json"
+  uvx --from "pip-audit==2.10.1" pip-audit --version > "$WORK/pip-audit-version.txt"
+  set +e
+  uvx --from "pip-audit==2.10.1" pip-audit --no-deps --disable-pip --requirement "$WORK/runtime-requirements.txt" --format json --output "$WORK/pip-audit-pypi.json"
+  PYPI_AUDIT_STATUS=$?
+  uvx --from "pip-audit==2.10.1" pip-audit --vulnerability-service osv --no-deps --disable-pip --requirement "$WORK/runtime-requirements.txt" --format json --output "$WORK/pip-audit-osv.json"
+  OSV_AUDIT_STATUS=$?
+  set -e
+  test "$PYPI_AUDIT_STATUS" -eq 0
+  test "$OSV_AUDIT_STATUS" -eq 0
   uv sync --locked --no-dev --python 3.12
 )
 
@@ -92,7 +99,7 @@ test -s "$OUT_ROOT/graphify-out/graph.json"
 test -s "$OUT_ROOT/graphify-out/GRAPH_REPORT.md"
 ```
 
-Before installation, require a clean `pip-audit` result for the exported base runtime dependency set; retain the CycloneDX SBOM, requirements export, audit JSON and exact audit-tool version. Do not proceed if known vulnerabilities or incomplete dependency collection are reported. After review, record the source version, lockfile, runner details, source commit, dependency evidence, scan manifest, output graph counts, source references, edge confidence, false connections and reviewer decision. Remove the temporary workspace after exporting sanitized evidence. Do not commit generated `graph.json` or graph reports.
+Before installation, require clean PyPI and OSV `pip-audit` 2.10.1 results for the exported base runtime dependency set; retain the CycloneDX SBOM, requirements export, both audit JSON reports and exact audit-tool version. Do not proceed if known vulnerabilities or incomplete dependency collection are reported. The CLI has no `--strict` option; `--no-deps` and `--disable-pip` are the documented flags for fully pinned requirements. After review, record the source version, lockfile, runner details, source commit, dependency evidence, scan manifest, output graph counts, source references, edge confidence, false connections and reviewer decision. Remove the temporary workspace after exporting sanitized evidence. Do not commit generated `graph.json` or graph reports.
 
 ## 7. Intake gates
 

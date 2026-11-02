@@ -129,6 +129,13 @@ class GraphifyScopeTests(unittest.TestCase):
         errors = validate_graphify_scope(policy, root)
         self.assertTrue(any("runtime dependency audit must remain pending" in error for error in errors))
 
+    def test_dependency_audit_tool_must_be_exactly_pinned(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["runtime_dependency_audit"]["tool_version"] = "latest"
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("pinned to pip-audit 2.10.1" in error for error in errors))
+
     def test_secret_file_is_rejected(self):
         root = self.temporary_project()
         (root / "graphify-sandbox" / ".env").write_text(

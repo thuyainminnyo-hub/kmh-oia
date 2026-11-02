@@ -96,8 +96,9 @@
       "tool": "pip-audit",
       "source_lock": "uv.lock from exact v0.9.100 source tag",
       "status": "pending",
-      "runbook": "Export the locked base runtime requirements with uv; audit pinned requirements only, with no dependency resolution; include no optional extras or dev group.",
-      "fail_on_known_vulnerability": true
+      "runbook": "Export the exact locked base runtime requirements and CycloneDX SBOM; audit the fully pinned requirements with pip-audit 2.10.1 using --no-deps --disable-pip against both PyPI and OSV; include no optional extras or dev group.",
+      "fail_on_known_vulnerability": true,
+      "tool_version": "2.10.1"
     }
   }
 }
