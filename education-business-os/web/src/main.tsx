@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
-import { collection, getDocs, limit, query, where } from "firebase/firestore";
+import { collection, getDocs, limit, query, QueryConstraint, where } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, firebaseConfigured, functions } from "./firebase";
 import "./style.css";
@@ -51,7 +51,7 @@ function App() {
     }
     try {
       const base = collection(db, "enrollments");
-      const constraints = [where("organizationId", "==", organizationId)];
+      const constraints: QueryConstraint[] = [where("organizationId", "==", organizationId)];
       if (role === "instructor") constraints.push(where("instructorId", "==", user.uid));
       if (role === "student") constraints.push(where("studentId", "==", user.uid));
       constraints.push(limit(role === "student" ? 50 : 100));
