@@ -54,12 +54,12 @@ The exact commands are recorded in [Phase 02.1 Source & Version Intake](phase-02
 
 ## Acceptance gates
 
-**CI evidence (2026-11-02):** Creative Studio QA run [41419384917](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41419384917) passed the design-contract validator, Graphify scope preflight, 14 unit tests, and `git diff --check`. KMH OIA Tests run [41419384909](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41419384909) passed 462 tests and the performance baseline. KMH OIA Validation run [41419385104](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41419385104) passed repository validation, tests, performance evidence, and the deployment evidence bundle.
+**CI evidence (2026-11-02):** On source-intake policy commit `1b0e9514ec11da4db8d22c3d486045f5d0a58982`, Creative Studio QA run [41420680611](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680611) passed design contract, Graphify scope preflight, 20 unit tests, and `git diff --check`. KMH OIA Tests run [41420680434](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680434) passed 462 tests and the performance baseline. KMH OIA Validation run [41420680438](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41420680438) passed repository validation, tests, performance evidence, and deployment evidence bundle.
 
 | Gate | Required evidence | Current state |
 |---|---|---|
 | G0 — Source and version intake | Official source, license, exact candidate and known advisory review | PASS — see Phase 02.1; locked runtime dependency audit and install approval remain pending |
-| G1 — Scope guard | Validator and unit tests pass in GitHub CI | PASS — Creative Studio QA run 41419384917; 14/14 tests and diff check passed |
+| G1 — Scope guard | Validator and unit tests pass in GitHub CI | PASS — Creative Studio QA run 41420680611; 20/20 tests and diff check passed |
 | G2 — Isolated code-only extraction | Reproducible graph from synthetic Python fixture | NOT RUN |
 | G3 — Source traceability | Sampled EXTRACTED edges resolve to source file/line | NOT RUN |
 | G4 — False-connection review | Expected import/call edges present; unsupported links rejected; INFERRED edges separately reviewed | NOT RUN |
