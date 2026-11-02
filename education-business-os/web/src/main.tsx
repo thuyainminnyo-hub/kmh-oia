@@ -9,6 +9,7 @@ import "./style.css";
 type Role = "admin" | "academic_manager" | "instructor" | "finance" | "student" | "creator" | "moderator" | "unknown";
 type Membership = { organizationId: string; role: Role; status: string; organizationName?: string };
 type Enrollment = { id: string; organizationId?: string; studentId?: string; batchId?: string; status?: string };
+type OrganizationMember = { uid: string; role: Role; status: string; organizationName?: string };
 
 function App() {
   const [user, setUser] = React.useState<User | null>(auth.currentUser);
@@ -17,6 +18,7 @@ function App() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [rows, setRows] = React.useState<Enrollment[]>([]);
+  const [organizationMembers, setOrganizationMembers] = React.useState<OrganizationMember[]>([]);
   const [error, setError] = React.useState("");
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -43,6 +45,22 @@ function App() {
       setError(e instanceof Error ? e.message : "Unable to load organization memberships.");
     }
   }), []);
+
+  const refreshMembers = React.useCallback(async () => {
+    if (!user || !organizationId || role !== "admin") {
+      setOrganizationMembers([]);
+      return;
+    }
+    try {
+      const membersRef = collection(db, "organizations", organizationId, "members");
+      const snapshot = await getDocs(query(membersRef, limit(200)));
+      setOrganizationMembers(snapshot.docs.map(d => ({ ...d.data(), uid: d.id } as OrganizationMember)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load organization members.");
+    }
+  }, [user, organizationId, role]);
+
+  React.useEffect(() => { void refreshMembers(); }, [refreshMembers]);
 
   const refresh = React.useCallback(async () => {
     if (!user || !firebaseConfigured || !organizationId || role === "unknown" || role === "finance" || role === "creator" || role === "moderator") {
@@ -78,7 +96,7 @@ function App() {
       const fn = httpsCallable(functions, name);
       const result = await fn({ ...data, organizationId });
       setMessage(name + " completed: " + JSON.stringify(result.data));
-      await refresh();
+      await Promise.all([refresh(), refreshMembers()]);
     } catch (err) { setError(err instanceof Error ? err.message : "Operation failed"); }
     finally { setBusy(false); }
   }
@@ -116,7 +134,20 @@ function App() {
         <article><small>ROLE</small><h3>{role.replace("_", " ")}</h3><p>Permissions are scoped to this organization.</p></article>
         <article><small>MEMBERSHIPS</small><h3>{memberships.length}</h3><p>Active organization workspaces</p></article>
       </section>}
-      {(role === "admin" || role === "academic_manager" || role === "instructor" || role === "student") &&
+      {role === "admin" && <section className="panel"><div className="sectionHead"><h2>Organization members · {organizationName}</h2><button className="secondary" onClick={()=>void refreshMembers()}>Refresh members</button></div>
+        <div className="forms">
+          <form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void invoke("setOrganizationMember",{uid:f.get("memberUid"),role:f.get("memberRole"),status:f.get("memberStatus")});e.currentTarget.reset();}}>
+            <h3>Add / update member</h3>
+            <Field label="Existing Firebase Auth UID" name="memberUid"/>
+            <label>Organization role<select name="memberRole"><option value="student">Student</option><option value="instructor">Instructor</option><option value="finance">Finance</option><option value="academic_manager">Academic manager</option><option value="creator">Creator</option><option value="moderator">Moderator</option><option value="admin">Admin</option></select></label>
+            <label>Membership status<select name="memberStatus"><option value="active">Active</option><option value="suspended">Suspended</option></select></label>
+            <button disabled={busy}>Save organization membership</button>
+          </form>
+        </div>
+        {organizationMembers.length ? organizationMembers.map(m=><div className="record" key={m.uid}><strong>{m.uid}</strong><span>{m.role}</span><span>{m.status}</span><code>{organizationId}</code></div>) : <p>No members loaded for this organization.</p>}
+        <small>For this pilot, the user must already exist in Firebase Authentication. A secure invitation flow can replace UID entry later.</small>
+      </section>}
+            {(role === "admin" || role === "academic_manager" || role === "instructor" || role === "student") &&
       <section className="panel"><div className="sectionHead"><h2>Enrollment records · {organizationName}</h2><button className="secondary" onClick={()=>void refresh()}>Refresh</button></div>
         {rows.length ? rows.map(x=><div className="record" key={x.id}><strong>{x.batchId ?? "Batch"}</strong><span>{x.studentId ?? ""}</span><span>{x.status ?? "unknown"}</span><code>{x.id}</code></div>) : <p>No enrollment records found for this account in this organization.</p>}
       </section>}
