@@ -64,7 +64,7 @@ jobs:
           uv export --frozen --no-dev --no-emit-project \
             --format requirements.txt \
             --output-file "$AUDIT_DIR/runtime-requirements.txt"
-          uv export --locked --no-dev --no-emit-project \
+          uv export --frozen --no-dev --no-emit-project \
             --format cyclonedx1.5 \
             --output-file "$AUDIT_DIR/runtime-sbom.cdx.json"
           test -s "$AUDIT_DIR/runtime-requirements.txt"
