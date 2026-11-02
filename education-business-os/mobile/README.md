@@ -10,6 +10,7 @@ Run from this directory (the trailing dot is important):
 flutter create --platforms=android --project-name aptivern_student_app .
 flutter pub get
 flutter analyze
+flutter test
 flutter build apk --debug
 ```
 
@@ -26,15 +27,30 @@ flutterfire configure
 
 Register the Android application in Firebase and complete the generated native configuration. The current app calls `Firebase.initializeApp()`, so the Android Firebase configuration must be present before running on a device. Never commit service-account JSON or private credentials.
 
-## 3. Run and verify
+## 3. Student organization workspace
+
+After sign-in, the app reads only the signed-in user's private membership index:
+
+`userOrganizationMemberships/{uid}/organizations/{organizationId}`
+
+It displays active memberships whose organization role is `student`. A student with more than one school can switch workspaces. Enrollment queries are scoped by both `organizationId` and the authenticated user's `studentId`; do not replace them with an unscoped collection query.
+
+The student client is read-only. Enrollment, payment, attendance, assessment and outcome mutations must continue to use trusted callable Cloud Functions with server-side organization membership checks. Never accept an organization role or membership status supplied only by the client.
+
+## 4. Run and verify
 
 ```bash
 flutter run
 flutter test
 ```
 
-Sign in with a synthetic Firebase Authentication student account. Confirm that only that student's enrollment records appear. Staff mutations must continue to use trusted callable Cloud Functions; do not add direct client writes for payments, attendance, assessments, or outcomes.
+Use synthetic Firebase Authentication accounts with an active student membership in the demo organization. Verify:
+- A student sees only their own enrollments in the selected organization.
+- Switching to another active organization changes the query scope.
+- A student with no active student membership sees an onboarding/help message rather than cross-organization records.
+- Suspended memberships are not shown as active workspaces.
+- A direct, unscoped read is denied by Firestore Rules.
 
 ## Current scope
 
-The current client is a student sign-in and read-only enrollment starter. Attendance history, payment history, assessments, push notifications, guardian access, and staff workflows still require implementation and acceptance testing. A successful CI APK build proves compilation only; it does not prove Firebase connectivity or a production deployment.
+This client provides sign-in, organization selection and read-only enrollment display. Attendance history, payment history, assessments, assignments, Creative Writing, push notifications, guardian access, offline work recovery and creator tools still require implementation and acceptance testing. A successful CI APK build proves compilation only; it does not prove device Firebase connectivity or production deployment.
