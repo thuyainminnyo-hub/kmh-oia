@@ -63,6 +63,13 @@ service cloud.firestore {
       }
     }
 
+    // Self-service index for listing only the signed-in user's organization memberships.
+    // Membership mutations are server-only through audited callable functions.
+    match /userOrganizationMemberships/{uid}/organizations/{orgId} {
+      allow get, list: if owns(uid) || isPlatformAdmin();
+      allow create, update, delete: if false;
+    }
+
     // Every tenant-owned record must carry organizationId and be queried within that tenant.
     match /courses/{id} {
       allow read: if canReadOrg(resource.data.organizationId) || isPlatformAdmin();
