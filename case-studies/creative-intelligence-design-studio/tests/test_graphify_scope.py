@@ -157,6 +157,13 @@ class GraphifyScopeTests(unittest.TestCase):
         errors = validate_graphify_scope(policy, root)
         self.assertTrue(any("--strict" in error for error in errors))
 
+    def test_dependency_audit_hash_verification_is_required(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["runtime_dependency_audit"]["hashes_required"] = False
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("hash-checked requirements" in error for error in errors))
+
     def test_dependency_audit_requires_both_vulnerability_services(self):
         root = self.temporary_project()
         policy = copy.deepcopy(self.policy)

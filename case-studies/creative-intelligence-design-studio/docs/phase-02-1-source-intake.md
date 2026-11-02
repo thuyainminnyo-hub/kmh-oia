@@ -33,7 +33,7 @@ The following are optional extras, not required for the first Python-only fixtur
 
 **Pilot dependency decision:** do not install `[all]` or any optional extra. Use the exact release tag's `uv.lock` with uv 0.13.6 and `uv sync --frozen --no-dev --python 3.12`. The upstream v0.9.100 CI explicitly uses `--frozen` to consume the committed lock without re-resolving or rewriting it. Pin the exact `uv.lock` Git blob `1fd2344a28be6b14c4f6f41c4901c70cadc2be0e`. No assistant skill, git hook, MCP server, model SDK or global integration is enabled.
 
-A separate runtime dependency audit remains mandatory before installation. The uv lockfile format is specific to uv, so export the exact selected runtime dependency set from the frozen source snapshot and pass the resulting fully pinned requirements file to PyPA's `pip-audit`. The audit tool is pinned to `pip-audit==2.10.1` (the latest listed PyPI release at this review). Run both the PyPI and OSV vulnerability services. The tool is invoked with `--strict --no-deps --disable-pip`: `--strict` fails when dependency collection is incomplete, while `--no-deps --disable-pip` is supported for fully pinned requirements and avoids a second dependency-resolution step. Do not claim the lockfile or transitive dependencies are vulnerability-free until both audit reports produce clean evidence.
+A separate runtime dependency audit remains mandatory before installation. The uv lockfile format is specific to uv, so export the exact selected runtime dependency set from the frozen source snapshot and pass the resulting fully pinned requirements file to PyPA's `pip-audit`. The audit tool is pinned to `pip-audit==2.10.1` (the latest listed PyPI release at this review). Run both the PyPI and OSV vulnerability services. The tool is invoked with `--strict --require-hashes --disable-pip`: `--strict` fails when dependency collection is incomplete, and `--require-hashes` checks that every pinned requirement includes a hash. This is preferred to `--no-deps` when the exported requirements file contains hashes. Do not claim the lockfile or transitive dependencies are vulnerability-free until both audit reports produce clean evidence.
 
 **Lockfile compatibility note:** A first `uv export --frozen` check failed because uv determined that the release tag's `uv.lock` needed updating against its `pyproject.toml`. Upstream v0.9.100 CI deliberately uses `uv sync --frozen` and `uv run --frozen` to consume the committed lock without re-resolving it. The audit therefore mirrors the upstream frozen lock policy, pins uv 0.13.6 and verifies the exact lock blob SHA. This audits the dependency snapshot upstream CI actually consumes; it does not assert that the published PyPI installation resolver will select the same graph if package metadata is independently re-resolved.
 
@@ -76,9 +76,9 @@ test "$(git -C "$GRAPHIFY_REPO" rev-parse HEAD)" = "$EXPECTED_SOURCE_COMMIT"
   uv export --frozen --no-dev --no-emit-project --format cyclonedx1.5 --output-file "$WORK/runtime-sbom.json"
   uvx --from "pip-audit==2.10.1" pip-audit --version > "$WORK/pip-audit-version.txt"
   set +e
-  uvx --from "pip-audit==2.10.1" pip-audit --strict --no-deps --disable-pip --requirement "$WORK/runtime-requirements.txt" --format json --output "$WORK/pip-audit-pypi.json"
+  uvx --from "pip-audit==2.10.1" pip-audit --strict --require-hashes --disable-pip --requirement "$WORK/runtime-requirements.txt" --format json --output "$WORK/pip-audit-pypi.json"
   PYPI_AUDIT_STATUS=$?
-  uvx --from "pip-audit==2.10.1" pip-audit --vulnerability-service osv --strict --no-deps --disable-pip --requirement "$WORK/runtime-requirements.txt" --format json --output "$WORK/pip-audit-osv.json"
+  uvx --from "pip-audit==2.10.1" pip-audit --vulnerability-service osv --strict --require-hashes --disable-pip --requirement "$WORK/runtime-requirements.txt" --format json --output "$WORK/pip-audit-osv.json"
   OSV_AUDIT_STATUS=$?
   set -e
   test "$PYPI_AUDIT_STATUS" -eq 0
@@ -104,7 +104,7 @@ test -s "$OUT_ROOT/graphify-out/graph.json"
 test -s "$OUT_ROOT/graphify-out/GRAPH_REPORT.md"
 ```
 
-Before installation, require clean PyPI and OSV `pip-audit` 2.10.1 results for the exported base runtime dependency set; retain the CycloneDX SBOM, requirements export, both audit JSON reports and exact audit-tool version. Do not proceed if known vulnerabilities or incomplete dependency collection are reported. `--strict` is supported and deliberately included to fail on dependency-collection errors; `--no-deps` and `--disable-pip` are the documented flags for fully pinned requirements. After review, record the source version, lockfile, runner details, source commit, dependency evidence, scan manifest, output graph counts, source references, edge confidence, false connections and reviewer decision. Remove the temporary workspace after exporting sanitized evidence. Do not commit generated `graph.json` or graph reports.
+Before installation, require clean PyPI and OSV `pip-audit` 2.10.1 results for the exported base runtime dependency set; retain the CycloneDX SBOM, requirements export, both audit JSON reports and exact audit-tool version. Do not proceed if known vulnerabilities or incomplete dependency collection are reported. `--strict` is supported and deliberately included to fail on dependency-collection errors; `--require-hashes` validates the hash-bearing pinned requirements, and `--disable-pip` prevents a second resolver pass. After review, record the source version, lockfile, runner details, source commit, dependency evidence, scan manifest, output graph counts, source references, edge confidence, false connections and reviewer decision. Remove the temporary workspace after exporting sanitized evidence. Do not commit generated `graph.json` or graph reports.
 
 ## 7. Intake gates
 

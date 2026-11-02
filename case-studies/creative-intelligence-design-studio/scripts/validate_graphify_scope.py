@@ -157,6 +157,8 @@ def validate_graphify_scope(policy: dict[str, Any], project_root: Path) -> list[
                 errors.append("runtime dependency audit must use the upstream frozen lock mode")
             if dependency_audit.get("strict_mode_required") is not True:
                 errors.append("runtime dependency audit must require --strict")
+            if dependency_audit.get("hashes_required") is not True:
+                errors.append("runtime dependency audit must require hash-checked requirements")
             if dependency_audit.get("services") != ["pypi", "osv"]:
                 errors.append("runtime dependency audit must scan both PyPI and OSV services")
             if dependency_audit.get("source_lock") != "uv.lock from exact v0.9.100 source tag; blob 1fd2344a28be6b14c4f6f41c4901c70cadc2be0e":

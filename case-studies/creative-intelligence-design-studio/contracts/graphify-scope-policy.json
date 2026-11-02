@@ -96,7 +96,7 @@
       "tool": "pip-audit",
       "source_lock": "uv.lock from exact v0.9.100 source tag; blob 1fd2344a28be6b14c4f6f41c4901c70cadc2be0e",
       "status": "pending",
-      "runbook": "Verify exact uv.lock blob; use uv 0.13.6 with --frozen to export the upstream committed runtime dependency snapshot and CycloneDX SBOM without regenerating it; audit fully pinned requirements with pip-audit 2.10.1 using --strict --no-deps --disable-pip against PyPI and OSV; include no optional extras or dev group.",
+      "runbook": "Export the exact committed frozen base runtime requirements and CycloneDX SBOM with uv 0.13.6; audit the fully pinned, hash-bearing requirements with pip-audit 2.10.1 using --strict --require-hashes --disable-pip against both PyPI and OSV; include no optional extras or dev group.",
       "fail_on_known_vulnerability": true,
       "tool_version": "2.10.1",
       "strict_mode_required": true,
@@ -105,7 +105,8 @@
         "osv"
       ],
       "uv_version": "0.13.6",
-      "lock_mode": "frozen"
+      "lock_mode": "frozen",
+      "hashes_required": true
     }
   }
 }
