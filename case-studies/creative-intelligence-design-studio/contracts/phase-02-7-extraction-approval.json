@@ -3,7 +3,7 @@
   "approval_id": "KMH-CREATIVE-GRAPHIFY-PHASE-02-7R-2026-11-02-RUN-01",
   "status": "approved_single_disposable_run",
   "approval_date": "2026-11-02",
-  "authorization_basis": "Explicit owner approval in conversation: Phase 02.7-R Recovery + New One-time Extraction; workflow repair, preflight CI, new approval, then one disposable extraction.",
+  "authorization_basis": "Explicit owner approval in conversation plus successful Recovery Preflight CI run 41474386413 on commit 62c8d578a64bfb1761acb684aa2cd71d35eec346.",
   "approval_scope": "Exactly one fresh disposable Graphify v0.9.100 code-only extraction after repaired workflow passes preflight CI, using only the ten approved synthetic Python files in graphify-phase-02-7-sandbox.",
   "max_runs": 1,
   "launch_branch": "phase-02-7-recovery-once-20261102-r1",
@@ -70,5 +70,18 @@
     "existing_phase_02_5_candidate_immutable": true,
     "inferred_ambiguous_edges_never_auto_promoted": true,
     "human_review_required": true
+  },
+  "preflight_evidence": {
+    "workflow": "KMH Graphify Phase 02.7-R Recovery Preflight",
+    "run_id": 41474386413,
+    "conclusion": "success",
+    "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41474386413",
+    "checks": [
+      "workflow-expression-interpolation",
+      "one-run-boundaries",
+      "exact-ten-file-synthetic-fixture",
+      "validator-compilation",
+      "validator-cli-inspection"
+    ]
   }
 }
