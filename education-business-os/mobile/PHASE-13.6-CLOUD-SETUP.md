@@ -71,7 +71,7 @@ flutterfire configure \
   --android-package-name '<EXACT_EXISTING_FIREBASE_PACKAGE_NAME>'
 ```
 
-Copy the exact package argument from `firebase apps:list ANDROID` or Firebase Project Settings → Your apps. Stop if the CLI proposes creating an unintended duplicate.
+Copy the exact package argument from `firebase apps:list --project aptivern-education-os` or Firebase Project Settings → Your apps. Stop if the CLI proposes creating an unintended duplicate.
 
 Expected output includes `lib/firebase_options.dart` and, when native Gradle configuration is applied, `android/app/google-services.json`.
 
