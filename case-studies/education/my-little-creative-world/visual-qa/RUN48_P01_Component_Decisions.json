@@ -1,0 +1,520 @@
+[
+  {
+    "component_id": 1,
+    "area_pixels": 2415,
+    "bbox_xyxy": [
+      357,
+      0,
+      485,
+      100
+    ],
+    "centroid_xy": [
+      433.97,
+      53.62
+    ],
+    "assignment": "split",
+    "method": "split_top_right_paper_tab_from_blouse_shoulder_edge",
+    "details": {
+      "blouse_edge_pixels": 1099,
+      "tab_pixels": 1316,
+      "tab_polygon_xy": [
+        [
+          430,
+          0
+        ],
+        [
+          485,
+          18
+        ],
+        [
+          449,
+          88
+        ],
+        [
+          411,
+          72
+        ]
+      ]
+    }
+  },
+  {
+    "component_id": 2,
+    "area_pixels": 60,
+    "bbox_xyxy": [
+      205,
+      36,
+      225,
+      46
+    ],
+    "centroid_xy": [
+      216.37,
+      39.48
+    ],
+    "assignment": "Gold_Blouse",
+    "method": "manual_visual_neckline_edge",
+    "details": null
+  },
+  {
+    "component_id": 3,
+    "area_pixels": 2381,
+    "bbox_xyxy": [
+      70,
+      48,
+      202,
+      263
+    ],
+    "centroid_xy": [
+      140.15,
+      101.16
+    ],
+    "assignment": "Gold_Blouse",
+    "method": "manual_visual_left_shoulder_contour",
+    "details": null
+  },
+  {
+    "component_id": 4,
+    "area_pixels": 5,
+    "bbox_xyxy": [
+      503,
+      201,
+      504,
+      206
+    ],
+    "centroid_xy": [
+      503.0,
+      203.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 5,
+    "area_pixels": 10366,
+    "bbox_xyxy": [
+      504,
+      209,
+      606,
+      815
+    ],
+    "centroid_xy": [
+      559.07,
+      580.72
+    ],
+    "assignment": "split",
+    "method": "manual_visual_split_at_sleeve_cuff_transition",
+    "details": {
+      "blouse_pixels": 3221,
+      "drape_pixels": 7145,
+      "split_y": 505
+    }
+  },
+  {
+    "component_id": 6,
+    "area_pixels": 1,
+    "bbox_xyxy": [
+      159,
+      306,
+      160,
+      307
+    ],
+    "centroid_xy": [
+      159.0,
+      306.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 7,
+    "area_pixels": 1170,
+    "bbox_xyxy": [
+      85,
+      308,
+      159,
+      489
+    ],
+    "centroid_xy": [
+      127.18,
+      387.24
+    ],
+    "assignment": "Gold_Blouse",
+    "method": "manual_visual_left_sleeve_contour",
+    "details": null
+  },
+  {
+    "component_id": 8,
+    "area_pixels": 4,
+    "bbox_xyxy": [
+      169,
+      340,
+      170,
+      344
+    ],
+    "centroid_xy": [
+      169.0,
+      341.5
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 9,
+    "area_pixels": 1,
+    "bbox_xyxy": [
+      28,
+      395,
+      29,
+      396
+    ],
+    "centroid_xy": [
+      28.0,
+      395.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 10,
+    "area_pixels": 2,
+    "bbox_xyxy": [
+      26,
+      401,
+      27,
+      403
+    ],
+    "centroid_xy": [
+      26.0,
+      401.5
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 11,
+    "area_pixels": 1,
+    "bbox_xyxy": [
+      25,
+      405,
+      26,
+      406
+    ],
+    "centroid_xy": [
+      25.0,
+      405.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 12,
+    "area_pixels": 5,
+    "bbox_xyxy": [
+      23,
+      408,
+      25,
+      413
+    ],
+    "centroid_xy": [
+      23.4,
+      410.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 13,
+    "area_pixels": 11,
+    "bbox_xyxy": [
+      20,
+      414,
+      23,
+      423
+    ],
+    "centroid_xy": [
+      20.73,
+      418.09
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 14,
+    "area_pixels": 695,
+    "bbox_xyxy": [
+      0,
+      424,
+      79,
+      509
+    ],
+    "centroid_xy": [
+      34.74,
+      485.72
+    ],
+    "assignment": "Gold_Blouse",
+    "method": "manual_visual_cuff_outer_contour",
+    "details": null
+  },
+  {
+    "component_id": 15,
+    "area_pixels": 4,
+    "bbox_xyxy": [
+      83,
+      490,
+      85,
+      494
+    ],
+    "centroid_xy": [
+      83.75,
+      491.5
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 16,
+    "area_pixels": 3,
+    "bbox_xyxy": [
+      117,
+      494,
+      118,
+      497
+    ],
+    "centroid_xy": [
+      117.0,
+      495.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "excluded_left_side_paper_tab",
+    "details": null
+  },
+  {
+    "component_id": 17,
+    "area_pixels": 1,
+    "bbox_xyxy": [
+      81,
+      498,
+      82,
+      499
+    ],
+    "centroid_xy": [
+      81.0,
+      498.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 18,
+    "area_pixels": 138,
+    "bbox_xyxy": [
+      108,
+      501,
+      117,
+      586
+    ],
+    "centroid_xy": [
+      111.38,
+      543.72
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "excluded_left_side_paper_tab",
+    "details": null
+  },
+  {
+    "component_id": 19,
+    "area_pixels": 14682,
+    "bbox_xyxy": [
+      441,
+      647,
+      554,
+      961
+    ],
+    "centroid_xy": [
+      481.92,
+      839.46
+    ],
+    "assignment": "Cream_Gold_Drape",
+    "method": "manual_visual_lower_drape_panel",
+    "details": null
+  },
+  {
+    "component_id": 20,
+    "area_pixels": 3,
+    "bbox_xyxy": [
+      588,
+      816,
+      589,
+      819
+    ],
+    "centroid_xy": [
+      588.0,
+      817.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 21,
+    "area_pixels": 2,
+    "bbox_xyxy": [
+      590,
+      824,
+      591,
+      826
+    ],
+    "centroid_xy": [
+      590.0,
+      824.5
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 22,
+    "area_pixels": 3,
+    "bbox_xyxy": [
+      591,
+      827,
+      592,
+      830
+    ],
+    "centroid_xy": [
+      591.0,
+      828.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 23,
+    "area_pixels": 6,
+    "bbox_xyxy": [
+      593,
+      834,
+      595,
+      840
+    ],
+    "centroid_xy": [
+      593.5,
+      836.5
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 24,
+    "area_pixels": 4,
+    "bbox_xyxy": [
+      595,
+      843,
+      597,
+      847
+    ],
+    "centroid_xy": [
+      595.75,
+      844.5
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 25,
+    "area_pixels": 1,
+    "bbox_xyxy": [
+      598,
+      852,
+      599,
+      853
+    ],
+    "centroid_xy": [
+      598.0,
+      852.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 26,
+    "area_pixels": 2,
+    "bbox_xyxy": [
+      599,
+      854,
+      600,
+      856
+    ],
+    "centroid_xy": [
+      599.0,
+      854.5
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 27,
+    "area_pixels": 282,
+    "bbox_xyxy": [
+      595,
+      903,
+      617,
+      930
+    ],
+    "centroid_xy": [
+      607.57,
+      918.62
+    ],
+    "assignment": "Cream_Gold_Drape",
+    "method": "manual_visual_drape_tip",
+    "details": null
+  },
+  {
+    "component_id": 28,
+    "area_pixels": 17,
+    "bbox_xyxy": [
+      105,
+      1096,
+      106,
+      1113
+    ],
+    "centroid_xy": [
+      105.0,
+      1104.0
+    ],
+    "assignment": "excluded_or_unresolved",
+    "method": "unassigned_uncertain",
+    "details": null
+  },
+  {
+    "component_id": 29,
+    "area_pixels": 414,
+    "bbox_xyxy": [
+      232,
+      1141,
+      331,
+      1148
+    ],
+    "centroid_xy": [
+      292.94,
+      1143.31
+    ],
+    "assignment": "Ruby_Longyi",
+    "method": "manual_visual_longyi_bottom_hem",
+    "details": null
+  }
+]
