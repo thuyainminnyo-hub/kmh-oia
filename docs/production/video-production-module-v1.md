@@ -48,17 +48,17 @@ ffmpeg -hide_banner -encoders | grep h264_nvenc
 ffprobe -version
 ```
 
-A missing GPU/encoder must remain a HOLD; do not switch to CPU and label it a GPU run.
+A missing GPU/encoder must remain a HOLD; do not switch to CPU and label it a GPU run.\n\nRun one controlled pilot job (the output directory is also the bridge allowlist):\n\n```bash\npython -m scripts.run_local_video_pilot --input media/source.mp4 --output-dir artifacts/video --width 1920 --height 1080 --fps 30\n```\n\nThe command returns `qa_pending` on successful rendering. It never approves or publishes the video. Review the adjacent `.execution.json` manifest and perform the separate content-QA and human-approval steps.
 
 ## Evidence contract
 
 For each real run retain:
 - Job ID, commit SHA, adapter version and UTC timestamps.
-- Source file SHA-256 and byte size.
+- Source file SHA-256 and byte size (written to the execution manifest).
 - GPU model and driver version from `nvidia-smi`.
 - FFmpeg version and explicit NVENC encoder selection.
 - FFmpeg exit code and elapsed time.
-- Output MP4 SHA-256, byte size, duration, dimensions and stream metadata from ffprobe.
+- Output MP4 SHA-256, byte size, duration, dimensions and stream metadata from ffprobe (written to the execution manifest).
 - QA report covering playback, audio sync, visual correctness and requested brief.
 - Named human approver, decision, timestamp and revision reference.
 
