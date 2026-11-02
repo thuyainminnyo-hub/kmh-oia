@@ -54,22 +54,26 @@ The exact commands are recorded in [Phase 02.1 Source & Version Intake](phase-02
 
 ## Acceptance gates
 
-**Dependency audit evidence:** Latest run [41423344454](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344454) passed hash-enforced PyPI and OSV scans of the exact frozen Graphify v0.9.100 base-runtime lock snapshot. Both returned no known vulnerabilities. [Evidence artifact 13131340453](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344454/artifacts/13131340453).
+**Dependency audit:** [Run 41423529714](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423529714) passed hash-enforced PyPI and OSV scans of the exact frozen Graphify v0.9.100 base-runtime lock snapshot. Both reported no known vulnerabilities. [Evidence artifact 13129919973](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423529714/artifacts/13129919973).
 
-**Latest CI evidence (2026-11-02):** Creative Studio QA run [41423333319](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423333319) passed 28 tests and diff check. KMH OIA Tests run [41423344597](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344597) passed 462 tests and performance baseline. KMH OIA Validation run [41423344325](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41423344325) passed repository validation, tests, performance evidence and the deployment evidence bundle.
+**Actual disposable Graphify execution:** [Run 41430984629](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41430984629) installed v0.9.100 in an external temporary virtual environment, extracted the two synthetic Python fixtures without model credentials, and passed graph traceability validation. Result: 12 nodes, 17 edges, 6 cross-file relationships, 16 EXTRACTED and 1 INFERRED edge, zero validator errors. [Artifact 13134475847](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41430984629/artifacts/13134475847).
+
+**Latest PR-head CI (2026-11-02, commit `02b65c88`):**
+- Creative Studio QA [41431490515](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41431490515): SUCCESS — 36/36 tests.
+- KMH OIA Tests [41431490359](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41431490359): SUCCESS — 462/462 tests and performance baseline.
+- KMH OIA Validation [41431490548](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41431490548): SUCCESS — repository validation, tests, performance evidence and deployment evidence bundle.
+- Dependency audit [41431490286](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41431490286): SUCCESS.
 
 | Gate | Required evidence | Current state |
 |---|---|---|
-| G0 — Source and version intake | Official source, license, exact candidate, known advisory and frozen base-runtime dependency audit | PASS — dependency audit run 41422855820; install approval remains pending |
-| G1 — Scope guard | Validator and unit tests pass in GitHub CI | PASS — Creative Studio QA run 41423333319; 28/28 tests and diff check passed |
-| G2 — Isolated code-only extraction | Reproducible graph from synthetic Python fixture | NOT RUN |
-| G3 — Source traceability | Sampled EXTRACTED edges resolve to source file/line | NOT RUN |
-| G4 — False-connection review | Expected import/call edges present; unsupported links rejected; INFERRED edges separately reviewed | NOT RUN |
-| G5 — Owner authorization | Technical owner and data owner approve any scope expansion | PENDING |
+| G0 — Source, license, known advisory and frozen base-runtime dependency audit | Official v0.9.100 source provenance and hash-enforced PyPI/OSV audit | PASS |
+| G1 — Scope guard and automated tests | Preflight validator and 36 Creative Studio tests | PASS |
+| G2 — Isolated code-only extraction | Graph generated from only two synthetic Python fixtures on a disposable runner | PASS — 12 nodes, 17 edges |
+| G3 — Source traceability | Source-backed nodes and edges have valid file/line provenance; cross-file evidence exists | PASS — 6 cross-file edges; 0 validator errors |
+| G4 — False-connection review | Human decision on inferred/ambiguous edges | OPEN — one INFERRED `uses` edge at `outfit_flow.py:L6`; see Phase 02.2 report |
+| G5 — Owner authorization | Single disposable synthetic-run approval | PASS — consumed by run 41430984629; no repeat run authorized |
 
-**Actual pilot evidence:** [Run 41430984629](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41430984629) produced 12 graph nodes and 17 edges, including 6 cross-file relationships. The traceability validator returned PASS with zero errors. One INFERRED `uses` edge at `outfit_flow.py:L6` remains for human false-connection review. Evidence artifact: [13134475847](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41430984629/artifacts/13134475847).
-
-The workflow's final cleanup step was marked failed because `WORK_ROOT` was not passed to that step. Graph extraction, traceability and artifact upload had already completed successfully. GitHub-hosted runner VMs are ephemeral and are destroyed after the job; the workflow cleanup command is corrected to use `$RUNNER_TEMP` directly. Automatic push triggering is removed; the consumed approval contract blocks a repeat run.
+The disposable workflow run is marked FAILED solely because its final explicit cleanup shell step did not receive the `WORK_ROOT` variable. Extraction, graph generation, traceability validation and artifact upload passed. GitHub-hosted runner VMs are ephemeral and are destroyed by GitHub after the job; the cleanup command is corrected to use `$RUNNER_TEMP`. Automatic push triggering is removed and the approval contract is marked consumed.
 
 ## Hard stop conditions
 

@@ -14,7 +14,7 @@ Execution boundary: No local installation, assistant skill, Git hook, MCP server
 5. Copy exactly the two synthetic Python files and the Graphify ignore file into a separate scan snapshot. Make the snapshot read-only and write a SHA-256 manifest.
 6. Run graphify extract with --code-only --no-dedup --no-cluster and an output directory outside the scan root. The process receives a clean environment with no model credentials.
 7. Run validate_graphify_output.py against the generated graph.json.
-8. Upload the graph and sanitized traceability report for 14 days, then delete the temporary workspace.
+8. Upload the graph and sanitized traceability report for 14 days, then run the explicit temporary-workspace cleanup step. GitHub disposes of the hosted runner VM after the job.
 
 ## Traceability acceptance checks
 
@@ -43,10 +43,24 @@ Workflow run [41430984629](https://github.com/thuyainminnyo-hub/kmh-oia/actions/
 - One INFERRED `uses` edge connects `select_outfit()` to `DesignToken` at `outfit_flow.py:L6`. It appears to overlap with the EXTRACTED type-reference edge at the same line and is flagged for manual false-connection review, not promoted to a fact.
 - Evidence artifact [13134475847](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41430984629/artifacts/13134475847) uploaded successfully.
 
-**Workflow conclusion:** The overall job is marked FAILED only because the final explicit cleanup shell step did not receive the `WORK_ROOT` variable. Extraction, graph generation, traceability validation and artifact upload had already passed. GitHub-hosted runners are ephemeral VMs, so GitHub destroys the runner VM after the job; the explicit `rm -rf` step itself did not succeed. The workflow was corrected to use `$RUNNER_TEMP` directly, and automatic push triggering was removed so this consumed one-run approval cannot launch a second extraction accidentally.
+**Workflow conclusion:** The overall job is marked FAILED only because the final explicit cleanup shell step did not receive the `WORK_ROOT` variable. Extraction, graph generation, traceability validation and artifact upload had already passed. GitHub-hosted runners are ephemeral VMs, so GitHub destroys the runner VM after the job; the explicit `rm -rf` step itself did not succeed. The workflow was corrected to use `$RUNNER_TEMP` directly. Automatic push triggering was removed and the approval contract is now marked consumed, so this one-run authorization cannot launch another extraction accidentally.
 
 ## Evidence and gate interpretation
 
 The run artifact is named kmh-graphify-disposable-pilot-<run-id>. Generated graph files are not committed to the repository. If extraction or traceability fails, the workflow uploads any available diagnostic evidence and fails the gate.
 
-G0.1–G0.5 and G1 are complete. G2 and G3 remain pending until the workflow finishes. G4 (manual review of false connections and inferred/ambiguous links) remains a separate human QA decision. Production approval remains out of scope.
+## Final acceptance state
+
+| Gate | Result | Evidence |
+|---|---|---|
+| G0.1 — Official source identity | PASS | Exact v0.9.100 source commit verified |
+| G0.2 — License/dependency review | PASS | Apache-2.0 and upstream dependency profile reviewed |
+| G0.3 — Known advisory review | PASS | GHSA-pcc4-rvhr-2pr8 review recorded |
+| G0.4 — Frozen dependency audit | PASS | PyPI + OSV hash-enforced audit run 41423529714 |
+| G0.5 — Single-run owner approval | PASS / CONSUMED | One disposable run, 41430984629 |
+| G1 — Scope guard and unit tests | PASS | 36 Creative Studio tests on head 02b65c8 |
+| G2 — Disposable extraction | PASS | Graphify v0.9.100 produced 12 nodes and 17 edges |
+| G3 — Source traceability | PASS | Six cross-file edges; zero validator errors |
+| G4 — Human false-connection review | OPEN | One INFERRED type-annotation edge at outfit_flow.py:L6 |
+
+Production approval remains out of scope.
