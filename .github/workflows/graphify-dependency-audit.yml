@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   locked-runtime-dependency-audit:
-    name: Audit Graphify v0.9.100 locked runtime dependencies
+    name: Audit Graphify v0.9.100 frozen runtime dependency snapshot
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -34,8 +34,10 @@ jobs:
       - name: Checkout KMH OIA policy
         uses: actions/checkout@v4
 
-      - name: Install uv
+      - name: Install pinned uv
         uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
 
       - name: Checkout and verify exact upstream source
         shell: bash
@@ -49,13 +51,17 @@ jobs:
           ACTUAL_COMMIT="$(git -C "$AUDIT_DIR/graphify-source" rev-parse HEAD)"
           test "$ACTUAL_COMMIT" = "$GRAPHIFY_COMMIT"
           printf '%s\n' "$ACTUAL_COMMIT" > "$AUDIT_DIR/source-commit.txt"
+          LOCK_BLOB="$(git -C "$AUDIT_DIR/graphify-source" rev-parse "$GRAPHIFY_TAG:uv.lock")"
+          test "$LOCK_BLOB" = "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e"
+          printf '%s\n' "$LOCK_BLOB" > "$AUDIT_DIR/uv-lock-blob-sha.txt"
+          uv --version > "$AUDIT_DIR/uv-version.txt"
 
-      - name: Export locked runtime requirements and CycloneDX SBOM
+      - name: Export frozen runtime requirements and CycloneDX SBOM
         shell: bash
         run: |
           set -euo pipefail
           cd "$AUDIT_DIR/graphify-source"
-          uv export --locked --no-dev --no-emit-project \
+          uv export --frozen --no-dev --no-emit-project \
             --format requirements.txt \
             --output-file "$AUDIT_DIR/runtime-requirements.txt"
           uv export --locked --no-dev --no-emit-project \

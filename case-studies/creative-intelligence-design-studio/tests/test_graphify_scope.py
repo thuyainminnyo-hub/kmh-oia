@@ -136,6 +136,20 @@ class GraphifyScopeTests(unittest.TestCase):
         errors = validate_graphify_scope(policy, root)
         self.assertTrue(any("pinned to pip-audit 2.10.1" in error for error in errors))
 
+    def test_dependency_audit_uv_version_must_be_exactly_pinned(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["runtime_dependency_audit"]["uv_version"] = "latest"
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("uv version must remain pinned to 0.13.6" in error for error in errors))
+
+    def test_dependency_audit_must_use_frozen_upstream_lock_mode(self):
+        root = self.temporary_project()
+        policy = copy.deepcopy(self.policy)
+        policy["source_intake"]["runtime_dependency_audit"]["lock_mode"] = "locked"
+        errors = validate_graphify_scope(policy, root)
+        self.assertTrue(any("frozen lock mode" in error for error in errors))
+
     def test_dependency_audit_strict_mode_is_required(self):
         root = self.temporary_project()
         policy = copy.deepcopy(self.policy)

@@ -45,7 +45,7 @@ Run from a disposable workstation or container with filesystem access restricted
 
 1. Confirm that the technical owner has explicitly approved v0.9.100 and the data owner has approved this exact fixture.
 2. Verify the source tag resolves to commit `f5155badddaa3286c78a51653791131e9e2e4d29`.
-3. In the exact release checkout, install only locked runtime dependencies with `uv sync --locked --no-dev --python 3.12`. Do not add extras.
+3. In the exact release checkout, verify the upstream `uv.lock` blob SHA, then use the pinned uv 0.13.6 and `uv sync --frozen --no-dev --python 3.12`. Do not regenerate the lock or add extras.
 4. Create an external temporary workspace and copy only the approved fixture files into a new scan root. Do not point Graphify at the repository or the original feature branch directory.
 5. Make the snapshot read-only and verify it contains exactly three files before execution.
 6. Run code-only extraction with model backend disabled and graph output stored outside the scan root. Do not execute `graphify install`, hook installation, MCP setup, or a model-backed semantic pass.

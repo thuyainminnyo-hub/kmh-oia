@@ -31,9 +31,11 @@ The following are optional extras, not required for the first Python-only fixtur
 - OpenAI, Anthropic, Gemini, Bedrock, Ollama and other model-provider SDKs.
 - Extra language extractors and visualisation features.
 
-**Pilot dependency decision:** do not install `[all]` or any optional extra. Use the exact release tag's `uv.lock` with `uv sync --locked --no-dev --python 3.12`. This uses the upstream locked resolution and skips the development dependency group and optional extras. No assistant skill, git hook, MCP server, model SDK or global integration is enabled.
+**Pilot dependency decision:** do not install `[all]` or any optional extra. Use the exact release tag's `uv.lock` with `uv 0.13.6` and `uv sync --frozen --no-dev --python 3.12`. The upstream v0.9.100 CI explicitly uses `--frozen` to consume the committed lock without re-resolving or rewriting it. Pin the exact `uv.lock` Git blob `1fd2344a28be6b14c4f6f41c4901c70cadc2be0e`. No assistant skill, git hook, MCP server, model SDK or global integration is enabled.
 
-A separate runtime dependency audit remains mandatory before installation. The uv lockfile format is specific to uv, so export the exact selected runtime dependency set from the locked source tree and pass the resulting fully pinned requirements file to PyPA's `pip-audit`. The audit tool is pinned to `pip-audit==2.10.1` (the latest listed PyPI release at this review). Run both the PyPI and OSV vulnerability services. The tool is invoked with `--strict --no-deps --disable-pip`: `--strict` fails when dependency collection is incomplete, while `--no-deps --disable-pip` is supported for fully pinned requirements and avoids a second dependency-resolution step. Do not claim the lockfile or transitive dependencies are vulnerability-free until both audit reports produce clean evidence.
+A separate runtime dependency audit remains mandatory before installation. The uv lockfile format is specific to uv, so export the exact selected runtime dependency set from the frozen source snapshot and pass the resulting fully pinned requirements file to PyPA's `pip-audit`. The audit tool is pinned to `pip-audit==2.10.1` (the latest listed PyPI release at this review). Run both the PyPI and OSV vulnerability services. The tool is invoked with `--strict --no-deps --disable-pip`: `--strict` fails when dependency collection is incomplete, while `--no-deps --disable-pip` is supported for fully pinned requirements and avoids a second dependency-resolution step. Do not claim the lockfile or transitive dependencies are vulnerability-free until both audit reports produce clean evidence.
+
+**Lockfile compatibility note:** A first `uv export --locked` check failed because uv determined that the release tag's `uv.lock` needed updating against its `pyproject.toml`. Upstream v0.9.100 CI deliberately uses `uv sync --frozen` and `uv run --frozen` to consume the committed lock without re-resolving it. The audit therefore mirrors the upstream frozen lock policy, pins uv 0.13.6 and verifies the exact lock blob SHA. This audits the dependency snapshot upstream CI actually consumes; it does not assert that the published PyPI installation resolver will select the same graph if package metadata is independently re-resolved.
 
 ## 4. Security advisory review
 
@@ -68,8 +70,10 @@ test "$(git -C "$GRAPHIFY_REPO" rev-parse HEAD)" = "$EXPECTED_SOURCE_COMMIT"
 
 (
   cd "$GRAPHIFY_REPO"
-  uv export --locked --no-dev --no-emit-project --format requirements.txt --output-file "$WORK/runtime-requirements.txt"
-  uv export --locked --no-dev --no-emit-project --format cyclonedx1.5 --output-file "$WORK/runtime-sbom.json"
+  test "$(git rev-parse v0.9.100:uv.lock)" = "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e"
+  uv --version
+  uv export --frozen --no-dev --no-emit-project --format requirements.txt --output-file "$WORK/runtime-requirements.txt"
+  uv export --frozen --no-dev --no-emit-project --format cyclonedx1.5 --output-file "$WORK/runtime-sbom.json"
   uvx --from "pip-audit==2.10.1" pip-audit --version > "$WORK/pip-audit-version.txt"
   set +e
   uvx --from "pip-audit==2.10.1" pip-audit --strict --no-deps --disable-pip --requirement "$WORK/runtime-requirements.txt" --format json --output "$WORK/pip-audit-pypi.json"
@@ -79,7 +83,7 @@ test "$(git -C "$GRAPHIFY_REPO" rev-parse HEAD)" = "$EXPECTED_SOURCE_COMMIT"
   set -e
   test "$PYPI_AUDIT_STATUS" -eq 0
   test "$OSV_AUDIT_STATUS" -eq 0
-  uv sync --locked --no-dev --python 3.12
+  uv sync --frozen --no-dev --python 3.12
 )
 
 mkdir -p "$SCAN_ROOT/src" "$OUT_ROOT"
@@ -114,7 +118,7 @@ The automated dependency-audit workflow is a read-only source-metadata and vulne
 | G0.1 — Official source identity | PyPI package, source tag and provenance commit match | PASS |
 | G0.2 — License and dependency review | Apache-2.0 declaration, NOTICE/MIT legacy note, base/optional dependency split and lockfile reviewed | PASS |
 | G0.3 — Known advisory review | GHSA range/fix reviewed; v0.9.100 Fortran patch inspected | PASS |
-| G0.4 — Locked runtime dependency audit | Exact base requirements exported from v0.9.100 uv.lock; pip-audit report with no known vulnerabilities | PENDING |
+| G0.4 — Frozen runtime dependency audit | Exact verified uv.lock blob exported with uv 0.13.6 --frozen; clean PyPI and OSV pip-audit reports | PENDING |
 | G0.5 — Owner install approval | Explicit approval for isolated tool install and fixture execution | PENDING |
 | G1 — Scope guard | Project validator and 14 CI tests | PASS |
 | G2 — Isolated Graphify extraction | Actual run from the exact release in disposable workspace | NOT RUN |

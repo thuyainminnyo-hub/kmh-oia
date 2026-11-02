@@ -151,11 +151,15 @@ def validate_graphify_scope(policy: dict[str, Any], project_root: Path) -> list[
                 errors.append("runtime dependency audit tool must remain pip-audit")
             if dependency_audit.get("tool_version") != "2.10.1":
                 errors.append("runtime dependency audit tool must remain pinned to pip-audit 2.10.1")
+            if dependency_audit.get("uv_version") != "0.13.6":
+                errors.append("runtime dependency audit uv version must remain pinned to 0.13.6")
+            if dependency_audit.get("lock_mode") != "frozen":
+                errors.append("runtime dependency audit must use the upstream frozen lock mode")
             if dependency_audit.get("strict_mode_required") is not True:
                 errors.append("runtime dependency audit must require --strict")
             if dependency_audit.get("services") != ["pypi", "osv"]:
                 errors.append("runtime dependency audit must scan both PyPI and OSV services")
-            if dependency_audit.get("source_lock") != "uv.lock from exact v0.9.100 source tag":
+            if dependency_audit.get("source_lock") != "uv.lock from exact v0.9.100 source tag; blob 1fd2344a28be6b14c4f6f41c4901c70cadc2be0e":
                 errors.append("runtime dependency audit must use the exact release uv.lock")
             if dependency_audit.get("status") != "pending":
                 errors.append("runtime dependency audit must remain pending until evidence is attached")

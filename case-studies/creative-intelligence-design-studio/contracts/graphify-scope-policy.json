@@ -81,7 +81,7 @@
     "license_expression": "Apache-2.0",
     "legacy_license_note": "Upstream NOTICE states that portions contributed before relicensing remain under MIT terms; retain LICENSE, LICENSE-MIT, and NOTICE when redistributing source.",
     "requires_python": ">=3.10",
-    "dependency_strategy": "Use uv.lock from the exact v0.9.100 source tag with uv sync --locked --no-dev; install no optional extras.",
+    "dependency_strategy": "Use the exact uv.lock blob from v0.9.100 (Git blob 1fd2344a28be6b14c4f6f41c4901c70cadc2be0e) with uv 0.13.6 and --frozen; do not regenerate the lockfile; install no optional extras.",
     "optional_extras_enabled": [],
     "known_advisories": [
       {
@@ -94,16 +94,18 @@
     "owner_install_approval": "pending",
     "runtime_dependency_audit": {
       "tool": "pip-audit",
-      "source_lock": "uv.lock from exact v0.9.100 source tag",
+      "source_lock": "uv.lock from exact v0.9.100 source tag; blob 1fd2344a28be6b14c4f6f41c4901c70cadc2be0e",
       "status": "pending",
-      "runbook": "Export the exact locked base runtime requirements and CycloneDX SBOM; audit the fully pinned requirements with pip-audit 2.10.1 using --strict --no-deps --disable-pip against both PyPI and OSV; include no optional extras or dev group.",
+      "runbook": "Verify exact uv.lock blob; use uv 0.13.6 with --frozen to export the upstream committed runtime dependency snapshot and CycloneDX SBOM without regenerating it; audit fully pinned requirements with pip-audit 2.10.1 using --strict --no-deps --disable-pip against PyPI and OSV; include no optional extras or dev group.",
       "fail_on_known_vulnerability": true,
       "tool_version": "2.10.1",
       "strict_mode_required": true,
       "services": [
         "pypi",
         "osv"
-      ]
+      ],
+      "uv_version": "0.13.6",
+      "lock_mode": "frozen"
     }
   }
 }
