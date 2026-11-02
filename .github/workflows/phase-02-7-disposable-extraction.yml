@@ -146,6 +146,18 @@ jobs:
           repo = Path(os.environ["GITHUB_WORKSPACE"])
           source_root = repo / os.environ["SANDBOX_DIR"]
           scan_root = Path(os.environ["SCAN_ROOT"])
+          approved = sorted([".graphifyignore", *approval["target"]["source_files"]])
+          observed_source = sorted(
+              item.relative_to(source_root).as_posix()
+              for item in source_root.rglob("*")
+              if item.is_file() or item.is_symlink()
+          )
+          if observed_source != approved:
+              raise SystemExit(
+                  f"checked-in sandbox file set mismatch: expected={approved}, observed={observed_source}"
+              )
+          if any(item.is_symlink() for item in source_root.rglob("*")):
+              raise SystemExit("symlink detected in checked-in Phase 02.7 source sandbox")
           scan_root.mkdir(parents=True, exist_ok=True)
           shutil.copy2(source_root / ".graphifyignore", scan_root / ".graphifyignore")
           for relative in baseline["source_files"]:
