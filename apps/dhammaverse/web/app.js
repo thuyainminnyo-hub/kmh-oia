@@ -15,13 +15,13 @@ function renderLanguage(){
  $("reflection").placeholder=lang==="my"?"ကိုယ်ပိုင်မှတ်စုရေးပါ…":"Write a private reflection…";
 }
 $("language-toggle").addEventListener("click",()=>{lang=lang==="my"?"en":"my";renderLanguage();});
-let answered=localStorage.getItem("dv001-quiz")==="correct";
+let answered=false;\ntry{answered=localStorage.getItem("dv001-quiz")==="correct";}catch{}
 function updateProgress(){const n=answered?100:0;$("progress-value").textContent=n+"%";$("progress-bar").style.width=n+"%";}
 document.querySelectorAll("[data-answer]").forEach(button=>{
  button.addEventListener("click",()=>{
   const correct=button.dataset.answer==="no";
   answered=correct;
-  if(correct)localStorage.setItem("dv001-quiz","correct");else localStorage.removeItem("dv001-quiz");
+  try{if(correct)localStorage.setItem("dv001-quiz","correct");else localStorage.removeItem("dv001-quiz");}catch{}
   $("quiz-feedback").textContent=correct?copy[lang].correct:copy[lang].incorrect;
   document.querySelectorAll("[data-answer]").forEach(b=>b.disabled=true);
   updateProgress();
