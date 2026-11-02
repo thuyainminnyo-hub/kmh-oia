@@ -117,6 +117,14 @@ jobs:
       - name: Generate Android project scaffolding
         working-directory: education-business-os/mobile
         run: flutter create --platforms=android --project-name aptivern_student_app .
+      - name: Apply existing Firebase Android package identity
+        working-directory: education-business-os/mobile
+        env:
+          APTIVERN_ANDROID_PACKAGE_NAME: ${{ vars.APTIVERN_ANDROID_PACKAGE_NAME }}
+        run: node tool/configure-android-package.mjs
+      - name: Test Android package identity configurator
+        working-directory: education-business-os/mobile
+        run: node --test test/configure_android_package.test.mjs
       - name: Resolve Flutter dependencies
         working-directory: education-business-os/mobile
         run: flutter pub get
@@ -138,6 +146,7 @@ jobs:
         run: |
           node --check tool/verify-firebase-config.mjs
           node --check tool/verify-android-package.mjs
+          node --check tool/configure-android-package.mjs
       - name: Verify Android package identity gate
         working-directory: education-business-os/mobile
         env:
