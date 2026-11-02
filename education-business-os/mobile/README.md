@@ -54,3 +54,8 @@ Use synthetic Firebase Authentication accounts with an active student membership
 ## Current scope
 
 This client provides sign-in, organization selection and read-only enrollment display. Attendance history, payment history, assessments, assignments, Creative Writing, push notifications, guardian access, offline work recovery and creator tools still require implementation and acceptance testing. A successful CI APK build proves compilation only; it does not prove device Firebase connectivity or production deployment.
+
+
+## Phase 13.6 cloud Firebase configuration
+
+See [PHASE-13.6-CLOUD-SETUP.md](PHASE-13.6-CLOUD-SETUP.md) for the Codespaces toolchain, existing Firebase Android app inspection, package ID matching, FlutterFire configuration, and acceptance evidence. The CI package gate uses the repository Actions variable `APTIVERN_ANDROID_ORG`; leave it unset until the existing Firebase Android package has been confirmed. An unset variable is reported as PENDING, not as a verified Firebase registration.
