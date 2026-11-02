@@ -32,16 +32,18 @@ jobs:
           from pathlib import Path
 
           workflow = Path(".github/workflows/phase-02-7-disposable-extraction.yml").read_text()
-          assert "\\${{" not in workflow, "escaped GitHub expression remains"
-          for expression in (
-              "${{ github.ref_name }}",
-              "${{ github.token }}",
-              "${{ github.event.before }}",
-              "${{ github.run_attempt }}",
-              "${{ github.run_id }}",
-              "${{ runner.temp }}",
+          opener = "$" + "{{"
+          assert ("\\" + opener) not in workflow, "escaped GitHub expression remains"
+          for context in (
+              "github.ref_name",
+              "github.token",
+              "github.event.before",
+              "github.run_attempt",
+              "github.run_id",
+              "runner.temp",
           ):
-              assert expression in workflow, f"missing expression: {expression}"
+              expression = opener + " " + context + " }}"
+              assert expression in workflow, f"missing expression: {context}"
           assert "rerun_allowed" in workflow
           assert "test \"$RUN_ATTEMPT\" = \"1\"" in workflow
           assert "--code-only --no-dedup --no-cluster" in workflow
