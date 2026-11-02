@@ -6,11 +6,24 @@
 - [ ] Duplicate student records are reviewed before merging.
 
 ## Authentication and authorization
+- [ ] Every organization-owned document stores a validated `organizationId`.
+- [ ] Active organization membership is required for tenant-scoped callable operations.
+- [ ] Organization roles are read from `organizations/{organizationId}/members/{uid}`, not trusted from client-supplied data.
+- [ ] Organization A cannot read or mutate Organization B's courses, batches, enrollments, payments or learning records.
+- [ ] Unscoped collection queries that could cross organization boundaries are denied.
+- [ ] Platform admin bootstrap is protected by a server-managed `platformAdmin` custom claim.
 - [ ] Unauthenticated reads and writes are denied.
 - [ ] Student reads only own records.
 - [ ] Instructor reads only assigned batch records (assignment constraints must be completed before production).
 - [ ] Only admin manages courses/batches and verifies payments.
 - [ ] Client cannot assign or change custom role claims.
+
+## Multi-organization
+- [ ] Platform admin can bootstrap an organization and its first admin membership.
+- [ ] Organization admin can provision and suspend members using an audited callable function.
+- [ ] A user with active membership in one organization cannot use its role in another organization.
+- [ ] Suspended membership loses organization access.
+- [ ] Same-school student ownership and instructor assignment restrictions remain enforced.
 
 ## Workflows
 - [ ] Paid enrollment begins in pending_payment; free enrollment may activate immediately.
