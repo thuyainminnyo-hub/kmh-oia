@@ -128,7 +128,7 @@
     }
   ],
   "policies": {
-    "scan_root": "graphify-sandbox",
+    "scan_root": "graphify-phase-02-7-sandbox",
     "max_python_files": 20,
     "allow_symlinks": false,
     "only_source_paths": "source_files",
