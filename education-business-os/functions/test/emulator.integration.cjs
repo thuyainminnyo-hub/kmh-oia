@@ -365,14 +365,43 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
       organizationId: otherOrgId, courseId: otherOrgId + "__course",
       fee: 100000, currency: "MMK", status: "planned"
     });
+    // Caller belongs to Aptivern, but attempts to reference a batch owned by School B.
     await assert.rejects(
       callFunction("createEnrollment", admin.idToken, {
-        organizationId: otherOrgId,
+        organizationId: "aptivern",
         studentId: student.uid,
         batchId: foreignBatchId
       }),
       (error) => error && error.code === "PERMISSION_DENIED"
     );
+
+    const foreignEnrollmentId = prefix + "-foreign-enrollment";
+    const foreignPaymentId = prefix + "-foreign-payment";
+    await db.collection("enrollments").doc(foreignEnrollmentId).set({
+      organizationId: otherOrgId, studentId: student.uid, batchId: foreignBatchId,
+      feeAmount: 100000, paidAmount: 0, pendingAmount: 0, balanceDue: 100000,
+      status: "pending_payment"
+    });
+    await db.collection("payments").doc(foreignPaymentId).set({
+      organizationId: otherOrgId, enrollmentId: foreignEnrollmentId,
+      studentId: student.uid, batchId: foreignBatchId, amount: 50000,
+      currency: "MMK", method: "cash", status: "pending"
+    });
+    await assert.rejects(
+      callFunction("recordPayment", admin.idToken, {
+        organizationId: "aptivern", enrollmentId: foreignEnrollmentId,
+        amount: 50000, method: "cash"
+      }),
+      (error) => error && error.code === "PERMISSION_DENIED"
+    );
+    await assert.rejects(
+      callFunction("verifyPayment", admin.idToken, {
+        organizationId: "aptivern", paymentId: foreignPaymentId, verified: true
+      }),
+      (error) => error && error.code === "PERMISSION_DENIED"
+    );
+    await db.collection("payments").doc(foreignPaymentId).delete();
+    await db.collection("enrollments").doc(foreignEnrollmentId).delete();
     await db.collection("batches").doc(foreignBatchId).delete();
     await db.collection("organizations").doc(otherOrgId).delete();
   });
