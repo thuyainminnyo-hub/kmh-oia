@@ -62,7 +62,7 @@ It covers:
 11. Star imports
 12. Ambiguous internal declarations
 
-Each case must state expected AST context, expected relationship semantics, and a fail-closed rule where the binding is ambiguous.
+Each case must state expected AST context, expected relationship semantics, and a fail-closed rule where the binding is ambiguous. A separate synthetic Python fixture corpus and 12 AST-shape tests have now been added under `tests/fixtures/phase_02_8/` and `tests/test_phase_02_8_ast_fixtures.py`. These validate Python AST distinctions only; they do not claim that Graphify emits the corresponding graph edges.
 
 ## Acceptance gates
 
@@ -81,7 +81,8 @@ Each case must state expected AST context, expected relationship semantics, and 
 ## CI and review evidence
 
 - Phase 02.8 synthetic contract CI: [run 41484180105](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41484180105) — SUCCESS
-- The six contract tests and JSON syntax check passed.
+- The six contract tests and JSON syntax check passed in run 41484180105.
+- Added 12 AST fixture tests for parameter/return annotations, same-line annotations, variable annotations, multiple inheritance, aliases, duplicate names, nested scopes, string forward references, generics, star imports, and duplicate declarations. The updated CI will run both suites.
 - Draft integration PR: https://github.com/thuyainminnyo-hub/kmh-oia/pull/190
 - PR base: `phase-02-7S-validator-revalidation-20261102`
 - PR status: OPEN / DRAFT / UNMERGED
