@@ -156,7 +156,7 @@ jobs:
       - name: Verify Firebase Android native configuration when available
         working-directory: education-business-os/mobile
         run: |
-          if [ -f android/app/google-services.json ] && [ -f lib/firebase_options.dart ]; then
+          if [ -f lib/firebase_options.dart ]; then
             node tool/verify-firebase-config.mjs
           else
             echo "::notice::PENDING: Firebase Android configuration has not been generated in this branch yet."
