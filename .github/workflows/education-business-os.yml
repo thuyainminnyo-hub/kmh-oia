@@ -119,7 +119,14 @@ jobs:
           EOF
       - name: Validate Android Firebase preflight script syntax
         working-directory: education-business-os/mobile
-        run: node --check tool/verify-firebase-config.mjs
+        run: |
+          node --check tool/verify-firebase-config.mjs
+          node --check tool/verify-android-package.mjs
+      - name: Verify Android package identity gate
+        working-directory: education-business-os/mobile
+        env:
+          APTIVERN_ANDROID_ORG: ${{ vars.APTIVERN_ANDROID_ORG }}
+        run: node tool/verify-android-package.mjs
       - name: Analyze Flutter source
         working-directory: education-business-os/mobile
         run: flutter analyze
