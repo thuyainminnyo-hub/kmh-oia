@@ -67,6 +67,10 @@ test "$(git -C "$GRAPHIFY_REPO" rev-parse HEAD)" = "$EXPECTED_SOURCE_COMMIT"
 
 (
   cd "$GRAPHIFY_REPO"
+  uv export --locked --no-dev --no-emit-project --format requirements.txt --output-file "$WORK/runtime-requirements.txt"
+  uv export --locked --no-dev --no-emit-project --format cyclonedx1.5 --output-file "$WORK/runtime-sbom.json"
+  uvx --from pip-audit pip-audit --version > "$WORK/pip-audit-version.txt"
+  uvx --from pip-audit pip-audit --strict --no-deps --disable-pip --requirement "$WORK/runtime-requirements.txt" --format json --output "$WORK/dependency-audit.json"
   uv sync --locked --no-dev --python 3.12
 )
 
@@ -88,7 +92,7 @@ test -s "$OUT_ROOT/graphify-out/graph.json"
 test -s "$OUT_ROOT/graphify-out/GRAPH_REPORT.md"
 ```
 
-After review, record the source version, lockfile, runner details, source commit, scan manifest, output graph counts, source references, edge confidence, false connections and reviewer decision. Remove the temporary workspace after exporting sanitized evidence. Do not commit generated `graph.json` or graph reports.
+Before installation, require a clean `pip-audit` result for the exported base runtime dependency set; retain the CycloneDX SBOM, requirements export, audit JSON and exact audit-tool version. Do not proceed if known vulnerabilities or incomplete dependency collection are reported. After review, record the source version, lockfile, runner details, source commit, dependency evidence, scan manifest, output graph counts, source references, edge confidence, false connections and reviewer decision. Remove the temporary workspace after exporting sanitized evidence. Do not commit generated `graph.json` or graph reports.
 
 ## 7. Intake gates
 
