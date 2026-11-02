@@ -2,12 +2,12 @@
   "name": "Aptivern Education Business OS — Flutter Android Cloud",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "22"
-    },
     "ghcr.io/devcontainers/features/java:1": {
       "version": "21",
       "jdkDistro": "tem"
+    },
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "22"
     }
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
