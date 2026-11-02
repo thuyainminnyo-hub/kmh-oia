@@ -28,9 +28,9 @@ before(async () => {
     await setDoc(doc(db, "organizations/org-a"), { name: "School A", status: "active" });
     await setDoc(doc(db, "organizations/org-b"), { name: "School B", status: "active" });
     for (const [orgId, uid, role] of memberships) {
-      await setDoc(doc(db, `organizations/${orgId}/members/${uid}`), {
-        uid, role, status: "active", organizationId: orgId
-      });
+      const membership = { uid, role, status: "active", organizationId: orgId, organizationName: orgId };
+      await setDoc(doc(db, `organizations/${orgId}/members/${uid}`), membership);
+      await setDoc(doc(db, `userOrganizationMemberships/${uid}/organizations/${orgId}`), membership);
     }
 
     await setDoc(doc(db, "courses/course-a"), { organizationId: "org-a", name: "Course A" });
@@ -66,6 +66,18 @@ before(async () => {
 });
 
 after(async () => { await env.cleanup(); });
+
+test("user can list their own organization membership index", async () => {
+  const db = env.authenticatedContext("student-a").firestore();
+  const result = await assertSucceeds(getDocs(collection(db, "userOrganizationMemberships/student-a/organizations")));
+  assert.equal(result.size, 1);
+  assert.equal(result.docs[0].id, "org-a");
+});
+
+test("user cannot read another user's organization membership index", async () => {
+  const db = env.authenticatedContext("student-a").firestore();
+  await assertFails(getDoc(doc(db, "userOrganizationMemberships/student-b/organizations/org-b")));
+});
 
 test("student can read own enrollment inside their organization", async () => {
   const db = env.authenticatedContext("student-a").firestore();
