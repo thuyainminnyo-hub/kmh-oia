@@ -163,6 +163,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   let enrollment;
   await t.test("paid enrollment is pending until full verified payment", async () => {
     const created = await callFunction("createEnrollment", admin.idToken, {
+      organizationId: "aptivern",
       studentId: student.uid,
       batchId
     });
@@ -180,6 +181,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   await t.test("duplicate enrollment is rejected", async () => {
     await assert.rejects(
       callFunction("createEnrollment", admin.idToken, {
+        organizationId: "aptivern",
         studentId: student.uid,
         batchId
       }),
@@ -287,6 +289,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
 
     await assert.rejects(
       callFunction("recordPayment", admin.idToken, {
+        organizationId: "aptivern",
         enrollmentId: overpayEnrollment.enrollmentId,
         amount: 300001,
         method: "cash"
@@ -334,6 +337,8 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
       .collection("members").doc(platformAdmin.uid).get();
     assert.equal(member.exists, true);
     assert.equal(member.data().role, "admin");
+    await db.collection("organizations").doc(otherOrgId).collection("members").doc(platformAdmin.uid).delete();
+    await db.collection("organizations").doc(otherOrgId).delete();
   });
 
   await t.test("organization admin cannot use their membership to enroll in another organization", async () => {
