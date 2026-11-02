@@ -1,0 +1,31 @@
+name: KMH OIA Local Video Production Pilot CI
+
+on:
+  pull_request:
+    paths:
+      - "src/local_video_adapter.py"
+      - "tests/test_local_video_adapter.py"
+      - "docs/production/video-production-module-v1.md"
+      - ".github/workflows/video-production-pilot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  video-pilot-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile production adapter and tests
+        run: python -m compileall -q src tests
+      - name: Run focused local video adapter tests
+        run: python -m unittest tests.test_local_video_adapter -v
+      - name: Run full KMH OIA test suite
+        run: python -m unittest discover -s tests -v
+      - name: Check patch whitespace
+        run: git diff --check
