@@ -64,6 +64,8 @@ The deterministic review tool `scripts/review_graphify_edges.py` creates a new c
 | Cross-file edges | 6 | 5 |
 
 - Candidate graph SHA-256: `c2053e83445e8b4c94d5c29a9a3ef816ccf15561c5a76cd8139e2412584123c1`
+- Repository artifact: [extracted-only-candidate-graph.json](../artifacts/phase-02-3/extracted-only-candidate-graph.json)
+- Machine-readable promotion report: [promotion-report.json](../artifacts/phase-02-3/promotion-report.json)
 - Raw graph remains unchanged.
 - External `dataclasses` node remains explicitly marked as an external reference.
 - The candidate status is `CANDIDATE_ONLY_OWNER_CONFIRMATION_PENDING`; it is not a production or main-branch promotion.
