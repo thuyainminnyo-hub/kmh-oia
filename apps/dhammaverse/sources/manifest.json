@@ -1,0 +1,45 @@
+{
+  "manifest_version": "1.0",
+  "project": "DhammaVerse AI",
+  "lesson_id": "DV-001",
+  "source_policy": "canonical-source-first; translations are attributed; adaptations are labelled",
+  "sources": [
+    {
+      "source_id": "AN3.65-PI",
+      "title": "Kesamuttisutta",
+      "collection": "Aṅguttara Nikāya 3.65",
+      "language": "Pali",
+      "url": "https://suttacentral.net/an3.65/pli/ms",
+      "role": "canonical_text_reference",
+      "verification": "reference_registered; exact text and edition review pending"
+    },
+    {
+      "source_id": "AN3.65-EN-SUJATO",
+      "title": "Kesamuttisutta",
+      "collection": "Aṅguttara Nikāya 3.65",
+      "language": "English",
+      "translator": "Bhikkhu Sujato",
+      "url": "https://suttacentral.net/an3.65/en/sujato",
+      "role": "translation_reference",
+      "verification": "reference_registered; translation comparison pending"
+    },
+    {
+      "source_id": "AN3.65-EN-BODHI",
+      "title": "Kesamuttisutta",
+      "collection": "Aṅguttara Nikāya 3.65",
+      "language": "English",
+      "translator": "Bhikkhu Bodhi",
+      "url": "https://suttacentral.net/AN3.65/en/bodhi",
+      "role": "independent_translation_comparison",
+      "verification": "reference_registered; translation comparison pending"
+    },
+    {
+      "source_id": "NCCIH-MEDITATION-SAFETY",
+      "title": "Meditation and Mindfulness: Effectiveness and Safety",
+      "publisher": "National Center for Complementary and Integrative Health",
+      "url": "https://www.nccih.nih.gov/health/meditation-and-mindfulness-effectiveness-and-safety",
+      "role": "modern_health_safety_context",
+      "verification": "reference_registered; current page review pending"
+    }
+  ]
+}
