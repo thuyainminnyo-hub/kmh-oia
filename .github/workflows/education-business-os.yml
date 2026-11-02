@@ -117,6 +117,9 @@ jobs:
             });
           }
           EOF
+      - name: Validate Android Firebase preflight script syntax
+        working-directory: education-business-os/mobile
+        run: node --check tool/verify-firebase-config.mjs
       - name: Analyze Flutter source
         working-directory: education-business-os/mobile
         run: flutter analyze
