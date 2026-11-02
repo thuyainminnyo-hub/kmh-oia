@@ -13,7 +13,13 @@
 - [ ] Client cannot assign or change custom role claims.
 
 ## Workflows
-- [ ] Enrollment is created and status changes are audited.
+- [ ] Paid enrollment begins in pending_payment; free enrollment may activate immediately.
+- [ ] Payment submissions reserve the remaining balance and cannot exceed the fee.
+- [ ] Partial verified payments reduce the balance but do not activate enrollment.
+- [ ] Full verified payment activates enrollment atomically with the payment update.
+- [ ] Rejected payment releases its reserved amount without increasing paidAmount.
+- [ ] Duplicate verification is denied and does not double-count funds.
+- [ ] Enrollment and payment transitions are audited.
 - [ ] Payment enters pending; admin reconciliation verifies/rejects.
 - [ ] Attendance supports present/absent/late/excused for sessions 1–24.
 - [ ] Assessment score is constrained to 0–100.
@@ -21,7 +27,8 @@
 
 ## Release evidence
 - [ ] Firebase Emulator Suite rules tests pass.
-- [ ] Functions build and tests pass.
+- [ ] Functions build and payment state unit tests pass.
+- [ ] Functions Emulator integration tests cover enrollment/payment transactions.
 - [ ] Web production build passes.
 - [ ] Mobile debug build passes.
 - [ ] Rules and indexes deployed to the intended Firebase project.
