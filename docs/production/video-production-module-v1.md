@@ -48,7 +48,15 @@ ffmpeg -hide_banner -encoders | grep h264_nvenc
 ffprobe -version
 ```
 
-A missing GPU/encoder must remain a HOLD; do not switch to CPU and label it a GPU run.\n\nRun one controlled pilot job (the output directory is also the bridge allowlist):\n\n```bash\npython -m scripts.run_local_video_pilot --input media/source.mp4 --output-dir artifacts/video --width 1920 --height 1080 --fps 30\n```\n\nThe command returns `qa_pending` on successful rendering. It never approves or publishes the video. Review the adjacent `.execution.json` manifest and perform the separate content-QA and human-approval steps.
+A missing GPU/encoder must remain a HOLD; do not switch to CPU and label it a GPU run.
+
+Run one controlled pilot job (the output directory is also the bridge allowlist):
+
+```bash
+python -m scripts.run_local_video_pilot --input media/source.mp4 --output-dir artifacts/video --width 1920 --height 1080 --fps 30
+```
+
+The command returns `qa_pending` on successful rendering. It never approves or publishes the video. Review the adjacent `.execution.json` manifest and perform the separate content-QA and human-approval steps.
 
 ## Evidence contract
 
