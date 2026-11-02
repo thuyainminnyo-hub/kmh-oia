@@ -1,6 +1,6 @@
 # Phase 02.6 — Cross-file Canonical Identity & Semantic Relationship Validation
 
-**Status:** Implementation committed; PR-head CI verification pending.  
+**Status:** Implementation committed and verified by GitHub-hosted PR CI on head `bf8603077de4492aaf1f47bf1e2e7a697aaa5577`.  
 **G4:** Owner-confirmed HOLD remains unchanged.  
 **Graphify execution:** Not performed.  
 **Production promotion:** Not authorized.
@@ -52,7 +52,7 @@ The runtime field read `token.token_name` is not treated as a second reference t
 
 ## 4. Regression tests
 
-Nine regression tests cover:
+Ten regression tests cover:
 1. Aliased imported type, call target, and class inheritance all resolve to canonical nodes.
 2. A type-reference edge aimed at a ghost ID fails.
 3. Missing canonical target fails.
@@ -62,6 +62,7 @@ Nine regression tests cover:
 7. Held INFERRED edge leaking into the candidate fails.
 8. Owner HOLD changed from CONFIRMED fails.
 9. Duplicate imported declarations fail closed.
+10. External/stdlib imports are not misclassified as project-internal declarations; the versioned pilot expectations also fail if an expected internal reference disappears.
 
 ## 5. Version and governance boundary
 
@@ -72,12 +73,27 @@ The Phase 02.5 raw graph and candidate hashes remain the immutable input:
 
 No raw graph, candidate, decision manifest, or Graphify pin is modified. The one-run Graphify extraction approval remains consumed; no extraction is performed in Phase 02.6.
 
-## 6. Gate status
+## 6. CI evidence and gate status
+
+Verified on PR head `bf8603077de4492aaf1f47bf1e2e7a697aaa5577`:
+- Creative Studio QA [run 41460365066](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41460365066): **79/79 tests PASS**; Phase 02.5 graph integrity PASS; Phase 02.6 canonical semantic validation PASS.
+- Canonical semantic validation artifact [13149316170](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41460365066/artifacts/13149316170): zero errors, zero warnings; two internal imports resolved; two semantic links verified.
+- KMH OIA Tests [run 41460364815](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41460364815): **462/462 tests PASS** and performance baseline PASS.
+- KMH OIA Validation [run 41460364931](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41460364931): SUCCESS; repository validation and deployment evidence bundle PASS.
+- Graphify Dependency Audit [run 41460364783](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41460364783): SUCCESS.
+
+The machine-readable report verifies:
+- `DesignToken` resolves uniquely to `src_contract_guard_designtoken` at `src/contract_guard.py:L7`; the `references/EXTRACTED` edge matches exactly once in raw and candidate.
+- `is_approved_token()` resolves uniquely to `src_contract_guard_is_approved_token` at `src/contract_guard.py:L12`; the `calls/EXTRACTED` edge matches exactly once in raw and candidate.
+- The `uses/INFERRED` edge remains in raw, absent from candidate, with owner confirmation `CONFIRMED_HOLD`.
+- Raw and candidate hashes exactly match the Phase 02.5 baseline.
 
 - G4 — `uses/INFERRED`: owner-confirmed HOLD, unchanged.
-- G9 — canonical imported target identity: IMPLEMENTED; CI verification pending.
-- G9 — type references / calls / inheritance semantic links: IMPLEMENTED; CI verification pending.
-- G9 — duplicate/ambiguous import fail-closed guard: IMPLEMENTED; CI verification pending.
+- G9 — canonical imported target identity: IMPLEMENTED and CI-VERIFIED.
+- G9 — type references / calls semantic links: PASS against raw and candidate.
+- G9 — duplicate/ambiguous import fail-closed guard: CI-VERIFIED by regression tests.
+- G9 — inheritance classification: covered by isolated synthetic regression fixture; the live two-file Graphify extraction was not repeated.
+
 - Raw/candidate mutation: NO.
 - Graphify execution: NO.
 - Production promotion / OIA runtime integration: NOT AUTHORIZED.
