@@ -50,7 +50,7 @@ if (!appId || !new RegExp(`^1:${expectedProjectNumber}:android:[A-Za-z0-9_-]+$`)
 }
 
 const gradle = readFileSync(gradlePath, "utf8");
-const packageMatch = gradle.match(/applicationId\\s*(?:=\\s*)?[\\\']([^\\\']+)[\\\']/);
+const packageMatch = gradle.match(/applicationId\s*(?:=\s*)?["\']([^"\']+)["\']/);
 if (!packageMatch) fail("Could not read applicationId from the Android app Gradle file.");
 const actualPackage = packageMatch[1];
 const expectedPackage = (process.env.APTIVERN_ANDROID_PACKAGE_NAME ?? "").trim();
