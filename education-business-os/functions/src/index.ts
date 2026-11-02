@@ -104,6 +104,17 @@ export const setOrganizationMember = onCall(async (request) => {
     if (!organization.exists || organization.data()?.status !== "active") {
       throw new HttpsError("not-found", "Active organization not found.");
     }
+    const [existingMember, activeAdmins] = await Promise.all([
+      tx.get(memberRef),
+      tx.get(db.collection("organizations").doc(organizationId).collection("members")
+        .where("role", "==", "admin").where("status", "==", "active"))
+    ]);
+    const isRemovingAdmin = existingMember.exists &&
+      existingMember.data()?.role === "admin" &&
+      (role !== "admin" || status !== "active");
+    if (isRemovingAdmin && activeAdmins.size <= 1) {
+      throw new HttpsError("failed-precondition", "Cannot demote or suspend the last active organization admin. Promote another admin first.");
+    }
     const membership = {
       organizationId, uid, role, status,
       organizationName: organization.data()?.name ?? organizationId,
