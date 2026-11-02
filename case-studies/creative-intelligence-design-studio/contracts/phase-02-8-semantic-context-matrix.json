@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0.0",
+  "baseline_id": "KMH-CREATIVE-SEMANTIC-CONTEXT-02.8-v1",
+  "phase": "02.8",
+  "status": "DESIGN_ONLY",
+  "upstream": {
+    "package": "graphifyy",
+    "pinned_version": "0.9.100",
+    "source_commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "release_date": "2026-11-01",
+    "verified_scope": [
+      "JVM Java/Kotlin cross-file imports",
+      "JVM extends/implements",
+      "JVM member calls",
+      "case-sensitive type/function ID collision fix"
+    ],
+    "explicitly_not_claimed": [
+      "Python cross-file canonical type resolution fixed",
+      "Python cross-file inheritance fixed",
+      "Python return-type context independently represented"
+    ]
+  },
+  "issue_1186": {
+    "repository": "Graphify-Labs/graphify",
+    "issue_number": 1186,
+    "state_observed": "OPEN",
+    "created_at": "2026-06-07T19:51:44Z",
+    "last_updated_at": "2026-06-28T17:31:00Z",
+    "original_reported_version": "0.8.35",
+    "note": "Historical issue state is not proof that every symptom remains in v0.9.100; verify the pinned source and our synthetic corpus independently."
+  },
+  "policy": {
+    "extraction_in_phase": "NOT_AUTHORIZED",
+    "graphify_execution_count": 0,
+    "raw_graph_mutation": false,
+    "candidate_graph_mutation": false,
+    "inferred_or_ambiguous_promotion": false,
+    "g4_owner_hold": "PRESERVED",
+    "production_promotion": "NOT_AUTHORIZED",
+    "source_scope": "synthetic fixtures only",
+    "max_fixture_files": 20,
+    "credentials": false
+  },
+  "context_fidelity_matrix": [
+    {
+      "id": "CTX-01",
+      "case": "parameter_annotation",
+      "source_form": "def f(x: Imported): ...",
+      "expected_ast_context": "parameter_type",
+      "required_edge": "references",
+      "severity": "REQUIRED"
+    },
+    {
+      "id": "CTX-02",
+      "case": "return_annotation_separate_line",
+      "source_form": "def f() -> Imported: ...",
+      "expected_ast_context": "return_type",
+      "required_edge": "references",
+      "severity": "REQUIRED"
+    },
+    {
+      "id": "CTX-03",
+      "case": "parameter_and_return_same_line",
+      "source_form": "def f(x: Imported) -> Imported: ...",
+      "expected_ast_contexts": [
+        "parameter_type",
+        "return_type"
+      ],
+      "required_edge": "references",
+      "severity": "REQUIRED",
+      "policy": "one coalesced graph edge is insufficient to claim two independently encoded contexts"
+    },
+    {
+      "id": "CTX-04",
+      "case": "annotated_assignment",
+      "source_form": "value: Imported",
+      "expected_ast_context": "variable_type",
+      "required_edge": "references",
+      "severity": "REQUIRED"
+    },
+    {
+      "id": "CTX-05",
+      "case": "multiple_inheritance",
+      "source_form": "class Child(BaseA, MixinB): ...",
+      "expected_ast_context": "class_base",
+      "required_edge": "inherits",
+      "severity": "REQUIRED"
+    },
+    {
+      "id": "CTX-06",
+      "case": "aliased_import",
+      "source_form": "from pkg.types import Imported as Local",
+      "expected_ast_context": "alias_binding",
+      "required_edge": "canonical target identity",
+      "severity": "REQUIRED"
+    },
+    {
+      "id": "CTX-07",
+      "case": "same_name_two_packages",
+      "source_form": "pkg_a.Widget vs pkg_b.Widget",
+      "expected_ast_context": "qualified module identity",
+      "required_edge": "distinct canonical targets",
+      "severity": "REQUIRED"
+    },
+    {
+      "id": "CTX-08",
+      "case": "nested_function_scope",
+      "source_form": "nested function references imported name",
+      "expected_ast_context": "lexical scope",
+      "required_edge": "no scope leakage",
+      "severity": "REQUIRED"
+    },
+    {
+      "id": "CTX-09",
+      "case": "forward_reference_string",
+      "source_form": "def f(x: 'Imported'): ...",
+      "expected_ast_context": "string annotation",
+      "required_edge": "explicitly classify unresolved or safely resolve",
+      "severity": "REQUIRED"
+    },
+    {
+      "id": "CTX-10",
+      "case": "generic_annotation",
+      "source_form": "def f(x: list[Imported]) -> dict[str, Imported]: ...",
+      "expected_ast_context": "nested annotation names",
+      "required_edge": "references",
+      "severity": "REQUIRED"
+    },
+    {
+      "id": "CTX-11",
+      "case": "star_import",
+      "source_form": "from pkg.types import *",
+      "expected_ast_context": "ambiguous binding",
+      "required_edge": "no guessed canonical target",
+      "severity": "REQUIRED"
+    },
+    {
+      "id": "CTX-12",
+      "case": "ambiguous_import_target",
+      "source_form": "same module/name has multiple declarations",
+      "expected_ast_context": "ambiguous binding",
+      "required_edge": "fail closed / review-only",
+      "severity": "REQUIRED"
+    }
+  ],
+  "acceptance": {
+    "all_required_cases_have_explicit_expected_behavior": true,
+    "return_type_claim_requires_independent_source_provenance_or_explicit_coalesced_warning": true,
+    "canonical_target_must_match_source_file_and_definition_line": true,
+    "no_name_only_resolution_when_multiple_candidates_exist": true,
+    "candidate_only_extracted_edges": true,
+    "raw_graph_immutable": true,
+    "no_new_extraction_without_fresh_owner_approval": true
+  }
+}
