@@ -10,8 +10,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import re
-from typing import Iterable
-
 from src.knowledge import KnowledgeItem
 
 
@@ -130,11 +128,11 @@ class ClaimVerifier:
             return VerificationResult(False, "insufficient_evidence")
         citations: list[str] = []
         for evidence_id in unique_ids:
-            if not self.registry.is_active(evidence_id):
-                return VerificationResult(False, "evidence_not_active")
             result = self.registry.validate(evidence_id)
             if not result.accepted:
                 return result
+            if not self.registry.is_active(evidence_id):
+                return VerificationResult(False, "evidence_not_active")
             citations.append(self.registry.citation(evidence_id))
         return VerificationResult(True, "verified", tuple(citations))
 
