@@ -24,7 +24,7 @@ async function createAccount(role) {
   const email = role + "-" + prefix + "@example.test";
   const password = "Aptivern-Emulator-Only-Password-123!";
   const user = await auth.createUser({ email, password, displayName: "Integration " + role });
-  await auth.setCustomUserClaims(user.uid, { role });
+  await auth.setCustomUserClaims(user.uid, role === "platformAdmin" ? { platformAdmin: true } : { role });
 
   const response = await fetch(
     "http://" + AUTH_HOST + "/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key",
@@ -89,7 +89,8 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
     const batchId = prefix + "-batch-" + batchIds.length;
     batchIds.push(batchId);
     await db.collection("batches").doc(batchId).set({
-      courseId: prefix + "-course",
+      organizationId: "aptivern",
+      courseId: "aptivern__" + prefix + "-course",
       name: "Integration Test Batch",
       fee,
       currency: "MMK",
@@ -102,6 +103,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   async function createEnrollment(admin, student, fee) {
     const batchId = await createBatch(fee);
     const result = await callFunction("createEnrollment", admin.idToken, {
+      organizationId: "aptivern",
       studentId: student.uid,
       batchId
     });
@@ -111,6 +113,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
 
   async function recordPayment(actor, enrollmentId, amount) {
     const result = await callFunction("recordPayment", actor.idToken, {
+      organizationId: "aptivern",
       enrollmentId,
       amount,
       method: "bank_transfer",
@@ -143,6 +146,18 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
 
   const admin = await account("admin");
   const student = await account("student");
+  const platformAdmin = await account("platformAdmin");
+
+  await db.collection("organizations").doc("aptivern").set({
+    organizationId: "aptivern", name: "Aptivern Pilot", status: "active"
+  });
+  await db.collection("organizations").doc("aptivern").collection("members").doc(admin.uid).set({
+    organizationId: "aptivern", uid: admin.uid, role: "admin", status: "active"
+  });
+  await db.collection("organizations").doc("aptivern").collection("members").doc(student.uid).set({
+    organizationId: "aptivern", uid: student.uid, role: "student", status: "active"
+  });
+
   const batchId = await createBatch(300000);
 
   let enrollment;
@@ -186,6 +201,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   await t.test("student cannot record or verify payments through privileged functions", async () => {
     await assert.rejects(
       callFunction("recordPayment", student.idToken, {
+        organizationId: "aptivern",
         enrollmentId: enrollment.enrollmentId,
         amount: 100000,
         method: "cash"
@@ -194,6 +210,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
     );
     await assert.rejects(
       callFunction("verifyPayment", student.idToken, {
+        organizationId: "aptivern",
         paymentId: firstPayment.paymentId,
         verified: true
       }),
@@ -204,6 +221,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   await t.test("unauthenticated caller cannot verify payment", async () => {
     await assert.rejects(
       callFunction("verifyPayment", null, {
+        organizationId: "aptivern",
         paymentId: firstPayment.paymentId,
         verified: true
       }),
@@ -213,6 +231,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
 
   await t.test("first verified installment leaves a balance and enrollment pending", async () => {
     const result = await callFunction("verifyPayment", admin.idToken, {
+      organizationId: "aptivern",
       paymentId: firstPayment.paymentId,
       verified: true,
       note: "Synthetic emulator receipt verified"
@@ -228,6 +247,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
 
   await t.test("final verified installment activates enrollment atomically", async () => {
     const result = await callFunction("verifyPayment", admin.idToken, {
+      organizationId: "aptivern",
       paymentId: secondPayment.paymentId,
       verified: true,
       note: "Synthetic final installment verified"
@@ -245,6 +265,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   await t.test("duplicate verification is rejected without changing the paid ledger", async () => {
     await assert.rejects(
       callFunction("verifyPayment", admin.idToken, {
+        organizationId: "aptivern",
         paymentId: firstPayment.paymentId,
         verified: true
       }),
@@ -258,6 +279,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   await t.test("overpayment is rejected and rejected payment releases its reservation", async () => {
     const overpay = createBatch(300000);
     const overpayEnrollment = await callFunction("createEnrollment", admin.idToken, {
+      organizationId: "aptivern",
       studentId: student.uid,
       batchId: await overpay
     });
@@ -273,6 +295,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
 
     const rejectedPayment = await recordPayment(admin, overpayEnrollment.enrollmentId, 50000);
     const rejected = await callFunction("verifyPayment", admin.idToken, {
+      organizationId: "aptivern",
       paymentId: rejectedPayment.paymentId,
       verified: false,
       note: "Synthetic test: receipt did not match"
@@ -288,6 +311,7 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
   await t.test("zero-fee enrollment activates immediately", async () => {
     const freeBatch = await createBatch(0);
     const result = await callFunction("createEnrollment", admin.idToken, {
+      organizationId: "aptivern",
       studentId: student.uid,
       batchId: freeBatch
     });
@@ -297,6 +321,41 @@ test("Aptivern callable enrollment/payment lifecycle works against Auth, Functio
     assert.equal(state.feeAmount, 0);
     assert.equal(state.status, "active");
     assert.equal(state.balanceDue, 0);
+  });
+
+  await t.test("platform admin can bootstrap a separate organization and initial admin membership", async () => {
+    const otherOrgId = prefix + "-school-b";
+    const result = await callFunction("bootstrapOrganization", platformAdmin.idToken, {
+      organizationId: otherOrgId,
+      name: "Synthetic School B"
+    });
+    assert.equal(result.status, "active");
+    const member = await db.collection("organizations").doc(otherOrgId)
+      .collection("members").doc(platformAdmin.uid).get();
+    assert.equal(member.exists, true);
+    assert.equal(member.data().role, "admin");
+  });
+
+  await t.test("organization admin cannot use their membership to enroll in another organization", async () => {
+    const otherOrgId = prefix + "-foreign-school";
+    const foreignBatchId = prefix + "-foreign-batch";
+    await db.collection("organizations").doc(otherOrgId).set({
+      organizationId: otherOrgId, name: "Foreign School", status: "active"
+    });
+    await db.collection("batches").doc(foreignBatchId).set({
+      organizationId: otherOrgId, courseId: otherOrgId + "__course",
+      fee: 100000, currency: "MMK", status: "planned"
+    });
+    await assert.rejects(
+      callFunction("createEnrollment", admin.idToken, {
+        organizationId: otherOrgId,
+        studentId: student.uid,
+        batchId: foreignBatchId
+      }),
+      (error) => error && error.code === "PERMISSION_DENIED"
+    );
+    await db.collection("batches").doc(foreignBatchId).delete();
+    await db.collection("organizations").doc(otherOrgId).delete();
   });
 
   await t.test("audit records exist for the payment lifecycle", async () => {
