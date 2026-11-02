@@ -63,3 +63,23 @@ Saved under `/My Little Creative World/Run 47/`: three candidate PNGs, three mas
 - Adobe Photoshop layer masks: https://helpx.adobe.com/photoshop/desktop/create-masks/layer-masks/add-layer-masks.html
 
 SAM 3.1 and Photoshop layer-mask workflows are potential follow-up methods; they were not executed in Run #47.
+
+
+## GitHub Actions CI — dependency failure and successful rerun
+
+The first pull-request CI attempt after Run #47 files were added was **MLCW Visual Pixel QA #103**, run ID `41384049174`, conclusion **FAILURE**. The job installed NumPy and Pillow but failed to import three P01 test modules because `cv2` was not installed. The error was `ModuleNotFoundError: No module named 'cv2'`; 20 tests were discovered and three module-import errors occurred.
+
+**Root cause corrected:** added pinned `opencv-python-headless==5.0.0.93` to `visual-qa/requirements.txt`. PyPI lists the 5.0.0.93 release and ABI3 wheels for current Python interpreters. See [PyPI package record](https://pypi.org/project/opencv-python-headless/).
+
+**Successful rerun evidence for commit `4dd0bf4a90467f496015e5c410b316d67b8113a6`:**
+
+- MLCW Visual Pixel QA #105 — run ID `41384204559`: **SUCCESS**; OpenCV installed; **28 tests passed, 0 failed**.
+- MLCW Character Registry Validation #125 — run ID `41384204525`: **SUCCESS**.
+- KMH OIA Tests #1490 — run ID `41384204578`: **SUCCESS**.
+- KMH OIA Validation #1409 — run ID `41384204509`: **SUCCESS**.
+
+[View MLCW Visual Pixel QA #105](https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41384204559)
+
+**CI scope note:** these are code/test-suite checks. The four Run #47 semantic-mask tests use synthetic inputs and verify mask dimensions, output types, non-overlap, rejection of invalid dimensions and empty-alpha behavior. They do not independently certify that the real P01 masks follow the exact garment contours. The measured 92.97% foreground assignment and image previews are separate local artifact inspections.
+
+The PR #175 remains open; no merge or production release is claimed.
