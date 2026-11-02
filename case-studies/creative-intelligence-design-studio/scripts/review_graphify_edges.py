@@ -106,8 +106,8 @@ def build_candidate(raw_graph_bytes: bytes, raw_graph: dict[str, Any], manifest:
             )
         if decision.get("disposition") not in {"HOLD_NOT_PROMOTED", "REJECT_FROM_CANDIDATE"}:
             raise ReviewError("non-EXTRACTED edges cannot be promoted by this EXTRACTED-only workflow")
-        if decision.get("owner_confirmation") != "PENDING":
-            raise ReviewError("owner confirmation must remain pending for this review candidate")
+        if decision.get("owner_confirmation") not in {"PENDING", "CONFIRMED_HOLD"}:
+            raise ReviewError("owner confirmation must be PENDING or CONFIRMED_HOLD; approval cannot promote inferred edges")
         excluded_edges.append({
             "edge_identity": edge_identity(edge),
             "edge_fingerprint": fingerprint,
@@ -125,9 +125,19 @@ def build_candidate(raw_graph_bytes: bytes, raw_graph: dict[str, Any], manifest:
     candidate_graph["edges"] = extracted_edges
     candidate_bytes = json.dumps(candidate_graph, indent=2, ensure_ascii=False).encode("utf-8") + b"\n"
     candidate_sha = hashlib.sha256(candidate_bytes).hexdigest()
+    hold_confirmed = bool(decisions_by_fingerprint) and all(
+        decision.get("owner_confirmation") == "CONFIRMED_HOLD"
+        and decision.get("disposition") == "HOLD_NOT_PROMOTED"
+        for decision in decisions_by_fingerprint.values()
+    )
+    owner_confirmation = "CONFIRMED_HOLD" if hold_confirmed else "PENDING"
+    promotion_status = (
+        "CANDIDATE_ONLY_HOLD_CONFIRMED_NOT_PROMOTED"
+        if hold_confirmed else "CANDIDATE_ONLY_OWNER_CONFIRMATION_PENDING"
+    )
     report = {
         "schema_version": "1.0.0",
-        "promotion_status": "CANDIDATE_ONLY_OWNER_CONFIRMATION_PENDING",
+        "promotion_status": promotion_status,
         "raw_graph_sha256": actual_graph_sha,
         "candidate_graph_sha256": candidate_sha,
         "source_artifact": source_artifact,
@@ -147,7 +157,7 @@ def build_candidate(raw_graph_bytes: bytes, raw_graph: dict[str, Any], manifest:
             for node in candidate_graph.get("nodes", [])
             if node.get("external") is True or node.get("source_file") in (None, "")
         ],
-        "owner_confirmation": "PENDING",
+        "owner_confirmation": owner_confirmation,
         "production_promotion": "NOT_AUTHORIZED",
         "raw_graph_mutated": False,
     }
