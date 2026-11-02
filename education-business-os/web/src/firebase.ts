@@ -24,20 +24,21 @@ const app = initializeApp(
 // Initialize App Check before accessing Auth, Firestore or Functions.
 if (firebaseConfigured) {
   const siteKey = import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY;
+  if (!siteKey) {
+    throw new Error(
+      "VITE_RECAPTCHA_ENTERPRISE_SITE_KEY is required when Firebase is configured."
+    );
+  }
   if (import.meta.env.DEV) {
     // SDK-generated debug token: register it in Firebase Console.
+    // Use a development-only reCAPTCHA key/domain, never the production key.
     // Never commit a token or ship a debug build to production.
     (globalThis as typeof globalThis & {
       FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string;
     }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-  } else if (!siteKey) {
-    throw new Error(
-      "VITE_RECAPTCHA_ENTERPRISE_SITE_KEY is required for production App Check."
-    );
   }
-
   initializeAppCheck(app, {
-    provider: new ReCaptchaEnterpriseProvider(siteKey || "local-debug-site-key-not-used"),
+    provider: new ReCaptchaEnterpriseProvider(siteKey),
     isTokenAutoRefreshEnabled: true
   });
 }
