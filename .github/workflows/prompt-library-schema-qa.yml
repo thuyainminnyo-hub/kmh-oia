@@ -7,6 +7,8 @@ on:
       - "scripts/validate_prompt_record.py"
       - "tests/fixtures/prompt-library/**"
       - "data/prompt-library/**"
+      - "requirements-ci.in"
+      - "requirements-ci.txt"
       - ".github/workflows/prompt-library-schema-qa.yml"
   pull_request:
     paths:
@@ -32,8 +34,24 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install validator dependency
-        run: python -m pip install --requirement requirements-ci.txt
+      # Generate the complete dependency graph and hashes on the CI runner.
+      # pip-tools bootstrap dependencies are a separate, explicitly documented trust boundary.
+      - name: Install pinned lock generator
+        run: python -m pip install "pip-tools==7.5.2"
+
+      - name: Generate transitive hash lock
+        run: |
+          pip-compile \
+            --resolver=backtracking \
+            --generate-hashes \
+            --output-file "$RUNNER_TEMP/requirements-ci.lock" \
+            requirements-ci.in
+
+      - name: Install validator dependencies with hash verification
+        run: |
+          python -m pip install \
+            --require-hashes \
+            --requirement "$RUNNER_TEMP/requirements-ci.lock"
 
       - name: Positive path — valid draft fixture must pass
         run: python scripts/validate_prompt_record.py tests/fixtures/prompt-library/valid-draft.example.json
