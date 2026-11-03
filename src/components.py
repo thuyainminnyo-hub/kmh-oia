@@ -44,6 +44,7 @@ class ContextAssembly:
         knowledge = self.knowledge.retrieve(context.goal)
         return {
             "goal": context.goal,
+            "session_id": context.session_id,
             "memory": "; ".join(f"{item.key}={item.value}" for item in memories),
             "knowledge": "; ".join(f"[{item.source}] {item.content}" for item in knowledge),
         }
