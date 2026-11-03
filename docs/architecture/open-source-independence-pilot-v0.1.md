@@ -149,3 +149,70 @@ Phase 01 may be marked complete only after:
 - no production or live-system changes occur.
 
 **Current decision:** DESIGN IN PROGRESS. No candidate is approved. No software has been installed, executed, integrated, or promoted. Production remains LOCKED.
+
+
+## 11. Phase 01 CI closeout — 2026-11-03
+
+The pilot commit `95efc324511c5cf6ec5e038715528ad25943fd5c` was re-checked through GitHub Check Runs. Six checks completed successfully:
+- `tests` — success
+- `performance-evidence` — success
+- `repository-validation` — success
+- `performance-baseline` — success
+- `test` — success
+- `deployment-evidence-bundle` — success
+
+This closes the documentation-commit CI check only. It does not demonstrate that any candidate service has been installed, executed, security-tested, or integrated. PR #200 remains open and draft; it is not approved for merge or production promotion.
+
+## 12. Phase 02 — initial public-source and license intake
+
+The following are primary-source findings captured on 2026-11-03. These are intake observations, not final legal opinions, security assessments, or deployment approvals.
+
+| Capability | Candidate | Primary-source finding | Intake disposition |
+|---|---|---|---|
+| Identity | Keycloak | Project repository identifies Apache-2.0; supports identity and access management | SHORTLIST — inspect deployment, OIDC conformance, operations |
+| Identity | authentik | Root LICENSE describes MIT for most code, with enterprise directory and third-party component exceptions; repository describes SAML, OAuth2/OIDC, LDAP, RADIUS | SHORTLIST — map excluded/commercial paths and dependency licenses |
+| Identity | ZITADEL | Repository identifies AGPL-3.0 with Apache-2.0 and MIT exceptions in specific directories | HOLD — detailed licensing map required |
+| CRM | EspoCRM | Project repository and official download page identify AGPLv3; official page describes self-hosting and REST API | SHORTLIST — assess AGPL obligations, REST coverage, import/export |
+| CRM | Twenty | Repository is predominantly AGPLv3 but contains commercial-license files and MIT packages; production restrictions apply to marked commercial files | HOLD — do not assume entire repository is permissively licensed |
+| CRM | SuiteCRM | Official documentation identifies AGPLv3; official site describes self-hosted option | SHORTLIST — compare API/data model and operational requirements |
+| Knowledge | Docmost | Core is AGPL-3.0; Enterprise directories/features are commercially licensed; official docs describe self-hosted/on-premises options | SHORTLIST — verify exact feature boundary and API/SSO needs |
+| Knowledge | AppFlowy | Repository identifies AGPL-3.0 | HOLD — inspect server deployment, component licenses, data export and feature boundary |
+| Automation | Activepieces | Core is MIT; enterprise/cloud features and specified directories are under commercial license; official docs recommend Docker Compose with PostgreSQL and Redis | SHORTLIST — restrict test scope to MIT-licensed core |
+| Automation | n8n | Official license FAQ describes Sustainable Use License for Community edition and additional commercial-license cases | EXCLUDE from strict OSI-open-source shortlist; possible separate fair-code evaluation only |
+
+### Primary-source references
+
+- Keycloak repository and license: https://github.com/keycloak/keycloak
+- authentik root license: https://github.com/goauthentik/authentik/blob/main/LICENSE
+- ZITADEL repository/license: https://github.com/zitadel/zitadel
+- EspoCRM repository: https://github.com/espocrm/espocrm
+- EspoCRM official download/license: https://www.espocrm.com/download/
+- Twenty repository license: https://github.com/twentyhq/twenty/blob/main/LICENSE
+- SuiteCRM licensing docs: https://docs.suitecrm.com/admin/licensing/
+- Docmost editions/license: https://docmost.com/docs/editions
+- AppFlowy repository: https://github.com/AppFlowy-IO/AppFlowy
+- Activepieces license: https://www.activepieces.com/docs/about/license
+- Activepieces installation: https://www.activepieces.com/docs/install/overview
+- n8n license FAQ: https://support.n8n.io/article/can-i-use-your-license-for-my-use-case
+
+### Phase 02 evidence gaps
+
+- No source code or release artifact has yet been downloaded, pinned, or scanned.
+- No complete SBOM or transitive dependency-license report exists.
+- No vulnerability/advisory review has been completed.
+- No candidate has been installed or run.
+- No API compatibility, data migration, backup/restore, or security test has been executed.
+- Free-tier hosting availability and resource requirements are not yet proven. A zero compute budget means use an already available local/disposable environment only; do not provision paid resources.
+
+### Phase 02 QA gate
+
+- Public primary-source/license intake: **SUPPORTED** for the findings above.
+- Candidate shortlist: **PROVISIONAL**.
+- Legal clearance: **NOT RUN**.
+- Dependency/SBOM scan: **NOT RUN**.
+- Security review: **NOT RUN**.
+- Runtime/compatibility tests: **NOT RUN**.
+- Install or deployment approval: **BLOCKED pending environment and resource verification**.
+- Production: **LOCKED**.
+
+**Next permitted work:** produce a pinned candidate manifest, verify the exact repository tags/commit SHAs and license files, inspect free local execution options, and prepare synthetic-only conformance fixtures. Do not download or execute candidate code until the sandbox capability and resource budget are confirmed. No merge, release, or production action is authorized.
