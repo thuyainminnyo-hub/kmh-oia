@@ -1,0 +1,68 @@
+openapi: 3.1.1
+info:
+  title: KMH OIA Normalized Learning Evidence Contract (Proposal)
+  version: 1.0.0
+  description: Internal proposed contract, not the official EduAutomate API specification.
+servers:
+  - url: https://example.invalid
+    description: Non-routable placeholder; replace only after provider documentation is verified.
+paths:
+  /v1/learning-evidence:
+    post:
+      operationId: submitNormalizedLearningEvidence
+      summary: Proposed normalized learning evidence intake
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LearningEvidenceRecord'
+      responses:
+        '202': { description: Accepted for asynchronous validation (proposed) }
+        '400': { description: Contract validation failed }
+        '401': { description: Authentication failed }
+        '409': { description: Duplicate source record }
+        '422': { description: Evidence semantics or attribution rejected }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    LearningEvidenceRecord:
+      type: object
+      additionalProperties: false
+      required: [contract_version, source_record_ref, course_ref, lesson_ref, observed_at, evidence]
+      properties:
+        contract_version: { const: '1.0' }
+        source_record_ref: { $ref: '#/components/schemas/OpaqueReference' }
+        course_ref: { $ref: '#/components/schemas/OpaqueReference' }
+        lesson_ref: { $ref: '#/components/schemas/OpaqueReference' }
+        observed_at: { type: string, format: date-time }
+        evidence:
+          type: object
+          additionalProperties: false
+          required: [evidence_id, learner_ref, task_ref, assistance_level, task_risk, planning_observed, verification_actions, reflection_observed, task_performance_score, independent_learning_score, delayed_retention_score]
+          properties:
+            evidence_id: { $ref: '#/components/schemas/OpaqueReference' }
+            learner_ref: { type: string, pattern: '^learner-[A-Za-z0-9_-]{1,64}$' }
+            task_ref: { $ref: '#/components/schemas/OpaqueReference' }
+            assistance_level: { enum: [none, hint, feedback, full_solution] }
+            task_risk: { enum: [low, elevated, high] }
+            planning_observed: { type: [boolean, 'null'] }
+            verification_actions: { type: [integer, 'null'], minimum: 0 }
+            reflection_observed: { type: [boolean, 'null'] }
+            task_performance_score: { $ref: '#/components/schemas/OptionalScore' }
+            independent_learning_score: { $ref: '#/components/schemas/OptionalScore' }
+            delayed_retention_score: { $ref: '#/components/schemas/OptionalScore' }
+    OpaqueReference:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
+    OptionalScore:
+      type: [number, 'null']
+      minimum: 0
+      maximum: 1
