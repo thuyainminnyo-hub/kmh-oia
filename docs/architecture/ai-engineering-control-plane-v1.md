@@ -116,3 +116,12 @@ The unit tests cover missing/unadmitted evidence, missing regression, candidate 
 **Important limitation:** The current evidence-admission result does not itself carry the execution identifier as a typed field; the candidate-to-admission execution binding still needs an explicit comparison in a future integration layer. The existing trusted receipt gate remains the authority for admission. Do not treat caller-supplied expected/actual text as external proof.
 
 **Current Phase F status:** Implemented in PR branch; exact-head CI pending. PR remains Draft/HOLD. No learning promotion or production policy mutation is authorized.
+
+
+## 11. Phase F execution-binding hardening
+
+The evidence admission result now carries the execution ID that was checked against the trusted receipt verification result. The learning reviewer requires this ID to equal the candidate's execution ID; mismatch remains HOLD. Regression tests cover the mismatch and assert that the admission result preserves the matched execution ID.
+
+This closes the previously documented candidate-to-admission execution binding gap. It does not make the caller-supplied expected/actual outcome descriptions authoritative, and it does not authenticate owner approval IDs. Owner identity/authority must be verified by the separate approval workflow before any promotion action.
+
+The code/test changes are in the current branch and require exact-head CI. No live runtime/model integration or promotion is claimed.
