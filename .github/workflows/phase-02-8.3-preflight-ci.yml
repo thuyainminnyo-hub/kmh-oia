@@ -5,6 +5,7 @@ on:
     branches:
       - "phase-02-8.2-synthetic-graph-differential-20261103"
       - "work/phase-02-8.3-runtime-preflight-20261103"
+      - "work/phase-02-8.3-final-preflight-20261103"
     paths:
       - "case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_7_graph.py"
@@ -14,6 +15,8 @@ on:
       - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-baseline.json"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_baseline.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_preflight.py"
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-baseline.json"
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_baseline.py"
       - ".github/workflows/phase-02-8.3-preflight-ci.yml"
   push:
     branches:
@@ -21,6 +24,8 @@ on:
     paths:
       - "case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_scope_coverage.py"
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-baseline.json"
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_baseline.py"
       - ".github/workflows/phase-02-8.3-preflight-ci.yml"
 
 permissions:
