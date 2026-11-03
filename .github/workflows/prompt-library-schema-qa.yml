@@ -55,6 +55,33 @@ jobs:
             --require-hashes \
             --requirement "$RUNNER_TEMP/requirements-ci.lock"
 
+      - name: Audit the locked dependency set
+        run: |
+          pip-audit \
+            --require-hashes \
+            --requirement "$RUNNER_TEMP/requirements-ci.lock"
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          pip-audit \
+            --require-hashes \
+            --requirement "$RUNNER_TEMP/requirements-ci.lock" \
+            --format cyclonedx-json \
+            --output "$RUNNER_TEMP/sbom.cdx.json"
+
+      - name: Validate SBOM JSON
+        run: python -m json.tool "$RUNNER_TEMP/sbom.cdx.json" > /dev/null
+
+      - name: Upload lock and SBOM evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-security-evidence
+          path: |
+            ${{ runner.temp }}/requirements-ci.lock
+            ${{ runner.temp }}/sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Positive path — valid draft fixture must pass
         run: python scripts/validate_prompt_record.py tests/fixtures/prompt-library/valid-draft.example.json
 
