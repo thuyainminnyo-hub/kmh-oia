@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import asdict, dataclass
 from enum import Enum
+import re
 from typing import Any
 
 class AssistanceLevel(str, Enum):
@@ -31,7 +32,7 @@ def _validate_score(value: float | None, name: str) -> None:
 
 @dataclass(frozen=True)
 class LearningEvidence:
-    """One task/session record. learner_ref must be pseudonymous and non-identifying."""
+    """One task/session record. learner_ref uses a constrained pseudonymous token."""
     evidence_id: str
     learner_ref: str
     task_ref: str
@@ -49,8 +50,8 @@ class LearningEvidence:
             value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{name} must be a non-empty string")
-        if any(c in self.learner_ref for c in ("@", "\n", "\r")):
-            raise ValueError("learner_ref must be pseudonymous, not an email or multiline identifier")
+        if not re.fullmatch(r"learner-[A-Za-z0-9_-]{1,64}", self.learner_ref):
+            raise ValueError("learner_ref must use the pseudonymous learner-<token> format")
         if not isinstance(self.assistance_level, AssistanceLevel):
             raise TypeError("assistance_level must be an AssistanceLevel")
         if not isinstance(self.task_risk, TaskRisk):
