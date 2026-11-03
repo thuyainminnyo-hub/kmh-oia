@@ -77,7 +77,7 @@ A passing unit test is evidence only for the behavior it exercises. Mocked provi
 | Phase | Deliverable | Acceptance evidence | Current status |
 |---|---|---|---|
 | A — Architecture baseline | This integration contract mapped to existing OIA boundaries | Reviewed document + contract tests | Drafted in this branch |
-| B — Guardrail contracts | Typed request/response schema, policy decision and budget contract | Adversarial unit tests | Not started |
+| B — Guardrail contracts | Provider-neutral typed request/response, route allowlist, data classification and token/cost budget admission | Adversarial unit tests on exact PR head | Implemented in branch; CI verification pending |
 | C — Trace & evaluation | Correlated trace fields, redaction and independent evaluator contract | Trace assertions + redaction tests | Not started |
 | D — Model gateway | Provider-neutral adapter, deterministic routing, bounded budgets | Fake-provider tests + usage accounting | Not started |
 | E — Resilience | Timeout, retry ceilings, circuit-breaker/fallback policy | Fault-injection tests | Not started |
@@ -98,6 +98,8 @@ A passing unit test is evidence only for the behavior it exercises. Mocked provi
 
 **Rationale:** Reuse existing security, trace, evaluation and evidence-admission seams; minimize duplication and preserve deterministic local operation.
 
-**Next engineering slice:** Implement typed AI task/request contracts and budget/route policy as pure deterministic Python components, with no external provider dependency. Add adversarial tests before connecting any live model.
+**Phase B implementation checkpoint:** `src/ai_contracts.py` defines typed task/data classifications, strict mapping parsing, route allowlisting, request/session token limits, cost limits and fail-closed admission. `tests/test_ai_contracts.py` adds adversarial and boundary tests. No provider call or runtime wiring is included. Exact-head CI is required before Phase B can be marked verified.
+
+**Next engineering slice:** After Phase B CI passes, review whether the contract should be wired to the existing governed-tool boundary or remain a dedicated model-gateway preflight. Add trace correlation and redaction tests before any live provider connection.
 
 **Promotion rule:** Build → Connect → Run → Verify. Each phase remains HOLD until its own evidence is available.
