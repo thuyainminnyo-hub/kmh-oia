@@ -25,7 +25,10 @@ class CapturingProvider:
     def generate(self, request):
         self.calls += 1
         self.last_request = request
-        return ModelResponse(self.response_text, ModelUsage(120, 32, Decimal("0")))
+        return ModelResponse(
+            self.response_text,
+            ModelUsage(min(120, request.estimated_input_tokens), 32, Decimal("0")),
+        )
 
 
 def make_runtime(tool_name="echo", input_text="hello from model"):
