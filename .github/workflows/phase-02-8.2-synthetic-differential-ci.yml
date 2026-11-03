@@ -1,0 +1,44 @@
+name: KMH Phase 02.8.2 Synthetic Graph Differential CI
+
+on:
+  pull_request:
+    branches:
+      - "phase-02-8.1-pinned-python-source-audit-20261103"
+    paths:
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_2_graph_differential.py"
+      - "case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py"
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-7-compatibility-baseline.json"
+      - ".github/workflows/phase-02-8.2-synthetic-differential-ci.yml"
+  push:
+    branches:
+      - "phase-02-8.2-synthetic-graph-differential-20261103"
+    paths:
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_2_graph_differential.py"
+      - "case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py"
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-7-compatibility-baseline.json"
+      - ".github/workflows/phase-02-8.2-synthetic-differential-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-graph-differential:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate pinned compatibility baseline JSON
+        run: python -m json.tool case-studies/creative-intelligence-design-studio/contracts/phase-02-7-compatibility-baseline.json
+      - name: Run Phase 02.7 validator regression suite
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: python -m unittest discover -s tests -p 'test_phase_02_7_graph.py' -v
+      - name: Run Phase 02.8.2 synthetic graph differential suite
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: python -m unittest discover -s tests -p 'test_phase_02_8_2_graph_differential.py' -v
+      - name: Check whitespace
+        run: git diff --check
