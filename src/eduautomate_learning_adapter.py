@@ -56,9 +56,9 @@ def adapt_learning_record(payload: Mapping[str, Any]) -> AdaptedLearningRecord:
         raise TypeError("payload must be a mapping")
     unknown, missing = set(payload) - _REQUIRED, _REQUIRED - set(payload)
     if missing:
-        raise ContractValidationError(f"missing required fields: {", ".join(sorted(missing))}")
+        raise ContractValidationError(f"missing required fields: {', '.join(sorted(missing))}")
     if unknown:
-        raise ContractValidationError(f"unknown top-level fields: {", ".join(sorted(unknown))}")
+        raise ContractValidationError(f"unknown top-level fields: {', '.join(sorted(unknown))}")
     if payload["contract_version"] != CONTRACT_VERSION:
         raise ContractValidationError("unsupported contract_version")
     raw = payload["evidence"]
@@ -66,9 +66,9 @@ def adapt_learning_record(payload: Mapping[str, Any]) -> AdaptedLearningRecord:
         raise ContractValidationError("evidence must be an object")
     unknown_evidence, missing_evidence = set(raw) - _ALLOWED_EVIDENCE, _ALLOWED_EVIDENCE - set(raw)
     if missing_evidence:
-        raise ContractValidationError(f"missing evidence fields: {", ".join(sorted(missing_evidence))}")
+        raise ContractValidationError(f"missing evidence fields: {', '.join(sorted(missing_evidence))}")
     if unknown_evidence:
-        raise ContractValidationError(f"unknown evidence fields: {", ".join(sorted(unknown_evidence))}")
+        raise ContractValidationError(f"unknown evidence fields: {', '.join(sorted(unknown_evidence))}")
     try:
         evidence = LearningEvidence(
             evidence_id=raw["evidence_id"], learner_ref=raw["learner_ref"], task_ref=raw["task_ref"],
