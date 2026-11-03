@@ -94,6 +94,7 @@ class EvidenceAdmissionGateTests(unittest.TestCase):
         self.assertEqual(result.decision, "ADMITTED")
         self.assertTrue(result.learning_admitted)
         self.assertEqual(result.missing_fields, ())
+        self.assertEqual(result.execution_id, "exec:1")
 
     def test_verifier_result_for_different_execution_is_rejected(self):
         receipt_result = ReceiptVerificationResult(
