@@ -29,7 +29,7 @@ pitch integers only.
 ## Local test
 From the repository root:
 ```bash
-python -m unittest tests.test_number_notes_engine -v
+python -m unittest discover -s tests -p 'test_number_notes_engine.py' -v
 ```
 No third-party packages, network, cloud compute, or paid API are required.
 
