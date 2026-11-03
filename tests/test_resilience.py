@@ -90,6 +90,7 @@ class RetryingProviderTests(unittest.TestCase):
     def test_open_circuit_blocks_provider_call(self):
         provider = SequenceProvider([TimeoutError()])
         breaker = CircuitBreaker(failure_threshold=1)
+        breaker.record_failure()
         wrapper = RetryingModelProvider(provider, circuit_breaker=breaker)
         with self.assertRaisesRegex(RuntimeError, "circuit is open"):
             wrapper.generate(request())
