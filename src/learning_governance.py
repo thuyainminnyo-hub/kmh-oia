@@ -71,6 +71,8 @@ class EvidenceGatedLearningReviewer:
         reasons = []
         if not admission.learning_admitted or admission.decision != "ADMITTED" or admission.evidence_status != "OUTCOME_LINKED":
             reasons.append("Trusted outcome-linked evidence is not admitted.")
+        if admission.execution_id != candidate.execution_id:
+            reasons.append("Candidate execution_id does not match the admitted evidence execution_id.")
         if regression is None:
             reasons.append("Independent regression evidence is missing.")
         elif not regression.baseline_passed:
