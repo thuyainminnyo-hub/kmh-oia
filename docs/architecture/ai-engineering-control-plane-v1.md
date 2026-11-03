@@ -81,8 +81,8 @@ A passing unit test is evidence only for the behavior it exercises. Mocked provi
 | C — Trace & evaluation | Correlated trace fields, redaction and independent evaluator contract | Trace assertions + redaction tests | Not started |
 | D — Model gateway | Provider-neutral adapter, deterministic routing, bounded budgets | Fake-provider tests + usage accounting | Not started |
 | E — Resilience | Timeout, retry ceilings, circuit-breaker/fallback policy | Fault-injection tests | Not started |
-| F — Learning integration | Evidence-gated learning candidate review, root-cause classification, expected/actual outcome record, regression gate and owner approval | Adversarial unit tests + exact-head CI + trusted receipt fixture | Implemented in branch; CI pending |
-| G — Controlled pilot | One low-risk workflow, no autonomous production mutation | Exact-head CI, live run evidence, owner approval | Not started |
+| F — Learning integration | Evidence-gated learning candidate review with execution-ID binding, root-cause classification, regression gate and owner approval | Adversarial unit tests + exact-head CI | Implemented; exact-head CI PASS |
+| G — Controlled pilot | Gateway-backed Agent adapter wired through existing OIARuntime Agent seam; model tool proposal remains subject to autonomy policy and GovernedTool | Fake-provider end-to-end test, denied-tool test, exact-head CI | Integration slice implemented; live provider/device pilot pending |
 
 ## 8. Explicit non-goals for this baseline
 
@@ -115,7 +115,7 @@ The unit tests cover missing/unadmitted evidence, missing regression, candidate 
 
 **Important limitation:** The current evidence-admission result does not itself carry the execution identifier as a typed field; the candidate-to-admission execution binding still needs an explicit comparison in a future integration layer. The existing trusted receipt gate remains the authority for admission. Do not treat caller-supplied expected/actual text as external proof.
 
-**Current Phase F status:** Implemented in PR branch; exact-head CI pending. PR remains Draft/HOLD. No learning promotion or production policy mutation is authorized.
+**Current Phase F status:** Execution-bound evidence admission and reviewer checks are implemented. Exact-head CI PASS at code/test head `eedff53368c6a8a25aa73c3772a05a627c37c442`. Owner approval identity authentication remains a separate required control. No learning promotion or production policy mutation is authorized.
 
 
 ## 11. Phase F execution-binding hardening
@@ -125,3 +125,18 @@ The evidence admission result now carries the execution ID that was checked agai
 This closes the previously documented candidate-to-admission execution binding gap. It does not make the caller-supplied expected/actual outcome descriptions authoritative, and it does not authenticate owner approval IDs. Owner identity/authority must be verified by the separate approval workflow before any promotion action.
 
 The code/test changes are in the current branch and require exact-head CI. No live runtime/model integration or promotion is claimed.
+
+
+## 12. Phase G controlled runtime integration slice
+
+Added `src/model_gateway_agent.py`, a `GatewayBackedAgent` adapter that implements the existing Agent interface and invokes the provider-neutral ModelGateway. It serializes goal/context as JSON, carries the OIA session ID in internal request/trace metadata without sending that ID in the model prompt, and accepts only a strict JSON object with exactly `tool_name`, `input_text`, and `reason`. Invalid JSON, extra fields, empty fields or gateway denial fail closed.
+
+The existing `OIARuntime` already accepts an injected Agent. The live runtime bridge now passes `tool_name=None`, so the Agent's proposed tool is considered; it still passes through the existing AutonomyPolicy and GovernedTool security boundary. The model cannot execute a tool directly.
+
+Added `tests/test_model_gateway_agent.py` and `tests/test_model_gateway_runtime_integration.py`. The integration tests use a fake local provider and verify a successful low-risk echo workflow plus blocking of an unlisted tool. The run is internal/mock evidence only: the LiveRuntimeBridge still records external evidence as OBSERVED and learning admission remains false without a trusted external receipt.
+
+Exact PR head `eedff53368c6a8a25aa73c3772a05a627c37c442`:
+- KMH OIA Tests #1712 / run 41563702409: SUCCESS; 539 tests passed; performance-baseline passed.
+- KMH OIA Validation #1631 / run 41563702423: SUCCESS; repository-validation, tests, performance-evidence and deployment-evidence-bundle passed.
+
+**Phase G status:** Controlled fake-provider integration slice implemented and exact-head CI PASS. No live provider, Android-device execution, real external side effect, durable budget ledger, or production rollout is claimed. PR remains Draft/HOLD pending independent review.
