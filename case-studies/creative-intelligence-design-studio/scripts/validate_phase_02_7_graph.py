@@ -134,11 +134,20 @@ def _scope_label(scope: ast.AST) -> str:
     return scope.name + "()" if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)) else scope.name
 
 
-def _top_level_scopes(tree: ast.Module):
+def _all_scopes(tree: ast.Module):
+    """Return every function/class scope, including nested definitions."""
     return [
-        node for node in tree.body
+        node for node in ast.walk(tree)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
     ]
+
+
+def _scope_is_within(scope: ast.AST, import_scope: ast.AST | None, parents: dict) -> bool:
+    """An import applies only in its lexical scope and descendant scopes.
+
+    Module-level imports have no import_scope and are visible to all scopes.
+    """
+    return import_scope is None or scope is import_scope or _within(scope, import_scope, parents)
 
 
 def _declarations(trees: dict[str, ast.Module], modules: dict[str, str]):
@@ -161,13 +170,15 @@ def _collect_imports(trees, modules, module_to_file, declarations):
     imports, errors = [], []
     for relative, tree in sorted(trees.items()):
         importer_module = modules[relative]
-        for node in tree.body:
+        parents = _parents(tree)
+        for node in ast.walk(tree):
             if not isinstance(node, ast.ImportFrom):
                 continue
             target_module = _resolve_from_module(importer_module, relative, node)
             if not target_module or target_module not in module_to_file:
                 continue  # Explicitly outside the synthetic project corpus.
             target_file = module_to_file[target_module]
+            import_scope = _nearest_scope(node, parents)
             for alias in node.names:
                 if alias.name == "*":
                     errors.append({"code": "STAR_IMPORT_NOT_ALLOWED", "file": relative, "line": node.lineno})
@@ -185,6 +196,8 @@ def _collect_imports(trees, modules, module_to_file, declarations):
                     "importer_file": relative,
                     "importer_module": importer_module,
                     "import_line": node.lineno,
+                    "import_scope": import_scope,
+                    "import_scope_symbol": _scope_label(import_scope) if import_scope else None,
                     "target_module": target_module,
                     "target_file": target_file,
                     "imported_name": alias.name,
@@ -432,7 +445,9 @@ def validate_graph(graph: dict[str, Any], scan_root: Path, baseline: dict[str, A
             continue
         importer_tree = trees[imp["importer_file"]]
         parents = _parents(importer_tree)
-        for scope in _top_level_scopes(importer_tree):
+        for scope in _all_scopes(importer_tree):
+            if not _scope_is_within(scope, imp.get("import_scope"), parents):
+                continue
             refs = _references(scope, imp["local_name"], parents)
             if not refs:
                 continue
