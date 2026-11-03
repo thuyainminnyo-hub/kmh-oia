@@ -51,7 +51,7 @@ class Phase0283FrozenRuntimeBaselineTests(unittest.TestCase):
         self.assertTrue(any("function_local_relative_import" in item["name"] for item in matrix))
         self.assertEqual(
             sum(1 for item in matrix if item["relation"] == "inherits"),
-            4,
+            5,
         )
 
     def test_package_names_same_definition_labels_but_keep_distinct_files(self):
