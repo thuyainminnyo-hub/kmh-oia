@@ -54,6 +54,14 @@ class TestHumanIntelligenceEngine(unittest.TestCase):
         with self.assertRaises(ValueError):
             make_evidence(learner_ref="student@example.com")
 
+    def test_human_name_is_rejected_as_learner_reference(self):
+        with self.assertRaises(ValueError):
+            make_evidence(learner_ref="Jane Doe")
+
+    def test_malformed_learner_reference_is_rejected(self):
+        with self.assertRaises(ValueError):
+            make_evidence(learner_ref="student-001")
+
     def test_serialization_uses_enum_values(self):
         payload = make_evidence().to_dict()
         self.assertEqual(payload["assistance_level"], "hint")
