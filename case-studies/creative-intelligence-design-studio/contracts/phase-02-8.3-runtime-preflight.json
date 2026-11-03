@@ -1,0 +1,129 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "KMH-GRAPHIFY-RUNTIME-DIFFERENTIAL-PREFLIGHT-02.8.3",
+  "phase": "02.8.3",
+  "status": "PENDING_OWNER_APPROVAL",
+  "extraction_authorized": false,
+  "execution_count": 0,
+  "source": {
+    "repository": "Graphify-Labs/graphify",
+    "tag": "v0.9.100",
+    "commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "package": "graphifyy",
+    "package_version": "0.9.100",
+    "uv_version": "0.13.6",
+    "uv_lock_blob": "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e",
+    "install_command": "uv sync --frozen --no-dev --python 3.12",
+    "version_verification": "importlib.metadata.version('graphifyy') == '0.9.100'"
+  },
+  "environment": {
+    "runner": "ubuntu-24.04",
+    "python": "3.12",
+    "uv": "0.13.6",
+    "clean_git_clone": true,
+    "clean_venv": true,
+    "isolated_home_under_runner_temp": true,
+    "isolated_tmpdir_under_runner_temp": true,
+    "isolated_working_directory_under_runner_temp": true,
+    "scan_snapshot_read_only": true,
+    "output_outside_scan_root": true,
+    "cache_outside_scan_root": true,
+    "minimal_environment_allowlist": [
+      "PATH",
+      "HOME",
+      "TMPDIR",
+      "LANG"
+    ],
+    "model_credentials": false,
+    "semantic_backend": "none"
+  },
+  "command": {
+    "executable": "$VENV_DIR/bin/graphify",
+    "subcommand": "extract",
+    "scan_root": "$SCAN_ROOT",
+    "flags": [
+      "--force",
+      "--code-only",
+      "--no-dedup",
+      "--no-cluster",
+      "--out",
+      "$OUTPUT_ROOT"
+    ],
+    "forbidden_flags": [
+      "--mode deep",
+      "--dedup-llm"
+    ],
+    "expected_graph": "$OUTPUT_ROOT/graphify-out/graph.json",
+    "rationale": "--force guarantees a full AST scan; --code-only skips model-backed semantics; --no-dedup preserves duplicate/stub evidence; --no-cluster preserves raw topology."
+  },
+  "cache": {
+    "ast_cache_namespaced_by": [
+      "package_version",
+      "ast_cache_schema",
+      "tree_sitter_grammar_fingerprint"
+    ],
+    "pinned_ast_cache_schema": 33,
+    "clean_work_root_required": true,
+    "record_cache_directory": true,
+    "record_grammar_fingerprint": true,
+    "semantic_cache_reads_skipped_by_force": true,
+    "semantic_pass_skipped_by_code_only": true
+  },
+  "scan_scope": {
+    "source_files_max": 20,
+    "exact_file_manifest_required": true,
+    "graphifyignore_required": true,
+    "symlinks_allowed": false,
+    "scan_snapshot_sha256_required": true,
+    "source_file_sha256_required": true,
+    "fixture_family": [
+      "multi-package imports",
+      "relative imports",
+      "aliased imports",
+      "same-name definitions",
+      "nested scopes",
+      "function-local imports",
+      "return annotations",
+      "multiple inheritance",
+      "ambiguous binding negative tests"
+    ]
+  },
+  "preflight_gates": [
+    "fresh owner approval bound to exact launch branch and parent commit",
+    "approval max_runs equals 1 and rerun_allowed equals false",
+    "no prior extraction run exists on the dedicated launch branch",
+    "workflow run_attempt equals 1",
+    "tag resolves to exact source commit",
+    "uv lock blob matches pinned blob",
+    "Graphify package version equals 0.9.100",
+    "Python equals 3.12",
+    "AST cache schema equals 33",
+    "scan snapshot contains only approved files and no symlinks",
+    "model credentials are absent",
+    "global graph merge and production promotion are disabled"
+  ],
+  "evidence_outputs": [
+    "source commit and tag verification",
+    "uv version and uv.lock blob",
+    "installed package version",
+    "Python version",
+    "AST cache schema and grammar fingerprint",
+    "exact scan file manifest and file hashes",
+    "effective command argv (redacted environment only)",
+    "raw graph.json and SHA-256",
+    "validator report and extracted-only candidate",
+    "candidate SHA-256",
+    "run ID, run attempt, approval ID and parent SHA"
+  ],
+  "governance": {
+    "raw_graph_mutation": false,
+    "existing_phase_02_5_graph_mutation": false,
+    "candidate_global_merge": false,
+    "inferred_promotion": false,
+    "ambiguous_promotion": false,
+    "oia_runtime_integration": false,
+    "production_promotion": false,
+    "g4_owner_hold": "PRESERVED",
+    "fresh_owner_approval_required": true
+  }
+}
