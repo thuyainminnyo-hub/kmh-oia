@@ -47,9 +47,13 @@ class GatewayBackedAgent:
             raise ValueError("request must be an AgentRequest")
         if not isinstance(request.goal, str) or not request.goal.strip():
             raise ValueError("agent goal must be non-empty")
+        session_id = request.context.get("session_id", "agent-session")
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise ValueError("session_id context must be a non-empty string")
+        model_context = {key: value for key, value in request.context.items() if key != "session_id"}
         payload = {
             "goal": request.goal,
-            "context": request.context,
+            "context": model_context,
             "required_response_schema": {
                 "tool_name": "string",
                 "input_text": "string",
@@ -67,7 +71,7 @@ class GatewayBackedAgent:
 
         model_request = AIRequest(
             request_id=f"agent:{uuid4()}",
-            session_id="agent-session",
+            session_id=session_id,
             task_class=TaskClass.RUNTIME_FEATURE,
             input_text=input_text,
             route_id=self._route_id,
@@ -78,7 +82,7 @@ class GatewayBackedAgent:
         result = self._gateway.execute(
             model_request,
             budget=self._budget,
-            context=ExecutionContext.create("agent-session"),
+            context=ExecutionContext.create(session_id),
         )
         if not result.accepted:
             raise PermissionError(f"model gateway denied agent request: {result.reason}")
