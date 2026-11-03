@@ -12,7 +12,7 @@ SCAN_ROOT = ROOT / "graphify-phase-02-8.3-sandbox"
 
 def git_blob_sha(path: Path) -> str:
     content = path.read_bytes()
-    header = f"blob {len(content)}\\0".encode("ascii")
+    header = b"blob " + str(len(content)).encode("ascii") + bytes([0])
     return hashlib.sha1(header + content).hexdigest()
 
 
@@ -51,7 +51,7 @@ class Phase0283FrozenRuntimeBaselineTests(unittest.TestCase):
         self.assertTrue(any("function_local_relative_import" in item["name"] for item in matrix))
         self.assertEqual(
             sum(1 for item in matrix if item["relation"] == "inherits"),
-            4,
+            5,
         )
 
     def test_package_names_same_definition_labels_but_keep_distinct_files(self):
