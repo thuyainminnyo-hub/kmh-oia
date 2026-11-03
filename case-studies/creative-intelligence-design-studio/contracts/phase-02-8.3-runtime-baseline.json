@@ -1,0 +1,178 @@
+{
+  "schema_version": "1.0.0",
+  "baseline_id": "KMH-CREATIVE-GRAPHIFY-COMPATIBILITY-02.8.3-v1",
+  "phase": "02.8.3",
+  "status": "FROZEN_SYNTHETIC_SCAN_MANIFEST_PENDING_OWNER_APPROVAL",
+  "upstream": {
+    "package": "graphifyy",
+    "version": "0.9.100",
+    "source_commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "uv_version": "0.13.6",
+    "uv_lock_blob": "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e",
+    "ast_cache_schema": 33
+  },
+  "scan_snapshot": {
+    "path": "graphify-phase-02-8.3-sandbox",
+    "repository_branch": "work/phase-02-8.3-runtime-preflight-20261103",
+    "fixture_commit": "768b18c889c5bb088bfe459c67c668f56968c081",
+    "git_tree_sha": "294aa7faa262eabf2584dd578971374490df4b61",
+    "file_count": 9,
+    "python_source_file_count": 8,
+    "source_files": [
+      "src/integration.py",
+      "src/phase_02_8_3/__init__.py",
+      "src/phase_02_8_3/pkg_alpha/__init__.py",
+      "src/phase_02_8_3/pkg_alpha/service.py",
+      "src/phase_02_8_3/pkg_alpha/types.py",
+      "src/phase_02_8_3/pkg_beta/__init__.py",
+      "src/phase_02_8_3/pkg_beta/service.py",
+      "src/phase_02_8_3/pkg_beta/types.py"
+    ],
+    "files": [
+      {
+        "path": ".graphifyignore",
+        "git_blob_sha": "4752fe56a86047d0b80f8d6791b1897bc268aafd",
+        "size": 37
+      },
+      {
+        "path": "src/integration.py",
+        "git_blob_sha": "f7a1715b914712303ab42b6e6af5cd1bc5be0add",
+        "size": 289
+      },
+      {
+        "path": "src/phase_02_8_3/__init__.py",
+        "git_blob_sha": "dac84da936a5475f81652efcf34ace0d16b103fa",
+        "size": 79
+      },
+      {
+        "path": "src/phase_02_8_3/pkg_alpha/__init__.py",
+        "git_blob_sha": "408915897cd84d3696822d42c72c1d8a7d80f4cf",
+        "size": 31
+      },
+      {
+        "path": "src/phase_02_8_3/pkg_alpha/service.py",
+        "git_blob_sha": "3802ff903581d23dead60c8791be34e635bb3b04",
+        "size": 391
+      },
+      {
+        "path": "src/phase_02_8_3/pkg_alpha/types.py",
+        "git_blob_sha": "477b566cdb95f690dc1f764ffeca6545fc6cf631",
+        "size": 80
+      },
+      {
+        "path": "src/phase_02_8_3/pkg_beta/__init__.py",
+        "git_blob_sha": "75f3b11e0117788c0606cbb4efa54368d238c3f2",
+        "size": 30
+      },
+      {
+        "path": "src/phase_02_8_3/pkg_beta/service.py",
+        "git_blob_sha": "df25f0e18725a2768ee7a7a397a37af29a6f0c75",
+        "size": 190
+      },
+      {
+        "path": "src/phase_02_8_3/pkg_beta/types.py",
+        "git_blob_sha": "9e29c2bec0e828b6ba842040b298b5d2e7ed4750",
+        "size": 50
+      }
+    ]
+  },
+  "coverage_matrix": [
+    {
+      "name": "alpha_module_import_nested_function_parameter_return",
+      "importer_file": "src/phase_02_8_3/pkg_alpha/service.py",
+      "imported_name": "Widget",
+      "target_file": "src/phase_02_8_3/pkg_alpha/types.py",
+      "category": "TYPE_ANNOTATION",
+      "relation": "references"
+    },
+    {
+      "name": "alpha_function_local_relative_import_nested_function",
+      "importer_file": "src/phase_02_8_3/pkg_alpha/service.py",
+      "imported_name": "Widget",
+      "target_file": "src/phase_02_8_3/pkg_alpha/types.py",
+      "category": "TYPE_ANNOTATION",
+      "relation": "references"
+    },
+    {
+      "name": "alpha_multiple_inheritance_first_base",
+      "importer_file": "src/phase_02_8_3/pkg_alpha/service.py",
+      "imported_name": "AlphaBase",
+      "target_file": "src/phase_02_8_3/pkg_alpha/types.py",
+      "category": "CLASS_BASE",
+      "relation": "inherits"
+    },
+    {
+      "name": "alpha_multiple_inheritance_second_base",
+      "importer_file": "src/phase_02_8_3/pkg_alpha/service.py",
+      "imported_name": "AlphaMixin",
+      "target_file": "src/phase_02_8_3/pkg_alpha/types.py",
+      "category": "CLASS_BASE",
+      "relation": "inherits"
+    },
+    {
+      "name": "beta_nested_function_import_alias",
+      "importer_file": "src/phase_02_8_3/pkg_beta/service.py",
+      "imported_name": "Widget",
+      "target_file": "src/phase_02_8_3/pkg_beta/types.py",
+      "category": "TYPE_ANNOTATION",
+      "relation": "references"
+    },
+    {
+      "name": "beta_inheritance",
+      "importer_file": "src/phase_02_8_3/pkg_beta/service.py",
+      "imported_name": "BetaBase",
+      "target_file": "src/phase_02_8_3/pkg_beta/types.py",
+      "category": "CLASS_BASE",
+      "relation": "inherits"
+    },
+    {
+      "name": "integration_alpha_same_name_widget",
+      "importer_file": "src/integration.py",
+      "imported_name": "Widget",
+      "target_file": "src/phase_02_8_3/pkg_alpha/types.py",
+      "category": "TYPE_ANNOTATION",
+      "relation": "references"
+    },
+    {
+      "name": "integration_beta_same_name_widget",
+      "importer_file": "src/integration.py",
+      "imported_name": "Widget",
+      "target_file": "src/phase_02_8_3/pkg_beta/types.py",
+      "category": "TYPE_ANNOTATION",
+      "relation": "references"
+    },
+    {
+      "name": "integration_cross_package_base_alpha",
+      "importer_file": "src/integration.py",
+      "imported_name": "AlphaBase",
+      "target_file": "src/phase_02_8_3/pkg_alpha/types.py",
+      "category": "CLASS_BASE",
+      "relation": "inherits"
+    },
+    {
+      "name": "integration_cross_package_base_beta",
+      "importer_file": "src/integration.py",
+      "imported_name": "BetaBase",
+      "target_file": "src/phase_02_8_3/pkg_beta/types.py",
+      "category": "CLASS_BASE",
+      "relation": "inherits"
+    }
+  ],
+  "policies": {
+    "max_python_files": 20,
+    "allow_symlinks": false,
+    "exact_snapshot_only": true,
+    "model_credentials": false,
+    "semantic_backend": "none",
+    "code_only": true,
+    "no_dedup": true,
+    "no_cluster": true,
+    "force_full_ast_scan": true,
+    "raw_graph_immutable": true,
+    "candidate_edges": "EXTRACTED only",
+    "inferred_ambiguous": "review only / never automatically promoted",
+    "global_merge": false,
+    "production_promotion": false,
+    "new_graph_extraction_requires_fresh_owner_approval": true
+  }
+}
