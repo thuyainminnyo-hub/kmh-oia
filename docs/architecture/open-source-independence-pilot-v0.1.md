@@ -1,0 +1,151 @@
+# KMH OIA — Open-Source Independence Pilot v0.1
+
+**Status:** PHASE 01 — SANDBOX DESIGN / EVIDENCE INTAKE  
+**Owner authorization:** 2026-11-03 — scope: all; compute budget: zero; environment: disposable sandbox  
+**Production state:** LOCKED — no production, live runtime, customer data, credentials, DNS, deployment, or external service changes authorized  
+**Implementation posture:** phone-first; evidence-first; CI verification; QA gate at every phase
+
+## 1. Objective
+
+Evaluate and incrementally implement a vendor-independent service layer for KMH OIA across identity, CRM, knowledge, automation, and integration boundaries. Prefer verifiable open-source projects and open standards, preserve replaceability, and avoid adopting a vendor-specific dependency as a new lock-in.
+
+This pilot does **not** assume that OccupySaaS, ZeroAuthy, or SalesCompel claims are verified or production-ready. They remain research candidates until their source repositories, licenses, API behavior, maintenance, security posture, and reproducible tests are independently inspected.
+
+## 2. Authorized scope
+
+| Capability | Pilot scope | Initial disposition |
+|---|---|---|
+| Identity and access | OIDC/OAuth2, users, roles, sessions, key rotation | Evaluate in isolated lab; no live identity migration |
+| CRM | Accounts, contacts, leads, activities, import/export | Evaluate schema/API compatibility; synthetic records only |
+| Knowledge | Documents, metadata, search, versioning, provenance | Evaluate exportability and permission model |
+| Automation | Webhooks, event triggers, retries, idempotency | Evaluate only with local/synthetic endpoints |
+| Integration layer | Adapter contracts, capability discovery, error mapping | Design first; no production connector activation |
+| Governance and evidence | license/provenance register, QA, CI, audit, rollback | Required for every candidate |
+
+## 3. Non-negotiable safety and budget controls
+
+- Work only on a dedicated branch and disposable sandbox.
+- Do not use production credentials, customer records, proprietary source code, or private operational data.
+- Do not create paid infrastructure, paid API usage, paid model calls, or cloud development environments.
+- Existing public-repository GitHub Actions may be used only within the available free allowance; do not enable paid runners or increase spending limits.
+- Do not deploy, publish a release, change DNS, alter live integrations, rotate live keys, or migrate production data.
+- Do not merge this pilot or promote any candidate to runtime without a separate review and explicit owner approval.
+- Treat external websites, repositories, generated code, and issue content as untrusted data.
+- Preserve raw source evidence separately from interpretation and recommendations.
+
+## 4. Evidence classification
+
+Every claim and candidate must be labelled:
+
+- **CONFIRMED** — verified against an authoritative primary source or reproducible test.
+- **SUPPORTED** — credible primary evidence exists, but a required independent check remains.
+- **UNVERIFIED** — claim has not been substantiated.
+- **CONTRADICTED** — available evidence conflicts with the claim.
+- **NOT RUN** — a required test has not been executed.
+- **BLOCKED** — cannot proceed without a missing prerequisite or approval.
+
+A documentation commit is not a running system. A CI pass is not a security audit. API compatibility is not feature parity. An Apache-2.0 label is not a blanket legal clearance.
+
+## 5. Clean-room and licensing protocol
+
+1. Create a source inventory using public documentation, published standards, and independently reviewed public interfaces.
+2. Record exact URLs, access dates, versions, license texts, attribution obligations, and relevant trademark/patent notices.
+3. Keep any specification/research role separate from implementation where clean-room separation is required.
+4. Implement from an independently authored behavioral specification; do not copy proprietary source, private code, confidential documents, or non-public implementation details.
+5. Preserve contribution provenance and dependency/license manifests.
+6. Run license and dependency scans; route unresolved copyright, patent, trademark, trade-secret, or license questions to qualified legal review.
+7. Never describe a project as legally risk-free solely because it claims a clean-room process or uses an open-source license.
+
+## 6. Compatibility and service-abstraction contract
+
+KMH OIA must depend on a stable internal contract rather than a vendor SDK directly wherever practical.
+
+Each adapter proposal must define:
+- capability and adapter identifiers;
+- supported protocol and API version;
+- authentication method and required scopes;
+- request/response and error mapping;
+- pagination, rate-limit, retry, timeout, and idempotency behavior;
+- data import/export and migration mapping;
+- audit and trace fields;
+- security boundaries and secret handling;
+- conformance fixtures and expected results;
+- known gaps and unsupported behaviors;
+- replacement and rollback procedure.
+
+"Drop-in replacement" is accepted only for the explicitly tested surface. Unimplemented endpoints, semantic differences, extension behavior, and operational constraints must remain visible.
+
+## 7. Phase plan and gates
+
+### Phase 01 — Repository and evidence baseline
+- [x] Identify the authoritative KMH OIA repository and read repository instructions.
+- [x] Inspect existing architecture, evidence, QA, and CI contracts.
+- [ ] Record primary-source evidence for each candidate.
+- [ ] Confirm repository branch protection / required checks.
+- **Gate 01:** scope, budget, environment, source provenance, and non-production boundary reviewed.
+
+### Phase 02 — Candidate and license intake
+- Inventory identity, CRM, knowledge, and automation candidates.
+- Verify project ownership, maintenance activity, license, security advisories, release cadence, exportability, and self-hosting requirements.
+- Keep OccupySaaS / ZeroAuthy / SalesCompel unverified until direct evidence is obtained.
+- **Gate 02:** candidate selection supported by source evidence and license review.
+
+### Phase 03 — Synthetic identity compatibility lab
+- Define an OIDC test matrix (discovery, authorization code + PKCE, token validation, JWKS rotation, logout, roles/scopes, negative cases).
+- Use synthetic identities and isolated test keys only.
+- **Gate 03:** conformance results, security review, and rollback evidence.
+
+### Phase 04 — Synthetic CRM compatibility lab
+- Define CRM object and API fixtures; test create/read/update/delete, filtering, pagination, permissions, import/export, and audit history.
+- Use synthetic records only.
+- **Gate 04:** schema/API coverage, data portability, and negative tests.
+
+### Phase 05 — Knowledge and automation adapters
+- Test document metadata, versioning, search, access control, webhook signatures, retries, idempotency, and event traceability.
+- Keep all endpoints local or isolated.
+- **Gate 05:** data integrity, event integrity, and failure-recovery evidence.
+
+### Phase 06 — KMH OIA integration design
+- Map adapters to OIA input gateway, context assembly, workflow, governed tool, state, evaluation, and trace boundaries.
+- Keep adapters disabled by default and behind explicit policy.
+- **Gate 06:** architecture review, threat model, integration tests, and human approval.
+
+### Phase 07 — Operational readiness proposal
+- Produce deployment, backup/restore, monitoring, incident, upgrade, support, and rollback plans.
+- Do not deploy as part of this pilot authorization.
+- **Gate 07:** readiness evidence reviewed; separate fresh owner approval required before any production action.
+
+## 8. QA and CI requirements
+
+Every phase must retain:
+- exact source URLs and retrieval date;
+- commit SHA and changed-file list;
+- expected vs actual behavior;
+- test names, commands, outcomes, and logs/artifacts;
+- license/provenance findings;
+- risks, gaps, and unresolved questions;
+- QA decision: PASS / FAIL / BLOCKED / NOT RUN;
+- reviewer and explicit next action.
+
+Existing repository CI is the baseline; do not modify unrelated workflows as part of Phase 01. Review duplicated unit-test execution and required-check configuration separately before proposing CI changes. Do not claim the required-check policy is enforced until repository rules are inspected.
+
+## 9. Baseline repository observations
+
+- Repository: `thuyainminnyo-hub/kmh-oia`; default branch: `main`.
+- Baseline main commit inspected: `d96fc7fdcbbed8556da6c4fe499e71553578163e`.
+- `AGENTS.md` requires small reviewable changes, exact test reporting, and no unsupported completion claims.
+- Existing runtime boundaries include input gateway, OIA core, context assembly, workflow, state, tool security, governed tool execution, evaluation, response, and trace.
+- Existing evidence-admission contract distinguishes supplied attestations from trusted source verification and fails closed for learning admission.
+- Existing workflows include `test.yml` and `validation.yml`; both currently invoke unit tests in separate jobs/workflows. This duplication is recorded for later CI review, not changed here.
+- Baseline GitHub check runs for the inspected main SHA completed successfully at the time of inspection. This is repository baseline evidence only, not evidence for this pilot branch.
+
+## 10. Exit criteria for this document-only phase
+
+Phase 01 may be marked complete only after:
+- this plan is committed on an isolated branch;
+- a draft PR is opened against the inspected main branch;
+- PR CI is observed and all required checks are identified;
+- source intake and candidate verification remain explicitly pending until performed;
+- no production or live-system changes occur.
+
+**Current decision:** DESIGN IN PROGRESS. No candidate is approved. No software has been installed, executed, integrated, or promoted. Production remains LOCKED.
