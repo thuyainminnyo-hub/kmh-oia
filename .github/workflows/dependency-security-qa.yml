@@ -31,7 +31,7 @@ jobs:
       # pip-tools is a lock-generation bootstrap tool. Its own transitive
       # bootstrap dependencies are not covered by requirements-ci.in.
       - name: Install pinned lock generator
-        run: python -m pip install "pip-tools==7.5.2"
+        run: python -m pip install "pip-tools==7.6.2"
 
       - name: Generate transitive hash lock
         run: |
