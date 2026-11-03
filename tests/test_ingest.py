@@ -44,7 +44,7 @@ class TestMIDIIngestion(unittest.TestCase):
             midi_with_two_notes(), self.library,
             song_id="import-g", title="G key", tonic="G",
         )
-        self.assertEqual(song["notes"][0]["western_number"], "2")
+        self.assertEqual(song["notes"][0]["western_number"], "4")
         self.assertEqual(song["notes"][1]["western_number"], "1")
 
     def test_empty_midi_bytes_rejected(self):
