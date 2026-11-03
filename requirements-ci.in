@@ -1,0 +1,4 @@
+# Direct inputs for Prompt Library schema CI and its security audit tool.
+# The workflow resolves the full transitive graph and generates SHA-256 hashes.
+jsonschema==4.26.0
+pip-audit==2.9.0
