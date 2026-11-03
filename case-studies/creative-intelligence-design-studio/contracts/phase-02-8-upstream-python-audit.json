@@ -1,0 +1,207 @@
+{
+  "schema_version": "1.0.0",
+  "audit_id": "KMH-GRAPHIFY-PYTHON-UPSTREAM-AUDIT-02.8.1",
+  "phase": "02.8.1",
+  "status": "SOURCE_AUDIT_COMPLETE_SYNTHETIC_DIFFERENTIAL_PENDING",
+  "audited_at": "2026-11-03",
+  "upstream": {
+    "repository": "Graphify-Labs/graphify",
+    "version": "0.9.100",
+    "pinned_commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "release_url": "https://github.com/Graphify-Labs/graphify/releases/tag/v0.9.100",
+    "python_type_fix_commit": "b2825e05a5655be1187250a6acb69b83027acd8a",
+    "python_type_fix_commit_url": "https://github.com/Graphify-Labs/graphify/commit/b2825e05a5655be1187250a6acb69b83027acd8a",
+    "ancestry_verification": {
+      "method": "GitHub compare API",
+      "status": "ahead",
+      "fix_commit_is_ancestor_of_pinned_commit": true,
+      "pinned_commit_ahead_by": 1086
+    },
+    "implementation_files": [
+      {
+        "path": "graphify/extractors/resolution.py",
+        "lines": "2854-2958",
+        "role": "Collect Python import, export, and symbol-use facts"
+      },
+      {
+        "path": "graphify/extractors/resolution.py",
+        "lines": "2981-3244",
+        "role": "Resolve Python cross-file imports and repoint sourceless references/inheritance stubs"
+      },
+      {
+        "path": "graphify/extract.py",
+        "lines": "6650-6675",
+        "role": "Order cross-file Python import resolution before generic unique-stub rewiring"
+      }
+    ],
+    "key_relations_repointed": [
+      "references",
+      "inherits",
+      "implements",
+      "extends"
+    ],
+    "important_implementation_constraints": [
+      "Repointing applies only to sourceless target stubs; already source-backed targets are not rewritten by this pass.",
+      "The older cross-file inferred uses mechanism is separate from canonical type/inheritance target repointing.",
+      "Absolute-import fallback logic can be ambiguous; verify exact module+symbol selection on each fixture rather than relying on bare-name resolution.",
+      "Python inherited-method call lookup explicitly stops when a class has two or more bases because cross-file MRO ordering is not modelled."
+    ]
+  },
+  "issues": [
+    {
+      "number": 1186,
+      "state_observed": "OPEN",
+      "original_version": "0.8.35",
+      "created_at": "2026-06-07",
+      "updated_at": "2026-06-28",
+      "classification": "Historical cross-file inheritance and ghost-node report; v0.9.100 includes related mechanisms but no issue-specific full corpus reproduction was found."
+    },
+    {
+      "number": 3252,
+      "state_observed": "OPEN",
+      "created_at": "2026-09-01",
+      "updated_at": "2026-10-18",
+      "classification": "The exact fix commit b2825e05 references #3252 and is included in v0.9.100. Issue remained Open at audit time; retain as a tracking record, not proof the fix is absent."
+    },
+    {
+      "number": 4262,
+      "state_observed": "CLOSED",
+      "maintainer_confirmation": "Upstream maintainer reported the unique located type re-export and import-free unique-stub cases no longer reproduced on v0.9.84, with regression tests added.",
+      "classification": "Related prior defect; corroborates the re-export/unique-definition resolution path."
+    }
+  ],
+  "regression_coverage": [
+    {
+      "id": "UP-01",
+      "case": "exact import beats same-name definitions in different packages",
+      "source": "tests/test_extract.py",
+      "line": 6135,
+      "coverage": "DIRECT_TEST",
+      "result": "PASS_EXPECTED"
+    },
+    {
+      "id": "UP-02",
+      "case": "aliased import repoints references to canonical definition",
+      "source": "tests/test_extract.py",
+      "line": 6170,
+      "coverage": "DIRECT_TEST",
+      "result": "PASS_EXPECTED"
+    },
+    {
+      "id": "UP-03",
+      "case": "imported class inheritance repoints inherits edge",
+      "source": "tests/test_extract.py",
+      "line": 6192,
+      "coverage": "DIRECT_TEST",
+      "result": "PASS_EXPECTED"
+    },
+    {
+      "id": "UP-04",
+      "case": "relative imports resolve canonical type target",
+      "source": "tests/test_extract.py",
+      "line": 6214,
+      "coverage": "DIRECT_TEST",
+      "result": "PASS_EXPECTED"
+    },
+    {
+      "id": "UP-05",
+      "case": "unimported ambiguous type remains unresolved",
+      "source": "tests/test_extract.py",
+      "line": 6231,
+      "coverage": "DIRECT_NEGATIVE_TEST",
+      "result": "FAIL_CLOSED_EXPECTED"
+    },
+    {
+      "id": "UP-06",
+      "case": "cross-language same-name definition does not steal Python import",
+      "source": "tests/test_extract.py",
+      "line": 6256,
+      "coverage": "DIRECT_TEST",
+      "result": "PASS_EXPECTED"
+    },
+    {
+      "id": "UP-07",
+      "case": "aliased import used as class base repoints inherits edge",
+      "source": "tests/test_extract.py",
+      "line": 6274,
+      "coverage": "DIRECT_TEST",
+      "result": "PASS_EXPECTED"
+    },
+    {
+      "id": "UP-08",
+      "case": "edge relation/context/confidence/source provenance preserved on repoint",
+      "source": "tests/test_extract.py",
+      "line": 6292,
+      "coverage": "DIRECT_TEST",
+      "result": "PASS_EXPECTED"
+    },
+    {
+      "id": "UP-09",
+      "case": "re-exported type reference binds to single located definition",
+      "source": "tests/test_python_reexport_type_binding.py",
+      "line": 33,
+      "coverage": "DIRECT_TEST",
+      "result": "PASS_EXPECTED"
+    },
+    {
+      "id": "UP-10",
+      "case": "parameter, return, and generic annotation contexts",
+      "source": "tests/test_python_import_resolution.py",
+      "line": 353,
+      "coverage": "DIRECT_TEST",
+      "result": "PASS_EXPECTED"
+    },
+    {
+      "id": "UP-11",
+      "case": "cross-file inherited method resolution with a single base",
+      "source": "tests/test_python_inherited_method_calls.py",
+      "line": 55,
+      "coverage": "DIRECT_TEST",
+      "result": "PASS_EXPECTED"
+    },
+    {
+      "id": "UP-12",
+      "case": "cross-file inherited method lookup with two or more bases",
+      "source": "tests/test_python_inherited_method_calls.py",
+      "line": 92,
+      "coverage": "EXPLICIT_LIMIT",
+      "result": "NO_EDGE_EXPECTED"
+    }
+  ],
+  "remaining_gaps": [
+    {
+      "id": "GAP-01",
+      "case": "same imported symbol used as both parameter and return type on same function-signature line",
+      "status": "NOT_EXPLICITLY_COVERED_UPSTREAM",
+      "why": "Upstream parameter/return test uses different imported symbols; KMH Phase 02.7 artifact showed a coalesced parameter_type edge and retains a warning."
+    },
+    {
+      "id": "GAP-02",
+      "case": "cross-file imported multiple inheritance edge completeness for all bases",
+      "status": "LIMITED_UPSTREAM_COVERAGE",
+      "why": "Our one-run KMH synthetic extraction covered a multi-base fixture, but the located upstream #3252 direct inheritance test uses a single base. Cross-file method-MRO lookup explicitly bails on multiple bases."
+    },
+    {
+      "id": "GAP-03",
+      "case": "annotated assignment, nested lexical scope, string forward references, star imports as symbol references",
+      "status": "NO_DIRECT_REGRESSION_MATCH_FOUND_IN_AUDITED_TESTS",
+      "why": "Keep KMH synthetic AST tests; do not infer Graphify edge behavior from AST shape tests alone."
+    },
+    {
+      "id": "GAP-04",
+      "case": "Issue #1186 original 891-file corpus reproduction on v0.9.100",
+      "status": "NOT_REPRODUCED",
+      "why": "No original corpus or issue-specific full-corpus run was available in the audited source."
+    }
+  ],
+  "governance": {
+    "graphify_execution_count_in_phase_02_8": 0,
+    "new_extraction_authorized": false,
+    "raw_graph_mutation": false,
+    "candidate_graph_mutation": false,
+    "inferred_or_ambiguous_promotion": false,
+    "g4_owner_hold": "PRESERVED",
+    "production_promotion": "NOT_AUTHORIZED",
+    "next_action": "Add pinned-source audit evidence and run KMH synthetic-only contract CI; defer Graphify differential extraction until a fresh Owner Approval explicitly authorizes it."
+  }
+}
