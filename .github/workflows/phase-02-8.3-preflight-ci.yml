@@ -13,6 +13,9 @@ on:
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_scope_coverage.py"
       - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-preflight.json"
       - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-baseline.json"
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-v09101-candidate.json"
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_v09101_candidate.py"
+      - "case-studies/creative-intelligence-design-studio/graphify-phase-02-8.3-v09101-candidate/**"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_baseline.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_preflight.py"
       - ".github/workflows/phase-02-8.3-preflight-ci.yml"
@@ -20,12 +23,16 @@ on:
     branches:
       - "work/phase-02-8.3-runtime-preflight-20261103"
       - "work/phase-02-8.3-final-preflight-20261103"
+      - "work/phase-02-8.3-v09101-candidate-watch-20261103"
     paths:
       - "case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_scope_coverage.py"
       - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-preflight.json"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_preflight.py"
       - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-baseline.json"
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-v09101-candidate.json"
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_v09101_candidate.py"
+      - "case-studies/creative-intelligence-design-studio/graphify-phase-02-8.3-v09101-candidate/**"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_baseline.py"
       - ".github/workflows/phase-02-8.3-preflight-ci.yml"
 
@@ -37,10 +44,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: Compile read-only validator
@@ -64,5 +71,10 @@ jobs:
       - name: Run frozen runtime scan manifest tests
         working-directory: case-studies/creative-intelligence-design-studio
         run: python -m unittest discover -s tests -p 'test_phase_02_8_3_runtime_baseline.py' -v
+      - name: Validate Graphify v0.9.101 candidate contract
+        run: python -m json.tool case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-v09101-candidate.json
+      - name: Run Graphify v0.9.101 candidate fixture tests
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: python -m unittest discover -s tests -p 'test_phase_02_8_3_v09101_candidate.py' -v
       - name: Check whitespace
         run: git diff --check

@@ -1,0 +1,151 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "KMH-GRAPHIFY-V0.9.101-CANDIDATE-COMPATIBILITY-02.8.3",
+  "phase": "02.8.3",
+  "status": "CANDIDATE_RESEARCH_ONLY_PENDING_OWNER_APPROVAL",
+  "runtime_execution_authorized": false,
+  "extraction_count": 0,
+  "candidate": {
+    "tag": "v0.9.101",
+    "release_published_at": "2026-11-02T19:38:56Z",
+    "annotated_tag_object": "ab26b1ec1da995743ef5a165a07b0d45ad3314c8",
+    "source_commit": "8e6a6d2129d4aeffc7a0e9ed79b153f7f057f42b",
+    "tag_signature": "UNSIGNED",
+    "package": "graphifyy",
+    "package_version": "0.9.101",
+    "python": "3.12",
+    "uv": "0.13.6",
+    "uv_lock_blob": "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e",
+    "pyproject_blob": "946591be6147204dce8153fa71d6eb91c01d074c",
+    "ast_cache_schema": 36,
+    "cache_namespace": "cache/ast/v{version}-s{schema}-g{grammar_fingerprint}"
+  },
+  "frozen_baseline": {
+    "version": "0.9.100",
+    "source_commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "ast_cache_schema": 33,
+    "immutable": true
+  },
+  "upstream_changes": [
+    {
+      "issue": "#4929",
+      "category": "PYTHON_PEP420_NAMESPACE_PACKAGE_CROSS_SRC_ROOT_IMPORTS",
+      "description": "Resolve Python imports across PEP 420 namespace packages split over multiple src/ roots, while leaving duplicate/ambiguous module paths unresolved.",
+      "upstream_regression_tests": [
+        "tests/test_src_layout_import_resolution.py"
+      ],
+      "source_file_blob": "11e79d655ffecd8e5393e61cbd832d633b9cc112"
+    },
+    {
+      "issue": "#4933",
+      "category": "PYTHON_BARE_CALL_METHOD_SHADOWING",
+      "description": "A bare function call inside a method must not bind to a same-named method/self-loop; resolve imported or module-level free function instead while retaining real recursion and self/cls method calls.",
+      "upstream_regression_tests": [
+        "tests/test_python_bare_call_not_enclosing_method.py"
+      ],
+      "source_file_blob": "e21cfafd06342d598872593662f98bd3f46191e1"
+    },
+    {
+      "category": "AST_CACHE_INVALIDATION",
+      "description": "AST cache schema increases from 33 to 36; a clean isolated cache is required for an accurate candidate run.",
+      "source_file_blob": "fb8de26e7a56178c2ce2d3b7c50695c70bbefa94"
+    }
+  ],
+  "fixture": {
+    "path": "graphify-phase-02-8.3-v09101-candidate",
+    "branch": "work/phase-02-8.3-v09101-candidate-watch-20261103",
+    "fixture_commit": "f91fd8a6e1f80ab728d9fe9de2140d70d669b9e5",
+    "git_tree_sha": "de366efa865172932c4c1ff0d2a60525d1f773af",
+    "file_count": 3,
+    "python_file_count": 2,
+    "files": [
+      {
+        "path": ".graphifyignore",
+        "git_blob_sha": "4752fe56a86047d0b80f8d6791b1897bc268aafd",
+        "size": 37
+      },
+      {
+        "path": "pkgpresto/src/airflow/presto/hooks/presto.py",
+        "git_blob_sha": "66a3d216d6e81ab1c1ed74d8a5824033bb3c75fc",
+        "size": 281
+      },
+      {
+        "path": "pkgsql/src/airflow/sql/hooks/sql.py",
+        "git_blob_sha": "c382bcbc68241747cc31a68fefa52f3dc7658abc",
+        "size": 186
+      }
+    ],
+    "package_layout": "Two distinct distributions with separate src/ roots. airflow is a PEP 420 namespace package; no __init__.py files exist in the namespace hierarchy.",
+    "expectations": [
+      "pkgpresto import resolves to the canonical pkgsql source file",
+      "PrestoHook inherits from canonical DbApiHook",
+      "PrestoHook.get_records emits an EXTRACTED call to inherited DbApiHook.strip_sql_string",
+      "PrestoHook.get_records emits an EXTRACTED call to imported free_fn",
+      "PrestoHook.get_build_status bare call resolves to imported module-level get_build_status rather than a self-loop to the same-named method"
+    ]
+  },
+  "comparison_matrix": [
+    {
+      "dimension": "Cross-src-root PEP 420 import",
+      "baseline_v0_9_100": "Known gap at upstream issue reproduction",
+      "candidate_v0_9_101": "Must emit canonical import edge",
+      "decision_gate": "Exact source-file provenance and unique endpoint"
+    },
+    {
+      "dimension": "Inherited method resolution",
+      "baseline_v0_9_100": "Downstream inherited call missing in namespace repro",
+      "candidate_v0_9_101": "Must emit EXTRACTED call to canonical base method",
+      "decision_gate": "Correct base and caller node IDs"
+    },
+    {
+      "dimension": "Bare call vs same-name method",
+      "baseline_v0_9_100": "False self-loop risk",
+      "candidate_v0_9_101": "Must resolve imported/module free function",
+      "decision_gate": "No method self-loop; genuine module recursion remains valid"
+    },
+    {
+      "dimension": "Ambiguous multiple src roots",
+      "baseline_v0_9_100": "Must never guess",
+      "candidate_v0_9_101": "Must remain unresolved",
+      "decision_gate": "No binding to either duplicate namespace target"
+    },
+    {
+      "dimension": "AST cache",
+      "baseline_v0_9_100": "schema 33",
+      "candidate_v0_9_101": "schema 36",
+      "decision_gate": "Fresh cache and grammar fingerprint recorded"
+    }
+  ],
+  "execution_plan": {
+    "graphify_install_allowed": false,
+    "graphify_extraction_allowed": false,
+    "planned_flags": [
+      "--force",
+      "--code-only",
+      "--no-dedup",
+      "--no-cluster",
+      "--out"
+    ],
+    "clean_clone_required": true,
+    "clean_venv_required": true,
+    "isolated_home_tmp_workdir_required": true,
+    "no_model_credentials": true,
+    "no_semantic_backend": true,
+    "max_runs": 1,
+    "rerun_allowed": false
+  },
+  "governance": {
+    "g4_owner_hold": "PRESERVED",
+    "raw_graph_mutation": false,
+    "candidate_global_merge": false,
+    "inferred_promotion": false,
+    "ambiguous_promotion": false,
+    "production_promotion": false,
+    "fresh_owner_approval_required": true
+  },
+  "limitations": [
+    "Upstream tag v0.9.101 is unsigned; record and verify the exact commit SHA and repository provenance rather than treating the tag signature as verified.",
+    "The new fixture has not been extracted by Graphify. Expected relationships are test hypotheses until runtime evidence exists.",
+    "v0.9.101 is a separate candidate; the v0.9.100 baseline and prior evidence remain unchanged."
+  ]
+}
