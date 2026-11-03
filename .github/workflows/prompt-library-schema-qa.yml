@@ -16,6 +16,8 @@ on:
       - "scripts/validate_prompt_record.py"
       - "tests/fixtures/prompt-library/**"
       - "data/prompt-library/**"
+      - "requirements-ci.in"
+      - "requirements-ci.txt"
       - ".github/workflows/prompt-library-schema-qa.yml"
   workflow_dispatch:
 
@@ -37,7 +39,7 @@ jobs:
       # Generate the complete dependency graph and hashes on the CI runner.
       # pip-tools bootstrap dependencies are a separate, explicitly documented trust boundary.
       - name: Install pinned lock generator
-        run: python -m pip install "pip-tools==7.5.2"
+        run: python -m pip install "pip-tools==7.6.2"
 
       - name: Generate transitive hash lock
         run: |
