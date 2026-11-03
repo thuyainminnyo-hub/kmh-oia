@@ -6,6 +6,8 @@ on:
       - "phase-02-8.1-pinned-python-source-audit-20261103"
     paths:
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_2_graph_differential.py"
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.2-upstream-version-map.json"
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_2_upstream_version_map.py"
       - "case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py"
       - "case-studies/creative-intelligence-design-studio/contracts/phase-02-7-compatibility-baseline.json"
       - ".github/workflows/phase-02-8.2-synthetic-differential-ci.yml"
@@ -40,5 +42,8 @@ jobs:
       - name: Run Phase 02.8.2 synthetic graph differential suite
         working-directory: case-studies/creative-intelligence-design-studio
         run: python -m unittest discover -s tests -p 'test_phase_02_8_2_graph_differential.py' -v
+      - name: Run Phase 02.8.2 upstream release chronology contract
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: python -m unittest discover -s tests -p 'test_phase_02_8_2_upstream_version_map.py' -v
       - name: Check whitespace
         run: git diff --check
