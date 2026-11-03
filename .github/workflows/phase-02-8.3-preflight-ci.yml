@@ -9,6 +9,8 @@ on:
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_7_graph.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_2_graph_differential.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_scope_coverage.py"
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-preflight.json"
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_preflight.py"
       - ".github/workflows/phase-02-8.3-preflight-ci.yml"
   push:
     branches:
@@ -43,5 +45,10 @@ jobs:
       - name: Run Phase 02.8.3 nested-scope and lexical-import tests
         working-directory: case-studies/creative-intelligence-design-studio
         run: python -m unittest discover -s tests -p 'test_phase_02_8_3_scope_coverage.py' -v
+      - name: Validate Phase 02.8.3 runtime preflight contract
+        run: python -m json.tool case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-preflight.json
+      - name: Run Phase 02.8.3 runtime preflight contract tests
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: python -m unittest discover -s tests -p 'test_phase_02_8_3_runtime_preflight.py' -v
       - name: Check whitespace
         run: git diff --check
