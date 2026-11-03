@@ -14,13 +14,16 @@ from src.model_gateway_agent import GatewayBackedAgent
 
 
 class FakeProvider:
-    def __init__(self, response):
-        self.response = response
+    def __init__(self, response_text):
+        self.response_text = response_text
         self.calls = 0
 
     def generate(self, request):
         self.calls += 1
-        return self.response
+        return ModelResponse(
+            self.response_text,
+            ModelUsage(min(100, request.estimated_input_tokens), 30, Decimal("0")),
+        )
 
 
 def build_agent(response_text):
@@ -34,9 +37,7 @@ def build_agent(response_text):
         max_output_tokens=256,
         allowed_data_classifications=(DataClassification.INTERNAL,),
     )
-    provider = FakeProvider(ModelResponse(
-        response_text, ModelUsage(100, 30, Decimal("0"))
-    ))
+    provider = FakeProvider(response_text)
     gateway = ModelGateway(
         AIRequestGuardrail([route], AIBudgetPolicy(max_request_input_tokens=8000)),
         [route],
