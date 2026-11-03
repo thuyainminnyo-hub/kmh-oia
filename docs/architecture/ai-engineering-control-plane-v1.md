@@ -81,7 +81,7 @@ A passing unit test is evidence only for the behavior it exercises. Mocked provi
 | C — Trace & evaluation | Correlated trace fields, redaction and independent evaluator contract | Trace assertions + redaction tests | Not started |
 | D — Model gateway | Provider-neutral adapter, deterministic routing, bounded budgets | Fake-provider tests + usage accounting | Not started |
 | E — Resilience | Timeout, retry ceilings, circuit-breaker/fallback policy | Fault-injection tests | Not started |
-| F — Learning integration | Evidence-linked admission and decision-change records | End-to-end evidence chain + regression checks | Not started |
+| F — Learning integration | Evidence-gated learning candidate review, root-cause classification, expected/actual outcome record, regression gate and owner approval | Adversarial unit tests + exact-head CI + trusted receipt fixture | Implemented in branch; CI pending |
 | G — Controlled pilot | One low-risk workflow, no autonomous production mutation | Exact-head CI, live run evidence, owner approval | Not started |
 
 ## 8. Explicit non-goals for this baseline
@@ -103,3 +103,16 @@ A passing unit test is evidence only for the behavior it exercises. Mocked provi
 **Next engineering slice:** After Phase B CI passes, review whether the contract should be wired to the existing governed-tool boundary or remain a dedicated model-gateway preflight. Add trace correlation and redaction tests before any live provider connection.
 
 **Promotion rule:** Build → Connect → Run → Verify. Each phase remains HOLD until its own evidence is available.
+
+
+## 10. Phase F implementation checkpoint
+
+Added `src/learning_governance.py` and `tests/test_learning_governance.py`.
+
+The reviewer consumes the existing `EvidenceAdmissionResult` from `EvidenceAdmissionGate`; it does not duplicate trusted-source verification. A candidate records execution/decision/trace identifiers, artifact digest, expected and actual outcome, typed root-cause category, and proposed change. Review remains HOLD unless evidence is ADMITTED and OUTCOME_LINKED and both baseline and candidate regression checks pass. Passing checks produce REVIEW_REQUIRED until a non-empty owner approval identifier is supplied. Approval only marks the candidate eligible for a separate governed promotion step; no active standard, policy, prompt, route or runtime configuration is mutated here.
+
+The unit tests cover missing/unadmitted evidence, missing regression, candidate regression failure, baseline failure, owner approval, missing artifact digest and invalid regression counts. Files were fetched back from the branch before CI.
+
+**Important limitation:** The current evidence-admission result does not itself carry the execution identifier as a typed field; the candidate-to-admission execution binding still needs an explicit comparison in a future integration layer. The existing trusted receipt gate remains the authority for admission. Do not treat caller-supplied expected/actual text as external proof.
+
+**Current Phase F status:** Implemented in PR branch; exact-head CI pending. PR remains Draft/HOLD. No learning promotion or production policy mutation is authorized.
