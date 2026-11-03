@@ -12,7 +12,7 @@ SCAN_ROOT = ROOT / "graphify-phase-02-8.3-sandbox"
 
 def git_blob_sha(path: Path) -> str:
     content = path.read_bytes()
-    header = f"blob {len(content)}\\0".encode("ascii")
+    header = b"blob " + str(len(content)).encode("ascii") + bytes([0])
     return hashlib.sha1(header + content).hexdigest()
 
 
