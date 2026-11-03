@@ -1,0 +1,42 @@
+name: KMH Phase 02.8.1 Pinned Python Audit CI
+
+on:
+  pull_request:
+    branches:
+      - "phase-02-8-semantic-context-research-20261102"
+    paths:
+      - "case-studies/creative-intelligence-design-studio/evidence/phase-02-8.1-pinned-python-source-audit.md"
+      - ".github/workflows/phase-02-8.1-upstream-audit-ci.yml"
+  push:
+    branches:
+      - "phase-02-8.1-pinned-python-source-audit-20261103"
+    paths:
+      - "case-studies/creative-intelligence-design-studio/evidence/phase-02-8.1-pinned-python-source-audit.md"
+      - ".github/workflows/phase-02-8.1-upstream-audit-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-upstream-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate pinned upstream audit JSON
+        run: python -m json.tool case-studies/creative-intelligence-design-studio/contracts/phase-02-8-upstream-python-audit.json
+      - name: Validate Phase 02.8 upstream audit contract
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: python -m unittest discover -s tests -p 'test_phase_02_8_upstream_audit.py' -v
+      - name: Re-run Phase 02.8 design and AST-only fixture contracts
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: |
+          python -m unittest discover -s tests -p 'test_phase_02_8_contract.py' -v
+          python -m unittest discover -s tests -p 'test_phase_02_8_ast_fixtures.py' -v
+      - name: Check whitespace
+        run: git diff --check
