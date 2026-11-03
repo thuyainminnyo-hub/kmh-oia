@@ -6,6 +6,11 @@ on:
     paths:
       - "apps/music-notes/**"
       - ".github/workflows/deploy-music-notes-pages.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/music-notes/**"
+      - ".github/workflows/deploy-music-notes-pages.yml"
   workflow_dispatch:
 
 permissions:
