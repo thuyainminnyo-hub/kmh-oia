@@ -4,12 +4,15 @@ on:
   pull_request:
     branches:
       - "phase-02-8.2-synthetic-graph-differential-20261103"
+      - "work/phase-02-8.3-runtime-preflight-20261103"
     paths:
       - "case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_7_graph.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_2_graph_differential.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_scope_coverage.py"
       - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-preflight.json"
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-baseline.json"
+      - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_baseline.py"
       - "case-studies/creative-intelligence-design-studio/tests/test_phase_02_8_3_runtime_preflight.py"
       - ".github/workflows/phase-02-8.3-preflight-ci.yml"
   push:
@@ -50,5 +53,10 @@ jobs:
       - name: Run Phase 02.8.3 runtime preflight contract tests
         working-directory: case-studies/creative-intelligence-design-studio
         run: python -m unittest discover -s tests -p 'test_phase_02_8_3_runtime_preflight.py' -v
+      - name: Validate frozen Phase 02.8.3 runtime scan manifest
+        run: python -m json.tool case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-baseline.json
+      - name: Run frozen runtime scan manifest tests
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: python -m unittest discover -s tests -p 'test_phase_02_8_3_runtime_baseline.py' -v
       - name: Check whitespace
         run: git diff --check
