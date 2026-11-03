@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "audit_id": "KMH-GRAPHIFY-UPSTREAM-PYTHON-VERSION-MAP-02.8.2",
+  "audited_at": "2026-11-03",
+  "pinned_version": "0.9.100",
+  "pinned_commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+  "release_history": [
+    {
+      "version": "0.9.54",
+      "release_date": "2026-09-05",
+      "release_commit": "937e59a5476fcb2665d6c4f4b7c0d0a4142011b6",
+      "change": "Python cross-file imported type references repoint sourceless stubs to the exact imported definition, rather than a bare-name match; same-named types in different modules remain distinct.",
+      "issue": "#3252",
+      "source": "https://github.com/Graphify-Labs/graphify/releases/tag/v0.9.54",
+      "fix_commit": "https://github.com/Graphify-Labs/graphify/commit/b2825e05a5655be1187250a6acb69b83027acd8a",
+      "classification": "INTRODUCED_PYTHON_CROSS_FILE_TYPE_REPOINT"
+    },
+    {
+      "version": "0.9.95",
+      "release_date": "2026-10-23",
+      "release_commit_prefix": "92741d1",
+      "change": "Explicit module-level Python type aliases (TypeAlias, type statement, NewType) are extracted as type nodes so references can bind to the alias node; implicit assignments, local aliases, and re-exports are excluded.",
+      "issue": "#4578",
+      "source": "https://github.com/Graphify-Labs/graphify/releases/tag/v0.9.95",
+      "classification": "PYTHON_EXPLICIT_TYPE_ALIAS_EXTRACTION"
+    },
+    {
+      "version": "0.9.100",
+      "release_date": "2026-11-01",
+      "release_commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+      "change": "Release notes include general type/function case-sensitive node-ID collision handling and Java/Kotlin cross-file imports, extends/implements and member-call resolution. The Python #3252 fix remains in the pinned source ancestry; this release is not where that fix was first introduced.",
+      "source": "https://github.com/Graphify-Labs/graphify/releases/tag/v0.9.100",
+      "classification": "LATER_ID_NORMALIZATION_AND_JVM_RESOLUTION_UPDATES"
+    }
+  ],
+  "verification": {
+    "python_fix_commit_ancestor_of_v0_9_54_release": true,
+    "python_fix_commit_ancestor_of_v0_9_100_pinned_commit": true,
+    "v0_9_54_to_v0_9_100_commit_order": "verified_by_git_compare",
+    "first_release_with_python_cross_file_type_repoint": "0.9.54",
+    "pinned_release_under_test": "0.9.100"
+  },
+  "caveats": [
+    "Upstream release-note evidence is not a replacement for executing the pinned extractor against KMH synthetic fixtures.",
+    "The original Issue #1186 891-file reproduction has not been rerun on 0.9.100.",
+    "Cross-file inherited-method lookup across multiple bases is explicitly limited by the current source implementation.",
+    "Same-line parameter/return annotation edge-context coalescing remains a KMH-observed warning."
+  ]
+}
