@@ -58,7 +58,18 @@ jobs:
           npx playwright install --with-deps chromium
           npm run test:e2e
 
-      - name: Commit generated lockfiles to this isolated branch
+      - name: Preserve workflow lock outputs for human review
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: mlcw-dual-lock-review
+          path: |
+            .github/workflows/actions.lock
+            .github/workflows/mlcw-studio-ci.yml
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Commit npm lockfile to this isolated branch
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_REF: ${{ github.ref }}
@@ -66,11 +77,11 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add case-studies/education/my-little-creative-world/studio/package-lock.json .github/workflows/actions.lock
+          git add case-studies/education/my-little-creative-world/studio/package-lock.json
           if git diff --cached --quiet; then
             echo "No lockfile changes to commit."
             exit 0
           fi
-          git commit -m "chore(mlcw): add verified dual dependency locks"
+          git commit -m "chore(mlcw): add verified npm dependency lock"
           branch="${TARGET_REF#refs/heads/}"
           git push origin "HEAD:${branch}"
