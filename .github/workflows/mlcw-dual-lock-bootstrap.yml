@@ -1,0 +1,73 @@
+name: MLCW Dual-Lock Bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mlcw-dual-lock-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  generate-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Fetch the selected branch without third-party actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
+          git fetch --depth=1 origin "${TARGET_REF}"
+          git checkout --detach FETCH_HEAD
+
+      - name: Generate npm lockfile
+        working-directory: case-studies/education/my-little-creative-world/studio
+        run: |
+          set -euo pipefail
+          node --version
+          npm --version
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          test -s package-lock.json
+
+      - name: Generate MLCW workflow dependency lock
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh extension install github/gh-actions-lock
+          gh actions-lock .github/workflows/mlcw-studio-ci.yml
+          gh actions-lock --verify .github/workflows/mlcw-studio-ci.yml
+          test -s .github/workflows/actions.lock
+
+      - name: Clean install and test
+        working-directory: case-studies/education/my-little-creative-world/studio
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm test
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
+      - name: Commit generated lockfiles to this isolated branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add case-studies/education/my-little-creative-world/studio/package-lock.json .github/workflows/actions.lock
+          if git diff --cached --quiet; then
+            echo "No lockfile changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(mlcw): add verified dual dependency locks"
+          branch="${TARGET_REF#refs/heads/}"
+          git push origin "HEAD:${branch}"
