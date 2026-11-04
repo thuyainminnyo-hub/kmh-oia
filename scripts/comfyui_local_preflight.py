@@ -37,7 +37,7 @@ def _normalize_local_base_url(base_url: object) -> tuple[str | None, str | None]
         return None, "base_url must not use a scoped IPv6 address"
     if parsed.username is not None or parsed.password is not None:
         return None, "base_url must not include credentials"
-    if parsed.query or parsed.fragment:
+    if "?" in base_url or "#" in base_url or parsed.query or parsed.fragment:
         return None, "base_url must not include a query or fragment"
     if parsed.path not in {"", "/"}:
         return None, "base_url must not include a path"
