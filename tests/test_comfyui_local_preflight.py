@@ -169,17 +169,13 @@ class ComfyUILocalPreflightTests(unittest.TestCase):
         self.assertEqual(errors, [])
         handlers = mock_build_opener.call_args.args
         self.assertEqual(len(handlers), 2)
-        self.assertIsInstance(handlers[0], __import__(
-            "urllib.request", fromlist=["ProxyHandler"]
-        ).ProxyHandler)
+        self.assertIsInstance(handlers[0], ProxyHandler)
         self.assertEqual(handlers[0].proxies, {})
         self.assertIsInstance(handlers[1], _RejectRedirectHandler)
 
     def test_redirect_handler_rejects_redirects(self):
         handler = _RejectRedirectHandler()
-        request = __import__(
-            "urllib.request", fromlist=["Request"]
-        ).Request("http://127.0.0.1:8188/object_info")
+        request = Request("http://127.0.0.1:8188/object_info")
 
         self.assertIsNone(
             handler.redirect_request(
