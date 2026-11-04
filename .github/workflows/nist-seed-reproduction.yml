@@ -5,6 +5,10 @@ on:
     paths:
       - "tests/test_nist_ecdsa_seeds.py"
       - ".github/workflows/nist-seed-reproduction.yml"
+  pull_request:
+    paths:
+      - "tests/test_nist_ecdsa_seeds.py"
+      - ".github/workflows/nist-seed-reproduction.yml"
   workflow_dispatch:
 
 permissions:
