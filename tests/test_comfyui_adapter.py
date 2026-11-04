@@ -84,11 +84,17 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
     def test_rejects_credentials_query_fragment_path_and_malformed_port(self):
         for base_url in (
             "http://user:pass@127.0.0.1:8188",
+            "http://@127.0.0.1:8188",
+            "http://:password@127.0.0.1:8188",
             "http://127.0.0.1:8188/?token=x",
             "http://127.0.0.1:8188/#fragment",
+            "http://127.0.0.1:8188?",
+            "http://127.0.0.1:8188#",
             "http://127.0.0.1:8188/api",
             "http://127.0.0.1:notaport",
             "http://127.0.0.1:70000",
+            "http://127.0.0.1:",
+            "http://[::1%25lo0]:8188",
         ):
             with self.subTest(base_url=base_url):
                 with self.assertRaises(ValueError):
@@ -96,6 +102,65 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
                         base_url=base_url, workflow_path=self.workflow,
                         output_root=self.root / "out", prompt_node_id="6",
                     )
+
+    def test_accepts_literal_ipv4_and_ipv6_loopback_urls(self):
+        for base_url in ("http://127.0.0.1:8188", "http://[::1]:8188", "http://[::1]:8188/"):
+            with self.subTest(base_url=base_url):
+                adapter = ComfyUIImageAdapter(
+                    base_url=base_url,
+                    workflow_path=self.workflow,
+                    output_root=self.root / "out",
+                    prompt_node_id="6",
+                )
+                self.assertEqual(adapter.base_url, base_url.rstrip("/"))
+
+    def test_rejects_non_positive_non_finite_and_non_numeric_timeouts(self):
+        invalid_values = (
+            0,
+            -1,
+            float("nan"),
+            float("inf"),
+            float("-inf"),
+            True,
+            "1",
+            None,
+            10**400,
+        )
+        timeout_fields = (
+            "request_timeout_seconds",
+            "job_timeout_seconds",
+            "poll_interval_seconds",
+        )
+        for field in timeout_fields:
+            for value in invalid_values:
+                with self.subTest(field=field, value=repr(value)):
+                    kwargs = {
+                        "base_url": "http://127.0.0.1:8188",
+                        "workflow_path": self.workflow,
+                        "output_root": self.root / "out",
+                        "prompt_node_id": "6",
+                        "request_timeout_seconds": 10.0,
+                        "job_timeout_seconds": 300.0,
+                        "poll_interval_seconds": 0.5,
+                    }
+                    kwargs[field] = value
+                    with self.assertRaisesRegex(ValueError, "positive finite"):
+                        ComfyUIImageAdapter(**kwargs)
+
+    def test_accepts_positive_finite_timeout_values(self):
+        adapter = ComfyUIImageAdapter(
+            base_url="http://127.0.0.1:8188",
+            workflow_path=self.workflow,
+            output_root=self.root / "out",
+            prompt_node_id="6",
+            request_timeout_seconds=0.25,
+            job_timeout_seconds=30,
+            poll_interval_seconds=0.1,
+        )
+        self.assertEqual(adapter.request_timeout_seconds, 0.25)
+        self.assertEqual(adapter.job_timeout_seconds, 30)
+        self.assertEqual(adapter.poll_interval_seconds, 0.1)
+
 
     def test_missing_prompt_node_fails_closed(self):
         adapter = ComfyUIImageAdapter(
