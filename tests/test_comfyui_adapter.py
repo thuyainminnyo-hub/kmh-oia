@@ -109,11 +109,11 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
     @patch("src.comfyui_adapter.build_opener")
     def test_submits_polls_downloads_and_saves_output(self, mock_build_opener):
         image_bytes = b"\x89PNG\r\n\x1a\nsynthetic payload"
-        history = {"prompt-1": {"outputs": {"9": {"images": [
+        history = {"00000000-0000-4000-8000-000000000001": {"outputs": {"9": {"images": [
             {"filename": "generated.png", "subfolder": "", "type": "output"}
         ]}}, "status": {"status_str": "success"}}}
         mock_build_opener.return_value.open.side_effect = [
-            FakeResponse(json.dumps({"prompt_id": "prompt-1"}).encode()),
+            FakeResponse(json.dumps({"prompt_id": "00000000-0000-4000-8000-000000000001"}).encode()),
             FakeResponse(json.dumps(history).encode()),
             FakeResponse(image_bytes),
         ]
@@ -123,21 +123,21 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         path = Path(result.output_path)
         self.assertTrue(path.is_file())
         self.assertEqual(path.read_bytes(), image_bytes)
-        self.assertEqual(result.provider_execution_id, "prompt-1")
+        self.assertEqual(result.provider_execution_id, "00000000-0000-4000-8000-000000000001")
         submitted = json.loads(mock_build_opener.return_value.open.call_args_list[0].args[0].data.decode())
         self.assertEqual(submitted["prompt"]["6"]["inputs"]["text"], self.job.prompt)
 
     @patch("src.comfyui_adapter.time.sleep")
     @patch("src.comfyui_adapter.build_opener")
     def test_waits_for_success_status_before_downloading(self, mock_build_opener, _mock_sleep):
-        running = {"prompt-1": {"outputs": {"9": {"images": [
+        running = {"00000000-0000-4000-8000-000000000001": {"outputs": {"9": {"images": [
             {"filename": "generated.png", "subfolder": "", "type": "output"}
         ]}}, "status": {"status_str": "running"}}}
-        success = {"prompt-1": {"outputs": {"9": {"images": [
+        success = {"00000000-0000-4000-8000-000000000001": {"outputs": {"9": {"images": [
             {"filename": "generated.png", "subfolder": "", "type": "output"}
         ]}}, "status": {"status_str": "success"}}}
         mock_build_opener.return_value.open.side_effect = [
-            FakeResponse(b'{"prompt_id":"prompt-1"}'),
+            FakeResponse(b'{"prompt_id":"00000000-0000-4000-8000-000000000001"}'),
             FakeResponse(json.dumps(running).encode()),
             FakeResponse(json.dumps(success).encode()),
             FakeResponse(b"\x89PNG\r\n\x1a\nsynthetic payload"),
@@ -145,7 +145,34 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
         result = self.adapter.execute(self.running_job)
         self.assertTrue(result.success, result.error_message)
         self.assertEqual(Path(result.output_path).read_bytes(), b"\x89PNG\r\n\x1a\nsynthetic payload")
-        self.assertEqual(result.provider_execution_id, "prompt-1")
+        self.assertEqual(result.provider_execution_id, "00000000-0000-4000-8000-000000000001")
+
+    @patch("src.comfyui_adapter.build_opener")
+    def test_rejects_noncanonical_or_invalid_prompt_ids_before_history_request(self, mock_build_opener):
+        invalid_ids = (
+            "",
+            None,
+            123,
+            "00000000-0000-4000-8000-00000000000A",
+            "{00000000-0000-4000-8000-000000000001}",
+            "urn:uuid:00000000-0000-4000-8000-000000000001",
+            "00000000-0000-4000-8000-000000000001/../../admin",
+            "00000000-0000-4000-8000-000000000001?next=/admin",
+        )
+        for invalid_id in invalid_ids:
+            with self.subTest(prompt_id=invalid_id):
+                mock_build_opener.reset_mock()
+                mock_build_opener.return_value.open.return_value = FakeResponse(
+                    json.dumps({"prompt_id": invalid_id}).encode()
+                )
+                result = self.adapter.execute(self.running_job)
+                self.assertFalse(result.success)
+                self.assertIn("prompt_id", result.error_message)
+                self.assertEqual(mock_build_opener.return_value.open.call_count, 1)
+
+    def test_accepts_only_canonical_lowercase_hyphenated_uuid(self):
+        prompt_id = "00000000-0000-4000-8000-000000000001"
+        self.assertEqual(ComfyUIImageAdapter._validate_prompt_id(prompt_id), prompt_id)
 
     @patch("src.comfyui_adapter.build_opener")
     def test_queue_response_without_prompt_id_fails(self, mock_build_opener):
@@ -159,8 +186,8 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
     @patch("src.comfyui_adapter.build_opener")
     def test_missing_history_output_fails(self, mock_build_opener, _mock_sleep, _mock_monotonic):
         mock_build_opener.return_value.open.side_effect = [
-            FakeResponse(b'{"prompt_id":"prompt-1"}'),
-            FakeResponse(b'{"prompt-1":{"outputs":{},"status":{"status_str":"success"}}}'),
+            FakeResponse(b'{"prompt_id":"00000000-0000-4000-8000-000000000001"}'),
+            FakeResponse(b'{"00000000-0000-4000-8000-000000000001":{"outputs":{},"status":{"status_str":"success"}}}'),
         ]
         result = self.adapter.execute(self.running_job)
         self.assertFalse(result.success)
@@ -169,8 +196,8 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
     @patch("src.comfyui_adapter.build_opener")
     def test_history_without_image_metadata_fails(self, mock_build_opener):
         mock_build_opener.return_value.open.side_effect = [
-            FakeResponse(b'{"prompt_id":"prompt-1"}'),
-            FakeResponse(b'{"prompt-1":{"outputs":{"9":{"images":[]}},"status":{"status_str":"success"}}}'),
+            FakeResponse(b'{"prompt_id":"00000000-0000-4000-8000-000000000001"}'),
+            FakeResponse(b'{"00000000-0000-4000-8000-000000000001":{"outputs":{"9":{"images":[]}},"status":{"status_str":"success"}}}'),
         ]
         result = self.adapter.execute(self.running_job)
         self.assertFalse(result.success)
@@ -178,11 +205,11 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
 
     @patch("src.comfyui_adapter.build_opener")
     def test_empty_image_fails(self, mock_build_opener):
-        history = {"prompt-1": {"outputs": {"9": {"images": [
+        history = {"00000000-0000-4000-8000-000000000001": {"outputs": {"9": {"images": [
             {"filename": "generated.png", "subfolder": "", "type": "output"}
         ]}}, "status": {"status_str": "success"}}}
         mock_build_opener.return_value.open.side_effect = [
-            FakeResponse(b'{"prompt_id":"prompt-1"}'),
+            FakeResponse(b'{"prompt_id":"00000000-0000-4000-8000-000000000001"}'),
             FakeResponse(json.dumps(history).encode()),
             FakeResponse(b""),
         ]
@@ -192,11 +219,11 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
 
     @patch("src.comfyui_adapter.build_opener")
     def test_rejects_bytes_that_do_not_match_image_extension(self, mock_build_opener):
-        history = {"prompt-1": {"outputs": {"9": {"images": [
+        history = {"00000000-0000-4000-8000-000000000001": {"outputs": {"9": {"images": [
             {"filename": "generated.png", "subfolder": "", "type": "output"}
         ]}}, "status": {"status_str": "success"}}}
         mock_build_opener.return_value.open.side_effect = [
-            FakeResponse(b'{"prompt_id":"prompt-1"}'),
+            FakeResponse(b'{"prompt_id":"00000000-0000-4000-8000-000000000001"}'),
             FakeResponse(json.dumps(history).encode()),
             FakeResponse(b"not a png file"),
         ]
@@ -206,11 +233,11 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
 
     @patch("src.comfyui_adapter.build_opener")
     def test_rejects_unsupported_extension(self, mock_build_opener):
-        history = {"prompt-1": {"outputs": {"9": {"images": [
+        history = {"00000000-0000-4000-8000-000000000001": {"outputs": {"9": {"images": [
             {"filename": "generated.exe", "subfolder": "", "type": "output"}
         ]}}, "status": {"status_str": "success"}}}
         mock_build_opener.return_value.open.side_effect = [
-            FakeResponse(b'{"prompt_id":"prompt-1"}'),
+            FakeResponse(b'{"prompt_id":"00000000-0000-4000-8000-000000000001"}'),
             FakeResponse(json.dumps(history).encode()),
         ]
         result = self.adapter.execute(self.running_job)
@@ -253,11 +280,11 @@ class ComfyUIImageAdapterTests(unittest.TestCase):
     def test_image_redirect_is_rejected_without_following_target(self, mock_build_opener):
         from urllib.error import HTTPError
 
-        history = {"prompt-1": {"outputs": {"9": {"images": [
+        history = {"00000000-0000-4000-8000-000000000001": {"outputs": {"9": {"images": [
             {"filename": "generated.png", "subfolder": "", "type": "output"}
         ]}}, "status": {"status_str": "success"}}}
         mock_build_opener.return_value.open.side_effect = [
-            FakeResponse(b'{"prompt_id":"prompt-1"}'),
+            FakeResponse(b'{"prompt_id":"00000000-0000-4000-8000-000000000001"}'),
             FakeResponse(json.dumps(history).encode()),
             HTTPError(
                 "http://127.0.0.1:8188/view?filename=generated.png", 302, "Found",
