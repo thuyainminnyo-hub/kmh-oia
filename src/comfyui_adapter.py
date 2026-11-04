@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from src.production_execution import AdapterResult
 from src.production_job import ProductionJob
@@ -105,9 +105,7 @@ class ComfyUIImageAdapter:
                 "/prompt",
                 {"prompt": workflow, "client_id": str(uuid4())},
             )
-            prompt_id = submitted.get("prompt_id")
-            if not isinstance(prompt_id, str) or not prompt_id:
-                raise ComfyUIAdapterError("ComfyUI did not return a prompt_id")
+            prompt_id = self._validate_prompt_id(submitted.get("prompt_id"))
             deadline = time.monotonic() + self.job_timeout_seconds
             history_entry = None
             while time.monotonic() < deadline:
@@ -159,6 +157,21 @@ class ComfyUIImageAdapter:
             return AdapterResult(True, output_path=str(destination), provider_execution_id=prompt_id)
         except (OSError, json.JSONDecodeError, HTTPError, URLError, TimeoutError, KeyError, TypeError, ValueError, ComfyUIAdapterError) as exc:
             return AdapterResult(False, error_message=f"{type(exc).__name__}: {exc}")
+
+    @staticmethod
+    def _validate_prompt_id(value: object) -> str:
+        """Require the canonical lowercase hyphenated UUID used by ComfyUI."""
+        if not isinstance(value, str):
+            raise ComfyUIAdapterError("ComfyUI returned an invalid prompt_id: expected a UUID string")
+        try:
+            parsed = UUID(value)
+        except ValueError as exc:
+            raise ComfyUIAdapterError("ComfyUI returned an invalid prompt_id: expected a UUID") from exc
+        if str(parsed) != value:
+            raise ComfyUIAdapterError(
+                "ComfyUI returned a non-canonical prompt_id: expected lowercase hyphenated UUID"
+            )
+        return value
 
     @staticmethod
     def _validate_image_metadata(filename: object, subfolder: object, image_type: object) -> None:
