@@ -17,6 +17,11 @@ jobs:
         working-directory: case-studies/education/my-little-creative-world/studio
     steps:
       - uses: actions/checkout@v4.4.0
+      - name: Verify workflow dependency lock
+        working-directory: ${{ github.workspace }}
+        run: |
+          gh extension install github/gh-actions-lock
+          gh actions-lock --verify .github/workflows/mlcw-studio-ci.yml
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: 22
