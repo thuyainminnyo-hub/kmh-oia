@@ -16,15 +16,15 @@ jobs:
       run:
         working-directory: case-studies/education/my-little-creative-world/studio
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.4.0
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: 22
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.6.2
         if: always()
         with:
           name: mlcw-playwright-report
