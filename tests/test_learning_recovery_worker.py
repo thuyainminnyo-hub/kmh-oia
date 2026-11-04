@@ -92,6 +92,28 @@ class LearningRecoveryWorkerTests(unittest.TestCase):
         self.assertEqual(result.observability["pending_events"], 1)
         self.assertEqual(result.observability["retry_attempts_total"], 1)
 
+    def test_dead_letter_quarantine_is_visible_in_worker_snapshot(self):
+        self.add_event("quarantined")
+
+        class BrokenMemory:
+            def record(self, **kwargs):
+                raise RuntimeError("simulated sink failure")
+
+        worker = LearningRecoveryWorker(
+            ledger=self.ledger,
+            memory=BrokenMemory(),
+            proposal_repository=self.proposals,
+            max_attempts=1,
+        )
+        result = worker.run_once()
+        self.assertEqual(result.failed, 1)
+        self.assertEqual(result.remaining, 0)
+        self.assertFalse(result.healthy)
+        self.assertEqual(result.observability["pending_events"], 0)
+        self.assertEqual(result.observability["dead_letter_events"], 1)
+        self.assertEqual(result.observability["retry_attempts_total"], 1)
+        self.assertTrue(result.observability["ledger_healthy"])
+
     def test_invalid_batch_limits_rejected(self):
         with self.assertRaises(ValueError):
             LearningRecoveryWorker(
