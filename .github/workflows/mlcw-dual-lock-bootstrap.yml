@@ -1,6 +1,9 @@
 name: MLCW Dual-Lock Bootstrap
 
 on:
+  push:
+    branches: [chore/mlcw-dual-lock-hardening-2026-11-04]
+    paths: ['.github/workflows/mlcw-dual-lock-bootstrap.yml']
   workflow_dispatch:
 
 permissions:
