@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: mlcw-dual-lock-bootstrap
@@ -18,6 +18,11 @@ concurrency:
 
 jobs:
   generate-and-verify:
+    # workflow_dispatch is allowed for operators, but the write-capable job
+    # only runs from this isolated hardening branch.
+    if: github.ref == 'refs/heads/chore/mlcw-dual-lock-hardening-2026-11-04'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
