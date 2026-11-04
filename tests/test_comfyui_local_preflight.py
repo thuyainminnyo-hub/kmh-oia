@@ -6,6 +6,7 @@ import unittest
 from email.message import Message
 from pathlib import Path
 from urllib.error import HTTPError
+from urllib.request import ProxyHandler, Request
 from unittest.mock import patch
 
 from scripts.comfyui_local_preflight import (
