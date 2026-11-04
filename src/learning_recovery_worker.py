@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.learning_outbox_projector import LearningOutboxProjector
+from src.learning_pipeline_observability import LearningPipelineObservability
 
 
 @dataclass(frozen=True)
@@ -18,6 +19,7 @@ class RecoveryRun:
     failed: int
     remaining: int
     healthy: bool
+    observability: dict[str, Any] | None = None
 
 
 class LearningRecoveryWorker:
@@ -34,12 +36,14 @@ class LearningRecoveryWorker:
         worker_id: str = "learning-recovery-worker",
         lease_seconds: int = 60,
         max_attempts: int = 5,
+        observability: LearningPipelineObservability | None = None,
     ) -> None:
         if not isinstance(max_batch_size, int) or isinstance(max_batch_size, bool) or max_batch_size < 1:
             raise ValueError("max_batch_size must be a positive integer")
         if not isinstance(max_batches, int) or isinstance(max_batches, bool) or max_batches < 1:
             raise ValueError("max_batches must be a positive integer")
         self.ledger = ledger
+        self.observability = observability or LearningPipelineObservability(ledger=ledger)
         self.projector = LearningOutboxProjector(
             ledger=ledger,
             memory=memory,
@@ -79,10 +83,12 @@ class LearningRecoveryWorker:
             and not self.ledger.dead_letters(1)
             and failed == 0
         )
+        snapshot = self.observability.snapshot().to_dict()
         return RecoveryRun(
             scanned=scanned,
             projected=projected,
             failed=failed,
             remaining=remaining,
             healthy=healthy,
+            observability=snapshot,
         )
