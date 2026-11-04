@@ -9,6 +9,7 @@ on:
       - '.github/actions/**/action.yaml'
   workflow_dispatch:
 
+# Artifact-only bootstrap: no repository writes from this workflow.
 permissions:
   contents: read
 
@@ -18,11 +19,9 @@ concurrency:
 
 jobs:
   generate-and-verify:
-    # workflow_dispatch is allowed for operators, but the write-capable job
-    # only runs from this isolated hardening branch.
     if: github.ref == 'refs/heads/chore/mlcw-dual-lock-hardening-2026-11-04'
     permissions:
-      contents: write
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -34,8 +33,10 @@ jobs:
         run: |
           set -euo pipefail
           git init .
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
-          git fetch --depth=1 origin "${TARGET_REF}"
+          git remote add origin "https://github.com/${REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --depth=1 origin "${TARGET_REF}"
+          unset auth GH_TOKEN
           git checkout --detach FETCH_HEAD
 
       - name: Generate npm lockfile
@@ -47,7 +48,7 @@ jobs:
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           test -s package-lock.json
 
-      - name: Generate MLCW workflow dependency lock
+      - name: Generate and verify repository Actions lock
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -66,30 +67,14 @@ jobs:
           npx playwright install --with-deps chromium
           npm run test:e2e
 
-      - name: Preserve workflow lock outputs for human review
+      - name: Preserve generated lockfiles and workflow sources for human review
         uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
-          name: repository-wide-actions-lock-review
+          name: mlcw-dual-lock-review
           path: |
+            case-studies/education/my-little-creative-world/studio/package-lock.json
             .github/workflows/actions.lock
             .github/workflows/**
           if-no-files-found: warn
           retention-days: 14
-
-      - name: Commit npm lockfile to this isolated branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET_REF: ${{ github.ref }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add case-studies/education/my-little-creative-world/studio/package-lock.json
-          if git diff --cached --quiet; then
-            echo "No lockfile changes to commit."
-            exit 0
-          fi
-          git commit -m "chore(mlcw): add verified npm dependency lock"
-          branch="${TARGET_REF#refs/heads/}"
-          git push origin "HEAD:${branch}"
