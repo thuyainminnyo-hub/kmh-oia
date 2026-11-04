@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4.4.0
@@ -18,11 +18,11 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5.6.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.16"
       - run: python -m unittest discover -s tests -v
 
   performance-evidence:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4.4.0
@@ -30,7 +30,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5.6.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.16"
       - name: Generate and validate performance evidence
         shell: bash
         run: |
@@ -43,7 +43,7 @@ jobs:
           path: performance-validation.json
 
   repository-validation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4.4.0
@@ -51,7 +51,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5.6.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.16"
       - run: python -m compileall -q src tests scripts
       - run: python scripts/deployment_preflight.py
       - name: Generate production readiness snapshot
@@ -80,7 +80,7 @@ jobs:
   deployment-evidence-bundle:
     if: ${{ always() }}
     needs: [tests, performance-evidence, repository-validation]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4.4.0
@@ -88,7 +88,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5.6.0
         with:
-          python-version: "3.12"
+          python-version: "3.12.16"
       - name: Capture prerequisite job results with real GitHub metadata
         shell: bash
         env:
