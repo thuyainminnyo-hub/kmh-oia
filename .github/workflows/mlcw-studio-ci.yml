@@ -4,7 +4,7 @@ permissions:
   contents: read
 on:
   pull_request:
-    paths: ['case-studies/education/my-little-creative-world/studio/**','.github/workflows/mlcw-studio-ci.yml']
+    paths: ['case-studies/education/my-little-creative-world/studio/**','.github/workflows/**']
   push:
     branches: [main]
     paths: ['case-studies/education/my-little-creative-world/studio/**','.github/workflows/mlcw-studio-ci.yml']
@@ -23,7 +23,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh extension install github/gh-actions-lock
-          gh actions-lock --verify .github/workflows/mlcw-studio-ci.yml
+          gh actions-lock --verify
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: 22
