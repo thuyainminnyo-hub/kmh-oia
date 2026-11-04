@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import math
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -16,6 +17,17 @@ from uuid import UUID, uuid4
 
 from src.production_execution import AdapterResult
 from src.production_job import ProductionJob
+
+
+def _is_positive_finite_number(value: object) -> bool:
+    """Return whether value is a positive, finite int/float (never bool)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value) and value > 0
+    except OverflowError:
+        # Extremely large integers cannot be represented as finite floats.
+        return False
 
 
 class ComfyUIAdapterError(RuntimeError):
@@ -58,18 +70,27 @@ class ComfyUIImageAdapter:
             raise ValueError("base_url must contain a valid literal loopback IP and port") from exc
         if parsed.scheme != "http" or address is None or not address.is_loopback:
             raise ValueError("base_url must use HTTP and a literal loopback IP (127.0.0.1 or ::1)")
-        if parsed.username or parsed.password or parsed.query or parsed.fragment:
-            raise ValueError("base_url must not include credentials, query, or fragment")
+        if getattr(address, "scope_id", None) is not None:
+            raise ValueError("base_url must not use a scoped IPv6 address")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("base_url must not include credentials")
+        if "?" in base_url or "#" in base_url:
+            raise ValueError("base_url must not include a query or fragment")
         if parsed.path not in {"", "/"}:
             raise ValueError("base_url must not include a path")
-        if port is not None and not 1 <= port <= 65535:
+        if parsed.netloc.endswith(":") or (port is not None and not 1 <= port <= 65535):
             raise ValueError("base_url port must be between 1 and 65535")
         if not isinstance(prompt_node_id, str) or not prompt_node_id.strip():
             raise ValueError("prompt_node_id must be a non-empty string")
         if not isinstance(prompt_input_key, str) or not prompt_input_key.strip():
             raise ValueError("prompt_input_key must be a non-empty string")
-        if request_timeout_seconds <= 0 or job_timeout_seconds <= 0 or poll_interval_seconds <= 0:
-            raise ValueError("timeouts and poll interval must be positive")
+        timeout_values = (
+            request_timeout_seconds,
+            job_timeout_seconds,
+            poll_interval_seconds,
+        )
+        if not all(_is_positive_finite_number(value) for value in timeout_values):
+            raise ValueError("timeouts and poll interval must be positive finite numbers")
         if isinstance(max_output_bytes, bool) or not isinstance(max_output_bytes, int) or max_output_bytes <= 0:
             raise ValueError("max_output_bytes must be a positive integer")
 
