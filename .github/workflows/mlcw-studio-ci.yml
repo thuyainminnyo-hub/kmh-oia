@@ -17,6 +17,8 @@ jobs:
         working-directory: case-studies/education/my-little-creative-world/studio
     steps:
       - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
       - name: Verify workflow dependency lock
         working-directory: ${{ github.workspace }}
         env:
