@@ -3,7 +3,10 @@ name: MLCW Dual-Lock Bootstrap
 on:
   push:
     branches: [chore/mlcw-dual-lock-hardening-2026-11-04]
-    paths: ['.github/workflows/mlcw-dual-lock-bootstrap.yml', '.github/workflows/mlcw-studio-ci.yml']
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**/action.yml'
+      - '.github/actions/**/action.yaml'
   workflow_dispatch:
 
 permissions:
@@ -45,8 +48,8 @@ jobs:
         run: |
           set -euo pipefail
           gh extension install github/gh-actions-lock
-          gh actions-lock .github/workflows/mlcw-studio-ci.yml
-          gh actions-lock --verify .github/workflows/mlcw-studio-ci.yml
+          gh actions-lock
+          gh actions-lock --verify
           test -s .github/workflows/actions.lock
 
       - name: Clean install and test
@@ -62,10 +65,10 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: mlcw-dual-lock-review
+          name: repository-wide-actions-lock-review
           path: |
             .github/workflows/actions.lock
-            .github/workflows/mlcw-studio-ci.yml
+            .github/workflows/**
           if-no-files-found: warn
           retention-days: 14
 
