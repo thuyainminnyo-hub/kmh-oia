@@ -143,3 +143,32 @@ Searches using the name and the supplied *Strange New Worlds* / *East of Eden* c
 - **Market context:** DNEG's dated careers page demonstrates role specialization and geographic distribution, but does not prove current vacancy availability.
 - **Still unverified:** exact BBC interview URL; May Thu Khaing's individual shot ownership, software stack, seniority, employer contract and detailed responsibilities.
 - **Implementation boundary:** These findings enrich the research design only. No KMH talent registry, matching engine, portfolio verification service or production QA workflow is claimed implemented or tested.
+
+
+## 11. Research Continuation — Credit Cross-Check & Studio Context (2026-11-05)
+
+### 11.1 East of Eden credit cross-check
+
+A fresh lookup of the *East of Eden* series full cast-and-crew page lists May Thu Khaing as **Compositor** and displays a seven-episode credit count. A separate episode full-credit page for “Departure” also lists her as Compositor. This is useful episode-level corroboration, while still relying on public credit databases rather than direct studio assignment records.
+
+Sources:
+- https://www.imdb.com/title/tt21097264/fullcredits/cast/
+- https://www.imdb.com/title/tt33502696/fullcredits/
+
+### 11.2 Cause and FX studio context — important distinction
+
+Cause and FX's official studio filmography lists *Star Trek: Strange New Worlds* Season 4 (released July 2026) and Season 5 (in production) among the studio's projects. This is **studio-level project evidence only**. It does not independently prove May Thu Khaing personally worked on those seasons. Her individual *Strange New Worlds* participation remains supported by the supplied BBC description pending a direct episode/artist credit or studio confirmation.
+
+Source:
+- https://causeandfx.nz/
+
+### 11.3 Additional public credits
+
+Metacritic's *Zombies 4: Dawn of the Vampires* credits list May Thu Khaing as Compositor: Cause and FX. This is an additional secondary credit-database record and should be classified as supported pending primary studio confirmation.
+
+Source:
+- https://www.metacritic.com/movie/zombies-4-dawn-of-the-vampires/credits/
+
+### 11.4 Correction / precision note
+
+The earlier record's broad phrasing “*East of Eden* Compositor — 7 Episodes” remains supported by the series page. The newly located “Departure” episode credit is a separate episode-level record. Do not assume the artist's full shot count, exact sequence allocation, or seniority from these credits.
