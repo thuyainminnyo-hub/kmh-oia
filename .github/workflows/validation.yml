@@ -5,44 +5,53 @@ on:
     branches: ["main"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
         with:
-          python-version: "3.12"
+          persist-credentials: false
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12.16"
       - run: python -m unittest discover -s tests -v
 
   performance-evidence:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
         with:
-          python-version: "3.12"
+          persist-credentials: false
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12.16"
       - name: Generate and validate performance evidence
         shell: bash
         run: |
           set -o pipefail
           python -m scripts.performance_validation | tee performance-validation.json
           python scripts/validate_performance_artifact.py performance-validation.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.6.2
         with:
           name: kmh-oia-performance-validation
           path: performance-validation.json
 
   repository-validation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
         with:
-          python-version: "3.12"
+          persist-credentials: false
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12.16"
       - run: python -m compileall -q src tests scripts
       - run: python scripts/deployment_preflight.py
       - name: Generate production readiness snapshot
@@ -61,7 +70,7 @@ jobs:
           if [ "$snapshot_status" -eq 2 ]; then
             echo "Release readiness is HOLD by design; report artifact will be retained."
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.6.2
         with:
           name: kmh-oia-production-readiness-snapshot
           path: production-readiness-snapshot.json
@@ -71,13 +80,15 @@ jobs:
   deployment-evidence-bundle:
     if: ${{ always() }}
     needs: [tests, performance-evidence, repository-validation]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
         with:
-          python-version: "3.12"
+          persist-credentials: false
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12.16"
       - name: Capture prerequisite job results with real GitHub metadata
         shell: bash
         env:
@@ -129,7 +140,7 @@ jobs:
               sys.exit(1)
           print("Evidence bundle CI metadata integrity: PASS")
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.6.2
         with:
           name: kmh-oia-deployment-evidence-bundle
           path: deployment-evidence-bundle.json
