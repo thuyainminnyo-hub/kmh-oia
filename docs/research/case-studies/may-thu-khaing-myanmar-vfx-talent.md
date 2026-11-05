@@ -172,3 +172,40 @@ Source:
 ### 11.4 Correction / precision note
 
 The earlier record's broad phrasing “*East of Eden* Compositor — 7 Episodes” remains supported by the series page. The newly located “Departure” episode credit is a separate episode-level record. Do not assume the artist's full shot count, exact sequence allocation, or seniority from these credits.
+
+
+## 12. Research Continuation — Direct Credit Cross-Check (2026-11-05)
+
+### 12.1 Star Trek: Section 31 — stronger role attribution
+
+Metacritic's full *Star Trek: Section 31* credits explicitly list **May Thu Khaing — Compositor: Cause and FX**. This is stronger and more specific than the earlier generic IMDb profile summary because it displays both the production role and studio attribution on the title's Visual Effects credits page. It remains a secondary credit database, not a studio employment record or shot-assignment sheet.
+
+Source:
+- https://www.metacritic.com/movie/star-trek-section-31/credits/
+
+### 12.2 Zombies 4: Dawn of the Vampires
+
+Metacritic's credits also list **May Thu Khaing — Compositor: Cause and FX** for *Zombies 4: Dawn of the Vampires*. This adds another publicly surfaced production credit with the same studio attribution.
+
+Source:
+- https://www.metacritic.com/movie/zombies-4-dawn-of-the-vampires/credits/
+
+### 12.3 What this does and does not establish
+
+The two credit pages support a recurring public association between the artist, the Compositor role and Cause and FX on these productions. They do not establish employment dates, contract type, seniority, exact software, sequence/shot ownership, or the artist's complete contribution.
+
+### 12.4 BBC source retrieval status
+
+Exact-name and context searches for the BBC News မြန်မာ interview did not return a confidently identifiable original BBC article/video URL in this research pass. Keep the interview citation labelled **user-supplied / original URL pending**. Do not replace the missing BBC source with unrelated *Star Trek* production coverage.
+
+### 12.5 Updated evidence classification
+
+| Claim | Current status | Limitation |
+| --- | --- | --- |
+| *East of Eden* — Compositor, 7 episodes | Public series credits plus episode-level listings | No shot allocation or primary studio record |
+| *Star Trek: Section 31* — Compositor: Cause and FX | Public title-level Visual Effects credits | Secondary database |
+| *Zombies 4* — Compositor: Cause and FX | Public title-level credits | Secondary database |
+| *Strange New Worlds* participation | Supplied BBC interview description | Exact BBC URL and independent individual credit pending |
+| Cause and FX involvement in *Strange New Worlds* seasons | Studio filmography context | Studio-level, not individual artist proof |
+
+**Research decision:** The strongest current individual-credit evidence is for *East of Eden*, *Star Trek: Section 31*, and *Zombies 4*. Keep *Strange New Worlds* in a separate pending-verification state.
