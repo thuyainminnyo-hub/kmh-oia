@@ -81,3 +81,65 @@ This is a proposed **Global Creative Talent & Production Intelligence** capabili
 **Research workflow:** Source Inventory → Evidence Extraction → Claim Classification → Industry Pattern → KMH Transfer Hypothesis → Validation → Reusable Knowledge.
 
 **Evidence rule:** Research claim, source, evidence status, limitation, proposed transfer lesson, implementation evidence, and QA result must remain separate.
+
+
+## 10. Research Continuation — Production Pipeline & Talent-Market Evidence (2026-11-05)
+
+### 10.1 Stronger individual-credit check
+
+IMDb's *East of Eden* full cast-and-crew listing names May Thu Khaing as **Compositor** across seven episodes. The individual episode credit for Episode #1.4 also names her as Compositor. This strengthens the title/role attribution beyond a general profile entry, but IMDb remains a public credit database rather than direct studio payroll or shot-assignment evidence.
+
+Sources:
+- https://www.imdb.com/title/tt21097264/fullcredits/cast/
+- https://www.imdb.com/title/tt33502695/fullcredits/
+
+### 10.2 What the East of Eden production reveals
+
+Framestore's official project listing describes its *East of Eden* work as creating period-accurate environments and seamless visual effects. A specialist VFX breakdown report describes CG environments for early-20th-century California, including houses, Brothel Row and San Francisco Chinatown, plus fire, deer animation, blood effects, muzzle flashes, prosthetic/wig cleanup and invisible fixes. Netflix's production article explains that the series recreated California in New Zealand, more than 6,000 miles away, using existing locations and newly built sets.
+
+Sources:
+- https://www.framestore.com/work?category=Visual+Effects&page=%2C%2C0&service=Episodic&tag=Visual+Effects+Supervisor
+- https://beforesandafters.com/2026/10/21/watch-framestores-vfx-breakdown-for-east-of-eden/
+- https://www.cgchannel.com/2026/10/watch-framestores-vfx-breakdown-for-period-drama-east-of-eden/
+- https://www.netflix.com/tudum/articles/east-of-eden-filming-locations
+
+**Interpretation:** This production demonstrates how real locations, constructed sets, CG environment work and invisible compositing combine to create a historically convincing world. It does not establish which specific shots or tasks May Thu Khaing personally completed.
+
+### 10.3 Compositor role — authoritative occupational description
+
+ScreenSkills describes compositors as creating the final image of a frame, shot or VFX sequence by combining CG images, live-action footage and matte paintings. It identifies realistic lighting, keying, light/color/composition/perspective judgment, photography knowledge, software proficiency, collaboration and deadline management as important capabilities. A showreel is highlighted as a key way to demonstrate ability to employers.
+
+Source:
+- https://www.screenskills.com/job-profiles/browse/visual-effects-vfx/compositing/compositor-visual-effects-vfx/
+
+### 10.4 Labour-market signal
+
+DNEG's careers page, dated 17 June 2026, lists compositor-related opportunities across several locations and levels, including Senior Compositor roles in Vancouver/Montréal, Compositor in India, and Senior/Lead Compositor roles in Sydney. This is a dated snapshot of the employer's published hiring page, not confirmation that every listed vacancy remains open today.
+
+Source:
+- https://www.dneg.com/news/were-hiring
+
+### 10.5 Updated KMH capability requirements — proposal
+
+| Capability | Evidence-backed requirement |
+| --- | --- |
+| Talent Identity | Distinguish public profile, verified identity and employment claims |
+| Role Taxonomy | Model Compositor, Senior/Lead Compositor, Roto/Paint, Lighting, FX, Environment and Supervisor separately |
+| Skill Evidence | Record software, shot types, lighting/color, camera knowledge, collaboration and delivery constraints |
+| Reel / Portfolio Review | Store reel URL, breakdown, artist's exact contribution and usage permission |
+| Credit Provenance | Record production, episode, displayed role, source URL, source date and verification level |
+| Opportunity Matching | Match role level, software, location/eligibility, schedule and evidence quality |
+| Human Assessment | Require reviewer notes and artist confirmation; never infer skill level from title credit alone |
+
+### 10.6 BBC interview source status
+
+Searches using the name and the supplied *Strange New Worlds* / *East of Eden* context did not surface a verifiable exact BBC News မြန်မာ article or video URL. Keep the BBC interview reference as user-supplied source context until the exact URL, publication date and wording can be captured. The independent public credits surfaced for *Star Trek: Section 31*; they do not independently prove participation in *Star Trek: Strange New Worlds*.
+
+### 10.7 Updated research decision
+
+- **Stronger evidence:** *East of Eden* compositor credit is listed on the series' seven-episode full-credit page and an individual episode credit.
+- **Production context:** Framestore and Netflix sources describe the broader VFX and location/production-design work.
+- **Role model:** ScreenSkills provides a credible occupational description and capability profile.
+- **Market context:** DNEG's dated careers page demonstrates role specialization and geographic distribution, but does not prove current vacancy availability.
+- **Still unverified:** exact BBC interview URL; May Thu Khaing's individual shot ownership, software stack, seniority, employer contract and detailed responsibilities.
+- **Implementation boundary:** These findings enrich the research design only. No KMH talent registry, matching engine, portfolio verification service or production QA workflow is claimed implemented or tested.
