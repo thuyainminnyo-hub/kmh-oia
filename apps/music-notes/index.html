@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>KMH Music Intelligence — MIDI Notes</title>
+<style>
+:root{color-scheme:dark;--bg:#101827;--panel:#1b293b;--muted:#a8b6c9;--line:#34465e;--accent:#8dd6c6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f3f6fa;font:16px system-ui,sans-serif}
+main{max-width:760px;margin:auto;padding:18px 14px 40px}
+h1{font-size:1.35rem;margin:.2rem 0}.sub{color:var(--muted);font-size:.9rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin:14px 0}
+label{display:block;font-weight:650;margin:10px 0 6px}
+input,select,button{font:inherit;border-radius:10px;padding:12px;border:1px solid var(--line);background:#111d2d;color:#f3f6fa;width:100%}
+button{background:#244b54;border-color:#3c777b;font-weight:700;margin-top:10px}
+button:disabled{opacity:.45}button.secondary{background:#263449;border-color:var(--line)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.small{font-size:.82rem;color:var(--muted)}.status{padding:10px;border-radius:10px;background:#111d2d;margin-top:10px;white-space:pre-wrap}
+table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{text-align:left;padding:9px 5px;border-bottom:1px solid var(--line)}
+.badge{display:inline-block;border:1px solid #8a7540;color:#f5d68a;border-radius:20px;padding:3px 9px;font-size:.78rem}
+.scroll{overflow-x:auto}.hidden{display:none}
+</style>
+</head>
+<body><main>
+<h1>🎹 KMH Music Intelligence</h1>
+<div class="sub">Phase 02.69.4 · Phone-first MIDI import · Offline-capable prototype</div>
+<section class="panel">
+<h2>1. Import MIDI</h2>
+<label for="midiFile">Choose a MIDI file (.mid / .midi)</label>
+<input id="midiFile" type="file" accept=".mid,.midi,audio/midi,audio/x-midi">
+<label for="songTitle">Song / melody title</label>
+<input id="songTitle" placeholder="e.g. Test melody">
+<div class="row">
+<div><label for="tonic">Initial key</label><select id="tonic"><option>C</option><option>C#</option><option>D</option><option>Eb</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>Ab</option><option>A</option><option>Bb</option><option>B</option></select></div>
+<div><label for="songId">Candidate ID</label><input id="songId" placeholder="e.g. melody-001"></div>
+</div>
+<button id="importBtn">Import &amp; Preview</button>
+<div id="status" class="status" role="status" aria-live="polite">No file selected. Files are processed locally in this browser; nothing is uploaded.</div>
+</section>
+<section class="panel">
+<h2>2. Note preview</h2>
+<div class="small">Extracted MIDI events · Western scale degree + Sargam · not yet verified</div>
+<div id="preview" class="scroll small">No MIDI imported yet.</div>
+<button id="saveBtn" disabled>Save as Candidate on this device</button>
+</section>
+<section class="panel">
+<h2>3. Local candidate library</h2>
+<div class="row"><button id="refreshBtn" class="secondary">Refresh library</button><button id="exportBtn" class="secondary">Export JSON backup</button></div>
+<div id="library" class="small">Loading local library…</div>
+</section>
+<p class="small">Privacy: selected MIDI files are parsed on-device. Candidate records are stored in this browser's IndexedDB. Browser storage is best-effort; export backups regularly. No automatic verification or promotion is provided.</p>
+</main>
+<script>
+"use strict";
+const DB_NAME="kmh-music-intelligence",DB_VERSION=1,STORE="candidates";
+const $=id=>document.getElementById(id);
+let pending=null;
+const names=["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+const solfege=["Sa","komal Re","Re","komal Ga","Ga","Ma","tivra Ma","Pa","komal Dha","Dha","komal Ni","Ni"];
+const major=[0,2,4,5,7,9,11];
+function pitchLabel(midi,tonic){
+ const pc=midi%12,oct=Math.floor(midi/12)-1,root=names.indexOf(tonic);
+ let delta=(pc-root+12)%12,degree=major.indexOf(delta),western,sargam;
+ if(degree>=0){western=String(degree+1);sargam=["Sa","Re","Ga","Ma","Pa","Dha","Ni"][degree];}
+ else {western=({1:"b2",3:"b3",6:"#4",8:"b6",10:"b7"})[delta];sargam=solfege[delta];}
+ return {pitch_name:names[pc]+oct,octave:oct,western_number:western,sargam};
+}
+function readVLQ(bytes,state,end){
+ let value=0;
+ for(let i=0;i<4;i++){if(state.i>=end)throw Error("Truncated MIDI variable-length value");const b=bytes[state.i++];value=(value<<7)|(b&127);if(!(b&128))return value;}
+ throw Error("Invalid MIDI variable-length value");
+}
+function parseMidi(buffer){
+ const b=new Uint8Array(buffer),view=new DataView(buffer);
+ const ascii=(i)=>String.fromCharCode(b[i],b[i+1],b[i+2],b[i+3]);
+ if(b.length<14||ascii(0)!=="MThd")throw Error("Not a valid Standard MIDI File");
+ const headerLen=view.getUint32(4);if(headerLen<6||8+headerLen>b.length)throw Error("Invalid MIDI header");
+ const format=view.getUint16(8),trackCount=view.getUint16(10),division=view.getUint16(12);
+ if(![0,1].includes(format)||!trackCount||(format===0&&trackCount!==1))throw Error("Only MIDI format 0 and 1 are supported");
+ if((division&0x8000)||division===0)throw Error("SMPTE timing is not supported");
+ let offset=8+headerLen,raw=[],tempos=[],actualTracks=0;
+ while(offset<b.length){
+  if(offset+8>b.length||ascii(offset)!=="MTrk")throw Error("Missing MIDI track chunk");
+  const len=view.getUint32(offset+4),start=offset+8,end=start+len;if(end>b.length)throw Error("Track chunk exceeds file");
+  const s={i:start};let tick=0,running=null,active=new Map();
+  while(s.i<end){
+   tick+=readVLQ(b,s,end);if(s.i>=end)throw Error("Truncated MIDI event");
+   let status=b[s.i];if(status&128){s.i++;if(status<240)running=status;}else{if(running===null)throw Error("Invalid running status");status=running;}
+   if(status===255){
+    if(s.i>=end)throw Error("Truncated meta event");const type=b[s.i++],n=readVLQ(b,s,end);if(s.i+n>end)throw Error("Meta event exceeds track");
+    if(type===81){if(n!==3)throw Error("Invalid tempo event");const tempo=(b[s.i]<<16)|(b[s.i+1]<<8)|b[s.i+2];if(!tempo)throw Error("Zero tempo");tempos.push([tick,tempo]);}
+    s.i+=n;if(type===47)break;continue;
+   }
+   if(status===240||status===247){const n=readVLQ(b,s,end);s.i+=n;if(s.i>end)throw Error("SysEx exceeds track");running=null;continue;}
+   if(status>=240)throw Error("Unsupported system MIDI event");
+   const cmd=status&240,ch=status&15,n=(cmd===192||cmd===208)?1:2;
+   if(s.i+n>end)throw Error("Truncated MIDI channel event");
+   const a=b[s.i++],v=n===2?b[s.i++]:0;if(a>127||v>127)throw Error("Invalid MIDI data byte");
+   const key=ch+":"+a;
+   if(cmd===144&&v>0){if(!active.has(key))active.set(key,[]);active.get(key).push([tick,v]);}
+   else if(cmd===128||(cmd===144&&v===0)){const q=active.get(key);if(q&&q.length){const [startTick,velocity]=q.shift();raw.push({track:actualTracks,channel:ch,midi_pitch:a,velocity,start_tick:startTick,end_tick:tick});}}
+  }
+  for(const q of active.values())if(q.length)throw Error("MIDI has note-on events without matching note-off");
+  actualTracks++;offset=end;
+ }
+ if(actualTracks!==trackCount)throw Error("Track count does not match MIDI header");
+ tempos.sort((a,b)=>a[0]-b[0]);let tm=[];for(const e of tempos){if(tm.length&&tm[tm.length-1][0]===e[0])tm[tm.length-1]=e;else tm.push(e);}
+ function seconds(t){let elapsed=0,prev=0,micro=500000;for(const [at,next] of tm){if(at>t)break;if(at>prev)elapsed+=(at-prev)*micro/(division*1e6);prev=at;micro=next;}return elapsed+(t-prev)*micro/(division*1e6);}
+ const notes=raw.map(n=>({...n,start_seconds:seconds(n.start_tick),end_seconds:seconds(n.end_tick)})).sort((a,b)=>a.start_tick-b.start_tick||a.track-b.track);
+ return {format_type:format,ticks_per_quarter:division,track_count:actualTracks,tempo_events:tm,notes};
+}
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:"song_id"});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+async function storeCandidate(record){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).add(record);tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};});}
+async function allCandidates(){const db=await openDB();return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).getAll();req.onsuccess=()=>{db.close();resolve(req.result||[]);};req.onerror=()=>{db.close();reject(req.error);};});}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function renderPreview(record){
+ const rows=record.notes.map((n,i)=>'<tr><td>'+(i+1)+'</td><td>'+n.pitch_name+'</td><td>'+n.western_number+'</td><td>'+n.sargam+'</td><td>'+n.start_seconds.toFixed(3)+'</td><td>'+n.end_seconds.toFixed(3)+'</td></tr>').join("");
+ $("preview").innerHTML='<div class="badge">CANDIDATE · NOT VERIFIED</div><p>'+record.notes.length+' notes · '+esc(record.title)+' · '+esc(record.tonic)+' Major</p><table><thead><tr><th>#</th><th>Pitch</th><th>Western</th><th>Sargam</th><th>Start s</th><th>End s</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+async function refreshLibrary(){try{const list=await allCandidates();$("library").innerHTML=list.length?list.map(x=>'<p><b>'+esc(x.title)+'</b> · '+esc(x.song_id)+' · '+x.notes.length+' notes · <span class="badge">'+esc(x.status)+'</span></p>').join(""):"No local candidates yet.";}catch(e){$("library").textContent="Local storage error: "+e.message;}}
+$("importBtn").addEventListener("click",async()=>{
+ try{const file=$("midiFile").files[0];if(!file)throw Error("Choose a .mid or .midi file first");
+ if(!/\.midi?$/i.test(file.name))throw Error("File extension must be .mid or .midi");
+ if(file.size>20*1024*1024)throw Error("Prototype limit: MIDI files up to 20 MB");
+ const parsed=parseMidi(await file.arrayBuffer());if(!parsed.notes.length)throw Error("No complete note events found");
+ const tonic=$("tonic").value,notes=parsed.notes.map(n=>({...n,...pitchLabel(n.midi_pitch,tonic)}));
+ const digest=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());
+ const hash=Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,"0")).join("");
+ pending={schema_version:1,song_id:$("songId").value.trim()||("candidate-"+Date.now()),title:$("songTitle").value.trim()||file.name.replace(/\.midi?$/i,""),source_name:file.name,source_sha256:hash,tonic,mode:"major",status:"candidate",review_note:"",format_type:parsed.format_type,ticks_per_quarter:parsed.ticks_per_quarter,track_count:parsed.track_count,tempo_events:parsed.tempo_events,notes};
+ renderPreview(pending);$("saveBtn").disabled=false;$("status").textContent="Parsed locally: "+notes.length+" note events. SHA-256 calculated. Nothing uploaded.";
+ }catch(e){pending=null;$("saveBtn").disabled=true;$("status").textContent="Import error: "+e.message;}
+});
+$("saveBtn").addEventListener("click",async()=>{try{if(!pending)throw Error("Import a MIDI file first");await storeCandidate(pending);let persistence="";if(navigator.storage?.persist){const granted=await navigator.storage.persist();persistence=granted?" Persistent storage granted.":" Browser did not grant persistent storage; export backups."; }if(navigator.storage?.estimate){const estimate=await navigator.storage.estimate();const used=Math.round((estimate.usage||0)/1024);persistence+=" Approx. origin storage used: "+used+" KB.";} $("status").textContent="Saved locally as candidate. Not verified."+persistence;await refreshLibrary();}catch(e){$("status").textContent="Save error: "+(e.name==="ConstraintError"?"This Candidate ID already exists. Choose a new ID.":e.message);}});
+$("refreshBtn").addEventListener("click",refreshLibrary);
+$("exportBtn").addEventListener("click",async()=>{try{const payload={schema_version:1,library_type:"kmh_music_intelligence_browser_candidates",songs:await allCandidates()};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="kmh-music-library-backup.json";a.click();URL.revokeObjectURL(url);$("status").textContent="JSON backup export requested by browser.";}catch(e){$("status").textContent="Export error: "+e.message;}});
+refreshLibrary();
+</script></body></html>
