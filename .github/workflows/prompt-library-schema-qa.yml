@@ -40,6 +40,27 @@ jobs:
         run: >-
           python -m pip install --require-hashes --only-binary=:all: -r .github/requirements/prompt-library-qa-py312-ubuntu24-x86_64.lock
 
+      - name: Negative path — deliberately incorrect package hash must be rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+          temp_dir="$(mktemp -d)"
+          trap 'rm -rf "$temp_dir"' EXIT
+          mkdir -p "$temp_dir/wheels"
+          cat > "$temp_dir/requirements.txt" <<'EOF'
+          attrs==26.1.0 --hash=sha256:0000000000000000000000000000000000000000000000000000000000000000
+          EOF
+          if python -m pip download --disable-pip-version-check --no-deps --only-binary=:all: --require-hashes --dest "$temp_dir/wheels" -r "$temp_dir/requirements.txt" >"$temp_dir/pip.log" 2>&1; then
+            echo "FAIL: pip accepted a deliberately incorrect SHA-256 hash."
+            exit 1
+          fi
+          if ! grep -q "THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE" "$temp_dir/pip.log"; then
+            cat "$temp_dir/pip.log"
+            echo "FAIL: pip failed for a reason other than the expected hash mismatch."
+            exit 1
+          fi
+          echo "PASS: pip rejected the deliberately incorrect SHA-256 hash."
+
       - name: Positive path — valid draft fixture must pass
         run: python scripts/validate_prompt_record.py tests/fixtures/prompt-library/valid-draft.example.json
 
