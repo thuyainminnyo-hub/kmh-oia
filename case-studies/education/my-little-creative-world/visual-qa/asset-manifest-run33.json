@@ -1,0 +1,20 @@
+{
+  "project": "My Little Creative World",
+  "version": "V1.0.8",
+  "run": 33,
+  "characterId": "MLCW-CHAR-001",
+  "workingOutfitSlots": {
+    "P01": "15312(1).png",
+    "P02": "15311(1).png",
+    "P03": "15310(1).png",
+    "P04": "15308(1).png",
+    "P05": "15307(1).png",
+    "P06": "15306(1).png",
+    "P07": "15305(1).png",
+    "P08": "15303(1).png",
+    "P09": "15302(1).png",
+    "P10": "15301(1).png"
+  },
+  "accessorySheet": "15304(1).png",
+  "catalogMappingNote": "P01-P10 are working slots and are not yet reconciled against legacy MLCW-OUTFIT-001..010 IDs. See RUN33_ASSET_READINESS.md."
+}

@@ -8,6 +8,10 @@ Operating Intelligence Architecture — executable runtime and integration syste
 
 The runtime exposes replaceable boundaries for input gateway, OIA core, context assembly, workflow, agent decisions, state, security policy, governed-tool execution, evaluation, response rendering, and structured tracing. The default implementations remain deterministic and local.
 
+## Case studies and pilots
+
+- [My Little Creative World — Myanmar Traditional Princess](case-studies/education/my-little-creative-world/README.md): isolated bilingual creative-learning paper-doll prototype for ages 7–9. Prototype and QA gates are documented; CI and production release are not claimed.
+
 ## Run
 
 ```bash

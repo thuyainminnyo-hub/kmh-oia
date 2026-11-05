@@ -1,0 +1,61 @@
+{
+  "run": 44,
+  "source": "15312(1).png",
+  "dimensions": [
+    225,
+    431
+  ],
+  "source_sha256": "c241aa5c9e1a65b58f4b317c291bf7dfd92be9cedf4d62b35f7874ece6193517",
+  "method": "HSV color thresholds constrained by hand-authored regions; diagnostic candidate masks",
+  "layers": {
+    "gold_blouse": {
+      "candidate_pixels": 15723,
+      "bbox_xyxy": [
+        0,
+        34,
+        167,
+        166
+      ]
+    },
+    "ruby_longyi": {
+      "candidate_pixels": 31765,
+      "bbox_xyxy": [
+        0,
+        142,
+        136,
+        431
+      ]
+    },
+    "cream_gold_drape": {
+      "candidate_pixels": 15179,
+      "bbox_xyxy": [
+        93,
+        58,
+        184,
+        357
+      ]
+    }
+  },
+  "overlaps": {
+    "blouse_longyi": 525,
+    "blouse_drape": 5852,
+    "longyi_drape": 1398
+  },
+  "local_tests": {
+    "passed": 3,
+    "failed": 0
+  },
+  "warnings": [
+    "Masks are not manually traced final segmentation.",
+    "Source garment clipped at left/bottom edges.",
+    "Drape is translucent and masks overlap intentionally.",
+    "Attachment tabs and outlines require cleanup.",
+    "No missing geometry reconstructed."
+  ],
+  "gate": {
+    "candidate_layers": "PASS",
+    "final_masks": "HOLD",
+    "thiri_alignment": "NOT_RUN",
+    "p01_composite": "NOT_RUN"
+  }
+}
