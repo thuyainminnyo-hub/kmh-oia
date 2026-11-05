@@ -209,3 +209,46 @@ Exact-name and context searches for the BBC News မြန်မာ interview di
 | Cause and FX involvement in *Strange New Worlds* seasons | Studio filmography context | Studio-level, not individual artist proof |
 
 **Research decision:** The strongest current individual-credit evidence is for *East of Eden*, *Star Trek: Section 31*, and *Zombies 4*. Keep *Strange New Worlds* in a separate pending-verification state.
+
+
+## 13. Research Continuation — Role Standard, Hiring Signal & Identity Resolution (2026-11-05)
+
+### 13.1 Occupational standard: Compositor
+
+ScreenSkills' VFX Compositor profile states that compositors create the final image of a frame, shot or VFX sequence by combining CG images, live-action footage and matte paintings. It places compositors at the end of the VFX pipeline and identifies visual judgment (light, colour, composition, perspective), photography/cinematography knowledge, compositing software, collaboration and deadline performance as core strengths. It names tools including Nuke, After Effects, Fusion, Houdini, Maya and Photoshop. It also emphasizes a showreel as a key demonstration of ability to employers.
+
+Source:
+- https://www.screenskills.com/job-profiles/browse/visual-effects-vfx/compositing/compositor-visual-effects-vfx/
+
+### 13.2 Hiring-market snapshot
+
+DNEG's official hiring page, dated 17 June 2026, lists roles across global studios, including Senior Compositor in Vancouver/Montréal, Compositor in India, and Compositing Supervisor / Senior Compositor / Lead Compositor in Sydney. This is evidence that the company published roles at multiple levels and locations on that date; it is not confirmation that all roles remain open at the time this record is read.
+
+Source:
+- https://www.dneg.com/news/were-hiring
+
+### 13.3 Identity-resolution warning
+
+Broad web searches for the exact name “May Thu Khaing” return multiple unrelated people with the same or similar name, including individuals in unrelated sectors and locations. Name-only matching is therefore unsafe. For this case, associate records only when multiple attributes align (e.g., the specific VFX profile, production credits, Cause and FX attribution, and source cross-links). Do not merge unrelated LinkedIn or directory results into this artist's profile.
+
+### 13.4 Updated talent-evidence model — proposal
+
+A reliable creative talent record should separate:
+
+- **Identity evidence:** profile URL and cross-source identity match.
+- **Role evidence:** exact public credit wording, e.g. Compositor.
+- **Production evidence:** title, season/episode and release year.
+- **Studio evidence:** named VFX vendor, if the credit source states one.
+- **Capability evidence:** showreel, breakdown, software and demonstrable work (where publicly available and attributable).
+- **Market evidence:** dated job postings and role requirements, never treated as proof of an individual's eligibility or hiring outcome.
+- **Human confirmation:** artist-approved contribution statement and permission to retain/use portfolio materials.
+
+### 13.5 Research status and limits
+
+- ScreenSkills role profile is an authoritative occupational reference, not a profile of this artist.
+- DNEG's page is a dated employer hiring snapshot, not a guarantee of current vacancies.
+- Search results for a common name can refer to unrelated people; identity resolution must use more than a name.
+- The exact BBC News မြန်မာ interview URL remains unlocated in this pass. BBC attribution remains user-supplied context until the original is found.
+- No individual shot ownership, seniority, contract status, exact software stack or full work history is established.
+
+**KMH OIA transfer:** Add explicit identity-resolution confidence and source provenance fields to Talent Registry. Require independent corroboration before joining a person, studio and production into a single verified relationship.
