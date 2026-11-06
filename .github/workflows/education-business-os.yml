@@ -161,6 +161,20 @@ jobs:
           else
             echo "::notice::PENDING: Firebase Android configuration has not been generated in this branch yet."
           fi
+      - name: Validate and test FlutterFire runtime wiring
+        working-directory: education-business-os/mobile
+        run: |
+          node --check tool/apply-firebase-options.mjs
+          node --test test/apply_firebase_options.test.mjs
+      - name: Apply generated FlutterFire options when available
+        working-directory: education-business-os/mobile
+        run: |
+          if [ -f lib/firebase_options.dart ]; then
+            node tool/apply-firebase-options.mjs
+            node tool/verify-firebase-config.mjs
+          else
+            echo "::notice::PENDING: FlutterFire options are not present; Firebase runtime wiring was not applied."
+          fi
       - name: Analyze Flutter source
         working-directory: education-business-os/mobile
         run: flutter analyze
