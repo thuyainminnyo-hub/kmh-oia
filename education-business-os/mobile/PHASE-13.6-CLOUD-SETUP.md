@@ -68,18 +68,20 @@ Expected output includes `lib/firebase_options.dart`. FlutterFire's generated Da
 
 ## 6. Initialize Firebase explicitly
 
-In `lib/main.dart`, import `firebase_options.dart` and initialize with `DefaultFirebaseOptions.currentPlatform` before activating App Check and before any Auth/Firestore access. The app must use the generated Android options at runtime; after the file is generated, wire this initialization before running device QA:
+After `flutterfire configure` creates the real `lib/firebase_options.dart`, wire it into `main.dart` using the guarded, idempotent helper:
 
-```dart
-await Firebase.initializeApp(
-  options: DefaultFirebaseOptions.currentPlatform,
-);
-await activateAptivernAppCheck();
+```bash
+node tool/apply-firebase-options.mjs
+node tool/verify-firebase-config.mjs
 ```
+
+The helper does nothing and reports `PENDING` when generated options are absent. When options exist, it adds the generated import and initializes Firebase with `DefaultFirebaseOptions.currentPlatform` before App Check activation and before any Auth/Firestore access. It never fabricates Firebase options.
 
 ## 7. Verify locally in Codespaces
 
 ```bash
+node --check tool/apply-firebase-options.mjs
+node --test test/apply_firebase_options.test.mjs
 node tool/verify-android-package.mjs
 node tool/verify-firebase-config.mjs
 flutter pub get
