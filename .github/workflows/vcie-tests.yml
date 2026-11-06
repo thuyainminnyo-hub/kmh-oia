@@ -1,0 +1,21 @@
+name: VCIE tests
+
+on:
+  push:
+    branches: ["main", "feat/vcie-visual-continuity-engine-v1"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run repository unit tests
+        run: python -m unittest discover -s tests -v
