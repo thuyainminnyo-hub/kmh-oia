@@ -66,6 +66,9 @@ jobs:
             --require-hashes \
             --requirement "requirements-ci.lock"
 
+      - name: Audit the complete installed CI environment, including bootstrap tools
+        run: pip-audit --local
+
       - name: Generate CycloneDX SBOM from the installed CI environment
         run: |
           pip-audit \
