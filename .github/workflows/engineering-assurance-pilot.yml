@@ -1,0 +1,24 @@
+name: KMH OIA Engineering Assurance Pilot
+
+on:
+  pull_request:
+    paths:
+      - "case-studies/engineering-assurance-pilot-v1/**"
+      - ".github/workflows/engineering-assurance-pilot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate assurance contracts
+        run: python case-studies/engineering-assurance-pilot-v1/scripts/validate_assurance_package.py
+      - name: Run assurance package regression tests
+        run: python -m unittest discover -s case-studies/engineering-assurance-pilot-v1/tests -v

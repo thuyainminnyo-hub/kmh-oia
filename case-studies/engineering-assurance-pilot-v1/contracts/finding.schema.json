@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kmh-oia.local/schemas/engineering-assurance-finding-v1.json",
+  "title": "KMH OIA Engineering Assurance Finding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "finding_id",
+    "domain",
+    "title",
+    "status",
+    "severity",
+    "source",
+    "evidence_refs",
+    "impact",
+    "recommendation",
+    "review"
+  ],
+  "properties": {
+    "finding_id": {
+      "type": "string",
+      "pattern": "^KMEA-[0-9]{4}$"
+    },
+    "domain": {
+      "enum": [
+        "architecture",
+        "security",
+        "data",
+        "runtime-reliability",
+        "delivery-observability",
+        "ai-agent-engineering"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "CONFIRMED",
+        "NEEDS_VALIDATION",
+        "ACCEPTED_RISK",
+        "REJECTED_FALSE_POSITIVE"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "CRITICAL",
+        "HIGH",
+        "MEDIUM",
+        "LOW",
+        "INFO",
+        "UNASSESSED"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "path",
+        "line_start"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line_start": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "line_end": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "commit": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "impact": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recommendation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "counter_evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decision_rationale": {
+      "type": "string"
+    },
+    "review": {
+      "type": "object",
+      "required": [
+        "independent_reviewer",
+        "status"
+      ],
+      "properties": {
+        "independent_reviewer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "NOT_REVIEWED",
+            "VERIFIED",
+            "DISPUTED",
+            "BLOCKED"
+          ]
+        },
+        "review_evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
