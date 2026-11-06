@@ -216,3 +216,101 @@ The following are primary-source findings captured on 2026-11-03. These are inta
 - Production: **LOCKED**.
 
 **Next permitted work:** produce a pinned candidate manifest, verify the exact repository tags/commit SHAs and license files, inspect free local execution options, and prepare synthetic-only conformance fixtures. Do not download or execute candidate code until the sandbox capability and resource budget are confirmed. No merge, release, or production action is authorized.
+
+
+## 13. Phase 03 — Identity compatibility research (2026-11-04)
+
+### 13.1 Primary-source findings
+
+**Keycloak**
+- Official OIDC documentation lists realm discovery at `/realms/{realm}/.well-known/openid-configuration`, authorization, token, userinfo, JWKS/certs, introspection, dynamic registration, and revocation endpoints.
+- Keycloak's server administration documentation describes PKCE and allows an administrator to require `S256` for a client. A blank setting does not enforce PKCE; therefore the pilot must explicitly configure S256 rather than assume it is active.
+- The official repository identifies Apache License 2.0. This is a favorable baseline license, but transitive dependency licenses still require a complete scan.
+
+**authentik**
+- Official documentation lists OIDC/OAuth2 support including authorization code, client credentials, device code, refresh token, token exchange, and PKCE.
+- Its default discovery and JWKS paths are application-slug scoped: `/application/o/<slug>/.well-known/openid-configuration` and `/application/o/<slug>/jwks/`. The default issuer is also provider/application-specific. Global issuer mode changes the issuer value but does not move the discovery document to the root URL.
+- The repository root license says most code outside `authentik/enterprise/`, `website/`, and specified client-side/third-party exceptions is MIT. Enterprise code and third-party dependencies need separate review; do not treat the entire repository as uniformly MIT.
+- Official documentation says JWTs are always signed. With a selected signing key, signatures are asymmetric and public keys are published through JWKS; without one, authentik uses HS256 with the client secret and does not publish an asymmetric JWKS key. The test profile must explicitly select an asymmetric signing key (e.g. RS256) and verify discovery/JWKS.
+- Official documentation notes that starting with authentik 2025.10, `email_verified` defaults to `False`. KMH must not infer verified email from the presence of an email claim.
+
+### 13.2 Provisional comparison
+
+| Dimension | Keycloak | authentik | KMH implication |
+|---|---|---|---|
+| OIDC discovery | Realm-scoped standard path | Application-slug scoped path | Discover dynamically; never hard-code paths |
+| Authorization Code + PKCE | Supported; configure enforced S256 | Supported | Test S256 positive and negative cases |
+| JWKS | Realm certs endpoint | Provider/application JWKS endpoint | Validate signature, kid, issuer, audience, expiry |
+| Introspection/revocation | Documented endpoints | Documented endpoints | Test separately; do not assume identical semantics |
+| Issuer | Realm issuer | Per-provider by default; optional global mode | Exact issuer match is mandatory |
+| License baseline | Apache-2.0 | MIT core with explicit exceptions | Both require dependency/license inventory |
+| Operational footprint | Java service; database/cache topology must be evaluated | Python/Django service; PostgreSQL and worker/outpost topology must be evaluated | No runtime winner without measured local resource evidence |
+
+### 13.3 Provisional disposition
+
+- **Keycloak: PRIMARY COMPATIBILITY BASELINE** for the first OIDC adapter because its documented realm model, endpoint surface, and Apache-2.0 project license provide a clear baseline for a standards-oriented identity service.
+- **authentik: SECOND IMPLEMENTATION / DIFFERENTIAL TEST TARGET** because it exposes the same core OIDC building blocks but has meaningful issuer-path, claim-default, signing-key, and license-boundary details that should be tested explicitly.
+- This is a research prioritization only. It is not a production product selection, security endorsement, or evidence that either server has passed KMH conformance tests.
+
+### 13.4 Synthetic-only conformance test matrix
+
+All tests below are **DESIGNED / NOT RUN**. Use a disposable local environment only after resource checks. Use synthetic users, synthetic email domains, throwaway client IDs, and ephemeral test keys. No real user records, live secrets, public DNS, or production callbacks.
+
+| ID | Test | Expected acceptance |
+|---|---|---|
+| ID-01 | Fetch OIDC discovery metadata | HTTPS issuer and required endpoints are present and internally consistent |
+| ID-02 | Authorization Code + PKCE S256 | Valid code/verifier succeeds; wrong verifier and missing challenge fail |
+| ID-03 | state and nonce | Valid callback succeeds; mismatch/replay is rejected |
+| ID-04 | ID token validation | Signature, exact issuer, audience, expiry, nonce, and allowed algorithm validated |
+| ID-05 | JWKS rotation | Unknown kid triggers bounded metadata/JWKS refresh; old key overlap behaves as configured |
+| ID-06 | UserInfo | Subject is stable and matches ID token subject; scopes gate claims |
+| ID-07 | Refresh token | Rotation/reuse/revocation behavior is documented and tested |
+| ID-08 | Logout | Front-channel/back-channel support and session invalidation behavior are recorded |
+| ID-09 | Roles/groups mapping | Claim names, types, and values normalize to KMH internal permissions without privilege escalation |
+| ID-10 | Issuer and redirect mismatch | Wrong issuer, redirect URI, client, or audience fails closed |
+| ID-11 | Signing configuration | Asymmetric signature and JWKS verification are mandatory; reject `alg=none` and unexpected algorithms |
+| ID-12 | Email verification | `email_verified=false` is not treated as verified identity |
+| ID-13 | Introspection/revocation | Client authentication, active state, and error semantics are verified independently |
+| ID-14 | Failure/recovery | IdP unavailable, stale JWKS, clock skew, and rate limiting fail safely without bypass |
+
+### 13.5 KMH internal identity adapter contract
+
+Application code must consume a provider-neutral interface, not provider-specific endpoint paths or vendor SDK assumptions:
+
+- `issuer_id` and exact `issuer` allowlist;
+- discovery URL and metadata cache with bounded refresh;
+- authorization code + PKCE S256 only for the initial browser pilot;
+- strict redirect URI allowlist, state, and nonce;
+- asymmetric JWT signature verification using discovered JWKS;
+- exact `iss`, `aud`, `exp`, `iat`, `nonce`, and `sub` validation;
+- normalized identity: `subject_id`, `email`, `email_verified`, `display_name`, `groups`, `roles`;
+- explicit mapping of provider claims to KMH permissions; no implicit admin grants;
+- safe key rotation, session expiry, logout, revocation, and audit events;
+- adapter conformance version and test evidence ID.
+
+Never trust an email address as a stable identity key. Use the validated pair (issuer, subject) as the external identity key. Do not merge accounts across issuers based only on matching email addresses.
+
+### 13.6 Phase 03 QA gate
+
+- Official OIDC endpoint documentation: **CONFIRMED**.
+- Keycloak project license declaration: **CONFIRMED** at repository metadata / official project repository.
+- authentik license exceptions: **CONFIRMED** from root LICENSE.
+- Feature comparison: **SUPPORTED** by vendor documentation; not independently reproduced.
+- Version/tag and immutable commit pinning: **NOT RUN**.
+- Full dependency/SBOM/license scan: **NOT RUN**.
+- Security advisory review: **NOT RUN**.
+- Runtime conformance tests ID-01–ID-14: **NOT RUN**.
+- Resource and zero-cost sandbox feasibility: **NOT RUN**.
+- Production readiness / migration / deployment: **NOT AUTHORIZED**.
+
+### 13.7 Primary sources consulted
+
+- Keycloak OIDC endpoints: https://www.keycloak.org/securing-apps/oidc-layers
+- Keycloak PKCE configuration: https://www.keycloak.org/docs/26.3.5/server_admin/
+- Keycloak official repository and Apache-2.0 declaration: https://github.com/keycloak/keycloak
+- authentik OAuth2/OIDC provider documentation: https://docs.goauthentik.io/add-secure-apps/providers/oauth2/
+- authentik root license: https://github.com/goauthentik/authentik/blob/main/LICENSE
+- authentik certificate and signing-key documentation: https://docs.goauthentik.io/sys-mgmt/certificates/
+- authentik OIDC key-binding / DPoP notes: https://docs.goauthentik.io/add-secure-apps/providers/oauth2/key-binding/
+
+**Current decision:** Phase 03 research and test design are documented. No candidate has been installed or executed. No identity adapter code has been written. Production remains LOCKED.
