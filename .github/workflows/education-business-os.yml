@@ -1,0 +1,193 @@
+name: Education Business OS CI
+on:
+  pull_request:
+    paths:
+      - "education-business-os/**"
+      - ".github/workflows/education-business-os.yml"
+      - ".devcontainer/**"
+  push:
+    branches: [main]
+    paths:
+      - "education-business-os/**"
+      - ".github/workflows/education-business-os.yml"
+      - ".devcontainer/**"
+jobs:
+  codespaces-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          package-manager-cache: false
+      - name: Validate Codespaces devcontainer JSON
+        run: |
+          node -e 'JSON.parse(require("fs").readFileSync(".devcontainer/devcontainer.json", "utf8")); console.log("PASS devcontainer JSON")'
+      - name: Validate Codespaces bootstrap shell scripts
+        run: |
+          bash -n .devcontainer/post-create.sh
+          bash -n .devcontainer/check-toolchain.sh
+  web-and-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          package-manager-cache: false
+      - name: Build Cloud Functions and run payment state tests
+        working-directory: education-business-os/functions
+        run: |
+          npm install
+          npm audit --json > "$GITHUB_WORKSPACE/npm-audit-functions.json" || true
+          npm test
+      - name: Build Web
+        working-directory: education-business-os/web
+        run: |
+          npm install
+          npm audit --json > "$GITHUB_WORKSPACE/npm-audit-web.json" || true
+          npm run build
+      - name: Upload dependency audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: education-business-os-npm-audit
+          path: npm-audit-*.json
+          if-no-files-found: warn
+          retention-days: 14
+  firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          package-manager-cache: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install rules test dependencies
+        working-directory: education-business-os/tests
+        run: |
+          npm install
+          npm audit --json > "$GITHUB_WORKSPACE/npm-audit-tests.json" || true
+      - name: Upload rules test dependency audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: education-business-os-rules-audit
+          path: npm-audit-tests.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Run Firestore rules tests in emulator
+        working-directory: education-business-os
+        run: |
+          npm install -g firebase-tools
+          firebase emulators:exec --project demo-education-business-os --only firestore "cd tests && npm test"
+  functions-emulator-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          package-manager-cache: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install Functions dependencies and compile
+        working-directory: education-business-os/functions
+        run: |
+          npm install
+          npm run build
+      - name: Start Auth, Firestore and Functions emulators and run integration tests
+        working-directory: education-business-os
+        run: |
+          npm install -g firebase-tools
+          firebase emulators:exec --project demo-education-business-os --only auth,firestore,functions "cd functions && npm run test:emulator"
+  mobile-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate Android project scaffolding
+        working-directory: education-business-os/mobile
+        run: flutter create --platforms=android --project-name aptivern_student_app .
+      - name: Apply existing Firebase Android package identity
+        working-directory: education-business-os/mobile
+        env:
+          APTIVERN_ANDROID_PACKAGE_NAME: ${{ vars.APTIVERN_ANDROID_PACKAGE_NAME }}
+        run: node tool/configure-android-package.mjs
+      - name: Test Android package identity configurator
+        working-directory: education-business-os/mobile
+        run: node --test test/configure_android_package.test.mjs
+      - name: Resolve Flutter dependencies
+        working-directory: education-business-os/mobile
+        run: flutter pub get
+      - name: Replace generated Flutter template test
+        working-directory: education-business-os/mobile
+        run: |
+          cat > test/widget_test.dart <<'EOF'
+          import 'package:flutter_test/flutter_test.dart';
+          import 'package:aptivern_student_app/main.dart';
+
+          void main() {
+            test('Aptivern app widget can be constructed', () {
+              expect(const AptivernStudentApp(), isA<AptivernStudentApp>());
+            });
+          }
+          EOF
+      - name: Validate Android Firebase preflight script syntax
+        working-directory: education-business-os/mobile
+        run: |
+          node --check tool/verify-firebase-config.mjs
+          node --check tool/verify-android-package.mjs
+          node --check tool/configure-android-package.mjs
+      - name: Verify Android package identity gate
+        working-directory: education-business-os/mobile
+        env:
+          APTIVERN_ANDROID_PACKAGE_NAME: ${{ vars.APTIVERN_ANDROID_PACKAGE_NAME }}
+        run: node tool/verify-android-package.mjs
+      - name: Verify Firebase Android native configuration when available
+        working-directory: education-business-os/mobile
+        run: |
+          if [ -f lib/firebase_options.dart ]; then
+            node tool/verify-firebase-config.mjs
+          else
+            echo "::notice::PENDING: Firebase Android configuration has not been generated in this branch yet."
+          fi
+      - name: Validate and test FlutterFire runtime wiring
+        working-directory: education-business-os/mobile
+        run: |
+          node --check tool/apply-firebase-options.mjs
+          node --test test/apply_firebase_options.test.mjs
+      - name: Apply generated FlutterFire options when available
+        working-directory: education-business-os/mobile
+        run: |
+          if [ -f lib/firebase_options.dart ]; then
+            node tool/apply-firebase-options.mjs
+            node tool/verify-firebase-config.mjs
+          else
+            echo "::notice::PENDING: FlutterFire options are not present; Firebase runtime wiring was not applied."
+          fi
+      - name: Analyze Flutter source
+        working-directory: education-business-os/mobile
+        run: flutter analyze
+      - name: Run Flutter tests
+        working-directory: education-business-os/mobile
+        run: flutter test
+      - name: Build Android debug APK
+        working-directory: education-business-os/mobile
+        run: flutter build apk --debug
+      - name: Upload Android debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: aptivern-student-android-debug-${{ vars.APTIVERN_ANDROID_PACKAGE_NAME != '' && 'configured' || 'scaffold' }}
+          path: education-business-os/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
