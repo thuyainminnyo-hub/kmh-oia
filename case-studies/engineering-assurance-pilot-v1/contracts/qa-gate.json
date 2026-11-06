@@ -1,0 +1,38 @@
+{
+  "contract_version": "1.0.0",
+  "gate": "engineering-assurance-v1",
+  "required_domains": [
+    "architecture",
+    "security",
+    "data",
+    "runtime-reliability",
+    "delivery-observability",
+    "ai-agent-engineering"
+  ],
+  "required_checks": [
+    "scope_integrity",
+    "finding_schema",
+    "evidence_references",
+    "independent_review",
+    "regression_tests",
+    "human_approval",
+    "rollback_readiness"
+  ],
+  "blocking_conditions": [
+    "critical_or_high_unresolved",
+    "required_domain_not_assessed",
+    "missing_evidence",
+    "independent_review_missing",
+    "human_approval_missing",
+    "rollback_not_ready",
+    "test_failure"
+  ],
+  "decision_values": [
+    "PASS",
+    "FAIL",
+    "BLOCKED",
+    "NOT_RUN"
+  ],
+  "production_deployment_allowed": false,
+  "default_decision": "BLOCKED"
+}

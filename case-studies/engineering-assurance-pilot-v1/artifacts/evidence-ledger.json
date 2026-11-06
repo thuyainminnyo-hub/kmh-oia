@@ -1,0 +1,47 @@
+{
+  "ledger_version": "1.0.0",
+  "baseline_commit": "7c2a0b3702ad253bcfef9e0b77125fc09275f2d8",
+  "created_for": "KMH OIA Engineering Assurance Pilot V1",
+  "execution_boundary": "sandbox-only",
+  "repository_inspection": [
+    {
+      "id": "EV-001",
+      "claim": "Repository metadata and current draft PR inspected",
+      "status": "OBSERVED",
+      "source": "GitHub repository metadata; PR #185",
+      "timestamp": "2026-11-06"
+    },
+    {
+      "id": "EV-002",
+      "claim": "Existing agent instructions require small changes, no invented evidence, and explicit PASS/FAIL/BLOCKED/NOT RUN",
+      "status": "OBSERVED",
+      "source": "AGENTS.md at baseline commit",
+      "timestamp": "2026-11-06"
+    },
+    {
+      "id": "EV-003",
+      "claim": "Existing Phase 02.6 report records 79/79 Creative Studio tests and 462/462 OIA tests at an earlier CI run",
+      "status": "HISTORICAL_REPORTED",
+      "source": "case-studies/creative-intelligence-design-studio/docs/phase-02-6-canonical-identity-and-semantic-validation.md",
+      "timestamp": "2026-11-06"
+    }
+  ],
+  "assurance_execution": {
+    "status": "NOT_RUN",
+    "reason": "No sandbox checkout or CI run for this new assurance package has yet been executed."
+  },
+  "human_approval": {
+    "status": "NOT_GRANTED",
+    "approver": null,
+    "scope": null
+  },
+  "independent_verification": {
+    "status": "NOT_RUN",
+    "reviewer": null
+  },
+  "rollback": {
+    "status": "PLAN_DEFINED_NOT_EXECUTED",
+    "strategy": "Revert only the assurance feature branch commit(s); preserve base branch and existing PR #185; do not alter production state."
+  },
+  "findings": []
+}

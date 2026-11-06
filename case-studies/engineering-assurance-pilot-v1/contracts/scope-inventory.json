@@ -1,0 +1,117 @@
+{
+  "contract_version": "1.0.0",
+  "project": "KMH OIA",
+  "pilot": "Engineering Assurance V1",
+  "repository": "thuyainminnyo-hub/kmh-oia",
+  "baseline_commit": "7c2a0b3702ad253bcfef9e0b77125fc09275f2d8",
+  "execution_boundary": "sandbox-only",
+  "domains": [
+    {
+      "id": "architecture",
+      "status": "NOT_ASSESSED",
+      "surfaces": [
+        "src/main.py",
+        "src/components.py",
+        "src/agent.py",
+        "src/workflow.py",
+        "src/state.py",
+        "src/tools.py",
+        "README.md"
+      ],
+      "questions": [
+        "Are module boundaries and contracts explicit?",
+        "Are dependencies directionally controlled?",
+        "Are trust boundaries and failure modes documented?"
+      ]
+    },
+    {
+      "id": "security",
+      "status": "NOT_ASSESSED",
+      "surfaces": [
+        "src/security.py",
+        "src/tools.py",
+        "src/execution_identity.py",
+        "src/autonomy_policy.py",
+        "src/production_change_control.py"
+      ],
+      "questions": [
+        "Is authorization default-deny?",
+        "Are tool arguments and outputs treated as untrusted?",
+        "Are secrets excluded and access least-privileged?",
+        "Are network and filesystem capabilities constrained?"
+      ]
+    },
+    {
+      "id": "data",
+      "status": "NOT_ASSESSED",
+      "surfaces": [
+        "src/state.py",
+        "src/memory.py",
+        "src/knowledge.py",
+        "src/receipt_replay_store.py",
+        "src/operating_memory.py"
+      ],
+      "questions": [
+        "Are data classification and retention defined?",
+        "Are tenant/session boundaries enforced?",
+        "Are persistence and migration guarantees tested?",
+        "Are replay and idempotency semantics safe?"
+      ]
+    },
+    {
+      "id": "runtime-reliability",
+      "status": "NOT_ASSESSED",
+      "surfaces": [
+        "src/recovery.py",
+        "src/rollback.py",
+        "src/recovery_controller.py",
+        "src/production_readiness.py",
+        "src/slo_reliability.py",
+        "src/trace.py"
+      ],
+      "questions": [
+        "Are timeouts, retries, and failure isolation bounded?",
+        "Are health checks and recovery evidence meaningful?",
+        "Are RPO/RTO and rollback preconditions explicit?"
+      ]
+    },
+    {
+      "id": "delivery-observability",
+      "status": "NOT_ASSESSED",
+      "surfaces": [
+        ".github/workflows/",
+        "scripts/",
+        "src/production_evidence_runtime.py"
+      ],
+      "questions": [
+        "Are CI permissions least-privileged?",
+        "Are dependencies pinned and scanned?",
+        "Are logs/metrics/traces useful without exposing secrets?",
+        "Can a change be traced to source and CI evidence?"
+      ]
+    },
+    {
+      "id": "ai-agent-engineering",
+      "status": "NOT_ASSESSED",
+      "surfaces": [
+        "src/agent.py",
+        "src/workflow.py",
+        "src/tools.py",
+        "src/context.py",
+        "src/evaluation.py",
+        "src/security.py"
+      ],
+      "questions": [
+        "Are tool calls permission-checked?",
+        "Are prompt injection and untrusted tool outputs handled?",
+        "Are agent loops bounded and resumable?",
+        "Are evals and independent test oracles present?"
+      ]
+    }
+  ],
+  "notes": [
+    "Paths are an initial source inventory, not proof that each path exists or that its behavior has been verified.",
+    "Do not modify the OIA runtime core during this pilot.",
+    "Do not rerun Graphify extraction; prior one-run approvals are consumed."
+  ]
+}
