@@ -6,6 +6,11 @@ on:
     paths:
       - "apps/music-notes/**"
       - ".github/workflows/deploy-music-notes-pages.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/music-notes/**"
+      - ".github/workflows/deploy-music-notes-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -20,13 +25,13 @@ jobs:
     permissions:
       contents: read
       pages: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Prepare static app
         run: |
@@ -35,14 +40,14 @@ jobs:
           touch _site/.nojekyll
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
   deploy:
     if: github.ref == 'refs/heads/main'
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       pages: write
       id-token: write
@@ -52,4 +57,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
