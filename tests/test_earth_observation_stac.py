@@ -119,6 +119,7 @@ from src.earth_observation.aoi_approval import (
     AOIApprovalError,
     geometry_sha256,
     require_approved_aoi,
+    search_approved_campus_aoi,
 )
 from src.earth_observation.assets import AssetValidationError, validate_l2a_assets
 
@@ -160,6 +161,16 @@ class AOIApprovalGateTests(unittest.TestCase):
         record["approved_by"] = ""
         with self.assertRaises(AOIApprovalError):
             require_approved_aoi(record)
+
+    @patch("src.earth_observation.stac.urlopen")
+    def test_pending_aoi_is_rejected_before_network_request(self, mock_urlopen):
+        record = self.approved_record()
+        record["status"] = "PENDING"
+        with self.assertRaises(AOIApprovalError):
+            search_approved_campus_aoi(
+                record, "2026-01-01T00:00:00Z/2026-11-06T23:59:59Z"
+            )
+        mock_urlopen.assert_not_called()
 
     def test_rejects_non_https_evidence(self):
         record = self.approved_record()
