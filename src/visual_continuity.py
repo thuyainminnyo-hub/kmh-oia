@@ -5,10 +5,31 @@ It does NOT perform image recognition or claim that numeric similarity proves id
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Mapping, Protocol
+import math
+from types import MappingProxyType
+from typing import Protocol
 from uuid import uuid4
+
+
+def _validate_score(name: object, value: object, label: str) -> None:
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError(f"{label} names must be non-empty strings")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{label} for {name!r} must be a finite number between 0 and 1")
+    if not math.isfinite(value) or not 0.0 <= value <= 1.0:
+        raise ValueError(f"{label} for {name!r} must be a finite number between 0 and 1")
+
+
+def _validate_non_empty_strings(values: object, field_name: str, *, unique: bool = False) -> None:
+    if not isinstance(values, tuple) or not values:
+        raise ValueError(f"{field_name} must be a non-empty tuple")
+    if any(not isinstance(value, str) or not value.strip() for value in values):
+        raise ValueError(f"{field_name} must contain only non-empty strings")
+    if unique and len(set(values)) != len(values):
+        raise ValueError(f"{field_name} must not contain duplicates")
 
 
 class ContinuityStatus(str, Enum):
@@ -34,14 +55,25 @@ class ContinuityPolicy:
     )
 
     def __post_init__(self) -> None:
-        if not self.version.strip():
+        if not isinstance(self.version, str) or not self.version.strip():
             raise ValueError("policy version must not be empty")
-        for name, threshold in self.thresholds.items():
-            if not name.strip() or not 0.0 <= threshold <= 1.0:
-                raise ValueError(f"invalid threshold for {name!r}")
-        missing = set(self.required_dimensions) - set(self.thresholds)
+        if not isinstance(self.thresholds, Mapping):
+            raise ValueError("thresholds must be a mapping")
+        if not isinstance(self.required_dimensions, tuple) or not self.required_dimensions:
+            raise ValueError("required_dimensions must be a non-empty tuple")
+        if any(not isinstance(name, str) or not name.strip() for name in self.required_dimensions):
+            raise ValueError("required_dimensions must contain non-empty strings")
+        if len(set(self.required_dimensions)) != len(self.required_dimensions):
+            raise ValueError("required_dimensions must not contain duplicates")
+
+        copied_thresholds = dict(self.thresholds)
+        for name, threshold in copied_thresholds.items():
+            _validate_score(name, threshold, "threshold")
+        missing = set(self.required_dimensions) - set(copied_thresholds)
         if missing:
             raise ValueError(f"missing thresholds for required dimensions: {sorted(missing)}")
+
+        object.__setattr__(self, "thresholds", MappingProxyType(copied_thresholds))
 
 
 @dataclass(frozen=True)
@@ -54,19 +86,27 @@ class ShotEvidence:
     evaluator: str
     evaluator_version: str
     scores: Mapping[str, float]
-    evidence_uris: tuple[str, ...] = ()
+    evidence_uris: tuple[str, ...]
     human_review_required: bool = True
 
     def __post_init__(self) -> None:
         for field_name in ("film_id", "scene_id", "shot_id", "generated_asset_id",
                            "evaluator", "evaluator_version"):
-            if not getattr(self, field_name).strip():
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{field_name} must not be empty")
-        if not self.reference_asset_ids:
-            raise ValueError("at least one reference_asset_id is required")
-        for name, score in self.scores.items():
-            if not name.strip() or not 0.0 <= score <= 1.0:
-                raise ValueError(f"score for {name!r} must be between 0 and 1")
+
+        _validate_non_empty_strings(self.reference_asset_ids, "reference_asset_ids", unique=True)
+        _validate_non_empty_strings(self.evidence_uris, "evidence_uris")
+        if not isinstance(self.scores, Mapping):
+            raise ValueError("scores must be a mapping")
+        if not isinstance(self.human_review_required, bool):
+            raise ValueError("human_review_required must be a boolean")
+
+        copied_scores = dict(self.scores)
+        for name, score in copied_scores.items():
+            _validate_score(name, score, "score")
+        object.__setattr__(self, "scores", MappingProxyType(copied_scores))
 
 
 @dataclass(frozen=True)
@@ -111,6 +151,10 @@ class RuleBasedContinuityEvaluator:
     def evaluate(self, evidence: ShotEvidence,
                  policy: ContinuityPolicy | None = None) -> ContinuityReport:
         policy = policy or ContinuityPolicy()
+        unexpected = set(evidence.scores) - set(policy.thresholds)
+        if unexpected:
+            raise ValueError(f"unexpected score dimensions: {sorted(unexpected)}")
+
         results: list[DimensionResult] = []
         missing: list[str] = []
         failed: list[str] = []
