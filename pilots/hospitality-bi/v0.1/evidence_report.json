@@ -1,0 +1,17 @@
+{
+  "artifact": "KMH OIA Hospitality AI BI Pilot",
+  "test_pack_version": "0.1",
+  "dataset_version": "sample-v0.1",
+  "execution_mode": "local automated unit tests",
+  "local_test_result": "8 tests passed",
+  "ci_status": "not run/verified in GitHub",
+  "independent_reviewer": "pending",
+  "production_status": "HOLD",
+  "limitations": [
+    "Fictional sample data only",
+    "No live hotel integration",
+    "No deployment/security/load validation",
+    "No independent human review",
+    "No real business savings demonstrated"
+  ]
+}
