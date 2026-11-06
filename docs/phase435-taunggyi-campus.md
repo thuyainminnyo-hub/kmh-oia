@@ -65,3 +65,28 @@ The script reports catalogue items and asset keys. It does not download imagery,
 4. Processing: reflectance scaling, QA/SCL masking, raster alignment, NDVI.
 5. Scientific QA: uncertainty, no-data, spatial representativeness and temporal comparability reviewed.
 6. OIA admission: provenance and review evidence accepted by KMH OIA.
+
+## Live point-based Sentinel-2 discovery (6 November 2026; not an AOI approval)
+A second live query used a very small bbox around the campus page's published map centre (97.0485373 E, 20.7998693 N), solely to identify catalogue granules whose bounding boxes cover that point. This is not a campus boundary or campus intersection query.
+- Query envelope: [97.0484, 20.7997, 97.0487, 20.8000].
+- Date interval: 2026-01-01T00:00:00Z/2026-11-06T23:59:59Z.
+- L2A: numberMatched=71; 10 first-page records inspected.
+- L1C: numberMatched=70; 10 first-page records inspected.
+- Candidate L2A item: S2A_MSIL2A_20261025T040201_N0513_R004_T47QKD_20261025T073510.
+- Acquisition time: 2026-10-25T04:02:01.024Z.
+- Catalogue cloud cover: 18.48%.
+- Item bbox: [96.16191776596, 20.687816199722505, 97.17354773867191, 21.69322169612896], which contains the published map centre point.
+- Required catalogue assets are present: B04_10m (99,407,518 bytes), B08_10m (122,516,278 bytes), SCL_20m (1,601,158 bytes), each with a catalogue checksum.
+- The scene-level SCL summary reports 10.97% high-probability cloud, 7.48% medium-probability cloud, 7.48% cloud shadows, and 15.81% no-data. These are whole-scene statistics, not campus statistics.
+- A newer candidate on 2026-11-02 had 26.38% catalogue cloud cover and higher cloud/shadow/no-data fractions in its whole-scene SCL summary. The 25 October candidate is therefore the better initial metadata candidate, but requires raster inspection before acceptance.
+- The 25 October scene's asset bytes have NOT been downloaded. No checksum has been recomputed locally, no campus polygon intersection has been established, and no NDVI result has been generated.
+
+## Asset access and authentication
+The STAC item advertises B04/B08/SCL assets with S3 storage references and HTTPS alternate locations using OIDC authentication. Public catalogue metadata does not imply that the underlying raster bytes are anonymously downloadable. Use a registered Copernicus account/client and securely managed credentials for acquisition; never commit secrets to GitHub.
+
+## Additional implementation in this branch
+- Fail-closed campus AOI approval-record validator requiring APPROVED status, approver, timestamp, HTTPS evidence URI, EPSG:4326 and matching geometry SHA-256.
+- Required L2A asset metadata validator for B04_10m, B08_10m and SCL_20m, including data role, GSD, positive size and catalogue checksum.
+- Unit tests for approval rejection, geometry hash mismatch, required asset presence and resolution/checksum validation.
+
+These validators establish record completeness only. They do not independently authenticate campus authority, verify downloaded file bytes, or constitute scientific approval.
