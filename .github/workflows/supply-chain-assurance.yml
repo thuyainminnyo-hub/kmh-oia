@@ -1,0 +1,190 @@
+name: KMH OIA Supply Chain Assurance
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supply-chain-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sbom:
+    name: Generate and validate SPDX SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive --format=tar.gz --output=kmh-oia-source.tar.gz "$GITHUB_SHA"
+          test -s kmh-oia-source.tar.gz
+
+      - name: Generate SPDX JSON SBOM with Syft
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Validate SPDX document and record evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          sbom_path = Path("sbom.spdx.json")
+          source_path = Path("kmh-oia-source.tar.gz")
+          if not sbom_path.is_file() or sbom_path.stat().st_size == 0:
+              raise SystemExit("SBOM file is missing or empty")
+          if not source_path.is_file() or source_path.stat().st_size == 0:
+              raise SystemExit("Source snapshot is missing or empty")
+
+          sbom = json.loads(sbom_path.read_text(encoding="utf-8"))
+          required = ("spdxVersion", "dataLicense", "SPDXID", "name",
+                      "documentNamespace", "creationInfo", "packages", "relationships")
+          missing = [field for field in required if field not in sbom]
+          if missing:
+              raise SystemExit(f"SPDX document is missing required fields: {missing}")
+          if not str(sbom["spdxVersion"]).startswith("SPDX-2."):
+              raise SystemExit(f"Unsupported SPDX version: {sbom['spdxVersion']}")
+          if not isinstance(sbom["packages"], list):
+              raise SystemExit("SPDX packages must be a list")
+          for index, package in enumerate(sbom["packages"]):
+              if not isinstance(package, dict) or not package.get("name") or not package.get("SPDXID"):
+                  raise SystemExit(f"Invalid SPDX package entry at index {index}")
+
+          manifest_names = {
+              "requirements.txt", "pyproject.toml", "poetry.lock", "uv.lock",
+              "Pipfile", "Pipfile.lock", "setup.py", "setup.cfg",
+              "package.json", "package-lock.json", "npm-shrinkwrap.json",
+              "pnpm-lock.yaml", "yarn.lock", "go.mod", "go.sum",
+              "Cargo.toml", "Cargo.lock", "pom.xml", "build.gradle",
+              "build.gradle.kts", "Gemfile", "Gemfile.lock",
+          }
+          dependency_manifests = sorted(
+              str(path) for path in Path(".").rglob("*")
+              if path.is_file() and path.name in manifest_names
+              and ".git" not in path.parts
+          )
+          license_noassertion_count = sum(
+              package.get("licenseDeclared") == "NOASSERTION"
+              or package.get("licenseConcluded") == "NOASSERTION"
+              for package in sbom["packages"]
+          )
+          review_findings = []
+          if not dependency_manifests:
+              review_findings.append(
+                  "No recognized dependency manifest or lockfile was found; runtime dependency coverage is unverified."
+              )
+          if license_noassertion_count:
+              review_findings.append(
+                  f"{license_noassertion_count} package entries have NOASSERTION for declared or concluded license."
+              )
+          review_status = "REVIEW_REQUIRED" if review_findings else "REVIEW_READY"
+
+          def sha256(path):
+              digest = hashlib.sha256()
+              with path.open("rb") as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          evidence = {
+              "schema_version": 1,
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "commit_sha": os.environ["GITHUB_SHA"],
+              "ref": os.environ["GITHUB_REF"],
+              "event_name": os.environ["GITHUB_EVENT_NAME"],
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "sbom": {
+                  "path": str(sbom_path),
+                  "format": sbom["spdxVersion"],
+                  "sha256": sha256(sbom_path),
+                  "package_count": len(sbom["packages"]),
+                  "unique_name_version_count": len({
+                      (package.get("name"), package.get("versionInfo"))
+                      for package in sbom["packages"]
+                  }),
+                  "license_noassertion_count": license_noassertion_count,
+              },
+              "dependency_coverage": {
+                  "recognized_manifests": dependency_manifests,
+                  "review_status": review_status,
+                  "review_findings": review_findings,
+              },
+              "source_snapshot": {
+                  "path": str(source_path),
+                  "sha256": sha256(source_path),
+              },
+              "limitations": [
+                  "This inventory covers components discoverable by Syft in the checked-out source tree.",
+                  "It is not a vulnerability-free or secure-software assertion.",
+                  "Coverage depends on available manifests, package metadata, and Syft catalogers.",
+                  "A zero package count must be investigated and must not be interpreted as proof of zero dependencies.",
+              ],
+          }
+          Path("supply-chain-evidence.json").write_text(
+              json.dumps(evidence, indent=2) + "\n", encoding="utf-8"
+          )
+          print(f"SPDX structural validation: PASS; packages={len(sbom['packages'])}")
+          print(f"Dependency/license review status: {review_status}")
+          for finding in review_findings:
+              print(f"REVIEW REQUIRED: {finding}")
+          print(f"SBOM SHA-256: {evidence['sbom']['sha256']}")
+          print(f"Source SHA-256: {evidence['source_snapshot']['sha256']}")
+          PY
+
+      - name: Upload supply-chain evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: kmh-oia-supply-chain-evidence
+          path: |
+            sbom.spdx.json
+            kmh-oia-source.tar.gz
+            supply-chain-evidence.json
+          if-no-files-found: error
+          retention-days: 14
+
+  attest:
+    name: Attest main-branch source and SBOM
+    needs: sbom
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download supply-chain evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: kmh-oia-supply-chain-evidence
+          path: evidence
+
+      - name: Generate signed source and SBOM attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: evidence/kmh-oia-source.tar.gz
+          sbom-path: evidence/sbom.spdx.json

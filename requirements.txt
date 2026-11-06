@@ -1,0 +1,3 @@
+# Minimal third-party dependency for scripts/validate_prompt_record.py and Prompt Library Schema QA.
+# This is a CI/tooling dependency, not a complete declaration of every runtime dependency.
+jsonschema==4.26.0
