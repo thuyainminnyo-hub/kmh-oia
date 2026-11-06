@@ -1,0 +1,289 @@
+{
+  "schema_version": "1.0.0",
+  "project_id": "MLCW-MYANMAR-001",
+  "character_id": "MLCW-CHAR-001",
+  "character_name": "Thiri",
+  "canvas": {
+    "width": 450,
+    "height": 450,
+    "coordinate_system": "source-pixel",
+    "color_mode": "RGB"
+  },
+  "source_reference": {
+    "path": "assets/thiri-base.jpg",
+    "format": "JPEG",
+    "bytes": 11073,
+    "width": 450,
+    "height": 450,
+    "sha256": "7daa71b258bb62622a5ecb9b4e9a0e84cf86822db4a752ea49ffd27a8c24791f",
+    "git_blob_sha1": "ad6df905000a1d29e2ca2fb3a44762f91aa468a9",
+    "handling": "immutable; never overwrite the reference master",
+    "repository_status": "exact-match-verified",
+    "restored_commit": "bb290f897db9ecafb196be2300998a5e02af9fd5",
+    "verified_at": "2026-11-01"
+  },
+  "master_document": {
+    "recommended_format": "PSD",
+    "preserve_layers": true,
+    "notes": "Keep the layered master editable. PNG exports are flattened deliverables, not the editable source."
+  },
+  "layer_stack": [
+    {
+      "id": "REFERENCE_ORIGINAL_LOCKED",
+      "type": "reference",
+      "visible": true,
+      "locked": true,
+      "opacity": 1,
+      "required": true,
+      "status": "planned"
+    },
+    {
+      "id": "BODY_BASE_RECONSTRUCTION",
+      "type": "vector-cover-layer",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "required": true,
+      "status": "implemented-in-app-overlay",
+      "source_path": "src/body-base.js"
+    },
+    {
+      "id": "OUTFIT_001",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "interactive-svg-concept",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ],
+      "source_path": "src/outfits.js"
+    },
+    {
+      "id": "OUTFIT_002",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "interactive-svg-concept",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ],
+      "source_path": "src/outfits.js"
+    },
+    {
+      "id": "OUTFIT_003",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "interactive-svg-concept",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ],
+      "source_path": "src/outfits.js"
+    },
+    {
+      "id": "OUTFIT_004",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "interactive-svg-concept",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ],
+      "source_path": "src/outfits.js"
+    },
+    {
+      "id": "OUTFIT_005",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "interactive-svg-concept",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ],
+      "source_path": "src/outfits.js"
+    },
+    {
+      "id": "OUTFIT_006",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "interactive-svg-concept",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ],
+      "source_path": "src/outfits.js"
+    },
+    {
+      "id": "OUTFIT_007",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "interactive-svg-concept",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ],
+      "source_path": "src/outfits.js"
+    },
+    {
+      "id": "OUTFIT_008",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "interactive-svg-concept",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ],
+      "source_path": "src/outfits.js"
+    },
+    {
+      "id": "OUTFIT_009",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "interactive-svg-concept",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ],
+      "source_path": "src/outfits.js"
+    },
+    {
+      "id": "OUTFIT_010",
+      "type": "outfit-group",
+      "visible": false,
+      "locked": false,
+      "required": true,
+      "status": "interactive-svg-concept",
+      "layers": [
+        "BLOUSE",
+        "SASH",
+        "HTAMEIN",
+        "DETAILS"
+      ],
+      "source_path": "src/outfits.js"
+    },
+    {
+      "id": "QA_OVERLAY_GUIDES",
+      "type": "qa-guides",
+      "visible": false,
+      "locked": true,
+      "required": false,
+      "status": "planned"
+    }
+  ],
+  "outfit_layer_requirements": [
+    {
+      "id": "BLOUSE",
+      "purpose": "upper garment"
+    },
+    {
+      "id": "SASH",
+      "purpose": "shoulder sash"
+    },
+    {
+      "id": "HTAMEIN",
+      "purpose": "lower garment"
+    },
+    {
+      "id": "DETAILS",
+      "purpose": "pattern, trim and small decorations"
+    }
+  ],
+  "export": {
+    "app_preview": {
+      "format": "PNG",
+      "width": 1024,
+      "height": 1536,
+      "fit": "contain",
+      "center": true,
+      "stretch": false
+    },
+    "garment_layers": {
+      "format": "PNG",
+      "transparent_background": true,
+      "flattened": true
+    },
+    "master": {
+      "format": "PSD",
+      "preserve_layers": true
+    }
+  },
+  "acceptance_gates": [
+    "source asset byte count, SHA-256 and Git blob SHA match the immutable reference",
+    "source dimensions are 450x450 and RGB",
+    "face, hair, hair ornament, skin, pose and body proportions are unchanged",
+    "clean reconstructed body has no original purple outfit leakage",
+    "each outfit contains separate BLOUSE, SASH, HTAMEIN and DETAILS layers",
+    "garment boundaries align at neckline, shoulders, waist and hem",
+    "transparent garment PNGs have a valid alpha channel",
+    "desktop and mobile product E2E tests pass against the exact verified source",
+    "exported PNG is visually inspected before release",
+    "reset state shows neutral base layers instead of exposing the original purple outfit",
+    "selected outfit SVG contains BLOUSE, SASH, HTAMEIN and DETAILS as separately addressable groups",
+    "neutral base overlay covers every detected original purple garment pixel in the defined source region; zero purple garment pixels remain after compositing",
+    "all 10 outfits render as individually selectable groups, each with BLOUSE, SASH, HTAMEIN and DETAILS"
+  ],
+  "base_layer": {
+    "implementation": "opaque SVG overlay on immutable original JPEG",
+    "source_path": "src/body-base.js",
+    "color": "#f4eadb",
+    "layers": [
+      "BODY_BASE_TOP",
+      "BODY_BASE_LOWER",
+      "BASE_NECKLACE"
+    ],
+    "intent": "cover the original purple blouse, sash and htamein with a modest neutral costume while preserving the immutable character reference",
+    "editable_master_status": "PSD not yet authored"
+  },
+  "notes": "The current clean base is an in-app opaque vector overlay; it is not yet a standalone reconstructed body PNG or editable PSD master. The ten outfits remain selectable SVG color/pattern concepts using shared garment silhouettes; they have not yet become individually hand-authored clothing artwork or culturally approved designs.",
+  "qa_evidence": {
+    "latest_run": 24,
+    "run_id": "41302370006",
+    "tested_commit": "fb31a80d923443e63432be61eefe4d3e3f18695a",
+    "original_purple_pixels_detected": 15078,
+    "original_purple_pixels_remaining_after_overlay": 0,
+    "desktop_playwright": "8/8 PASS",
+    "mobile_playwright": "8/8 PASS",
+    "total_playwright": "16/16 PASS",
+    "node_tests": "4/4 PASS",
+    "kmh_oia_tests_run": 1380,
+    "kmh_oia_validation_run": 1299,
+    "report_artifact_id": "13081532564",
+    "verified_at": "2026-11-01"
+  }
+}

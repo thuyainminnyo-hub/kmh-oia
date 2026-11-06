@@ -1,0 +1,80 @@
+name: MLCW Dual-Lock Bootstrap
+
+on:
+  push:
+    branches: [chore/mlcw-dual-lock-hardening-2026-11-04]
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**/action.yml'
+      - '.github/actions/**/action.yaml'
+  workflow_dispatch:
+
+# Artifact-only bootstrap: no repository writes from this workflow.
+permissions:
+  contents: read
+
+concurrency:
+  group: mlcw-dual-lock-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  generate-and-verify:
+    if: github.ref == 'refs/heads/chore/mlcw-dual-lock-hardening-2026-11-04'
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Fetch the selected branch without third-party actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://github.com/${REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --depth=1 origin "${TARGET_REF}"
+          unset auth GH_TOKEN
+          git checkout --detach FETCH_HEAD
+
+      - name: Generate npm lockfile
+        working-directory: case-studies/education/my-little-creative-world/studio
+        run: |
+          set -euo pipefail
+          node --version
+          npm --version
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          test -s package-lock.json
+
+      - name: Generate and verify repository Actions lock
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh extension install github/gh-actions-lock --pin v0.4.1
+          gh actions-lock
+          gh actions-lock --verify
+          test -s .github/workflows/actions.lock
+
+      - name: Clean install and test
+        working-directory: case-studies/education/my-little-creative-world/studio
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm test
+          ./node_modules/.bin/playwright install --with-deps chromium
+          npm run test:e2e
+
+      - name: Preserve generated lockfiles and workflow sources for human review
+        uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: mlcw-dual-lock-review
+          path: |
+            case-studies/education/my-little-creative-world/studio/package-lock.json
+            .github/workflows/actions.lock
+            .github/workflows/**
+          if-no-files-found: warn
+          retention-days: 14

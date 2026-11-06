@@ -1,0 +1,42 @@
+name: MLCW Studio CI
+
+permissions:
+  contents: read
+on:
+  pull_request:
+    paths: ['case-studies/education/my-little-creative-world/studio/**','.github/workflows/**']
+  push:
+    branches: [main]
+    paths: ['case-studies/education/my-little-creative-world/studio/**','.github/workflows/mlcw-studio-ci.yml']
+jobs:
+  unit-and-browser-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: case-studies/education/my-little-creative-world/studio
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - name: Verify workflow dependency lock
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install github/gh-actions-lock --pin v0.4.1
+          gh actions-lock --verify
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 22.23.4
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: ./node_modules/.bin/playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: mlcw-playwright-report
+          path: |
+            case-studies/education/my-little-creative-world/studio/playwright-report/
+            case-studies/education/my-little-creative-world/studio/test-results/

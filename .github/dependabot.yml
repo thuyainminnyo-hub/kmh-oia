@@ -1,6 +1,7 @@
 version: 2
 updates:
-  # Keep workflow actions maintained while the MLCW app manifest is not yet committed.
+  # Keep GitHub Actions dependencies maintained. Dependabot updates the
+  # matching actions.lock entries for already-onboarded workflows.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
@@ -10,5 +11,12 @@ updates:
       timezone: "Etc/UTC"
     open-pull-requests-limit: 5
 
-  # Add the npm ecosystem entry only after package.json and package-lock.json
-  # are committed under /case-studies/education/my-little-creative-world.
+  # Keep the MLCW Studio npm dependency graph current.
+  - package-ecosystem: npm
+    directory: "/case-studies/education/my-little-creative-world/studio"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:30"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
