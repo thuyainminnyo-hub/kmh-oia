@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0.0",
+  "promotion_status": "CANDIDATE_ONLY_HOLD_CONFIRMED_NOT_PROMOTED",
+  "raw_graph_sha256": "c5ad7ea7fdd6b6c65c81726a0aec51c5bead7a3cf29ff85a59051eb6bd95abeb",
+  "candidate_graph_sha256": "c2053e83445e8b4c94d5c29a9a3ef816ccf15561c5a76cd8139e2412584123c1",
+  "source_artifact": {
+    "repository": "thuyainminnyo-hub/kmh-oia",
+    "workflow_run_id": 41430984629,
+    "artifact_id": 13134475847,
+    "artifact_name": "kmh-graphify-disposable-pilot-41430984629",
+    "graph_file": "graph.json",
+    "graph_sha256": "c5ad7ea7fdd6b6c65c81726a0aec51c5bead7a3cf29ff85a59051eb6bd95abeb",
+    "graphify_version": "0.9.100",
+    "graphify_source_commit": "f5155badddaa3286c78a51653791131e9e2e4d29"
+  },
+  "raw_graph_counts": {
+    "nodes": 12,
+    "edges": 17,
+    "confidence": {
+      "EXTRACTED": 16,
+      "INFERRED": 1
+    }
+  },
+  "candidate_graph_counts": {
+    "nodes": 12,
+    "edges": 16,
+    "confidence": {
+      "EXTRACTED": 16
+    }
+  },
+  "excluded_edges": [
+    {
+      "edge_identity": {
+        "source": "src_outfit_flow_select_outfit",
+        "target": "src_contract_guard_designtoken",
+        "relation": "uses",
+        "confidence": "INFERRED",
+        "source_file": "src/outfit_flow.py",
+        "source_location": "L6"
+      },
+      "edge_fingerprint": "f3f463148fad99ea22391ba177933acab4de6a5aefff01ddfe8c260275d9fde3",
+      "disposition": "HOLD_NOT_PROMOTED",
+      "reason_code": "INFERRED_EDGE_REQUIRES_INDEPENDENT_SEMANTIC_REVIEW",
+      "rationale": "Graphify v0.9.100 emits this INFERRED uses edge from its Python cross-file import-resolution pass because the imported DesignToken identifier appears in the select_outfit parameter annotation at outfit_flow.py:L6. The function also passes the typed token to is_approved_token and reads token.token_name. This is corroborating evidence for a dependency, but the broader uses relation remains unaccepted as a trusted fact. Owner-confirmed HOLD remains in force pending additional semantic evidence.",
+      "owner_confirmation": "CONFIRMED_HOLD",
+      "related_extracted_edge": {
+        "edge_identity": {
+          "source": "src_outfit_flow_select_outfit",
+          "target": "src_contract_guard_designtoken",
+          "relation": "references",
+          "confidence": "EXTRACTED",
+          "source_file": "src/outfit_flow.py",
+          "source_location": "L6"
+        },
+        "context": "parameter_type",
+        "role": "Directly describes the type-annotation aspect; it does not replace the held inferred uses edge."
+      },
+      "owner_decision": {
+        "decision": "KEEP_INFERRED_EDGE_UNDER_REVIEW_DO_NOT_PROMOTE",
+        "recorded_on": "2026-11-02",
+        "authority": "Explicit project-owner instruction in the current conversation",
+        "scope": "Graphify INFERRED uses edge from select_outfit() to DesignToken at src/outfit_flow.py:L6",
+        "additional_evidence_required": true,
+        "raw_graph_immutable": true,
+        "extracted_only_candidate_remains_separate": true,
+        "production_promotion": "NOT_AUTHORIZED"
+      }
+    }
+  ],
+  "unanchored_external_nodes_retained_as_external_references": [
+    {
+      "id": "dataclasses",
+      "label": "dataclasses",
+      "external": true
+    }
+  ],
+  "owner_confirmation": "CONFIRMED_HOLD",
+  "production_promotion": "NOT_AUTHORIZED",
+  "raw_graph_mutated": false,
+  "upstream_algorithm_evidence": {
+    "upstream_source_url": "https://github.com/Graphify-Labs/graphify/blob/f5155badddaa3286c78a51653791131e9e2e4d29/graphify/extractors/resolution.py#L3039-L3218",
+    "upstream_file_sha": "9821e1e528bc6179521edc64f5e51f47f3ae8fa0",
+    "upstream_algorithm_summary": "The pinned Graphify v0.9.100 Python cross-file import-resolution pass builds imported-name targets, walks AST identifiers inside each local class/function, and emits an INFERRED uses edge when the local symbol references an imported name. In this fixture, the matching DesignToken identifier is the parameter type annotation at outfit_flow.py:L6.",
+    "fixture_corroboration": "outfit_flow.py imports DesignToken at L3; select_outfit declares token: DesignToken at L6, checks token with is_approved_token at L8 and reads token.token_name at L10; contract_guard.py defines DesignToken with token_name and approved fields.",
+    "interpretation": "The edge has a documented upstream derivation and source corroboration. Its source anchor at L6 is the type annotation, while the function also uses the typed parameter at runtime. The broader uses relation remains INFERRED and is not independently accepted as a trusted graph fact."
+  },
+  "source_corroboration_status": "PASS",
+  "source_corroboration_report_path": "reports/phase-02-3/held-edge-source-evidence.json",
+  "further_review_status": "OPEN_ADDITIONAL_EVIDENCE_REQUIRED",
+  "source_corroboration_artifact": {
+    "workflow_run_id": 41438633133,
+    "artifact_id": 13136524575,
+    "artifact_name": "kmh-graphify-held-edge-source-evidence-41438633133",
+    "report_file": "kmh-held-edge-source-evidence.json",
+    "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41438633133/artifacts/13136524575",
+    "checks": {
+      "imported_from_contract_guard_line": 3,
+      "parameter_type_reference_line": 6,
+      "approval_call_line": 8,
+      "runtime_field_read_line": 10,
+      "DesignToken_definition_line": 7,
+      "source_validator": "PASS",
+      "errors": 0
+    }
+  }
+}

@@ -1,0 +1,121 @@
+name: KMH Graphify Runtime Dependency Audit
+
+on:
+  pull_request:
+    paths:
+      - "case-studies/creative-intelligence-design-studio/contracts/graphify-scope-policy.json"
+      - ".github/workflows/graphify-dependency-audit.yml"
+  push:
+    branches: ["feat/kmh-creative-intelligence-design-studio-pilot"]
+    paths:
+      - "case-studies/creative-intelligence-design-studio/contracts/graphify-scope-policy.json"
+      - ".github/workflows/graphify-dependency-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: graphify-dependency-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  locked-runtime-dependency-audit:
+    name: Audit Graphify v0.9.100 frozen runtime dependency snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GRAPHIFY_TAG: v0.9.100
+      GRAPHIFY_COMMIT: f5155badddaa3286c78a51653791131e9e2e4d29
+      AUDIT_TOOL: pip-audit==2.10.1
+    steps:
+      - name: Checkout KMH OIA policy
+        uses: actions/checkout@v4
+
+      - name: Install pinned uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+
+      - name: Checkout and verify exact upstream source
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUDIT_DIR="$RUNNER_TEMP/kmh-graphify-dependency-audit"
+          mkdir -p "$AUDIT_DIR"
+          echo "AUDIT_DIR=$AUDIT_DIR" >> "$GITHUB_ENV"
+          git clone --filter=blob:none --depth 1 --branch "$GRAPHIFY_TAG" \
+            https://github.com/Graphify-Labs/graphify.git "$AUDIT_DIR/graphify-source"
+          ACTUAL_COMMIT="$(git -C "$AUDIT_DIR/graphify-source" rev-parse HEAD)"
+          test "$ACTUAL_COMMIT" = "$GRAPHIFY_COMMIT"
+          printf '%s\n' "$ACTUAL_COMMIT" > "$AUDIT_DIR/source-commit.txt"
+          LOCK_BLOB="$(git -C "$AUDIT_DIR/graphify-source" rev-parse "$GRAPHIFY_TAG:uv.lock")"
+          test "$LOCK_BLOB" = "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e"
+          printf '%s\n' "$LOCK_BLOB" > "$AUDIT_DIR/uv-lock-blob-sha.txt"
+          uv --version > "$AUDIT_DIR/uv-version.txt"
+
+      - name: Export frozen runtime requirements and CycloneDX SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$AUDIT_DIR/graphify-source"
+          uv export --frozen --no-dev --no-emit-project \
+            --format requirements.txt \
+            --output-file "$AUDIT_DIR/runtime-requirements.txt"
+          uv export --frozen --no-dev --no-emit-project \
+            --format cyclonedx1.5 \
+            --output-file "$AUDIT_DIR/runtime-sbom.cdx.json"
+          test -s "$AUDIT_DIR/runtime-requirements.txt"
+          test -s "$AUDIT_DIR/runtime-sbom.cdx.json"
+
+      - name: Record pinned audit tool provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          uvx --from "$AUDIT_TOOL" pip-audit --version > "$AUDIT_DIR/pip-audit-version.txt"
+
+      - name: Audit against PyPI and OSV
+        id: audit
+        shell: bash
+        run: |
+          set -uo pipefail
+          set +e
+          uvx --from "$AUDIT_TOOL" pip-audit \
+            --strict --require-hashes --disable-pip \
+            --requirement "$AUDIT_DIR/runtime-requirements.txt" \
+            --vulnerability-service pypi \
+            --format json --output "$AUDIT_DIR/pypi-audit.json"
+          PYPI_STATUS=$?
+
+          uvx --from "$AUDIT_TOOL" pip-audit \
+            --strict --require-hashes --disable-pip \
+            --requirement "$AUDIT_DIR/runtime-requirements.txt" \
+            --vulnerability-service osv \
+            --format json --output "$AUDIT_DIR/osv-audit.json"
+          OSV_STATUS=$?
+          set -e
+
+          printf '{"pypi_exit":%s,"osv_exit":%s}\n' \
+            "$PYPI_STATUS" "$OSV_STATUS" > "$AUDIT_DIR/audit-exit-codes.json"
+          echo "pypi_status=$PYPI_STATUS" >> "$GITHUB_OUTPUT"
+          echo "osv_status=$OSV_STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: graphify-v0.9.100-runtime-dependency-audit
+          path: ${{ runner.temp }}/kmh-graphify-dependency-audit/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce clean, complete audit
+        if: always()
+        shell: bash
+        env:
+          PYPI_STATUS: ${{ steps.audit.outputs.pypi_status }}
+          OSV_STATUS: ${{ steps.audit.outputs.osv_status }}
+        run: |
+          set -euo pipefail
+          test "$PYPI_STATUS" = "0"
+          test "$OSV_STATUS" = "0"

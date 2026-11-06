@@ -1,0 +1,126 @@
+{
+  "policy_version": "1.0.0",
+  "status": "preflight_only",
+  "provider": {
+    "name": "Graphify",
+    "source_repository": "https://github.com/Graphify-Labs/graphify",
+    "package_name": "graphifyy",
+    "cli_command": "graphify",
+    "approved_version": null,
+    "version_pin_required": true
+  },
+  "scope": {
+    "scan_root": "graphify-sandbox",
+    "allowed_paths": [
+      ".graphifyignore",
+      "src/"
+    ],
+    "allowed_extensions": [
+      ".py"
+    ],
+    "max_files": 20,
+    "allow_symlinks": false
+  },
+  "execution": {
+    "install_allowed": false,
+    "index_allowed": false,
+    "semantic_backend": "none",
+    "code_only_required": true,
+    "assistant_skill_install_allowed": false,
+    "git_hook_install_allowed": false,
+    "global_graph_merge_allowed": false
+  },
+  "deny_patterns": [
+    ".env",
+    ".env.*",
+    ".envrc",
+    "**/.env",
+    "**/.env.*",
+    "**/.envrc",
+    "**/*.pem",
+    "**/*.key",
+    "**/*.p12",
+    "**/*.pfx",
+    "**/*.crt",
+    "**/*secret*",
+    "**/*credential*",
+    "**/.netrc",
+    "**/.npmrc",
+    "**/.pypirc",
+    "**/.git-credentials",
+    "**/id_rsa",
+    "**/id_ed25519",
+    "**/.ssh/**",
+    "**/private/**",
+    "**/learner-data/**",
+    "**/raw-assets/**",
+    "**/generated-media/**",
+    "**/media/**",
+    "**/graphify-out/**"
+  ],
+  "review_gates": [
+    "technical_owner_approves_source_and_pinned_version",
+    "data_owner_approves_exact_scan_root",
+    "scope_validator_passes_in_disposable_environment",
+    "code_only_run_uses_backend_none",
+    "every_sampled_extracted_edge_resolves_to_source",
+    "inferred_edges_are_reviewed_and_never_auto_promoted",
+    "generated_graph_is_checked_for_sensitive_content",
+    "output_is_removed_after_evidence_capture",
+    "human_owner_approves_any_expansion"
+  ],
+  "source_intake": {
+    "status": "verified_candidate_pending_owner_install_approval",
+    "candidate_version": "0.9.100",
+    "release_tag": "v0.9.100",
+    "release_commit_sha": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "package": "graphifyy",
+    "pypi_wheel": "graphifyy-0.9.100-py3-none-any.whl",
+    "pypi_wheel_sha256": "64c5ed6f2dcc8c28b6a96c87023851c1644c16f55a87f45dbc9127119eb6e769",
+    "trusted_publishing_provenance": "verified",
+    "license_expression": "Apache-2.0",
+    "legacy_license_note": "Upstream NOTICE states that portions contributed before relicensing remain under MIT terms; retain LICENSE, LICENSE-MIT, and NOTICE when redistributing source.",
+    "requires_python": ">=3.10",
+    "dependency_strategy": "Use the exact uv.lock blob from v0.9.100 (Git blob 1fd2344a28be6b14c4f6f41c4901c70cadc2be0e) with uv 0.13.6 and --frozen; do not regenerate the lockfile; install no optional extras.",
+    "optional_extras_enabled": [],
+    "known_advisories": [
+      {
+        "id": "GHSA-pcc4-rvhr-2pr8",
+        "affected_range": ">=0.7.2,<0.9.70",
+        "patched_version": "0.9.70",
+        "candidate_assessment": "0.9.100 is outside the affected range; tagged source inspected and confirmed include directives are stripped before cpp reads sanitized stdin."
+      }
+    ],
+    "owner_install_approval": "pending",
+    "runtime_dependency_audit": {
+      "tool": "pip-audit",
+      "source_lock": "uv.lock from exact v0.9.100 source tag; blob 1fd2344a28be6b14c4f6f41c4901c70cadc2be0e",
+      "status": "passed",
+      "runbook": "Export the exact committed frozen base runtime requirements and CycloneDX SBOM with uv 0.13.6; audit the fully pinned, hash-bearing requirements with pip-audit 2.10.1 using --strict --require-hashes --disable-pip against both PyPI and OSV; include no optional extras or dev group.",
+      "fail_on_known_vulnerability": true,
+      "tool_version": "2.10.1",
+      "strict_mode_required": true,
+      "services": [
+        "pypi",
+        "osv"
+      ],
+      "uv_version": "0.13.6",
+      "lock_mode": "frozen",
+      "hashes_required": true,
+      "evidence": {
+        "run_id": 41422855820,
+        "commit_sha": "0a4643362e92b6d7b252008a2a3ae586740ec9b2",
+        "artifact_id": 13129673852,
+        "uv_version": "0.13.6",
+        "pip_audit_version": "2.10.1",
+        "pypi_exit_code": 0,
+        "osv_exit_code": 0,
+        "pypi_result": "no_known_vulnerabilities_found",
+        "osv_result": "no_known_vulnerabilities_found",
+        "requirements_hashes": "present_and_required",
+        "pypi_hash_verification": "passed",
+        "osv_hash_verification": "presence_only"
+      }
+    }
+  }
+}

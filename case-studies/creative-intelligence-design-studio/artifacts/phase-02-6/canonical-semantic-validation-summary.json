@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0.0",
+  "phase": "02.6",
+  "baseline_id": "KMH-CREATIVE-CANONICAL-SEMANTICS-02.6-v1",
+  "status": "PASS",
+  "errors": [],
+  "warnings": [],
+  "pr_head_sha": "bf8603077de4492aaf1f47bf1e2e7a697aaa5577",
+  "workflow_run": {
+    "id": 41460365066,
+    "url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41460365066",
+    "artifact_id": 13149316170,
+    "artifact_url": "https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/41460365066/artifacts/13149316170",
+    "creative_studio_tests": "79/79 PASS"
+  },
+  "graphify": {
+    "version": "0.9.100",
+    "source_commit": "f5155badddaa3286c78a51653791131e9e2e4d29"
+  },
+  "input_hashes": {
+    "raw_graph_sha256": "c5ad7ea7fdd6b6c65c81726a0aec51c5bead7a3cf29ff85a59051eb6bd95abeb",
+    "candidate_graph_sha256": "c2053e83445e8b4c94d5c29a9a3ef816ccf15561c5a76cd8139e2412584123c1"
+  },
+  "imports_resolved": [
+    {
+      "source_file": "src/outfit_flow.py",
+      "import_line": 3,
+      "imported_name": "DesignToken",
+      "local_name": "DesignToken",
+      "target_file": "src/contract_guard.py",
+      "target_line": 7,
+      "target_kind": "class",
+      "canonical_node_id": "src_contract_guard_designtoken"
+    },
+    {
+      "source_file": "src/outfit_flow.py",
+      "import_line": 3,
+      "imported_name": "is_approved_token",
+      "local_name": "is_approved_token",
+      "target_file": "src/contract_guard.py",
+      "target_line": 12,
+      "target_kind": "function",
+      "canonical_node_id": "src_contract_guard_is_approved_token"
+    }
+  ],
+  "semantic_links": [
+    {
+      "source_node_id": "src_outfit_flow_select_outfit",
+      "source_symbol": "select_outfit()",
+      "source_file": "src/outfit_flow.py",
+      "source_line": 6,
+      "target_node_id": "src_contract_guard_designtoken",
+      "target_file": "src/contract_guard.py",
+      "target_definition_line": "L7",
+      "category": "TYPE_ANNOTATION",
+      "context": "parameter_type",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "raw_matches": 1,
+      "candidate_matches": 1
+    },
+    {
+      "source_node_id": "src_outfit_flow_select_outfit",
+      "source_symbol": "select_outfit()",
+      "source_file": "src/outfit_flow.py",
+      "source_line": 8,
+      "target_node_id": "src_contract_guard_is_approved_token",
+      "target_file": "src/contract_guard.py",
+      "target_definition_line": "L12",
+      "category": "RUNTIME_CALL",
+      "context": "call",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "raw_matches": 1,
+      "candidate_matches": 1
+    }
+  ],
+  "held_edge": {
+    "relation": "uses",
+    "confidence": "INFERRED",
+    "source": "src_outfit_flow_select_outfit",
+    "target": "src_contract_guard_designtoken",
+    "source_file": "src/outfit_flow.py",
+    "source_location": "L6",
+    "raw_present": true,
+    "candidate_present": false,
+    "owner_confirmation": "CONFIRMED_HOLD",
+    "promotion": "NOT_AUTHORIZED"
+  },
+  "governance": {
+    "raw_graph_mutated": false,
+    "candidate_graph_mutated": false,
+    "graphify_execution_performed": false,
+    "production_promotion": "NOT_AUTHORIZED"
+  },
+  "downstream_ci": {
+    "kmh_oia_tests": {
+      "run_id": 41460364815,
+      "result": "SUCCESS",
+      "tests": "462/462 PASS"
+    },
+    "kmh_oia_validation": {
+      "run_id": 41460364931,
+      "result": "SUCCESS",
+      "deployment_evidence_bundle": "SUCCESS"
+    },
+    "graphify_dependency_audit": {
+      "run_id": 41460364783,
+      "result": "SUCCESS"
+    }
+  }
+}

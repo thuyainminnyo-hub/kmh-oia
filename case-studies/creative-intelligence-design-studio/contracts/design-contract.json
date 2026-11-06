@@ -1,0 +1,48 @@
+{
+  "contract_version": "1.0.0",
+  "project": "kmh-creative-intelligence-design-studio",
+  "pilot_target": "my-little-creative-world",
+  "status": "draft",
+  "tokens": {
+    "color": {
+      "canvas": "#FFFDF8",
+      "surface": "#FFFFFF",
+      "surface_muted": "#F4F1EA",
+      "text_primary": "#172554",
+      "text_secondary": "#46536F",
+      "brand_primary": "#5B36B5",
+      "brand_on_primary": "#FFFFFF",
+      "accent_gold": "#8A5A12",
+      "success": "#166534",
+      "danger": "#B42318",
+      "border": "#CBD5E1",
+      "focus": "#5B36B5"
+    },
+    "spacing_px": [4, 8, 12, 16, 24, 32, 48, 64],
+    "radius_px": {"small": 8, "medium": 12, "large": 20, "pill": 999},
+    "touch_target_min_px": 44,
+    "breakpoints_px": {"mobile": 320, "tablet": 768, "desktop": 1024},
+    "motion_ms": {"fast": 120, "standard": 220, "slow": 360}
+  },
+  "accessibility": {
+    "normal_text_contrast_min": 4.5,
+    "large_text_contrast_min": 3.0,
+    "non_text_contrast_min": 3.0,
+    "respect_reduced_motion": true,
+    "keyboard_accessible": true,
+    "color_not_only_signal": true
+  },
+  "required_contrast_pairs": [
+    {"foreground": "text_primary", "background": "canvas", "minimum": 4.5},
+    {"foreground": "text_secondary", "background": "canvas", "minimum": 4.5},
+    {"foreground": "brand_on_primary", "background": "brand_primary", "minimum": 4.5},
+    {"foreground": "accent_gold", "background": "canvas", "minimum": 4.5},
+    {"foreground": "success", "background": "surface", "minimum": 4.5},
+    {"foreground": "danger", "background": "surface", "minimum": 4.5}
+  ],
+  "component_requirements": {
+    "button_states": ["default", "hover", "focus", "pressed", "disabled", "loading", "error"],
+    "outfit_card_fields": ["preview", "name", "selection_status", "action"],
+    "character_identity_protected_regions": ["face", "hair", "skin_tone", "body_proportions", "approved_accessories"]
+  }
+}

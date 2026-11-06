@@ -1,0 +1,97 @@
+name: KMH Creative Design Studio QA
+
+on:
+  pull_request:
+    paths:
+      - "case-studies/creative-intelligence-design-studio/**"
+      - ".github/workflows/creative-design-studio-qa.yml"
+  push:
+    branches: ["main", "feat/kmh-creative-intelligence-design-studio-pilot"]
+    paths:
+      - "case-studies/creative-intelligence-design-studio/**"
+      - ".github/workflows/creative-design-studio-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  design-contract:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: case-studies/creative-intelligence-design-studio
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate design contract
+        run: python scripts/validate_design_contract.py
+      - name: Validate Graphify preflight scope
+        run: python scripts/validate_graphify_scope.py
+      - name: Validate held Graphify edge against the current synthetic fixture
+        run: python scripts/validate_inferred_edge_evidence.py --scan-root graphify-sandbox --report-out "$RUNNER_TEMP/kmh-held-edge-source-evidence.json"
+      - name: Preserve held-edge source corroboration report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-graphify-held-edge-source-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/kmh-held-edge-source-evidence.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Classify imported DesignToken references in the pilot fixture
+        run: python scripts/analyze_inferred_edge_context.py --source graphify-sandbox/src/outfit_flow.py --module contract_guard --imported-name DesignToken --symbol select_outfit --report-out "$RUNNER_TEMP/kmh-held-edge-context-report.json"
+      - name: Preserve imported-symbol AST context report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-graphify-held-edge-context-${{ github.run_id }}
+          path: ${{ runner.temp }}/kmh-held-edge-context-report.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Download immutable original Graphify raw-graph artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kmh-graphify-disposable-pilot-41430984629
+          repository: ${{ github.repository }}
+          run-id: 41430984629
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/kmh-graphify-raw
+      - name: Compare raw graph, extracted-only candidate, and versioned evidence baseline
+        run: >-
+          python scripts/validate_graph_pair.py
+          --raw-graph "${{ runner.temp }}/kmh-graphify-raw/graph.json"
+          --candidate-graph artifacts/phase-02-3/extracted-only-candidate-graph.json
+          --decision-manifest contracts/graph-review-decisions.json
+          --promotion-report artifacts/phase-02-3/promotion-report.json
+          --evidence-baseline contracts/graph-evidence-baseline.json
+          --scan-root graphify-sandbox
+          --report-out "${{ runner.temp }}/kmh-graph-evidence-comparison.json"
+      - name: Preserve versioned graph integrity comparison report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-graph-evidence-comparison-${{ github.run_id }}
+          path: ${{ runner.temp }}/kmh-graph-evidence-comparison.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Validate cross-file canonical identities and semantic edges
+        run: >-
+          python scripts/validate_canonical_semantics.py
+          --raw-graph "${{ runner.temp }}/kmh-graphify-raw/graph.json"
+          --candidate-graph artifacts/phase-02-3/extracted-only-candidate-graph.json
+          --decision-manifest contracts/graph-review-decisions.json
+          --graph-evidence-baseline contracts/graph-evidence-baseline.json
+          --semantic-baseline contracts/canonical-semantic-baseline.json
+          --scan-root graphify-sandbox
+          --report-out "${{ runner.temp }}/kmh-canonical-semantic-validation.json"
+      - name: Preserve canonical semantic validation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-canonical-semantic-validation-${{ github.run_id }}
+          path: ${{ runner.temp }}/kmh-canonical-semantic-validation.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Check whitespace errors
+        run: git diff --check

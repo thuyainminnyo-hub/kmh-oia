@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "baseline_id": "KMH-CREATIVE-GRAPH-BASELINE-02.5-v1",
+  "baseline_version": "1.0.0",
+  "phase": "02.5",
+  "source_artifact": {
+    "repository": "thuyainminnyo-hub/kmh-oia",
+    "workflow_run_id": 41430984629,
+    "artifact_id": 13134475847,
+    "artifact_name": "kmh-graphify-disposable-pilot-41430984629",
+    "graph_file": "graph.json"
+  },
+  "graphify": {
+    "version": "0.9.100",
+    "source_commit": "f5155badddaa3286c78a51653791131e9e2e4d29"
+  },
+  "graphs": {
+    "raw_sha256": "c5ad7ea7fdd6b6c65c81726a0aec51c5bead7a3cf29ff85a59051eb6bd95abeb",
+    "candidate_sha256": "c2053e83445e8b4c94d5c29a9a3ef816ccf15561c5a76cd8139e2412584123c1"
+  },
+  "expected_metrics": {
+    "raw": {
+      "nodes": 12,
+      "edges": 17,
+      "confidence": {
+        "EXTRACTED": 16,
+        "INFERRED": 1
+      }
+    },
+    "candidate": {
+      "nodes": 12,
+      "edges": 16,
+      "confidence": {
+        "EXTRACTED": 16
+      }
+    }
+  },
+  "owner_decision": {
+    "status": "CONFIRMED_HOLD",
+    "decision": "KEEP_INFERRED_EDGE_UNDER_REVIEW_DO_NOT_PROMOTE",
+    "production_promotion": "NOT_AUTHORIZED"
+  },
+  "mutation_policy": {
+    "raw_graph": "IMMUTABLE",
+    "candidate_graph": "IMMUTABLE",
+    "graphify_execution_in_phase_02_5": false
+  }
+}

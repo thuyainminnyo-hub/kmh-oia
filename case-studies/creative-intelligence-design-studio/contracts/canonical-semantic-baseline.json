@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0.0",
+  "baseline_id": "KMH-CREATIVE-CANONICAL-SEMANTICS-02.6-v1",
+  "phase": "02.6",
+  "source_artifact": {
+    "repository": "thuyainminnyo-hub/kmh-oia",
+    "workflow_run_id": 41430984629,
+    "artifact_id": 13134475847
+  },
+  "graphify": {
+    "version": "0.9.100",
+    "source_commit": "f5155badddaa3286c78a51653791131e9e2e4d29"
+  },
+  "graph_baseline_id": "KMH-CREATIVE-GRAPH-BASELINE-02.5-v1",
+  "semantic_expectations": [
+    {
+      "source_symbol": "select_outfit()",
+      "imported_name": "DesignToken",
+      "category": "TYPE_ANNOTATION",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L6",
+      "target_file": "src/contract_guard.py",
+      "target_symbol": "DesignToken",
+      "target_definition": "L7",
+      "context": "parameter_type"
+    },
+    {
+      "source_symbol": "select_outfit()",
+      "imported_name": "is_approved_token",
+      "category": "RUNTIME_CALL",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/outfit_flow.py",
+      "source_location": "L8",
+      "target_file": "src/contract_guard.py",
+      "target_symbol": "is_approved_token()",
+      "target_definition": "L12",
+      "context": "call"
+    }
+  ],
+  "held_edge": {
+    "source_node_id": "src_outfit_flow_select_outfit",
+    "target_node_id": "src_contract_guard_designtoken",
+    "relation": "uses",
+    "confidence": "INFERRED",
+    "source_file": "src/outfit_flow.py",
+    "source_location": "L6",
+    "owner_confirmation": "CONFIRMED_HOLD",
+    "candidate_presence": false,
+    "promotion": "NOT_AUTHORIZED"
+  },
+  "upstream_regression_tests": [
+    {
+      "path": "tests/test_extract.py",
+      "name": "test_cross_file_type_annotation_refs_resolve_to_single_node",
+      "line": 160,
+      "description": "Pinned Python cross-file parameter/return type references resolve to one canonical definition node."
+    },
+    {
+      "path": "tests/test_extract.py",
+      "name": "test_3252_inheritance_repoints_inherits_edge",
+      "line": 6197,
+      "description": "Pinned Python imported class inheritance edge is repointed to the canonical target class without sourceless stubs."
+    }
+  ],
+  "upstream_resolution": {
+    "resolver_path": "graphify/extractors/resolution.py",
+    "resolver_source_sha256": "9821e1e528bc6179521edc64f5e51f47f3ae8fa0",
+    "behavior": "Imported AST type-reference and inheritance edges are repointed from sourceless stubs to exact imported target definitions for relations references, inherits, implements and extends."
+  },
+  "mutation_policy": {
+    "raw_graph": "IMMUTABLE",
+    "candidate_graph": "IMMUTABLE",
+    "graphify_execution_in_phase_02_6": false,
+    "production_promotion": false
+  }
+}

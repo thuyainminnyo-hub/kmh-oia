@@ -1,0 +1,237 @@
+name: KMH Graphify Phase 02.7 Disposable Compatibility Extraction
+
+on:
+  push:
+    branches:
+      - "phase-02-7-disposable-run-once-20261102"
+    paths:
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-7-launch-trigger.json"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kmh-graphify-phase-02-7-\${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  disposable-cross-file-extraction:
+    name: One-run synthetic cross-file Graphify extraction and compatibility QA
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GRAPHIFY_TAG: v0.9.100
+      GRAPHIFY_COMMIT: f5155badddaa3286c78a51653791131e9e2e4d29
+      APPROVAL_PATH: case-studies/creative-intelligence-design-studio/contracts/phase-02-7-extraction-approval.json
+      TRIGGER_PATH: case-studies/creative-intelligence-design-studio/contracts/phase-02-7-launch-trigger.json
+      BASELINE_PATH: case-studies/creative-intelligence-design-studio/contracts/phase-02-7-compatibility-baseline.json
+      PROJECT_DIR: case-studies/creative-intelligence-design-studio
+      SANDBOX_DIR: case-studies/creative-intelligence-design-studio/graphify-phase-02-7-sandbox
+
+    steps:
+      - name: Checkout approved policy, baseline and synthetic source files
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+
+      - name: Enforce one-run approval, launch-base binding and no-prior-run guard
+        shell: bash
+        env:
+          GH_TOKEN: \${{ github.token }}
+          EVENT_BEFORE: \${{ github.event.before }}
+          RUN_ATTEMPT: \${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "phase-02-7-disposable-run-once-20261102"
+          test "$RUN_ATTEMPT" = "1"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          approval = json.loads(Path(os.environ["APPROVAL_PATH"]).read_text(encoding="utf-8"))
+          trigger = json.loads(Path(os.environ["TRIGGER_PATH"]).read_text(encoding="utf-8"))
+          baseline = json.loads(Path(os.environ["BASELINE_PATH"]).read_text(encoding="utf-8"))
+          assert approval["status"] == "approved_single_disposable_run"
+          assert approval["approval_id"] == trigger["approval_id"]
+          assert approval["max_runs"] == 1
+          assert approval["launch_branch"] == os.environ["GITHUB_REF_NAME"]
+          assert trigger["launch_once"] is True
+          assert trigger["base_commit_sha"] == os.environ["EVENT_BEFORE"]
+          assert approval["source"]["version"] == "0.9.100"
+          assert approval["source"]["commit"] == os.environ["GRAPHIFY_COMMIT"]
+          assert approval["source"]["uv_lock_blob"] == "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e"
+          assert approval["source"]["uv_version"] == "0.13.6"
+          assert approval["target"]["scan_root"] == "graphify-phase-02-7-sandbox"
+          assert approval["target"]["source_files"] == baseline["source_files"]
+          assert len(approval["target"]["source_files"]) == 10
+          assert approval["target"]["scan_file_count"] == 11
+          assert approval["execution"]["install_cli_allowed"] is True
+          assert approval["execution"]["code_only_extraction_allowed"] is True
+          assert approval["execution"]["model_credentials_present"] is False
+          assert approval["execution"]["semantic_backend"] == "none"
+          for key in (
+              "assistant_skill_install_allowed", "git_hook_install_allowed",
+              "mcp_server_setup_allowed", "model_backed_semantic_extraction_allowed",
+              "global_graph_merge_allowed", "oia_runtime_integration_allowed",
+              "production_deployment_allowed", "rerun_allowed",
+          ):
+              assert approval["execution"][key] is False, key
+          assert approval["policy"]["existing_graphify_scope_policy_unchanged"] is True
+          assert approval["policy"]["existing_phase_02_5_raw_graph_immutable"] is True
+          assert approval["policy"]["existing_phase_02_5_candidate_immutable"] is True
+          print("PASS: one-run approval contract and exact compatibility scope")
+          PY
+
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/phase-02-7-disposable-extraction.yml/runs?branch=$GITHUB_REF_NAME&per_page=100" \
+            -o "$RUNNER_TEMP/phase-02-7-workflow-runs.json"
+          PRIOR_RUNS="$(jq --arg current "$GITHUB_RUN_ID" '[.workflow_runs[]? | select((.id | tostring) != $current)] | length' "$RUNNER_TEMP/phase-02-7-workflow-runs.json")"
+          test "$PRIOR_RUNS" = "0"
+          echo "PASS: no previous run exists for this approval branch"
+
+      - name: Validate legacy Graphify scope remains preflight-only and unchanged
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: python scripts/validate_graphify_scope.py
+
+      - name: Create isolated external workspaces and verify official source pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORK_ROOT="$RUNNER_TEMP/kmh-graphify-phase-02-7"
+          SOURCE_DIR="$WORK_ROOT/graphify-source"
+          SCAN_ROOT="$WORK_ROOT/scan"
+          OUTPUT_ROOT="$WORK_ROOT/output"
+          EVIDENCE_ROOT="$WORK_ROOT/evidence"
+          VENV_DIR="$WORK_ROOT/venv"
+          HOME_DIR="$WORK_ROOT/home"
+          TMP_DIR="$WORK_ROOT/tmp"
+          printf 'WORK_ROOT=%s\nSOURCE_DIR=%s\nSCAN_ROOT=%s\nOUTPUT_ROOT=%s\nEVIDENCE_ROOT=%s\nVENV_DIR=%s\nHOME_DIR=%s\nTMP_DIR=%s\n' \
+            "$WORK_ROOT" "$SOURCE_DIR" "$SCAN_ROOT" "$OUTPUT_ROOT" "$EVIDENCE_ROOT" "$VENV_DIR" "$HOME_DIR" "$TMP_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$WORK_ROOT" "$SCAN_ROOT" "$OUTPUT_ROOT" "$EVIDENCE_ROOT" "$HOME_DIR" "$TMP_DIR"
+          git clone --filter=blob:none --depth 1 --branch "$GRAPHIFY_TAG" https://github.com/Graphify-Labs/graphify.git "$SOURCE_DIR"
+          ACTUAL_COMMIT="$(git -C "$SOURCE_DIR" rev-parse HEAD)"
+          test "$ACTUAL_COMMIT" = "$GRAPHIFY_COMMIT"
+          LOCK_BLOB="$(git -C "$SOURCE_DIR" rev-parse "$GRAPHIFY_TAG:uv.lock")"
+          test "$LOCK_BLOB" = "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e"
+          printf '%s\n' "$ACTUAL_COMMIT" > "$EVIDENCE_ROOT/graphify-source-commit.txt"
+          printf '%s\n' "$LOCK_BLOB" > "$EVIDENCE_ROOT/graphify-uv-lock-blob.txt"
+          uv --version > "$EVIDENCE_ROOT/uv-version.txt"
+
+      - name: Copy exactly ten approved synthetic Python files into a read-only snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          baseline = json.loads(Path(os.environ["BASELINE_PATH"]).read_text(encoding="utf-8"))
+          approval = json.loads(Path(os.environ["APPROVAL_PATH"]).read_text(encoding="utf-8"))
+          repo = Path(os.environ["GITHUB_WORKSPACE"])
+          source_root = repo / os.environ["SANDBOX_DIR"]
+          scan_root = Path(os.environ["SCAN_ROOT"])
+          approved = sorted([".graphifyignore", *approval["target"]["source_files"]])
+          observed_source = sorted(
+              item.relative_to(source_root).as_posix()
+              for item in source_root.rglob("*")
+              if item.is_file() or item.is_symlink()
+          )
+          if observed_source != approved:
+              raise SystemExit(
+                  f"checked-in sandbox file set mismatch: expected={approved}, observed={observed_source}"
+              )
+          if any(item.is_symlink() for item in source_root.rglob("*")):
+              raise SystemExit("symlink detected in checked-in Phase 02.7 source sandbox")
+          scan_root.mkdir(parents=True, exist_ok=True)
+          shutil.copy2(source_root / ".graphifyignore", scan_root / ".graphifyignore")
+          for relative in baseline["source_files"]:
+              src = source_root / relative
+              dst = scan_root / relative
+              if src.is_symlink() or not src.is_file():
+                  raise SystemExit(f"missing/unsafe approved source: {relative}")
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dst)
+          observed = sorted(p.relative_to(scan_root).as_posix() for p in scan_root.rglob("*") if p.is_file())
+          expected = sorted([".graphifyignore", *approval["target"]["source_files"]])
+          if observed != expected:
+              raise SystemExit(f"scan file set mismatch: expected={expected}, observed={observed}")
+          if any(p.is_symlink() for p in scan_root.rglob("*")):
+              raise SystemExit("symlink detected in isolated scan snapshot")
+          for path in scan_root.rglob("*"):
+              if path.is_file():
+                  path.chmod(0o444)
+          PY
+          (cd "$SCAN_ROOT" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$EVIDENCE_ROOT/scan-source-manifest.sha256"
+          find "$SCAN_ROOT" -type f -printf '%P\n' | sort > "$EVIDENCE_ROOT/scan-source-files.txt"
+
+      - name: Install frozen Graphify base runtime in RUNNER_TEMP only
+        shell: bash
+        run: |
+          set -euo pipefail
+          export UV_PROJECT_ENVIRONMENT="$VENV_DIR"
+          cd "$SOURCE_DIR"
+          uv sync --frozen --no-dev --python 3.12
+          "$VENV_DIR/bin/graphify" --help > "$EVIDENCE_ROOT/graphify-cli-help.txt"
+          "$VENV_DIR/bin/python" - <<'PY'
+          import importlib.metadata
+          import os
+          from pathlib import Path
+          version = importlib.metadata.version("graphifyy")
+          assert version == "0.9.100", version
+          Path(os.environ["EVIDENCE_ROOT"], "graphify-version.txt").write_text(version + "\n")
+          print("Installed Graphify:", version)
+          PY
+
+      - name: Run one code-only extraction with no model credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          env -i PATH="$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin" \
+            HOME="$HOME_DIR" TMPDIR="$TMP_DIR" LANG="C.UTF-8" \
+            "$VENV_DIR/bin/graphify" extract "$SCAN_ROOT" \
+            --code-only --no-dedup --no-cluster --out "$OUTPUT_ROOT"
+          test -s "$OUTPUT_ROOT/graphify-out/graph.json"
+          cp -- "$OUTPUT_ROOT/graphify-out/graph.json" "$EVIDENCE_ROOT/graph.json"
+
+      - name: Validate source identity, package resolution, topology and extracted-only candidate
+        working-directory: case-studies/creative-intelligence-design-studio
+        run: |
+          set -euo pipefail
+          python scripts/validate_phase_02_7_graph.py \
+            --graph "$EVIDENCE_ROOT/graph.json" \
+            --scan-root "$SCAN_ROOT" \
+            --baseline contracts/phase-02-7-compatibility-baseline.json \
+            --candidate-out "$EVIDENCE_ROOT/extracted-only-candidate-graph.json" \
+            --summary-out "$EVIDENCE_ROOT/phase-02-7-validation-summary.json"
+
+      - name: Upload immutable raw graph and sanitized QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-graphify-phase-02-7-one-run-\${{ github.run_id }}
+          path: \${{ runner.temp }}/kmh-graphify-phase-02-7/evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Destroy external ephemeral workspace
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/kmh-graphify-phase-02-7"

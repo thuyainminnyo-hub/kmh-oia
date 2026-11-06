@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0.0",
+  "approval_id": "KMH-CREATIVE-GRAPHIFY-PHASE-02-7-2026-11-02-RUN-01",
+  "status": "approved_single_disposable_run",
+  "approval_date": "2026-11-02",
+  "authorization_basis": "Explicit user instruction in this conversation: '@Web search Extraction အသစ်အတွက် Owner Approvalလိုအပ်ရင်let's go ပါ'.",
+  "approval_scope": "Exactly one fresh disposable Graphify v0.9.100 code-only extraction, using only the ten approved synthetic Python files in graphify-phase-02-7-sandbox.",
+  "max_runs": 1,
+  "launch_branch": "phase-02-7-disposable-run-once-20261102",
+  "previous_run_guard": "Dedicated branch + base-commit event check + GitHub workflow run-history check + run_attempt==1 + concurrency serialization",
+  "source": {
+    "repository": "https://github.com/Graphify-Labs/graphify",
+    "package": "graphifyy",
+    "version": "0.9.100",
+    "tag": "v0.9.100",
+    "commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "uv_version": "0.13.6",
+    "uv_lock_blob": "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e",
+    "frozen_lock": true,
+    "optional_extras": [],
+    "dev_dependencies": false
+  },
+  "target": {
+    "runner": "GitHub-hosted ubuntu-24.04 ephemeral runner",
+    "install_location": "RUNNER_TEMP only",
+    "scan_root": "graphify-phase-02-7-sandbox",
+    "scan_file_count": 11,
+    "python_file_count": 10,
+    "source_files": [
+      "src/contract_guard.py",
+      "src/outfit_flow.py",
+      "src/phase_02_7/__init__.py",
+      "src/phase_02_7/pkg_alpha/__init__.py",
+      "src/phase_02_7/pkg_alpha/types.py",
+      "src/phase_02_7/pkg_alpha/service.py",
+      "src/phase_02_7/pkg_beta/__init__.py",
+      "src/phase_02_7/pkg_beta/types.py",
+      "src/phase_02_7/pkg_beta/service.py",
+      "src/phase_02_7/integration.py"
+    ],
+    "scan_read_only": true,
+    "symlinks_allowed": false,
+    "output_outside_scan_root": true
+  },
+  "execution": {
+    "install_cli_allowed": true,
+    "code_only_extraction_allowed": true,
+    "model_credentials_present": false,
+    "semantic_backend": "none",
+    "assistant_skill_install_allowed": false,
+    "git_hook_install_allowed": false,
+    "mcp_server_setup_allowed": false,
+    "model_backed_semantic_extraction_allowed": false,
+    "global_graph_merge_allowed": false,
+    "oia_runtime_integration_allowed": false,
+    "production_deployment_allowed": false,
+    "rerun_allowed": false
+  },
+  "evidence": {
+    "upload_artifact": true,
+    "artifact_retention_days": 14,
+    "commit_raw_graph_to_repository": false,
+    "commit_candidate_graph_to_repository": false,
+    "commit_sanitized_summary_to_repository": true,
+    "delete_temporary_workspace": true
+  },
+  "policy": {
+    "existing_graphify_scope_policy_unchanged": true,
+    "existing_phase_02_5_raw_graph_immutable": true,
+    "existing_phase_02_5_candidate_immutable": true,
+    "inferred_ambiguous_edges_never_auto_promoted": true,
+    "human_review_required": true
+  }
+}
