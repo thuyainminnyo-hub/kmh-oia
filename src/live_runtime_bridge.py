@@ -141,7 +141,7 @@ class LiveRuntimeBridge:
         self.runtime.tracer = tracer
         try:
             response, stages, events = self.runtime.execute_detailed(
-                command.objective, session_id=f"command:{command.id}"
+                command.objective, session_id=f"command:{command.id}", tool_name=None
             )
         except Exception:
             self.console.transition(command.id, "BLOCKED")

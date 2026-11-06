@@ -31,6 +31,7 @@ class EvidenceAdmissionResult:
     learning_admitted: bool
     missing_fields: tuple[str, ...]
     reasons: tuple[str, ...]
+    execution_id: str | None = None
 
 
 class EvidenceAdmissionGate:
@@ -92,6 +93,7 @@ class EvidenceAdmissionGate:
             learning_admitted=admitted,
             missing_fields=missing,
             reasons=tuple(reasons),
+            execution_id=request.execution_id if isinstance(request.execution_id, str) else None,
         )
 
     def evaluate_mapping(self, evidence: Mapping[str, str]) -> EvidenceAdmissionResult:
