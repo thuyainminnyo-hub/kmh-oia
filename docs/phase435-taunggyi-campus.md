@@ -75,7 +75,7 @@ A second live query used a very small bbox around the campus page's published ma
 - Candidate L2A item: S2A_MSIL2A_20261025T040201_N0513_R004_T47QKD_20261025T073510.
 - Acquisition time: 2026-10-25T04:02:01.024Z.
 - Catalogue cloud cover: 18.48%.
-- Item bbox: [96.16191776596, 20.687816199722505, 97.17354773867191, 21.69322169612896], which contains the published map centre point.
+- Item bbox: [96.16191776596, 20.687816199722505, 97.17354773867191, 21.69322169612896]. A point-in-polygon check against the exact STAC item geometry also returns true for the published map centre (97.0485373 E, 20.7998693 N). This proves only that the published map centre lies inside the satellite granule footprint, not that the campus boundary is covered.
 - Required catalogue assets are present: B04_10m (99,407,518 bytes), B08_10m (122,516,278 bytes), SCL_20m (1,601,158 bytes), each with a catalogue checksum.
 - The scene-level SCL summary reports 10.97% high-probability cloud, 7.48% medium-probability cloud, 7.48% cloud shadows, and 15.81% no-data. These are whole-scene statistics, not campus statistics.
 - A newer candidate on 2026-11-02 had 26.38% catalogue cloud cover and higher cloud/shadow/no-data fractions in its whole-scene SCL summary. The 25 October candidate is therefore the better initial metadata candidate, but requires raster inspection before acceptance.
