@@ -57,3 +57,17 @@ def require_approved_aoi(record: dict[str, Any]) -> dict[str, Any]:
     if record.get("geometry_sha256") != actual_hash:
         raise AOIApprovalError("Approved geometry hash does not match supplied geometry")
     return record
+
+
+def search_approved_campus_aoi(
+    record: dict[str, Any],
+    datetime_range: str,
+    **search_options: Any,
+) -> list[dict[str, Any]]:
+    """Run campus discovery only after the AOI approval record passes validation."""
+    approved = require_approved_aoi(record)
+    from src.earth_observation.stac import search_sentinel2
+
+    return search_sentinel2(
+        approved["geometry"], datetime_range, **search_options
+    )
