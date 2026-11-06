@@ -115,6 +115,96 @@ class STACDiscoveryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             search_sentinel2(VALID_POLYGON, "bad")
 
+from src.earth_observation.aoi_approval import (
+    AOIApprovalError,
+    geometry_sha256,
+    require_approved_aoi,
+)
+from src.earth_observation.assets import AssetValidationError, validate_l2a_assets
+
+
+class AOIApprovalGateTests(unittest.TestCase):
+    def approved_record(self):
+        return {
+            "aoi_id": "chindwin-taunggyi-campus-v1",
+            "status": "APPROVED",
+            "crs": "EPSG:4326",
+            "geometry": VALID_POLYGON,
+            "geometry_sha256": geometry_sha256(VALID_POLYGON),
+            "approved_by": "Authorized Campus Representative",
+            "approved_at": "2026-11-06T09:00:00+06:30",
+            "approval_evidence_uri": "https://example.org/approval/evidence",
+        }
+
+    def test_accepts_complete_approved_record(self):
+        self.assertEqual(require_approved_aoi(self.approved_record())["status"], "APPROVED")
+
+    def test_rejects_missing_approval(self):
+        record = self.approved_record()
+        record["status"] = "PENDING"
+        with self.assertRaises(AOIApprovalError):
+            require_approved_aoi(record)
+
+    def test_rejects_geometry_hash_mismatch(self):
+        record = self.approved_record()
+        record["geometry"] = {
+            "type": "Polygon",
+            "coordinates": [[[97, 20], [97.02, 20], [97.02, 20.02],
+                             [97, 20.02], [97, 20]]],
+        }
+        with self.assertRaises(AOIApprovalError):
+            require_approved_aoi(record)
+
+    def test_rejects_missing_approver(self):
+        record = self.approved_record()
+        record["approved_by"] = ""
+        with self.assertRaises(AOIApprovalError):
+            require_approved_aoi(record)
+
+    def test_rejects_non_https_evidence(self):
+        record = self.approved_record()
+        record["approval_evidence_uri"] = "file:///tmp/approval"
+        with self.assertRaises(AOIApprovalError):
+            require_approved_aoi(record)
+
+
+class L2AAssetValidationTests(unittest.TestCase):
+    def valid_item(self):
+        return {"assets": {
+            key: {
+                "type": "image/jp2",
+                "roles": ["data", "reflectance"],
+                "gsd": gsd,
+                "file:size": 1000,
+                "file:checksum": "sha256:abc123",
+                "href": f"s3://example/{key}.jp2",
+            }
+            for key, gsd in {
+                "B04_10m": 10, "B08_10m": 10, "SCL_20m": 20
+            }.items()
+        }}
+
+    def test_accepts_required_l2a_assets(self):
+        self.assertEqual(len(validate_l2a_assets(self.valid_item())), 3)
+
+    def test_rejects_missing_nir_band(self):
+        item = self.valid_item()
+        del item["assets"]["B08_10m"]
+        with self.assertRaises(AssetValidationError):
+            validate_l2a_assets(item)
+
+    def test_rejects_wrong_resolution(self):
+        item = self.valid_item()
+        item["assets"]["SCL_20m"]["gsd"] = 10
+        with self.assertRaises(AssetValidationError):
+            validate_l2a_assets(item)
+
+    def test_rejects_missing_checksum(self):
+        item = self.valid_item()
+        del item["assets"]["B04_10m"]["file:checksum"]
+        with self.assertRaises(AssetValidationError):
+            validate_l2a_assets(item)
+
 
 if __name__ == "__main__":
     unittest.main()
