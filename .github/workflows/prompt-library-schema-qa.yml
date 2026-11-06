@@ -66,11 +66,10 @@ jobs:
             --require-hashes \
             --requirement "requirements-ci.lock"
 
-      - name: Generate CycloneDX SBOM
+      - name: Generate CycloneDX SBOM from the installed CI environment
         run: |
           pip-audit \
-            --require-hashes \
-            --requirement "requirements-ci.lock" \
+            --local \
             --format cyclonedx-json \
             --output "sbom.cdx.json"
 
