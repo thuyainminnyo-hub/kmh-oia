@@ -90,3 +90,5 @@ The STAC item advertises B04/B08/SCL assets with S3 storage references and HTTPS
 - Unit tests for approval rejection, geometry hash mismatch, required asset presence and resolution/checksum validation.
 
 These validators establish record completeness only. They do not independently authenticate campus authority, verify downloaded file bytes, or constitute scientific approval.
+
+- Campus-specific discovery wrapper: `search_approved_campus_aoi(record, datetime_range, ...)` validates the complete AOI approval record before invoking STAC; pending or malformed approval is rejected before any network request.
