@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "score_range": [
+    0,
+    1
+  ],
+  "default_policy": {
+    "version": "vcie-policy-v1",
+    "thresholds": {
+      "face_identity": 0.95,
+      "costume": 0.9,
+      "props": 0.9,
+      "environment": 0.9,
+      "lighting": 0.85
+    },
+    "required_dimensions": [
+      "face_identity",
+      "costume",
+      "props",
+      "environment",
+      "lighting"
+    ]
+  },
+  "statuses": {
+    "pass": "all required scores meet threshold",
+    "rework": "one or more scores below threshold",
+    "review": "one or more required scores missing"
+  },
+  "evidence_required": [
+    "film_id",
+    "scene_id",
+    "shot_id",
+    "reference_asset_ids",
+    "generated_asset_id",
+    "evaluator",
+    "evaluator_version",
+    "evidence_uris"
+  ]
+}
