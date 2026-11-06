@@ -1,7 +1,9 @@
-"""Minimal, auditable Copernicus STAC discovery client with safe pagination."""
+"""Auditable Copernicus STAC discovery with approval-gated campus AOIs."""
 from __future__ import annotations
 
+import hashlib
 import json
+from datetime import datetime
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -11,10 +13,11 @@ STAC_SEARCH_URL = "https://stac.opensearch.dataspace.copernicus.eu/v1/search"
 STAC_HOST = "stac.opensearch.dataspace.copernicus.eu"
 STAC_PATH = "/v1/search"
 COLLECTION = "sentinel-2-l2a"
+REQUIRED_L2A_ASSETS = ("B04_10m", "B08_10m", "SCL_20m")
 
 
 class AOIValidationError(ValueError):
-    """Raised when an AOI is not a valid WGS84 GeoJSON Polygon."""
+    """Raised when an AOI is invalid or lacks owner approval evidence."""
 
 
 class STACRequestError(RuntimeError):
@@ -49,6 +52,77 @@ def validate_aoi(geometry: dict[str, Any]) -> dict[str, Any]:
     return geometry
 
 
+def geometry_sha256(geometry: dict[str, Any]) -> str:
+    """Return a stable SHA-256 for canonicalized GeoJSON geometry."""
+    validate_aoi(geometry)
+    canonical = json.dumps(
+        geometry, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def validate_approved_aoi(record: dict[str, Any]) -> dict[str, Any]:
+    """Require owner approval and immutable geometry provenance for campus use."""
+    if not isinstance(record, dict):
+        raise AOIValidationError("AOI approval record is required")
+    if record.get("status") != "APPROVED":
+        raise AOIValidationError("Campus AOI is not approved")
+    if record.get("crs") != "EPSG:4326":
+        raise AOIValidationError("Campus AOI CRS must be EPSG:4326")
+    if not isinstance(record.get("approved_by"), str) or not record["approved_by"].strip():
+        raise AOIValidationError("Authorized approver identity is required")
+    if not isinstance(record.get("approval_evidence_uri"), str) or not record["approval_evidence_uri"].strip():
+        raise AOIValidationError("Owner approval evidence reference is required")
+    approved_at = record.get("approved_at")
+    if not isinstance(approved_at, str):
+        raise AOIValidationError("Approval timestamp is required")
+    try:
+        parsed = datetime.fromisoformat(approved_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise AOIValidationError("Approval timestamp must be ISO-8601") from exc
+    if parsed.tzinfo is None:
+        raise AOIValidationError("Approval timestamp must include a timezone")
+    geometry = validate_aoi(record.get("geometry"))
+    expected_hash = geometry_sha256(geometry)
+    if record.get("geometry_sha256") != expected_hash:
+        raise AOIValidationError("AOI geometry SHA-256 does not match approval record")
+    return geometry
+
+
+def validate_l2a_assets(item: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Validate required asset metadata; this does not download the assets."""
+    if not isinstance(item, dict) or item.get("collection") != COLLECTION:
+        raise STACRequestError("Expected a Sentinel-2 L2A STAC item")
+    assets = item.get("assets")
+    if not isinstance(assets, dict):
+        raise STACRequestError("STAC item has no assets object")
+    validated: dict[str, dict[str, Any]] = {}
+    for key in REQUIRED_L2A_ASSETS:
+        asset = assets.get(key)
+        if not isinstance(asset, dict) or not isinstance(asset.get("href"), str):
+            raise STACRequestError(f"Required asset metadata missing: {key}")
+        size = asset.get("file:size")
+        if not isinstance(size, int) or size <= 0:
+            raise STACRequestError(f"Required asset has invalid file:size: {key}")
+        validated[key] = {
+            "href": asset["href"],
+            "file_size": size,
+            "type": asset.get("type"),
+            "auth_refs": asset.get("auth:refs", []),
+        }
+    return validated
+
+
+def search_approved_campus_aoi(
+    approval_record: dict[str, Any],
+    datetime_range: str,
+    **kwargs: Any,
+) -> list[dict[str, Any]]:
+    """Campus-only entry point: approval is checked before any network request."""
+    geometry = validate_approved_aoi(approval_record)
+    return search_sentinel2(geometry, datetime_range, **kwargs)
+
+
 def _decode_feature_page(response: Any) -> tuple[list[dict[str, Any]], str | None]:
     try:
         document = json.loads(response.read().decode("utf-8"))
@@ -81,12 +155,7 @@ def search_sentinel2(
     timeout: int = 30,
     max_pages: int = 100,
 ) -> list[dict[str, Any]]:
-    """Search Sentinel-2 L2A metadata across all safe STAC pages.
-
-    This discovers catalogue metadata only; it does not download or process imagery.
-    Cloud-cover filtering is client-side and items without a numeric cloud-cover
-    property are excluded from the filtered result.
-    """
+    """Search Sentinel-2 L2A catalogue metadata; no asset download or processing."""
     validate_aoi(geometry)
     if not datetime_range or "/" not in datetime_range:
         raise ValueError("datetime_range must be an ISO-8601 interval")
@@ -117,9 +186,7 @@ def search_sentinel2(
             features, next_url = _decode_feature_page(response)
         pages = 1
         while True:
-            items.extend(
-                feature for feature in features if isinstance(feature, dict)
-            )
+            items.extend(feature for feature in features if isinstance(feature, dict))
             if not next_url:
                 break
             if pages >= max_pages:
