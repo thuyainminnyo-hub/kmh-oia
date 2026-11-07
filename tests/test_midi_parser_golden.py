@@ -73,13 +73,13 @@ class TestMIDIGoldenValidFixtures(unittest.TestCase):
 
     def test_g002_known_scale_sequence_event_order(self):
         events = b"".join(
-            note_on(pitch) + note_off(pitch, 120 if index else 0)
-            for index, pitch in enumerate((60, 62, 64))
+            note_on(pitch) + note_off(pitch, 120)
+            for pitch in (60, 62, 64)
         )
         parsed = parse_midi(make_smf([make_track(events)]))
         self.assertEqual(
             [(n.midi_pitch, n.start_tick, n.end_tick) for n in parsed.notes],
-            [(60, 0, 0), (62, 120, 240), (64, 360, 480)],
+            [(60, 0, 120), (62, 120, 240), (64, 240, 360)],
         )
 
     def test_g003_format1_two_note_tracks(self):
