@@ -32,10 +32,10 @@ jobs:
           python-version: "3.12"
       - name: Run golden fixture test suite
         run: python -m unittest tests.test_midi_parser_golden -v
-      - name: Generate initial fixture SHA-256 evidence
-        run: python scripts/midi_fixture_evidence.py --bootstrap --output midi-fixture-evidence.json
+      - name: Verify pinned fixture SHA-256 evidence
+        run: python scripts/midi_fixture_evidence.py --output midi-fixture-evidence.json
       - name: Upload fixture integrity evidence
         uses: actions/upload-artifact@v4
         with:
-          name: kmh-midi-fixture-sha256-bootstrap
+          name: kmh-midi-fixture-sha256-evidence
           path: midi-fixture-evidence.json
