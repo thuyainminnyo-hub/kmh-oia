@@ -17,9 +17,9 @@ class ExecutionContext:
     trace_id: str
 
     @classmethod
-    def create(cls, session_id: str) -> "ExecutionContext":
+    def create(cls, session_id: str, request_id: str | None = None) -> "ExecutionContext":
         return cls(
-            request_id=str(uuid4()),
+            request_id=request_id or str(uuid4()),
             session_id=session_id,
             workflow_id=str(uuid4()),
             task_id=str(uuid4()),
