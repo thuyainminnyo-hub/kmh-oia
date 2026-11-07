@@ -73,6 +73,7 @@
 - `47bafd8dbbc9f1b61a2588fa07535c331299cb9f` — revalidate authorization on every retry attempt.
 - `04d3c271fbaca0e0670e0e283b6089f0661c08c7` — add retry-time revocation/expiry regression case.
 - `bd7937bf641a145832d6d7b43d2aa60bdaeb82ae` — assert request/trace correlation.
+- `4eef8445d953daf8460b89db1662173bf3c32688` — preserve legacy trace contract when PDP is disabled.
 
 ### Runtime enforcement test intent
 
@@ -85,8 +86,11 @@
 ### Updated verification status
 
 - Synthetic test cases authored across both test modules: 22 (16 PDP contract tests + 6 runtime enforcement tests).
-- Test execution: not performed; no claim of pass.
-- GitHub Actions for exact branch head: no workflow run evidence retrieved.
+- First CI run on `c127da4ded6bb3cecf0a7ce618dcbe4798bca305`: 599 tests ran; 7 failed because the new authorization trace stage changed the legacy trace contract and event count.
+- Corrective change: `4eef8445d953daf8460b89db1662173bf3c32688` emits the authorization trace stage only when a PDP is configured, preserving the legacy runtime path.
+- CI run `42338571878` on corrective code SHA `4eef8445d953daf8460b89db1662173bf3c32688`: test job PASS, 599 tests, 5.315 seconds; performance-baseline job PASS.
+- New PDP/runtime tests are visible in the successful test log, including retry-time delegation expiry revalidation.
+- Independent QA: pending.
 - Independent QA: pending.
 - Runtime integration is present on the disposable branch only; it is not merged or deployed.
 
@@ -104,3 +108,14 @@
 - The workflow runs `python -m unittest discover -s tests -v` and a performance-baseline job; it does not deploy.
 - GitHub Actions API returned zero workflow runs for the workflow-configuration commit at inspection time.
 - Therefore the CI trigger is configured, but test execution and passing status remain unverified.
+
+
+## CI failure and remediation record
+
+- Initial run `42338541627` failed on 7 existing compatibility assertions; no security regression was indicated by those failures.
+- Root cause: legacy runtime traces gained an unconditional `authorization` stage, breaking established stage-order and event-count contracts.
+- Remediation: make the authorization trace stage conditional on PDP injection; PDP-enabled executions still record the authorization stage.
+- Verification: corrective run `42338571878` completed successfully:
+  - `test`: success — 599 tests, `OK`.
+  - `performance-baseline`: success — artifact generated, validated, and uploaded.
+- This is automated CI evidence, not independent security QA or production readiness approval.
