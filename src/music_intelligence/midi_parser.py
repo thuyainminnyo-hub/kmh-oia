@@ -1,6 +1,6 @@
 """Small Standard MIDI File (SMF) parser using only the Python standard library.
 
-Supports format 0/1, PPQN timing, note-on/off, running status, and tempo
+Supports SMF format 0/1, PPQN timing, note-on/off, running status, and tempo
 meta-events. It does not infer notes from audio or support SMPTE time division.
 """
 from collections import defaultdict, deque
@@ -55,11 +55,14 @@ def _parse_track(data: bytes, track_index: int):
     active = defaultdict(deque)
     completed = []
     tempos = []
+    end_of_track_seen = False
+
     while offset < end:
         delta, offset = _read_vlq(data, offset, end)
         tick += delta
         if offset >= end:
             raise MIDIFormatError("track ended before event status")
+
         status = data[offset]
         if status & 0x80:
             offset += 1
@@ -71,6 +74,8 @@ def _parse_track(data: bytes, track_index: int):
             status = running_status
 
         if status == 0xFF:
+            # SMF meta-events cancel any channel-message running status.
+            running_status = None
             if offset >= end:
                 raise MIDIFormatError("truncated meta event")
             meta_type = data[offset]
@@ -81,6 +86,7 @@ def _parse_track(data: bytes, track_index: int):
                 raise MIDIFormatError("meta event exceeds track boundary")
             payload = data[offset:payload_end]
             offset = payload_end
+
             if meta_type == 0x51:
                 if length != 3:
                     raise MIDIFormatError("tempo meta-event must contain 3 bytes")
@@ -88,20 +94,28 @@ def _parse_track(data: bytes, track_index: int):
                 if tempo <= 0:
                     raise MIDIFormatError("tempo must be greater than zero")
                 tempos.append((tick, tempo))
+
             if meta_type == 0x2F:
+                if length != 0:
+                    raise MIDIFormatError("End-of-Track meta-event must have zero length")
+                if offset != end:
+                    raise MIDIFormatError("End-of-Track must be the final track event")
+                end_of_track_seen = True
                 break
             continue
 
         if status in (0xF0, 0xF7):
+            # SMF SysEx events also cancel channel-message running status.
+            running_status = None
             length, offset = _read_vlq(data, offset, end)
             offset += length
             if offset > end:
                 raise MIDIFormatError("system-exclusive event exceeds track boundary")
-            running_status = None
             continue
 
         if status >= 0xF0:
             raise MIDIFormatError("unsupported system MIDI event")
+
         command = status & 0xF0
         channel = status & 0x0F
         size = 1 if command in (0xC0, 0xD0) else 2
@@ -113,17 +127,24 @@ def _parse_track(data: bytes, track_index: int):
         if first > 127 or second > 127:
             raise MIDIFormatError("channel data bytes must be 7-bit values")
 
+        key = (channel, first)
         if command == 0x90 and second > 0:
-            active[(channel, first)].append((tick, second))
+            active[key].append((tick, second))
         elif command == 0x80 or (command == 0x90 and second == 0):
-            queue = active[(channel, first)]
-            if queue:
-                start_tick, velocity = queue.popleft()
-                completed.append((track_index, channel, first, velocity,
-                                  start_tick, tick))
+            queue = active[key]
+            if not queue:
+                raise MIDIFormatError("note-off event has no matching note-on")
+            start_tick, velocity = queue.popleft()
+            completed.append((track_index, channel, first, velocity,
+                              start_tick, tick))
+
+    if not end_of_track_seen:
+        raise MIDIFormatError("track is missing its End-of-Track meta-event")
+
     dangling = sum(len(queue) for queue in active.values())
     if dangling:
         raise MIDIFormatError("one or more note-on events have no matching note-off")
+
     return completed, tempos
 
 
@@ -149,9 +170,12 @@ def parse_midi(data: bytes) -> MIDIFile:
     data = bytes(data)
     if len(data) < 14 or data[:4] != b"MThd":
         raise MIDIFormatError("missing or truncated MThd header")
+
     header_length = int.from_bytes(data[4:8], "big")
     if header_length < 6 or 8 + header_length > len(data):
         raise MIDIFormatError("invalid MIDI header length")
+
+    header_end = 8 + header_length
     format_type = int.from_bytes(data[8:10], "big")
     track_count = int.from_bytes(data[10:12], "big")
     division = int.from_bytes(data[12:14], "big")
@@ -161,29 +185,46 @@ def parse_midi(data: bytes) -> MIDIFile:
         raise MIDIFormatError("invalid track count for MIDI format")
     if division & 0x8000 or division == 0:
         raise MIDIFormatError("SMPTE or zero time division is not supported")
-    ppqn = division
 
-    offset = 8 + header_length
+    ppqn = division
+    offset = header_end
     raw_notes = []
     tempo_events = []
     parsed_tracks = 0
+
     while offset < len(data):
-        if offset + 8 > len(data) or data[offset:offset + 4] != b"MTrk":
-            raise MIDIFormatError("missing or truncated MTrk chunk")
+        if offset + 8 > len(data):
+            raise MIDIFormatError("truncated chunk header")
+
+        chunk_type = data[offset:offset + 4]
         length = int.from_bytes(data[offset + 4:offset + 8], "big")
         start = offset + 8
         stop = start + length
         if stop > len(data):
-            raise MIDIFormatError("track chunk exceeds file boundary")
+            raise MIDIFormatError("chunk length exceeds file boundary")
+
+        if chunk_type != b"MTrk":
+            if chunk_type == b"MThd":
+                raise MIDIFormatError("duplicate MIDI header chunk")
+            # The SMF chunk model requires readers to skip unknown chunk types
+            # using their declared lengths so future extensions remain readable.
+            offset = stop
+            continue
+
         notes, tempos = _parse_track(data[start:stop], parsed_tracks)
         raw_notes.extend(notes)
-        tempo_events.extend(tempos)
+
+        if parsed_tracks == 0:
+            # For Format 1, the tempo map belongs in the first MTrk chunk.
+            tempo_events.extend(tempos)
+        elif format_type == 1 and tempos:
+            raise MIDIFormatError("Format 1 tempo events must be stored in the first track")
         parsed_tracks += 1
         offset = stop
+
     if parsed_tracks != track_count:
         raise MIDIFormatError("header track count does not match track chunks")
 
-    # At the same tick, later-listed tempo events take precedence deterministically.
     tempo_events.sort(key=lambda item: item[0])
     tempo_map = []
     for event in tempo_events:
@@ -202,5 +243,8 @@ def parse_midi(data: bytes) -> MIDIFile:
             track, channel, pitch, velocity, start_tick, end_tick,
             start_seconds, end_seconds, end_seconds - start_seconds,
         ))
-    notes.sort(key=lambda note: (note.start_tick, note.track, note.channel, note.midi_pitch))
+
+    notes.sort(key=lambda note: (
+        note.start_tick, note.track, note.channel, note.midi_pitch
+    ))
     return MIDIFile(format_type, ppqn, parsed_tracks, tuple(tempo_map), tuple(notes))
