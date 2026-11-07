@@ -55,3 +55,44 @@
 3. Add adversarial review for canonical request binding and grant lifecycle.
 4. Implement and test executor-side revalidation in a separate approved slice.
 5. Obtain independent QA findings and explicit human promotion approval.
+
+
+## Runtime enforcement follow-up
+
+### Added implementation
+
+- `src/components.py`: optional PDP injection into `OIARuntime` and `GovernedTool`; missing authorization context fails closed when enforcement is configured; request ID and selected tool are bound; PDP decision is evaluated at the PEP boundary.
+- `src/trace.py`: supports caller-supplied request ID so authorization and trace correlation can share the same request identifier.
+- `tests/test_runtime_authorization.py`: synthetic runtime tests for allowed execution, missing context, request/trace correlation, tool mismatch, tenant mismatch, and revalidation across retry attempts.
+
+### Additional commits
+
+- `2a27f164d74c58875041c5a092b95095845c2fad` — integrate PDP enforcement at runtime tool boundary.
+- `5beb5b7d44dde924b11bccb74063a7be5970ad06` — bind authorization request ID to trace context.
+- `7b48641ab3bb8337698428970caa933418ed7f98` — add runtime enforcement regression tests.
+- `47bafd8dbbc9f1b61a2588fa07535c331299cb9f` — revalidate authorization on every retry attempt.
+- `04d3c271fbaca0e0670e0e283b6089f0661c08c7` — add retry-time revocation/expiry regression case.
+- `bd7937bf641a145832d6d7b43d2aa60bdaeb82ae` — assert request/trace correlation.
+
+### Runtime enforcement test intent
+
+- PDP configured + valid request: tool may execute.
+- PDP configured + missing request: tool must not execute.
+- Request tool mismatch: tool must not execute.
+- Tenant mismatch: tool must not execute.
+- A delegated grant that expires between retry attempts must be denied before the second executor call.
+
+### Updated verification status
+
+- Synthetic test cases authored across both test modules: 23.
+- Test execution: not performed; no claim of pass.
+- GitHub Actions for exact branch head: no workflow run evidence retrieved.
+- Independent QA: pending.
+- Runtime integration is present on the disposable branch only; it is not merged or deployed.
+
+### Residual risks
+
+- Identity assertions remain caller-supplied and must be produced by a trusted authentication adapter.
+- Approval reference remains presence-checked only, not cryptographically verified.
+- No external revocation source, signed delegation verification, distributed policy consistency, durable audit sink, or concurrency-safe cancellation boundary exists.
+- The executor re-evaluates the pure PDP on every retry, but cannot learn revocation changes unless the current request carries a fresh authoritative revocation state.
