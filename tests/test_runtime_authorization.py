@@ -88,19 +88,19 @@ class RuntimeAuthorizationEnforcementTests(unittest.TestCase):
             runtime.execute_detailed("hello")
         self.assertEqual(executor.calls, 0)
 
-    def test_request_id_mismatch_blocks_before_executor(self):
+    def test_authorization_request_id_is_bound_to_execution_trace(self):
         executor = CountingExecutor()
         runtime = OIARuntime(
             registry=executor,
             authorization_pdp=pdp(),
             authorization_clock=lambda: NOW,
         )
-        with self.assertRaises(PermissionError):
-            runtime.execute_detailed(
-                "hello",
-                authorization_request=valid_request("different-request"),
-            )
-        self.assertEqual(executor.calls, 0)
+        request = valid_request("trace-bound-request")
+        _, _, events = runtime.execute_detailed(
+            "hello", authorization_request=request
+        )
+        self.assertEqual(events[0].metadata["request_id"], request.request_id)
+        self.assertEqual(executor.calls, 1)
 
     def test_tool_binding_mismatch_blocks_before_executor(self):
         executor = CountingExecutor()
