@@ -2,7 +2,7 @@ name: KMH OIA Tests
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "disposable/agent-identity-authorization-v1"]
   pull_request:
 
 jobs:
