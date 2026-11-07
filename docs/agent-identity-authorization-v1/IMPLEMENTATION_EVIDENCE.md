@@ -84,7 +84,7 @@
 
 ### Updated verification status
 
-- Synthetic test cases authored across both test modules: 23.
+- Synthetic test cases authored across both test modules: 22 (16 PDP contract tests + 6 runtime enforcement tests).
 - Test execution: not performed; no claim of pass.
 - GitHub Actions for exact branch head: no workflow run evidence retrieved.
 - Independent QA: pending.
@@ -96,3 +96,11 @@
 - Approval reference remains presence-checked only, not cryptographically verified.
 - No external revocation source, signed delegation verification, distributed policy consistency, durable audit sink, or concurrency-safe cancellation boundary exists.
 - The executor re-evaluates the pure PDP on every retry, but cannot learn revocation changes unless the current request carries a fresh authoritative revocation state.
+
+
+## CI trigger configuration
+
+- `.github/workflows/test.yml` now includes the disposable branch in the existing test workflow's push trigger.
+- The workflow runs `python -m unittest discover -s tests -v` and a performance-baseline job; it does not deploy.
+- GitHub Actions API returned zero workflow runs for the workflow-configuration commit at inspection time.
+- Therefore the CI trigger is configured, but test execution and passing status remain unverified.
