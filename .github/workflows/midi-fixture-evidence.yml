@@ -38,6 +38,8 @@ jobs:
       - name: Cross-check valid fixtures with independent Mido parser
         run: python scripts/midi_independent_oracle.py > midi-independent-parser-evidence.json
       - name: Verify pinned fixture SHA-256 evidence
+        env:
+          EVIDENCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python scripts/midi_fixture_evidence.py --output midi-fixture-evidence.json
       - name: Upload fixture integrity evidence
         uses: actions/upload-artifact@v4
