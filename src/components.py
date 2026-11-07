@@ -82,30 +82,34 @@ class GovernedTool:
         request: ToolRequest,
         authorization_request: AuthorizationRequest | None = None,
     ) -> ToolResult:
-        if self.authorization_pdp is not None:
-            if authorization_request is None:
-                return ToolResult(
-                    request.tool_name, "", False,
-                    "authorization context is required when PDP enforcement is enabled",
+        def execute_once() -> ToolResult:
+            # Re-evaluate on every retry attempt; never reuse a stale ALLOW.
+            if self.authorization_pdp is not None:
+                if authorization_request is None:
+                    return ToolResult(
+                        request.tool_name, "", False,
+                        "authorization context is required when PDP enforcement is enabled",
+                    )
+                if authorization_request.tool_name != request.tool_name:
+                    return ToolResult(
+                        request.tool_name, "", False,
+                        "authorization tool binding mismatch",
+                    )
+                decision = self.authorization_pdp.evaluate(
+                    authorization_request, now=self.authorization_clock()
                 )
-            if authorization_request.tool_name != request.tool_name:
-                return ToolResult(
-                    request.tool_name, "", False,
-                    "authorization tool binding mismatch",
-                )
-            decision = self.authorization_pdp.evaluate(
-                authorization_request, now=self.authorization_clock()
-            )
-            if not decision.allowed:
-                return ToolResult(
-                    request.tool_name, "", False,
-                    f"authorization denied: {decision.reason_code}",
-                )
+                if not decision.allowed:
+                    return ToolResult(
+                        request.tool_name, "", False,
+                        f"authorization denied: {decision.reason_code}",
+                    )
 
-        decision = self.security.authorize(request.tool_name)
-        if not decision.allowed:
-            return ToolResult(request.tool_name, "", False, decision.reason)
-        return self.recovery.run(lambda: self.registry.execute(request))
+            decision = self.security.authorize(request.tool_name)
+            if not decision.allowed:
+                return ToolResult(request.tool_name, "", False, decision.reason)
+            return self.registry.execute(request)
+
+        return self.recovery.run(execute_once)
 
 
 class OIARuntime:
