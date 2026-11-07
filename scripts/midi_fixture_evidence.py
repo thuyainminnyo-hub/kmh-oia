@@ -113,7 +113,7 @@ def main():
         "workflow_run_id": run_id,
         "workflow_run_url": f"{server}/{repository}/actions/runs/{run_id}" if run_id else "",
         "fixture_case_count": len(fixtures),
-        "fixture_byte_count": sum(len(items) for items in fixtures.values()),
+        "fixture_instance_count": sum(len(items) for items in fixtures.values()),
         "fixtures": [
             {"case_id": name, "fixture_count": len(digests), "sha256": digests}
             for name, digests in fixtures.items()
