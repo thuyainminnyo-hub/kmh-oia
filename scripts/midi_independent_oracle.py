@@ -158,7 +158,7 @@ def main():
     evidence = {
         "schema": "kmh.midi-independent-parser-evidence.v1",
         "oracle": "Mido",
-        "oracle_version": mido.version_info,
+        "oracle_version": str(mido.version_info),
         "fixture_cases_checked": checked,
         "fixture_cases_skipped": skipped,
         "results": results,
