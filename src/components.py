@@ -253,16 +253,13 @@ class OIARuntime:
                 ToolRequest(selected_tool, decision.input_text),
                 authorization_request=authorization_request,
             )
-            emit(
-                "authorization",
-                status="ok" if result.success and self.authorization_pdp is not None else (
-                    "blocked" if self.authorization_pdp is not None else "not_configured"
-                ),
-                reason_code="ALLOW" if result.success and self.authorization_pdp is not None else (
-                    "DENIED_OR_TOOL_REJECTED" if self.authorization_pdp is not None else "PDP_NOT_CONFIGURED"
-                ),
-                policy_version=authorization_request.policy_version if authorization_request else "unknown",
-            )
+            if self.authorization_pdp is not None:
+                emit(
+                    "authorization",
+                    status="ok" if result.success else "blocked",
+                    reason_code="ALLOW" if result.success else "DENIED_OR_TOOL_REJECTED",
+                    policy_version=authorization_request.policy_version if authorization_request else "unknown",
+                )
             emit(
                 "tool_security",
                 status="ok" if result.success else "blocked",
