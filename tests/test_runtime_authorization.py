@@ -4,11 +4,13 @@ from datetime import datetime, timezone
 from src.authorization import (
     AgentIdentity,
     AuthorizationRequest,
+    DelegationGrant,
     PolicyDecisionPoint,
     PolicyRule,
     PrincipalIdentity,
 )
 from src.components import OIARuntime
+from src.recovery import DeterministicRecoveryPolicy, RecoveryConfig, RetryableExecutionError
 from src.tools import ToolRequest, ToolResult
 
 
@@ -113,6 +115,66 @@ class RuntimeAuthorizationEnforcementTests(unittest.TestCase):
                 authorization_request=valid_request(tool_name="shell"),
             )
         self.assertEqual(executor.calls, 0)
+
+    def test_authorization_is_revalidated_on_each_retry_attempt(self):
+        class FlakyExecutor:
+            def __init__(self):
+                self.calls = 0
+
+            def execute(self, request):
+                self.calls += 1
+                if self.calls == 1:
+                    raise RetryableExecutionError("synthetic transient failure")
+                return ToolResult(request.tool_name, request.input_text, True, "ok")
+
+        actor = AgentIdentity(
+            subject="agent:writer",
+            issuer="https://agents.example",
+            active=True,
+        )
+        delegated = AuthorizationRequest(
+            request_id="retry-request",
+            principal=PrincipalIdentity(
+                subject="user:alice",
+                tenant_id="tenant:one",
+                issuer="https://identity.example",
+                authenticated=True,
+                active=True,
+                authentication_method="oidc",
+            ),
+            actor=actor,
+            tenant_id="tenant:one",
+            action="write",
+            resource="demo:resource",
+            tool_name="echo",
+            policy_version="runtime-v1",
+            delegation=DelegationGrant(
+                delegation_id="delegation:retry",
+                issuer_subject="user:alice",
+                subject="agent:writer",
+                tenant_id="tenant:one",
+                audience="echo",
+                scopes=("write:demo:resource",),
+                not_before=NOW,
+                expires_at=NOW.replace(second=5),
+            ),
+            approval_reference="human-approval:1",
+        )
+        ticks = iter((NOW, NOW.replace(second=6)))
+        executor = FlakyExecutor()
+        runtime = OIARuntime(
+            registry=executor,
+            authorization_pdp=PolicyDecisionPoint(
+                "runtime-v1",
+                (PolicyRule("write", "demo:resource", "echo", True),),
+            ),
+            authorization_clock=lambda: next(ticks),
+            recovery=DeterministicRecoveryPolicy(RecoveryConfig(max_attempts=2)),
+        )
+
+        with self.assertRaises(PermissionError):
+            runtime.execute_detailed("hello", authorization_request=delegated)
+        self.assertEqual(executor.calls, 1)
 
     def test_tenant_mismatch_blocks_before_executor(self):
         executor = CountingExecutor()
