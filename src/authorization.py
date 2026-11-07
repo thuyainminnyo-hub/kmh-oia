@@ -151,7 +151,7 @@ class PolicyDecisionPoint:
         def deny(reason: str) -> AuthorizationDecision:
             return AuthorizationDecision(
                 False, reason, self._policy_version, digest,
-                evaluated_at or datetime.now(timezone.utc),
+                evaluated_at or now,
             )
 
         if evaluated_at is None:
