@@ -10,9 +10,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate local verification helper shell syntax
+        run: bash -n scripts/capture_tgi_trailrun_local_verification.sh
+      - name: Verify helper rejects malformed SHA arguments
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_file="$(mktemp)"
+          trap 'rm -f "$output_file"' EXIT
+          set +e
+          bash scripts/capture_tgi_trailrun_local_verification.sh invalid-sha >"$output_file" 2>&1
+          result=$?
+          set -e
+          if [ "$result" -ne 2 ] || ! grep -q '^Usage:' "$output_file"; then
+            cat "$output_file"
+            echo "Helper did not reject malformed SHA as expected." >&2
+            exit 1
+          fi
+          echo "Malformed SHA guard: PASS"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install JSON Schema validator for pilot contract tests
+        run: python -m pip install 'jsonschema>=4.18,<5'
       - run: python -m unittest discover -s tests -v
 
   performance-baseline:
