@@ -1,0 +1,46 @@
+{
+  "project": {
+    "project_id": "PRJ-DEMO-001",
+    "name": "Synthetic Courtyard Study",
+    "site_id": "SITE-DEMO-001",
+    "brief_version": "v0.1",
+    "status": "pilot",
+    "created_at": "2026-10-26"
+  },
+  "site": {
+    "site_id": "SITE-DEMO-001",
+    "boundary_ref": "synthetic://site/SITE-DEMO-001/boundary",
+    "area_value": 1250.0,
+    "area_unit": "m2",
+    "jurisdiction": "SYNTHETIC-TEST-AREA",
+    "source_refs": ["synthetic://site/SITE-DEMO-001/survey-summary"],
+    "coordinate_reference": "LOCAL-SYNTHETIC"
+  },
+  "observations": [
+    {
+      "observation_id": "OBS-DEMO-001",
+      "site_id": "SITE-DEMO-001",
+      "category": "topography",
+      "value": 3.5,
+      "unit": "%",
+      "observed_at": "2026-10-20",
+      "source_ref": "synthetic://site/SITE-DEMO-001/survey-summary#slope",
+      "method": "synthetic-test-fixture",
+      "confidence": 1.0,
+      "limitations": "Synthetic test data only; not a real survey."
+    },
+    {
+      "observation_id": "OBS-DEMO-002",
+      "site_id": "SITE-DEMO-001",
+      "category": "sun",
+      "value": 6.0,
+      "unit": "h/day",
+      "observed_at": "2026-10-20",
+      "source_ref": "synthetic://site/SITE-DEMO-001/sun-study",
+      "method": "synthetic-test-fixture",
+      "confidence": 0.8,
+      "limitations": "Synthetic test data only; not a real sun study."
+    }
+  ],
+  "notice": "All values are synthetic and must never be used for real site design."
+}
