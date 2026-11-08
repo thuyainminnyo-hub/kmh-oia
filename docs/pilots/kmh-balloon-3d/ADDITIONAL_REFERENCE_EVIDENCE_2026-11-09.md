@@ -14,12 +14,14 @@ Status: REGISTERED AS VISUAL REFERENCE EVIDENCE; NOT PHOTOGRAMMETRY-READY.
 2. Narrative artwork zone: seated Buddha figure, circular radiating halo, bright focal point and surrounding narrative figures.
 3. Lower skirt/base: repeated radial/petal ornament in orange, yellow and dark outlines.
 4. Ground-laid view: circular radial ornament layout is visible when the balloon fabric/panel is spread on the ground.
-5. Separate 2019 video screenshots: apparent concentric internal rings, suspension/support members and lighting/electrical elements. This is a construction hypothesis only; whether that clip shows the same balloon/configuration is unverified.
+5. Separate 2019 video screenshots: the user clarifies that the visible assembly is **ယမ်းဖွေ (yan-phwe)** suspended beneath the balloon, not the balloon's internal support structure. Classify it as an under-balloon fireworks/pyrotechnic assembly reference, separate from the balloon body. Exact mechanical design, components, wiring, and relationship to the specific balloon remain unverified.
 
 ## Use in production
 - Use for visual design zoning, artwork placement, lower-skirt ornament layout and reference comparison.
+- Treat the 2019 yan-phwe assembly as a separate suspended-under-balloon reference zone, not part of the balloon shell or internal structural mesh.
 - Do not use these screenshots as calibrated COLMAP inputs or claim 360-degree coverage.
 - Do not infer exact dimensions, material specification, structural engineering or wiring from compressed screenshots.
+- Do not model or specify pyrotechnic construction, ignition, wiring, firing sequence, or operational setup from these screenshots; any documentation should remain a high-level visual/context reference and be reviewed by qualified event-safety professionals.
 - Keep the earlier 25 ft / 7.62 m height as user-confirmed but independently uncorroborated; no width/depth or measurement tolerance is established.
 
 ## Next evidence required
