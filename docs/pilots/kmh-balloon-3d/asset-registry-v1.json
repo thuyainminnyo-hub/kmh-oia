@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "checkpoint_date": "2026-11-09",
+  "status": "REFERENCE_CLASSIFICATION",
+  "assets": [
+    {
+      "asset_id": "KMH-BAL-001",
+      "canonical_name": "Taunggyi Festival Balloon",
+      "asset_type": "BALLOON_BODY",
+      "parent_asset_id": null,
+      "scope": [
+        "outer_shell",
+        "fire_and_lettering_artwork",
+        "buddha_and_narrative_artwork",
+        "lower_radial_ornament"
+      ],
+      "source_evidence": [
+        "original_reference_photos_3",
+        "additional_social_video_frame_screenshots_2026-11-09"
+      ],
+      "physical_height_m": 7.62,
+      "height_classification": "USER_CONFIRMED_MEASUREMENT",
+      "independent_measurement_verification": "PENDING",
+      "width_m": null,
+      "depth_m": null,
+      "geometry_status": "PROVISIONAL_ONLY"
+    },
+    {
+      "asset_id": "KMH-BAL-001-ATT-001",
+      "canonical_name": "ယမ်းခွေ (Yan-Khwe)",
+      "asset_type": "SEPARATE_SUSPENDED_REFERENCE_ASSET",
+      "parent_asset_id": "KMH-BAL-001",
+      "relationship": "SUSPENDED_BENEATH_BALLOON",
+      "source_evidence": [
+        "2019_video_screenshots_user_clarified"
+      ],
+      "visual_reference_status": "IDENTIFIED_BY_USER",
+      "detailed_design_status": "NOT_VERIFIED",
+      "scope_exclusions": [
+        "not_part_of_balloon_shell_mesh",
+        "not_balloon_internal_support_structure",
+        "no_pyrotechnic_construction_or_operational_specification"
+      ]
+    }
+  ],
+  "governance": {
+    "immutable_originals": true,
+    "evidence_first": true,
+    "paid_api_execution_requires_explicit_approval": true,
+    "production_promotion_requires_human_approval": true,
+    "uncertain_details_must_remain_unverified": true
+  }
+}
