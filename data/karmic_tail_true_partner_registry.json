@@ -1,0 +1,303 @@
+{
+  "case_id": "KMH-OIA-CS-KTTP-001",
+  "schema_version": "1.0.0",
+  "registry_version": "1.0.0",
+  "domain": "relationship_self_reflection",
+  "interpretation_mode": "symbolic_not_predictive",
+  "disclaimer": "Tarot archetypes are used here as prompts for reflection, not as validated psychological assessments or predictions. Personal patterns remain unverified unless the user independently confirms them.",
+  "archetypes": [
+    {
+      "id": 1,
+      "name": "Magician",
+      "pattern_key": "control",
+      "interpretation": "A possible tendency to take over relationship decisions.",
+      "reflection_question": "Do I leave room for mutual decisions?",
+      "suggested_action": "Invite the other person to share preferences and make one decision together.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not equate confidence with controlling behavior.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "High Priestess",
+      "pattern_key": "emotional_communication",
+      "interpretation": "A possible tendency to keep feelings private.",
+      "reflection_question": "Do I communicate my needs clearly?",
+      "suggested_action": "Express one relationship need directly and respectfully.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not assume privacy or silence proves emotional avoidance.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Empress",
+      "pattern_key": "reciprocity",
+      "interpretation": "A possible tendency to give more care than one asks for in return.",
+      "reflection_question": "Do I make room for my own needs as well as others' needs?",
+      "suggested_action": "Write down what I give and what support I need.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not portray generosity as weakness.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Emperor",
+      "pattern_key": "rigid_standards",
+      "interpretation": "A possible tendency to rely on rigid rules or expectations.",
+      "reflection_question": "Which standards are essential, and which are preferences?",
+      "suggested_action": "List three non-negotiables and three flexible preferences.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not advise abandoning healthy boundaries.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Hierophant",
+      "pattern_key": "fixed_beliefs",
+      "interpretation": "A possible tendency to follow inherited or fixed beliefs about relationships.",
+      "reflection_question": "Which beliefs reflect my values, and which have I adopted from others?",
+      "suggested_action": "Review one relationship belief and where it came from.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not assume cultural or family values are inherently harmful.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Lovers",
+      "pattern_key": "decision_alignment",
+      "interpretation": "A possible tension between attraction, values, and choices.",
+      "reflection_question": "Do my choices align with my relationship values?",
+      "suggested_action": "Compare attraction, compatibility, respect, and shared values separately.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not make a relationship decision based on a card alone.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Chariot",
+      "pattern_key": "goal_priority",
+      "interpretation": "A possible tendency to prioritize goals over relationship-building time.",
+      "reflection_question": "Am I making time for the kind of connection I want?",
+      "suggested_action": "Choose one realistic opportunity to meet or connect with people.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not frame career ambition as a flaw.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Justice",
+      "pattern_key": "over_evaluation",
+      "interpretation": "A possible tendency to over-evaluate a potential partner.",
+      "reflection_question": "Am I assessing real compatibility or expecting perfection?",
+      "suggested_action": "Separate essential needs from ordinary human imperfections.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not encourage tolerating unfair or harmful treatment.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Hermit",
+      "pattern_key": "social_availability",
+      "interpretation": "A possible preference for solitude or a smaller social world.",
+      "reflection_question": "Is solitude a chosen need, or is it limiting connection I want?",
+      "suggested_action": "Try one low-pressure social activity that fits my comfort level.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not treat being single or solitary as a problem.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Wheel of Fortune",
+      "pattern_key": "relationship_cycles",
+      "interpretation": "A possible recurring on-and-off relationship pattern.",
+      "reflection_question": "Do similar relationship situations repeat, and what actually happens?",
+      "suggested_action": "Record events, responses, and outcomes without assuming fate caused them.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not claim destiny determines relationship outcomes.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Strength",
+      "pattern_key": "asking_for_support",
+      "interpretation": "A possible difficulty showing vulnerability or asking for support.",
+      "reflection_question": "Can I express a need when I do not feel strong?",
+      "suggested_action": "Share one feeling or request with a trusted person.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not shame resilience or imply that strength prevents love.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Hanged Man",
+      "pattern_key": "passive_waiting",
+      "interpretation": "A possible tendency to wait without taking an available step.",
+      "reflection_question": "What is within my control while I wait?",
+      "suggested_action": "Identify one small action I can choose without pressuring anyone.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Acknowledge that waiting can sometimes be appropriate.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Death",
+      "pattern_key": "past_transition",
+      "interpretation": "A possible need to reflect on a past relationship transition.",
+      "reflection_question": "Am I comparing new connections with an old relationship?",
+      "suggested_action": "Write what I learned, what I want to keep, and what I want to release.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not demand that someone quickly forget or disclose their past.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Temperance",
+      "pattern_key": "conflict_avoidance",
+      "interpretation": "A possible tendency to hide dissatisfaction to preserve peace.",
+      "reflection_question": "Do I voice concerns respectfully when something matters to me?",
+      "suggested_action": "Use an 'I feel / I need' statement for one concern.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not equate harmony with always sacrificing one's needs.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 15,
+      "name": "Devil",
+      "pattern_key": "attachment_and_chemistry",
+      "interpretation": "A prompt to distinguish intense chemistry from healthy compatibility.",
+      "reflection_question": "Do respect, consistency, and boundaries accompany the attraction?",
+      "suggested_action": "Review observed behavior as well as chemistry.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not diagnose addiction or attachment problems from a card.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 16,
+      "name": "Tower",
+      "pattern_key": "trust_after_hurt",
+      "interpretation": "A possible difficulty rebuilding trust after disappointment.",
+      "reflection_question": "Am I responding to current evidence or only to a past experience?",
+      "suggested_action": "Build trust gradually and notice consistent behavior over time.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Respect safety concerns; do not pressure trust or disclosure.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 17,
+      "name": "Star",
+      "pattern_key": "idealization",
+      "interpretation": "A possible tendency to idealize a future partner.",
+      "reflection_question": "Am I seeing the person as they are or as I hope they will be?",
+      "suggested_action": "Compare ideal qualities with practical compatibility needs.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not portray hope or standards as inherently bad.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 18,
+      "name": "Moon",
+      "pattern_key": "uncertainty_and_assumptions",
+      "interpretation": "A prompt to separate uncertainty, fear, and assumptions from known facts.",
+      "reflection_question": "What do I know, what am I assuming, and what remains unknown?",
+      "suggested_action": "Write facts and assumptions separately; ask respectfully when appropriate.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not present guesses about another person's intent as facts.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 19,
+      "name": "Sun",
+      "pattern_key": "perfection_expectations",
+      "interpretation": "A possible expectation that a relationship should feel positive all the time.",
+      "reflection_question": "Can I handle ordinary disagreement while maintaining respect?",
+      "suggested_action": "Prioritize honesty, respect, repair, and consistency over perfection.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not force positivity or minimize real problems.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 20,
+      "name": "Judgement",
+      "pattern_key": "learning_from_experience",
+      "interpretation": "A prompt to review past experiences and choose what to do differently.",
+      "reflection_question": "What have past relationships taught me about my needs and choices?",
+      "suggested_action": "Choose one lesson and one behavior to practice next time.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not blame or shame the user for past relationships.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 21,
+      "name": "World",
+      "pattern_key": "life_stage_priorities",
+      "interpretation": "A possible focus on other life goals at this stage.",
+      "reflection_question": "Do I want a relationship now, and what capacity do I have for one?",
+      "suggested_action": "Clarify current priorities and whether to make room for dating.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not imply a person is incomplete without a partner.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    },
+    {
+      "id": 22,
+      "name": "Fool",
+      "pattern_key": "freedom_and_commitment",
+      "interpretation": "A prompt to explore how freedom and commitment could coexist.",
+      "reflection_question": "What does commitment mean to me, and what freedom do I need?",
+      "suggested_action": "Define personal space and shared expectations in a conversation.",
+      "evidence_status": "unverified_hypothesis",
+      "qa_rules": [
+        "Do not assume non-commitment is fear or a defect.",
+        "Do not predict when or whether the user will meet a true partner."
+      ]
+    }
+  ],
+  "output_policy": {
+    "require_uncertainty_language": true,
+    "require_actionable_reflection": true,
+    "prohibit_guaranteed_predictions": true,
+    "require_user_confirmation_for_personal_patterns": true,
+    "prohibit_unsupported_diagnosis": true
+  }
+}
