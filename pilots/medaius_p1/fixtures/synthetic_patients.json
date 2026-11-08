@@ -1,0 +1,20 @@
+[
+  {
+    "patient_id": "SYN-PAT-0001",
+    "synthetic": true,
+    "visits": [
+      {
+        "visit_id": "SYN-VIS-0001",
+        "date": "2026-01-15",
+        "observations": [
+          {"name": "weight", "value": 24.5, "unit": "kg", "source_id": "SYN-OBS-0001"}
+        ]
+      }
+    ]
+  },
+  {
+    "patient_id": "SYN-PAT-0002",
+    "synthetic": true,
+    "visits": []
+  }
+]
