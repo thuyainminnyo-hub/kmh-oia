@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kmh-oia.invalid/schemas/medicore/body-map-annotation-0.2.json",
+  "title": "KMH MediCore Body Map Annotation",
+  "description": "Local synthetic-pilot schema bound to KMH-ANATOMY-LOCAL-0.2; not a clinical terminology or treatment guideline.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "annotation_id", "encounter_ref", "data_classification",
+    "specialty", "anatomy_system", "anatomy_code", "region", "view", "laterality",
+    "finding", "treatment", "status", "author_ref", "created_at", "updated_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "0.2" },
+    "annotation_id": { "type": "string", "pattern": "^SYN-BMA-[A-Za-z0-9-]{1,40}$" },
+    "encounter_ref": { "type": "string", "pattern": "^SYN-ENC-[A-Za-z0-9-]{1,40}$" },
+    "data_classification": { "const": "synthetic" },
+    "specialty": { "const": "orthopedics" },
+    "anatomy_system": { "const": "KMH-ANATOMY-LOCAL-0.2" },
+    "anatomy_code": { "enum": ["SKULL", "SPINE", "PELVIS", "UPPER_LIMB", "LOWER_LIMB"] },
+    "region": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "view": { "enum": ["front", "back", "both"] },
+    "laterality": { "enum": ["left", "right", "bilateral", "midline", "not_applicable"] },
+    "finding": { "enum": ["fracture", "dislocation", "arthritis", "bone_lesion", "other"] },
+    "treatment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "status"],
+      "properties": {
+        "code": { "enum": ["closed_reduction", "cast_or_splint", "internal_fixation", "observation", "other"] },
+        "status": { "enum": ["proposed", "planned", "performed", "cancelled"] }
+      }
+    },
+    "status": { "enum": ["draft", "reviewed", "signed", "amended"] },
+    "author_ref": { "type": "string", "pattern": "^SYN-ACTOR-[A-Za-z0-9-]{1,40}$" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "signed_at": { "type": ["string", "null"], "format": "date-time" },
+    "amends_annotation_ref": { "type": "string", "pattern": "^SYN-BMA-[A-Za-z0-9-]{1,40}$" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "signed" } }, "required": ["status"] },
+      "then": { "required": ["signed_at"], "properties": { "signed_at": { "type": "string", "format": "date-time" } } }
+    }
+  ]
+}

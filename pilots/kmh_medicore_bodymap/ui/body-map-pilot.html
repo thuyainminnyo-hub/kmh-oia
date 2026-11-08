@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KMH MediCore — Body Map Pilot</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f6fb}
+*{box-sizing:border-box}body{margin:0;padding:24px}.shell{max-width:1100px;margin:auto}.banner{padding:14px 16px;border:1px solid #d7b35c;background:#fff8dc;border-radius:12px;margin-bottom:18px}.banner strong{display:block;margin-bottom:4px}.grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(300px,1fr);gap:18px}.card{background:white;border:1px solid #dfe4ef;border-radius:16px;padding:20px;box-shadow:0 6px 20px #1c2b4a0b}h1{margin:0 0 8px;font-size:1.6rem}h2{font-size:1.1rem;margin:0 0 14px}.muted{color:#5d687c}.switches,.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 18px}button,select{font:inherit}button{border:1px solid #c9d1e1;background:#fff;border-radius:9px;padding:9px 12px;cursor:pointer}button[aria-pressed=true],button.selected{background:#eeeaff;border-color:#6554cc;color:#3825a4}button:focus-visible,select:focus-visible{outline:3px solid #9a8cff;outline-offset:2px}.figure{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center}.silhouette{width:100%;height:290px;border:1px solid #e5e9f2;border-radius:12px;background:#fbfcff}.bone{fill:#eef1f7;stroke:#69758b;stroke-width:2}.region{fill:#dcd5ff;stroke:#5c49c4;stroke-width:2;cursor:pointer}.region:focus{outline:none;stroke:#1f1778;stroke-width:4}.region[aria-pressed=true]{fill:#8f7af4}.figure-label{text-align:center;color:#5d687c;font-size:.9rem}.field{margin:14px 0}.field label{display:block;font-weight:600;margin-bottom:6px}.field select{width:100%;padding:10px;border:1px solid #c9d1e1;border-radius:9px;background:#fff}.summary{background:#f7f8fc;border-radius:10px;padding:14px;line-height:1.7;overflow-wrap:anywhere}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.notice{margin-top:12px;font-size:.92rem}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@media(max-width:760px){body{padding:12px}.grid{grid-template-columns:1fr}.card{padding:15px}.figure{grid-template-columns:1fr 1fr}.silhouette{height:230px}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <h1>KMH MediCore · Clinical Body Mapping</h1>
+  <p class="muted">Orthopedics pilot · interactive workflow prototype</p>
+  <div class="banner" role="note"><strong>LOCAL SYNTHETIC DEMO — NOT FOR CLINICAL USE</strong>This page runs entirely in your browser. It does not send, store, or persist patient data. Region illustrations are schematic and not anatomically precise. Treatment is a workflow label only, not medical advice.</div>
+  <div class="grid">
+    <section class="card" aria-labelledby="map-title">
+      <h2 id="map-title">1. Choose view and region</h2>
+      <div class="switches" role="group" aria-label="Body view">
+        <button type="button" data-view="front" aria-pressed="true">Front</button>
+        <button type="button" data-view="back" aria-pressed="false">Back</button>
+        <button type="button" data-view="both" aria-pressed="false">Both</button>
+      </div>
+      <div class="figure">
+        <div>
+          <svg class="silhouette" viewBox="0 0 160 300" role="img" aria-label="Schematic body map, front view">
+            <circle class="bone" cx="80" cy="31" r="22"/>
+            <path class="bone" d="M62 57 L98 57 L111 76 L105 125 L96 156 L100 204 L112 277 L94 277 L80 211 L66 277 L48 277 L60 204 L64 156 L55 125 L49 76 Z"/>
+            <path class="bone" d="M55 70 L30 88 L18 145 L28 149 L45 105 L61 91 M105 70 L130 88 L142 145 L132 149 L115 105 L99 91" fill="none"/>
+            <circle id="region-skull" class="region" data-region="SKULL" cx="80" cy="31" r="22" tabindex="0" role="button" aria-label="Select Skull" aria-pressed="true"/>
+            <path id="region-spine" class="region" data-region="SPINE" d="M74 59 L86 59 L88 153 L72 153 Z" tabindex="0" role="button" aria-label="Select Spine" aria-pressed="false"/>
+            <path id="region-pelvis" class="region" data-region="PELVIS" d="M62 151 Q80 139 98 151 L104 177 Q80 193 56 177 Z" tabindex="0" role="button" aria-label="Select Pelvis" aria-pressed="false"/>
+            <path id="region-upper" class="region" data-region="UPPER_LIMB" d="M52 72 L31 88 L20 141 L30 144 L47 104 L62 92 Z M108 72 L129 88 L140 141 L130 144 L113 104 L98 92 Z" tabindex="0" role="button" aria-label="Select Upper limb" aria-pressed="false"/>
+            <path id="region-lower" class="region" data-region="LOWER_LIMB" d="M60 184 L78 184 L67 273 L50 273 Z M82 184 L100 184 L110 273 L93 273 Z" tabindex="0" role="button" aria-label="Select Lower limb" aria-pressed="false"/>
+          </svg>
+          <div class="figure-label">Schematic map</div>
+        </div>
+        <div>
+          <p class="muted">Select a highlighted region on the map or use the region buttons.</p>
+          <div class="chips" role="group" aria-label="Body regions">
+            <button type="button" data-region-button="SKULL" aria-pressed="true">Skull</button>
+            <button type="button" data-region-button="SPINE" aria-pressed="false">Spine</button>
+            <button type="button" data-region-button="PELVIS" aria-pressed="false">Pelvis</button>
+            <button type="button" data-region-button="UPPER_LIMB" aria-pressed="false">Upper limb</button>
+            <button type="button" data-region-button="LOWER_LIMB" aria-pressed="false">Lower limb</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="details-title">
+      <h2 id="details-title">2. Annotation details</h2>
+      <div class="field"><label for="laterality">Laterality</label><select id="laterality"><option value="midline">Midline</option><option value="left">Left</option><option value="right">Right</option><option value="bilateral">Bilateral</option></select></div>
+      <div class="field"><label for="finding">Finding label</label><select id="finding"><option value="fracture">Fracture</option><option value="dislocation">Dislocation</option><option value="arthritis">Arthritis</option><option value="bone_lesion">Bone lesion</option><option value="other">Other</option></select></div>
+      <div class="field"><label for="treatment">Treatment label</label><select id="treatment"><option value="cast_or_splint">Cast or splint</option><option value="closed_reduction">Closed reduction</option><option value="internal_fixation">Internal fixation</option><option value="observation">Observation</option><option value="other">Other</option></select></div>
+      <p class="muted">The treatment below is always recorded as <strong>proposed</strong>. This demo does not recommend or confirm treatment.</p>
+      <h2>3. Draft preview</h2>
+      <div id="summary" class="summary" aria-live="polite"></div>
+      <div class="actions"><button id="reset" type="button">Reset demo</button><button id="copy" type="button">Copy JSON preview</button></div>
+      <p id="message" class="notice" role="status">Draft only — nothing has been saved.</p>
+    </section>
+  </div>
+</main>
+<script>
+(function(){
+  "use strict";
+  const labels={SKULL:"Skull",SPINE:"Spine",PELVIS:"Pelvis",UPPER_LIMB:"Upper limb",LOWER_LIMB:"Lower limb"};
+  const state={view:"front",region:"SKULL",laterality:"midline",finding:"fracture",treatment:"cast_or_splint"};
+  const allowedLaterality={SKULL:["midline"],SPINE:["midline"],PELVIS:["midline","left","right","bilateral"],UPPER_LIMB:["left","right","bilateral"],LOWER_LIMB:["left","right","bilateral"]};
+  const laterality=document.getElementById("laterality");
+  function syncLaterality(){const allowed=allowedLaterality[state.region];if(!allowed.includes(state.laterality))state.laterality=allowed[0];laterality.replaceChildren();allowed.forEach(value=>{const option=document.createElement("option");option.value=value;option.textContent=value.charAt(0).toUpperCase()+value.slice(1);laterality.append(option);});laterality.value=state.laterality;}
+  const summary=document.getElementById("summary"),message=document.getElementById("message");
+  function snapshot(){
+    const timestamp=new Date().toISOString();
+    return {
+      schema_version:"0.2",
+      annotation_id:"SYN-BMA-UI-PREVIEW-0001",
+      encounter_ref:"SYN-ENC-UI-PREVIEW-0001",
+      data_classification:"synthetic",
+      specialty:"orthopedics",
+      anatomy_system:"KMH-ANATOMY-LOCAL-0.2",
+      anatomy_code:state.region,
+      region:labels[state.region],
+      view:state.view,
+      laterality:state.laterality,
+      finding:state.finding,
+      treatment:{code:state.treatment,status:"proposed"},
+      status:"draft",
+      author_ref:"SYN-ACTOR-UI-PREVIEW-0001",
+      created_at:timestamp,
+      updated_at:timestamp
+    };
+  }
+  function render(){
+    document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.view===state.view)));
+    document.querySelectorAll("[data-region]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.region===state.region)));
+    document.querySelectorAll("[data-region-button]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.regionButton===state.region)));
+    document.querySelector(".silhouette").setAttribute("aria-label","Schematic body map, "+state.view+" view");
+    summary.replaceChildren();
+    Object.entries(snapshot()).forEach(([key,value])=>{const row=document.createElement("div");const strong=document.createElement("strong");strong.textContent=key.replaceAll("_"," ")+": ";row.append(strong,document.createTextNode(typeof value==="object"?JSON.stringify(value):String(value)));summary.append(row);});
+    message.textContent="Draft only — nothing has been saved.";
+  }
+  function selectRegion(code){if(labels[code]){state.region=code;syncLaterality();render();}}
+  document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{state.view=b.dataset.view;render();}));
+  document.querySelectorAll("[data-region-button]").forEach(b=>b.addEventListener("click",()=>selectRegion(b.dataset.regionButton)));
+  document.querySelectorAll("[data-region]").forEach(el=>{el.addEventListener("click",()=>selectRegion(el.dataset.region));el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectRegion(el.dataset.region);}});});
+  laterality.addEventListener("change",e=>{state.laterality=e.target.value;render();});
+  document.getElementById("finding").addEventListener("change",e=>{state.finding=e.target.value;render();});
+  document.getElementById("treatment").addEventListener("change",e=>{state.treatment=e.target.value;render();});
+  document.getElementById("reset").addEventListener("click",()=>{state.view="front";state.region="SKULL";state.laterality="midline";state.finding="fracture";state.treatment="cast_or_splint";document.getElementById("finding").value=state.finding;document.getElementById("treatment").value=state.treatment;syncLaterality();render();});
+  document.getElementById("copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(JSON.stringify(snapshot(),null,2));message.textContent="JSON preview copied to clipboard; nothing was saved.";}catch(_){message.textContent="Clipboard unavailable. Select and copy the preview manually; nothing was saved."; }});
+  syncLaterality();
+  render();
+})();
+</script>
+</body>
+</html>

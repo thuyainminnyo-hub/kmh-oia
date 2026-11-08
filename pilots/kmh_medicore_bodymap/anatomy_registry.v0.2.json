@@ -1,0 +1,54 @@
+{
+  "registry_version": "KMH-ANATOMY-LOCAL-0.2",
+  "classification": "synthetic-pilot-only",
+  "authority": "KMH local illustrative registry; not an authoritative clinical terminology",
+  "regions": [
+    {
+      "code": "SKULL",
+      "label": "Skull",
+      "views": ["front", "back", "both"],
+      "laterality": ["midline"],
+      "selection_mode": "region",
+      "notes": "Broad region only; no individual bone-level localization."
+    },
+    {
+      "code": "SPINE",
+      "label": "Spine",
+      "views": ["front", "back", "both"],
+      "laterality": ["midline"],
+      "selection_mode": "region",
+      "notes": "Broad region only; vertebra-level localization is not yet modeled."
+    },
+    {
+      "code": "PELVIS",
+      "label": "Pelvis",
+      "views": ["front", "back", "both"],
+      "laterality": ["midline", "left", "right", "bilateral"],
+      "selection_mode": "region",
+      "notes": "Broad region only; sub-region localization is not yet modeled."
+    },
+    {
+      "code": "UPPER_LIMB",
+      "label": "Upper limb",
+      "views": ["front", "back", "both"],
+      "laterality": ["left", "right", "bilateral"],
+      "selection_mode": "region",
+      "notes": "Does not distinguish individual bones or joints."
+    },
+    {
+      "code": "LOWER_LIMB",
+      "label": "Lower limb",
+      "views": ["front", "back", "both"],
+      "laterality": ["left", "right", "bilateral"],
+      "selection_mode": "region",
+      "notes": "Does not distinguish individual bones or joints."
+    }
+  ],
+  "explicit_non_goals": [
+    "No diagnosis inference",
+    "No treatment recommendation",
+    "No real patient data",
+    "No claim of clinical terminology equivalence",
+    "No production deployment"
+  ]
+}
