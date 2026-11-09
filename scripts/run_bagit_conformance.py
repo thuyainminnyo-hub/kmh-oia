@@ -36,7 +36,7 @@ def main() -> int:
             continue
         for bag_path in sorted(p for p in folder.iterdir() if p.is_dir()):
             proc = subprocess.run(
-                [sys.executable, "-m", "bagit", "--validate", "--quiet", str(bag_path)],
+                [sys.executable, "-m", "bagit", "--validate", str(bag_path)],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -60,6 +60,9 @@ def main() -> int:
             records.append(record)
             if not passed:
                 failures.append(record)
+
+    if not records:
+        raise SystemExit("No BagIt v1.0 conformance fixtures were discovered")
 
     result = {
         "schema": "kmh.bagit-conformance-report.v1",
