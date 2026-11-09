@@ -1,0 +1,1 @@
+record_id,state_id,subject_id,measurement_id,station_id,station_definition,feature,value,unit,semantic_type,datum_or_endpoints,method,instrument,observer,measurement_date,uncertainty_or_tolerance,source_evidence,confirmation_basis,independent_verification,reviewer,review_status,notes
