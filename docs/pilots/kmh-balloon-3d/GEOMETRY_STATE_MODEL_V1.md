@@ -19,15 +19,12 @@ The displayed visual state with the separate Yan-Khwe reference asset. The proje
 Both states currently reuse the same provisional envelope master. A state-specific envelope mesh override remains empty until calibrated, state-attributed photographs and independent measurements justify it. This avoids encoding an unverified deformation into the model.
 
 ## Verified local mesh baseline
-The local GLB `geometry/KMH_BAL_001_BODY_BLOCKOUT_v1.glb` was inspected:
-- Bounds: approximately 1.76 × 1.76 × 1.00 normalized arbitrary units.
-- Vertices: 1,282.
-- Faces: 2,560.
-- Watertight: yes.
-- Consistent winding: yes.
-- SHA-256 is recorded in `geometry_state_manifest_v1.json`.
+The local GLB assets were inspected:
+- Body: bounds approximately 1.76 × 1.76 × 1.00 normalized arbitrary units; 1,282 vertices; 2,560 faces; watertight; consistent winding.
+- Lower skirt: bounds approximately 1.84 × 1.84 × 0.085 normalized arbitrary units; 514 vertices; 1,024 faces; watertight; consistent winding.
+- SHA-256 for both files is recorded in `geometry_state_manifest_v1.json`.
 
-This validates topology only. The mesh has no physical scale and is not a verified likeness.
+These checks validate local mesh topology and file identity only. Units are normalized arbitrary units; the meshes have no physical scale and are not verified likenesses.
 
 ## User-confirmed dimensions
 - Overall height: 25 ft.
@@ -44,6 +41,9 @@ Width, depth, crown profile, lower taper, and state-specific profile changes rem
 4. Do not infer a deformation magnitude or mechanism from the reported 40-viss value.
 5. Do not use crop ratios from photographs as object measurements.
 6. Require state attribution, calibrated views, measurement provenance, QA and human approval before a Geometry v2 proposal.
+
+## Validation
+Use the local package guide and run `scripts/validate_geometry_state_manifest.py` with `--project-root` set to the extracted package root. The validator checks both asset hashes and manifest invariants. It does not validate physical geometry or deformation.
 
 ## Gates
 - Two-state scene structure: **DEFINED**
