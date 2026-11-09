@@ -1,0 +1,133 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "gate_id": "KMH-BAL-001-UV-READINESS-GATE",
+  "version": "1.0",
+  "decision": "NOT_READY_FOR_FINAL_UV_MAPPING",
+  "direct_mesh_audit": {
+    "body": {
+      "vertices": 1282,
+      "faces": 2560,
+      "watertight": true,
+      "winding_consistent": true,
+      "uv_present": false,
+      "material_present": false,
+      "units": "NORMALIZED_ARBITRARY"
+    },
+    "lower_skirt": {
+      "vertices": 514,
+      "faces": 1024,
+      "watertight": true,
+      "winding_consistent": true,
+      "uv_present": false,
+      "material_present": false,
+      "units": "NORMALIZED_ARBITRARY"
+    }
+  },
+  "readiness": [
+    {
+      "id": "UV-01",
+      "item": "Stable geometry baseline",
+      "status": "PARTIAL",
+      "blocker": "Topology passes; physical scale/profile provisional"
+    },
+    {
+      "id": "UV-02",
+      "item": "Visual-state attribution",
+      "status": "BLOCKED",
+      "blocker": "Existing reference photos not assigned to BASE or DISPLAYED state"
+    },
+    {
+      "id": "UV-03",
+      "item": "Calibrated multiview capture",
+      "status": "BLOCKED",
+      "blocker": "No calibrated overlapping orbit"
+    },
+    {
+      "id": "UV-04",
+      "item": "Artwork source quality",
+      "status": "PARTIAL",
+      "blocker": "Broad zones known; lettering and occluded details unresolved"
+    },
+    {
+      "id": "UV-05",
+      "item": "Surface seams and panel topology",
+      "status": "BLOCKED",
+      "blocker": "Panel boundaries and full-wrap continuity unknown"
+    },
+    {
+      "id": "UV-06",
+      "item": "UV coordinate layer",
+      "status": "NOT_PRESENT",
+      "blocker": "Neither GLB has UV coordinates"
+    },
+    {
+      "id": "UV-07",
+      "item": "Texture bake/atlas",
+      "status": "NOT_STARTED",
+      "blocker": "No approved geometry or UV base"
+    },
+    {
+      "id": "UV-08",
+      "item": "Human artwork approval",
+      "status": "PENDING",
+      "blocker": "Atlas is semantic zoning only"
+    }
+  ],
+  "recommended_pipeline": [
+    {
+      "stage": "A",
+      "name": "Capture and geometry stabilization",
+      "tool": "COLMAP",
+      "entry_gate": [
+        "UV-01",
+        "UV-02",
+        "UV-03"
+      ]
+    },
+    {
+      "stage": "B",
+      "name": "Photogrammetry texture projection",
+      "tool": "COLMAP mesh_texturer",
+      "entry_gate": [
+        "dense mesh accepted",
+        "registered cameras",
+        "undistorted workspace"
+      ]
+    },
+    {
+      "stage": "C",
+      "name": "Curated artwork UV",
+      "tool": "Blender UV Editor",
+      "entry_gate": [
+        "approved geometry",
+        "verified seam plan",
+        "source artwork provenance"
+      ]
+    },
+    {
+      "stage": "D",
+      "name": "Artwork and texture QA",
+      "tool": "Blender + image review",
+      "entry_gate": [
+        "distortion check",
+        "overlap check",
+        "seam continuity",
+        "human sign-off"
+      ]
+    }
+  ],
+  "policy": {
+    "uv_mapping_started": false,
+    "texture_baking_started": false,
+    "geometry_v1_modified": false,
+    "state_specific_uv_override": false,
+    "geometry_v2": "HOLD",
+    "production": "NOT_AUTHORIZED"
+  },
+  "references": [
+    "https://colmap.github.io/tutorial",
+    "https://colmap.github.io/faq.html",
+    "https://docs.blender.org/manual/en/5.0/modeling/meshes/editing/uv.html",
+    "https://scholarworks.iu.edu/journals/index.php/sdh/article/view/41912"
+  ]
+}
