@@ -537,6 +537,26 @@ ingest(source, object_id, workspace, crash_hook=crash)
                 now="2026-11-10T10:30:00+00:00",
             )
 
+    def test_recovery_approval_rejects_future_approval_timestamp(self):
+        from scripts.preservation_ingest import (
+            build_recovery_approval_record,
+            validate_recovery_approval,
+        )
+        self._create_pending_journal_for_accepted_bag("approval-future-001")
+        plan = __import__("scripts.preservation_ingest", fromlist=["plan_ingest_recovery"]).plan_ingest_recovery(self.workspace)[0]
+        record = build_recovery_approval_record(
+            plan, action="finalize_receipt_for_verified_accepted_bag",
+            actor_id="archivist:operator-17",
+            approved_at="2026-11-10T11:00:00+00:00",
+            expires_at="2026-11-10T12:00:00+00:00",
+            approval_id="approval-future-001",
+        )
+        with self.assertRaises(IntakeError):
+            validate_recovery_approval(
+                record, plan, authorize_actor=lambda _actor, _action: True,
+                now="2026-11-10T10:30:00+00:00",
+            )
+
     def test_signed_recovery_approval_fails_closed_without_nonce_store_or_trusted_key(self):
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
         from scripts.preservation_ingest import (
