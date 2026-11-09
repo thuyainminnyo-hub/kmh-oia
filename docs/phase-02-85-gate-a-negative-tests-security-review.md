@@ -1,24 +1,24 @@
 # Phase 02.85 — Gate A Negative-Test Expansion & Security Review
 
-**Status:** Test expansion plan; one special-file safety improvement committed, automated result pending.
+**Status:** FIFO safety improvement and test committed; Gate A CI passed on the updated six-test suite.
 **Date:** 2026-11-09
 **Branch:** phase-02-71/midi-golden-fixtures
 **Depends on:** Phase 02.84 BagIt Gate A worker.
 
 ## 1. Evidence from Phase 02.84
 
-GitHub Actions run #9 for PR #217 completed successfully on commit `39f06c16ff2601273ddc0820a7f5d05d8c9c17db`. The `bagit-intake` job and its "Run Gate A tests" step both reported success. This is the first confirmed CI execution of the Gate A test module.
+GitHub Actions run #9 first passed the five-test baseline on commit `39f06c16ff2601273ddc0820a7f5d05d8c9c17db`. After adding FIFO nonblocking behavior and a FIFO regression test, Gate A run #13 completed successfully on commit `3f39d5ca7078649a249dd325aff971397685e102`. The `bagit-intake` job and its "Run Gate A tests" step both reported success.
 
-Run:
-https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/42659640317
+Latest Gate A run:
+https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/42659739408
 
-This success applies to the five tests present at that commit only; it does not prove the LOC conformance suite or the additional negative cases below.
+This verifies the six tests present at that commit only. It does not prove the LOC conformance suite or the additional negative cases below.
 
 ## 2. Additional security finding: special-file blocking
 
 A FIFO opened with `O_RDONLY` can block before the worker reaches `fstat` and rejects it as non-regular. The worker now adds `O_NONBLOCK` where supported, so opening a FIFO does not wait for a writer and the subsequent file-type check can reject it.
 
-A POSIX-only FIFO test has been added. Its CI result is pending until a new workflow run for the latest commit is observed.
+A POSIX-only FIFO test has been added. The updated Gate A workflow completed successfully on the FIFO-test commit.
 
 ## 3. Normative security basis
 
@@ -62,7 +62,7 @@ The LOC conformance suite has separate v1.0 valid and invalid fixture groups and
 ## 6. Decision and gate status
 
 - Gate A unit tests: **PASS** for the five-test commit stated above.
-- FIFO negative test: **ADDED; NOT YET VERIFIED** on a subsequent CI run.
+- FIFO negative test: **PASS** in Gate A run #13.
 - LOC conformance suite: **NOT RUN**.
 - OCFL, PREMIS, replica recovery, rights clearance, and production deployment: **NOT STARTED / NOT CLAIMED**.
 
