@@ -1,0 +1,11 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "package": "State-Separated Capture Field Protocol v1.0",
+  "status": "TEMPLATE_ONLY_NO_NEW_CAPTURE_PERFORMED",
+  "template_validation": "PASS",
+  "required_states": ["BASE-UNLOADED", "DISPLAYED-ATTACHED", "UNKNOWN"],
+  "colmap": "BLOCKED_UNTIL_HUMAN_CAPTURE_QA_PASS",
+  "tripo_paid_generation": "REQUIRES_SEPARATE_EXPLICIT_APPROVAL",
+  "geometry_v2": "HOLD",
+  "production": "NOT_AUTHORIZED"
+}
