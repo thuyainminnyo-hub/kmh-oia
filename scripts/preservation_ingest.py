@@ -15,6 +15,7 @@ import stat
 import sys
 import tempfile
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import unquote
@@ -200,7 +201,18 @@ def inspect_incomplete_ingests(workspace: str | Path) -> list[dict]:
     return findings
 
 
-def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
+def ingest(
+    source: str | Path,
+    object_id: str,
+    workspace: str | Path,
+    *,
+    crash_hook: Callable[[str], None] | None = None,
+) -> dict:
+    """Ingest opaque bytes. crash_hook is a test-only fault-injection seam; default is inert."""
+    def checkpoint(name: str) -> None:
+        if crash_hook is not None:
+            crash_hook(name)
+
     if not OBJECT_ID_RE.fullmatch(object_id):
         raise IntakeError("INVALID_OBJECT_ID", "Object ID must be 1-64 safe ASCII letters, digits, '_' or '-'")
     source_path = Path(source)
@@ -238,6 +250,7 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
         }) + "\n")
         reservation_stream.flush()
         os.fsync(reservation_stream.fileno())
+    checkpoint("reservation_durable")
 
     if final_path.exists():
         reservation_path.unlink(missing_ok=True)
@@ -263,6 +276,7 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
     }
     try:
         source_sha, source_length = _capture_source(source_path, run_dir / "source" / "original.mid")
+        checkpoint("source_captured")
         staged_sha, staged_length = sha256_file(run_dir / "source" / "original.mid")
         receipt.update({
             "source_byte_length": source_length,
@@ -280,6 +294,7 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
         )
         validate_manifest_paths(run_dir)
         bag.validate()
+        checkpoint("bag_validated")
         payload = run_dir / "data" / "source" / "original.mid"
         payload_sha, payload_length = sha256_file(payload)
         if (payload_sha, payload_length) != (source_sha, source_length):
@@ -308,18 +323,23 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
             "source_byte_length": source_length,
             "state": "promotion_pending",
         })
+        checkpoint("journal_durable")
         # Keep the receipt outside the BagIt root: adding a tag file after
         # manifest generation would invalidate the tag manifest.
         if final_path.exists():
             raise IntakeError("DUPLICATE_OBJECT_ID", "Object ID appeared during ingest; no overwrite performed")
         os.replace(run_dir, final_path)
         _fsync_directory(accepted_root)
+        checkpoint("promotion_durable")
         receipt["promotion_status"] = "promoted"
         _write_json(reports_root / f"{object_id}-{run_id}.json", receipt)
+        checkpoint("receipt_durable")
         journal_path.unlink(missing_ok=True)
         _fsync_directory(reports_root)
+        checkpoint("journal_removed")
         reservation_path.unlink(missing_ok=True)
         _fsync_directory(reservations_root)
+        checkpoint("reservation_released")
         return receipt
     except Exception as exc:
         if isinstance(exc, IntakeError):
