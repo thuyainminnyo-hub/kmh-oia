@@ -1,5 +1,6 @@
 {
   "project": "KMH Myanmar Balloon 3D Intelligence",
+  "asset_id": "KMH-BAL-001",
   "manifest_id": "KMH-BAL-001-GEOMETRY-STATE-MODEL",
   "version": "1.0",
   "status": "SCENE_STRUCTURE_DEFINED__STATE_GEOMETRY_PENDING_EVIDENCE",
@@ -12,10 +13,11 @@
     "envelope_master": {
       "asset_id": "KMH-BAL-001-ENV",
       "file": "geometry/KMH_BAL_001_BODY_BLOCKOUT_v1.glb",
-      "role": "Preserved provisional envelope baseline",
+      "role": "Preserved provisional balloon envelope baseline",
+      "sha256": "1c3b57d2146686926e6d421aaf07b5382ba634a9d9df4138804fe921a20078b9",
       "extents_normalized": [
-        1.76,
-        1.76,
+        1.7599999904632568,
+        1.7599999904632568,
         1
       ],
       "vertices": 1282,
@@ -27,6 +29,16 @@
       "asset_id": "KMH-BAL-001-SKIRT",
       "file": "geometry/KMH_BAL_001_LOWER_SKIRT_BLOCKOUT_v1.glb",
       "role": "Separate lower-skirt visual component",
+      "sha256": "ab57f9ee89dbfcedc494566f9b41809917da41e6ddd966775129f73e2a9d284b",
+      "extents_normalized": [
+        1.840000033378601,
+        1.840000033378601,
+        0.08499999903142452
+      ],
+      "vertices": 514,
+      "faces": 1024,
+      "watertight": true,
+      "winding_consistent": true,
       "merge_into_envelope_master": false
     },
     "yan_khwe_attachment": {
@@ -45,7 +57,9 @@
       "envelope_asset": "KMH-BAL-001-ENV",
       "lower_skirt_asset": "KMH-BAL-001-SKIRT",
       "attachment_asset": null,
+      "attachment_visibility": "NOT_PRESENT_IN_STATE_REFERENCE",
       "envelope_profile_override": null,
+      "reported_visual_profile": "Base envelope appearance without the separate suspended Yan-Khwe.",
       "state_evidence": "USER_CLARIFIED_STATE_DEFINITION",
       "state_geometry": "NOT_INDEPENDENTLY_MEASURED"
     },
@@ -57,44 +71,50 @@
       "attachment_asset": "KMH-BAL-001-ATT-001",
       "attachment_visibility": "REFERENCE_ONLY_NO_GEOMETRY_INSTANCE",
       "envelope_profile_override": null,
-      "reported_visual_profile": "Project owner reports that the real-world displayed configuration with the separate Yan-Khwe can make the visible envelope profile appear longer.",
+      "reported_visual_profile": "Project owner reports that the real-world displayed configuration with the separate 40-viss Yan-Khwe can make the visible envelope profile appear longer.",
       "state_evidence": "USER_PROVIDED_FIRSTHAND_DOMAIN_KNOWLEDGE",
       "state_geometry": "NOT_INDEPENDENTLY_MEASURED",
       "deformation_simulation": "NOT_IMPLEMENTED"
     }
   ],
-  "user_confirmed_dimensions": {
+  "state_model_rules": [
+    "Both states reference the same preserved provisional envelope master until state-specific evidence justifies a separately versioned geometry.",
+    "The Yan-Khwe remains a separate asset and is not merged into the envelope or lower-skirt mesh.",
+    "The reported longer appearance is captured as qualitative user-provided knowledge only; no deformation amount or mechanism is inferred.",
+    "Do not calculate physical response from reported attachment weight.",
+    "Do not label either state as physically verified until calibrated state-specific evidence exists.",
+    "No geometry v2 or production promotion without human approval."
+  ],
+  "known_measurements": {
     "overall_height": {
       "value": 25,
-      "unit": "ft"
+      "unit": "ft",
+      "provenance": "USER_CONFIRMED"
     },
     "maximum_body_circumference": {
       "value": 75,
       "unit": "ft",
+      "provenance": "USER_CONFIRMED",
       "semantic_type": "CIRCUMFERENCE"
     },
     "bottom_ring_diameter": {
       "value": 7.5,
       "unit": "ft",
+      "provenance": "USER_CONFIRMED",
       "semantic_type": "DIAMETER"
     },
     "top_ring_diameter": {
       "value": 25,
       "unit": "ft",
+      "provenance": "USER_CONFIRMED",
       "semantic_type": "DIAMETER"
     },
-    "width": null,
-    "depth": null,
+    "state_specific_height_or_profile_change": null,
+    "maximum_width": null,
+    "maximum_depth": null,
     "crown_profile": null,
     "lower_taper": null
   },
-  "rules": [
-    "Both states reuse the same preserved provisional envelope master until state-specific evidence supports an override.",
-    "Yan-Khwe remains separate and is not merged into envelope or lower-skirt geometry.",
-    "The longer appearance is user-provided qualitative knowledge; no deformation magnitude or mechanism is inferred.",
-    "No mechanical response is calculated from the reported weight.",
-    "No geometry v2 or production promotion without human approval."
-  ],
   "gates": {
     "geometry_v1": "PRESERVED",
     "two_state_scene_structure": "DEFINED",
@@ -117,7 +137,7 @@
       "weight/heat calculations",
       "ignition",
       "timing",
-      "assembly",
+      "assembly instructions",
       "launch procedures",
       "flight performance optimization"
     ]
