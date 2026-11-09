@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Evaluate evidence completeness for a KMH geometry change request.
 
-The validator never edits geometry, approves a PR, merges, or deploys.
+This validator never edits geometry, approves a PR, merges, or deploys.
 """
 from __future__ import annotations
 import argparse
@@ -11,10 +11,7 @@ from pathlib import Path
 
 ALLOWED_STATES = {"BASE-UNLOADED", "DISPLAYED-ATTACHED"}
 PASS = {"PASS", "PASSED", "APPROVED"}
-REQUIRED_QA = {
-    "mesh_integrity", "dimension_residuals", "silhouette_comparison",
-    "state_consistency", "source_provenance"
-}
+REQUIRED_QA = {"mesh_integrity", "dimension_residuals", "silhouette_comparison", "state_consistency", "source_provenance"}
 
 def sha256(path: Path) -> str:
     h = hashlib.sha256()
@@ -26,7 +23,10 @@ def sha256(path: Path) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("request", type=Path)
-    ap.add_argument("--asset-root", type=Path, default=None)
+    ap.add_argument("--asset-root", type=Path, default=None,
+                    help="Root containing locked Geometry v1 source assets.")
+    ap.add_argument("--candidate-root", type=Path, default=None,
+                    help="Root containing proposed Geometry v2 candidate assets.")
     ap.add_argument("--report", type=Path, default=None)
     args = ap.parse_args()
 
@@ -37,7 +37,8 @@ def main() -> int:
         return 2
 
     blockers = []
-    if data.get("target_state") not in ALLOWED_STATES:
+    state = data.get("target_state")
+    if state not in ALLOWED_STATES:
         blockers.append("Target state must be confirmed BASE-UNLOADED or DISPLAYED-ATTACHED.")
 
     baseline = data.get("baseline", {})
@@ -50,8 +51,8 @@ def main() -> int:
             blockers.append(f"Proposed asset field missing: {name}.")
 
     evidence = data.get("supporting_evidence", {})
-    for field in ("source_confirmation_record", "capture_set_manifest",
-                  "camera_calibration_record", "scale_control_record", "measurement_record"):
+    for field in ("source_confirmation_record", "capture_set_manifest", "camera_calibration_record",
+                  "scale_control_record", "measurement_record"):
         if not evidence.get(field):
             blockers.append(f"Supporting evidence missing: {field}.")
     if evidence.get("state_attribution_confirmed") is not True:
@@ -93,44 +94,63 @@ def main() -> int:
     if guard.get("attachment_mechanics_inferred") is not False:
         blockers.append("Attachment mechanics must not be inferred.")
 
-    file_checks = []
+    baseline_file_checks = []
+    candidate_file_checks = []
     if args.asset_root is not None:
         for label, path_key, hash_key in [
             ("baseline body", "body_file", "body_sha256"),
-            ("baseline lower skirt", "lower_skirt_file", "lower_skirt_sha256")
+            ("baseline lower skirt", "lower_skirt_file", "lower_skirt_sha256"),
         ]:
-            relative = baseline.get(path_key)
-            if not relative:
-                continue
-            path = args.asset_root / relative
+            path = args.asset_root / baseline.get(path_key, "")
             if not path.is_file():
                 blockers.append(f"{label} file missing from asset root.")
             else:
                 actual = sha256(path)
                 matches = actual == baseline.get(hash_key)
-                file_checks.append({"asset":label,"sha256":actual,"matches":matches})
+                baseline_file_checks.append({"asset": label, "sha256": actual, "matches": matches})
                 if not matches:
                     blockers.append(f"{label} hash does not match locked baseline.")
 
+    if args.candidate_root is not None:
+        for label, path_key, hash_key in [
+            ("candidate body", "body_file", "body_sha256"),
+            ("candidate lower skirt", "lower_skirt_file", "lower_skirt_sha256"),
+        ]:
+            relative = proposed.get(path_key)
+            expected_hash = proposed.get(hash_key)
+            if not relative or not expected_hash:
+                continue
+            path = args.candidate_root / relative
+            if not path.is_file():
+                blockers.append(f"{label} file missing from candidate root.")
+            else:
+                actual = sha256(path)
+                matches = actual == expected_hash
+                candidate_file_checks.append({"asset": label, "sha256": actual, "matches": matches})
+                if not matches:
+                    blockers.append(f"{label} hash does not match proposed candidate hash.")
+
     report = {
         "change_request_id": data.get("change_request_id"),
-        "target_state": data.get("target_state"),
+        "target_state": state,
         "decision": "BLOCKED_HOLD" if blockers else "ELIGIBLE_FOR_HUMAN_RELEASE_REVIEW",
         "blocker_count": len(blockers),
         "blockers": blockers,
-        "baseline_file_checks": file_checks,
+        "baseline_file_checks": baseline_file_checks,
+        "candidate_file_checks": candidate_file_checks,
         "note": "Evidence completeness only; this validator never approves, edits, merges, or deploys geometry."
     }
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-
     print(f"DECISION: {report['decision']}")
     print(f"BLOCKERS: {len(blockers)}")
     for blocker in blockers:
         print(f"- {blocker}")
-    if file_checks:
-        print(f"BASELINE FILE HASH CHECKS: {sum(x['matches'] for x in file_checks)}/{len(file_checks)} match")
+    if baseline_file_checks:
+        print(f"BASELINE FILE HASH CHECKS: {sum(x['matches'] for x in baseline_file_checks)}/{len(baseline_file_checks)} match")
+    if candidate_file_checks:
+        print(f"CANDIDATE FILE HASH CHECKS: {sum(x['matches'] for x in candidate_file_checks)}/{len(candidate_file_checks)} match")
     print("NOTE: no geometry was modified.")
     return 0 if not blockers else 1
 
