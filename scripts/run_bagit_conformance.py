@@ -37,7 +37,7 @@ def main() -> int:
             continue
         for bag_path in sorted(p for p in folder.iterdir() if p.is_dir()):
             proc = subprocess.run(
-                [sys.executable, str(validator), "--validate", "--quiet", str(bag_path)],
+                [sys.executable, "-m", "bagit", "--validate", "--quiet", str(bag_path)],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -47,7 +47,7 @@ def main() -> int:
             elif category == "invalid":
                 passed = proc.returncode != 0
             else:  # Warning fixtures are valid bags; warnings are retained verbatim.
-                passed = proc.returncode == 0
+                passed = proc.returncode == 0 and bool(proc.stderr.strip())
             record = {
                 "fixture": bag_path.name,
                 "category": category,
@@ -56,6 +56,7 @@ def main() -> int:
                 "passed": passed,
                 "stdout": proc.stdout,
                 "stderr": proc.stderr,
+                "warning_observed": bool(proc.stderr.strip()),
             }
             records.append(record)
             if not passed:
