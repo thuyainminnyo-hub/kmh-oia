@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
 import os
 import platform
@@ -143,7 +144,7 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
         bag = bagit.make_bag(
             str(run_dir),
             bag_info={"External-Identifier": object_id, "Source-File-Name": source_path.name},
-            checksums=["sha256"],
+            checksums=["sha256", "sha512"],
         )
         bag.validate()
         payload = run_dir / "data" / "source" / "original.mid"
@@ -153,9 +154,9 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
 
         receipt.update({
             "bagit_version": "1.0",
-            "manifest_algorithms": ["sha256"],
+            "manifest_algorithms": ["sha256", "sha512"],
             "validation_tool": "bagit-python",
-            "validation_tool_version": getattr(bagit, "VERSION", "unknown"),
+            "validation_tool_version": importlib.metadata.version("bagit"),
             "validation_status": "valid",
             "result": "accepted",
             "completed_at_utc": datetime.now(timezone.utc).isoformat(),
