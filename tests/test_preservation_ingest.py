@@ -1,5 +1,7 @@
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -244,6 +246,67 @@ class PreservationIngestTests(unittest.TestCase):
         self.assertEqual(findings[0]["kind"], "promotion_journal")
         self.assertEqual(findings[0]["status"], "promotion_journal_requires_reconciliation")
         self.assertTrue(journal.exists())
+
+
+    def test_subprocess_crash_at_each_durable_checkpoint(self):
+        checkpoints = [
+            "reservation_durable",
+            "source_captured",
+            "bag_validated",
+            "journal_durable",
+            "promotion_durable",
+            "receipt_durable",
+            "journal_removed",
+            "reservation_released",
+        ]
+        for checkpoint in checkpoints:
+            with self.subTest(checkpoint=checkpoint):
+                workspace = self.root / ("workspace-" + checkpoint)
+                workspace.mkdir()
+                script = r"""
+import os, sys
+from scripts.preservation_ingest import ingest
+source, object_id, workspace, target = sys.argv[1:]
+def crash(name):
+    if name == target:
+        os._exit(91)
+ingest(source, object_id, workspace, crash_hook=crash)
+"""
+                completed = subprocess.run(
+                    [sys.executable, "-c", script, str(self.source),
+                     "crash-" + checkpoint, str(workspace), checkpoint],
+                    cwd=Path(__file__).resolve().parents[1],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                self.assertEqual(completed.returncode, 91, completed.stderr)
+                accepted = workspace / "accepted" / ("crash-" + checkpoint)
+                journals = list((workspace / "reports").glob("*.promotion-pending.json")) if (workspace / "reports").exists() else []
+                receipts = [p for p in (workspace / "reports").glob("*.json")
+                            if not p.name.endswith(".promotion-pending.json")] if (workspace / "reports").exists() else []
+                reservation = workspace / "reservations" / ("crash-" + checkpoint + ".lock")
+                if checkpoint in ("promotion_durable", "receipt_durable", "journal_removed", "reservation_released"):
+                    self.assertTrue((accepted / "bagit.txt").is_file())
+                else:
+                    self.assertFalse(accepted.exists())
+                if checkpoint in ("journal_durable", "promotion_durable", "receipt_durable"):
+                    self.assertEqual(len(journals), 1)
+                else:
+                    self.assertEqual(len(journals), 0)
+                if checkpoint in ("receipt_durable", "journal_removed", "reservation_released"):
+                    self.assertEqual(len(receipts), 1)
+                else:
+                    self.assertEqual(len(receipts), 0)
+                if checkpoint == "reservation_released":
+                    self.assertFalse(reservation.exists())
+                else:
+                    self.assertTrue(reservation.exists())
+                if accepted.exists():
+                    bag = bagit.Bag(str(accepted))
+                    self.assertTrue(bag.is_valid())
+                    payload = accepted / "data/source/original.mid"
+                    self.assertEqual(payload.read_bytes(), self.source.read_bytes())
 
 if __name__ == "__main__":
     unittest.main()
