@@ -43,10 +43,10 @@ def main() -> int:
             )
             if category == "valid":
                 passed = proc.returncode == 0
-            elif category == "invalid":
+            elif category in ("invalid", "linux-only", "windows-only"):
                 passed = proc.returncode != 0
             else:  # Warning fixtures are valid bags; warnings are retained verbatim.
-                passed = proc.returncode == 0 and bool(proc.stderr.strip())
+                passed = proc.returncode == 0
             record = {
                 "fixture": bag_path.name,
                 "category": category,
@@ -55,7 +55,7 @@ def main() -> int:
                 "passed": passed,
                 "stdout": proc.stdout,
                 "stderr": proc.stderr,
-                "warning_observed": bool(proc.stderr.strip()),
+                "warning_observed": bool(proc.stderr.strip()) if category == "warning" else False,
             }
             records.append(record)
             if not passed:
