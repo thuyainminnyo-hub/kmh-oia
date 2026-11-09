@@ -1,0 +1,125 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "manifest_id": "KMH-BAL-001-GEOMETRY-STATE-MODEL",
+  "version": "1.0",
+  "status": "SCENE_STRUCTURE_DEFINED__STATE_GEOMETRY_PENDING_EVIDENCE",
+  "coordinate_convention": {
+    "up_axis": "Z",
+    "units": "NORMALIZED_ARBITRARY",
+    "physical_scale_applied": false
+  },
+  "shared_assets": {
+    "envelope_master": {
+      "asset_id": "KMH-BAL-001-ENV",
+      "file": "geometry/KMH_BAL_001_BODY_BLOCKOUT_v1.glb",
+      "role": "Preserved provisional envelope baseline",
+      "extents_normalized": [
+        1.76,
+        1.76,
+        1
+      ],
+      "vertices": 1282,
+      "faces": 2560,
+      "watertight": true,
+      "winding_consistent": true
+    },
+    "lower_skirt": {
+      "asset_id": "KMH-BAL-001-SKIRT",
+      "file": "geometry/KMH_BAL_001_LOWER_SKIRT_BLOCKOUT_v1.glb",
+      "role": "Separate lower-skirt visual component",
+      "merge_into_envelope_master": false
+    },
+    "yan_khwe_attachment": {
+      "asset_id": "KMH-BAL-001-ATT-001",
+      "name": "ယမ်းခွေ (Yan-Khwe)",
+      "role": "Separate suspended visual reference asset",
+      "mesh_status": "NOT_MODELED",
+      "geometry_inference": "PROHIBITED",
+      "operational_design": "OUT_OF_SCOPE"
+    }
+  },
+  "states": [
+    {
+      "state_id": "BASE-UNLOADED",
+      "display_name": "Base / Unloaded Envelope",
+      "envelope_asset": "KMH-BAL-001-ENV",
+      "lower_skirt_asset": "KMH-BAL-001-SKIRT",
+      "attachment_asset": null,
+      "envelope_profile_override": null,
+      "state_evidence": "USER_CLARIFIED_STATE_DEFINITION",
+      "state_geometry": "NOT_INDEPENDENTLY_MEASURED"
+    },
+    {
+      "state_id": "DISPLAYED-ATTACHED",
+      "display_name": "Displayed / Attached State",
+      "envelope_asset": "KMH-BAL-001-ENV",
+      "lower_skirt_asset": "KMH-BAL-001-SKIRT",
+      "attachment_asset": "KMH-BAL-001-ATT-001",
+      "attachment_visibility": "REFERENCE_ONLY_NO_GEOMETRY_INSTANCE",
+      "envelope_profile_override": null,
+      "reported_visual_profile": "Project owner reports that the real-world displayed configuration with the separate Yan-Khwe can make the visible envelope profile appear longer.",
+      "state_evidence": "USER_PROVIDED_FIRSTHAND_DOMAIN_KNOWLEDGE",
+      "state_geometry": "NOT_INDEPENDENTLY_MEASURED",
+      "deformation_simulation": "NOT_IMPLEMENTED"
+    }
+  ],
+  "user_confirmed_dimensions": {
+    "overall_height": {
+      "value": 25,
+      "unit": "ft"
+    },
+    "maximum_body_circumference": {
+      "value": 75,
+      "unit": "ft",
+      "semantic_type": "CIRCUMFERENCE"
+    },
+    "bottom_ring_diameter": {
+      "value": 7.5,
+      "unit": "ft",
+      "semantic_type": "DIAMETER"
+    },
+    "top_ring_diameter": {
+      "value": 25,
+      "unit": "ft",
+      "semantic_type": "DIAMETER"
+    },
+    "width": null,
+    "depth": null,
+    "crown_profile": null,
+    "lower_taper": null
+  },
+  "rules": [
+    "Both states reuse the same preserved provisional envelope master until state-specific evidence supports an override.",
+    "Yan-Khwe remains separate and is not merged into envelope or lower-skirt geometry.",
+    "The longer appearance is user-provided qualitative knowledge; no deformation magnitude or mechanism is inferred.",
+    "No mechanical response is calculated from the reported weight.",
+    "No geometry v2 or production promotion without human approval."
+  ],
+  "gates": {
+    "geometry_v1": "PRESERVED",
+    "two_state_scene_structure": "DEFINED",
+    "attachment_visual_mesh": "NOT_MODELED",
+    "state_specific_capture": "REQUIRED",
+    "state_specific_geometry": "HOLD",
+    "geometry_v2": "HOLD",
+    "production": "NOT_AUTHORIZED"
+  },
+  "scope": {
+    "included": [
+      "non-operational envelope visualization",
+      "visual state separation",
+      "heritage artwork",
+      "reference provenance",
+      "3D QA"
+    ],
+    "excluded": [
+      "pyrotechnic operating design",
+      "weight/heat calculations",
+      "ignition",
+      "timing",
+      "assembly",
+      "launch procedures",
+      "flight performance optimization"
+    ]
+  }
+}
