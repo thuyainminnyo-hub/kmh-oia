@@ -14,7 +14,7 @@ The user supplied the following dimensions for the balloon size identification r
 | Maximum-body circumference / အကျယ်ဆုံးနေရာ၏ လုံးပတ်အရှည် | 75 ft | 22.86 m | USER_PROVIDED_DIMENSION; measurement path confirmed by user |
 | Overall height / အမြင့် | 25 ft | 7.62 m | USER_CONFIRMED_MEASUREMENT; provenance pending |
 | Top circular opening/ring diameter / ခေါင်အဝိုင်းအချင်း | 25 ft | 7.62 m | USER_PROVIDED_DIMENSION |
-| Bottom circular opening/ring diameter / အောက်ခြေအဝိုင်းအချင်း | 7 ft or 7.5 ft | 2.13 m or 2.29 m | USER_PROVIDED_RANGE; exact value pending |
+| Bottom circular opening/ring diameter / အောက်ခြေအဝိုင်းအချင်း | **7.5 ft** | **2.29 m** | **USER_CONFIRMED_DIMENSION** |
 
 ### Terminology lock
 
@@ -24,16 +24,15 @@ The user supplied the following dimensions for the balloon size identification r
 
 ### Confirmed measurement path and consistency note
 
-**User clarification:** the 75 ft circumference is measured around the balloon body's widest section. This resolves the previous uncertainty about where the circumference was taken.
+**User clarification:** the 75 ft circumference is measured around the balloon body's widest section.
 
 For reference only, if that cross-section were a perfect circle, 75 ft circumference would correspond to a diameter of approximately 23.87 ft (7.28 m). A 25 ft diameter circle would have a circumference of approximately 78.54 ft (23.94 m). The measured cross-section may not be perfectly circular; therefore, retain 75 ft as the directly supplied circumference and do not replace it with the derived diameter. Keep the 25 ft top-ring diameter as a separate measurement at its own plane.
 
-The earlier general reference range of 18–25 ft for maximum body diameter remains a secondary-source range and is not a replacement for these user-provided dimensions.
+The bottom ring diameter is now specified as 7.5 ft (2.29 m), replacing the earlier 7–7.5 ft uncertainty.
 
 ## 2. Still unknown / to be clarified
 
 - Whether the 25 ft top circular diameter is the crown/top ring diameter, and its exact measurement plane.
-- Whether the bottom diameter is 7 ft or 7.5 ft.
 - Across-body width and front-to-back depth at the widest body cross-section, if distinct; the circumference alone does not determine both dimensions unless the section shape is known.
 - Measurement method, date, operator, instrument and uncertainty/tolerance for each value.
 
@@ -59,11 +58,10 @@ Record each measurement as a separate observation. Do not overwrite raw observat
 ## 4. Gate requirements before Geometry v2
 
 1. Confirm whether the top circular diameter is specifically the crown/top ring and document its plane.
-2. Confirm whether the bottom ring is 7 ft or 7.5 ft.
-3. Record orthogonal width/depth evidence at the widest body section; do not infer a circular cross-section from circumference alone.
-4. Capture scale references in orthogonal views where practical.
-5. Preserve originals and metadata; calculate SHA-256 hashes for the evidence manifest.
-6. Have a second reviewer check the dimensional record before applying physical scale.
+2. Record orthogonal width/depth evidence at the widest body section; do not infer a circular cross-section from circumference alone.
+3. Capture scale references in orthogonal views where practical.
+4. Preserve originals and metadata; calculate SHA-256 hashes for the evidence manifest.
+5. Have a second reviewer check the dimensional record before applying physical scale.
 
 ## 5. Calibration rules
 
@@ -77,6 +75,6 @@ Record each measurement as a separate observation. Do not overwrite raw observat
 
 **HOLD — DIMENSIONS RECORDED, GEOMETRY V2 SCALE NOT YET APPROVED.**
 
-Reason: the 75 ft circumference measurement path is now user-confirmed as the widest body section, but measurement provenance and uncertainty, the exact bottom diameter, and orthogonal section dimensions remain unresolved. Geometry v1 remains a normalized topology blockout, not a measured reconstruction or production-ready model.
+Reason: the 75 ft circumference measurement path is user-confirmed as the widest body section and the bottom diameter is now specified as 7.5 ft, but measurement provenance and uncertainty, the exact top-ring plane, and orthogonal section dimensions remain unresolved. Geometry v1 remains a normalized topology blockout, not a measured reconstruction or production-ready model.
 
 This gate does not certify engineering design, structural safety, material properties, internal supports, attachment strength, or pyrotechnic safety.
