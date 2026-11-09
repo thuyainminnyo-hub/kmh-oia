@@ -54,3 +54,6 @@ Commits:
 5. Continue filesystem/VM crash tests and independent replica restore before any power-loss or production claims.
 
 PR #217 remains OPEN / DRAFT. Gate A remains open pending broader acceptance criteria.
+
+### PREMIS 3.0 clarification
+PREMIS 3.0 has four top-level entities: Objects, Events, Rights, Agents. An Intellectual Entity is represented as a category/type of PREMIS Object in version 3.0, not a fifth top-level entity. The Library of Congress hierarchical semantic-unit page has a stale introductory sentence claiming five entities; that sentence conflicts with the Data Dictionary landing page, the PREMIS 3.0 ontology and the page's Object hierarchy. KMH follows the four-entity model. Official references: https://www.loc.gov/standards/premis/v3/ and https://www.loc.gov/standards/premis/ontology/owl-version3.html.
