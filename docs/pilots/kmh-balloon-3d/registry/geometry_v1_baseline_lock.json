@@ -1,0 +1,31 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "asset_id": "KMH-BAL-001",
+  "baseline_id": "KMH-BAL-001-GEOMETRY-V1-LOCK",
+  "version": "1.0",
+  "status": "PRESERVED_BASELINE",
+  "assets": {
+    "body": {
+      "file": "geometry/KMH_BAL_001_BODY_BLOCKOUT_v1.glb",
+      "sha256": "1c3b57d2146686926e6d421aaf07b5382ba634a9d9df4138804fe921a20078b9"
+    },
+    "lower_skirt": {
+      "file": "geometry/KMH_BAL_001_LOWER_SKIRT_BLOCKOUT_v1.glb",
+      "sha256": "ab57f9ee89dbfcedc494566f9b41809917da41e6ddd966775129f73e2a9d284b"
+    }
+  },
+  "semantic_dimensions": [
+    {"feature":"OVERALL_ENVELOPE_HEIGHT","value":25,"unit":"ft","semantic_type":"HEIGHT","provenance":"OWNER_CONFIRMED_ONLY","independent_verification":"PENDING"},
+    {"feature":"MAXIMUM_BODY_CIRCUMFERENCE","value":75,"unit":"ft","semantic_type":"CIRCUMFERENCE","provenance":"OWNER_CONFIRMED_ONLY","independent_verification":"PENDING"},
+    {"feature":"BOTTOM_RING_DIAMETER","value":7.5,"unit":"ft","semantic_type":"DIAMETER","provenance":"OWNER_CONFIRMED_ONLY","independent_verification":"PENDING"},
+    {"feature":"TOP_RING_DIAMETER","value":25,"unit":"ft","semantic_type":"DIAMETER","provenance":"OWNER_CONFIRMED_ONLY","independent_verification":"PENDING"}
+  ],
+  "geometry_policy": {
+    "units": "NORMALIZED_ARBITRARY",
+    "physical_scale_applied": false,
+    "geometry_v1_mutable": false,
+    "geometry_v2_status": "HOLD",
+    "two_visual_states": ["BASE-UNLOADED","DISPLAYED-ATTACHED"],
+    "state_specific_deformation": "REPORTED_QUALITATIVELY_NOT_MEASURED"
+  }
+}
