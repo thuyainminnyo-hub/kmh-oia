@@ -121,15 +121,65 @@ def validate_manifest_paths(bag_root: str | Path) -> None:
             except (ValueError, OSError) as exc:
                 raise IntakeError("UNSAFE_MANIFEST_PATH", f"Manifest path escapes base directory: {name}") from exc
 
+def _fsync_directory(path: Path) -> bool:
+    """Best-effort directory-entry durability; supported on POSIX platforms."""
+    if os.name != "posix":
+        return False
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    try:
+        fd = os.open(path, flags)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        return True
+    except OSError:
+        return False
+
+
 def _write_json(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp")
+    temporary = path.with_name(path.name + "." + uuid.uuid4().hex + ".tmp")
     with temporary.open("x", encoding="utf-8") as stream:
         json.dump(value, stream, indent=2, sort_keys=True)
         stream.write("\n")
         stream.flush()
         os.fsync(stream.fileno())
     os.replace(temporary, path)
+    _fsync_directory(path.parent)
+
+
+def inspect_incomplete_ingests(workspace: str | Path) -> list[dict]:
+    """Report orphan reservations/staging directories without deleting evidence."""
+    root = Path(workspace).resolve(strict=True)
+    findings = []
+    reservations = root / "reservations"
+    staging = root / "staging"
+    if reservations.is_dir():
+        for lock_path in sorted(reservations.glob("*.lock")):
+            try:
+                metadata = json.loads(lock_path.read_text(encoding="utf-8"))
+                status = "reservation_present"
+            except (OSError, json.JSONDecodeError):
+                metadata = {}
+                status = "reservation_unreadable"
+            findings.append({
+                "kind": "reservation",
+                "path": str(lock_path.relative_to(root)),
+                "status": status,
+                "metadata": metadata,
+                "action": "manual_review_required",
+            })
+    if staging.is_dir():
+        for run_path in sorted(staging.iterdir()):
+            if run_path.is_dir():
+                findings.append({
+                    "kind": "staging_directory",
+                    "path": str(run_path.relative_to(root)),
+                    "status": "incomplete_or_unpromoted",
+                    "action": "manual_review_required",
+                })
+    return findings
 
 
 def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
