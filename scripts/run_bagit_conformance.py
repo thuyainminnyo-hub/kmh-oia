@@ -24,9 +24,9 @@ def validate_bag_declaration(bag_path: Path) -> tuple[bool, str]:
     lines = text.splitlines()
     if len(lines) != 2:
         return False, "bagit.txt must contain exactly two lines"
-    if not re.fullmatch(r"BagIt-Version: 1\\.0", lines[0]):
+    if not re.fullmatch(r"BagIt-Version: 1\.0", lines[0]):
         return False, "invalid BagIt-Version declaration syntax/value"
-    if not re.fullmatch(r"Tag-File-Character-Encoding: [^\\s].*", lines[1]):
+    if not re.fullmatch(r"Tag-File-Character-Encoding: [^\s].*", lines[1]):
         return False, "invalid Tag-File-Character-Encoding declaration syntax/value"
     return True, ""
 
