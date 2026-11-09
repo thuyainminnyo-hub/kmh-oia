@@ -8,7 +8,7 @@ from pathlib import Path
 
 import bagit
 
-from scripts.preservation_ingest import IntakeError, ingest
+from scripts.preservation_ingest import IntakeError, ingest, validate_manifest_paths
 
 
 class PreservationIngestTests(unittest.TestCase):
@@ -143,6 +143,46 @@ class PreservationIngestTests(unittest.TestCase):
             ingest(self.root / "missing.mid", "fixture-004", self.workspace)
         self.assertEqual(caught.exception.code, "SOURCE_NOT_FOUND")
 
+    def _make_manifest_root(self, manifest_name, entry, payload=True):
+        root = self.root / ("manifest-case-" + manifest_name.replace("/", "_"))
+        root.mkdir()
+        if payload:
+            (root / "data").mkdir()
+        (root / manifest_name).write_text(entry + "\\n", encoding="utf-8")
+        return root
+
+    def test_payload_manifest_parent_traversal_rejected(self):
+        root = self._make_manifest_root("manifest-sha256.txt", "0" * 64 + "  ../outside.bin")
+        with self.assertRaises(IntakeError) as caught:
+            validate_manifest_paths(root)
+        self.assertEqual(caught.exception.code, "UNSAFE_MANIFEST_PATH")
+
+    def test_payload_manifest_absolute_path_rejected(self):
+        root = self._make_manifest_root("manifest-sha256.txt", "0" * 64 + "  /tmp/outside.bin")
+        with self.assertRaises(IntakeError) as caught:
+            validate_manifest_paths(root)
+        self.assertEqual(caught.exception.code, "UNSAFE_MANIFEST_PATH")
+
+    def test_payload_manifest_windows_drive_path_rejected(self):
+        root = self._make_manifest_root("manifest-sha256.txt", "0" * 64 + "  C:/outside.bin")
+        with self.assertRaises(IntakeError) as caught:
+            validate_manifest_paths(root)
+        self.assertEqual(caught.exception.code, "UNSAFE_MANIFEST_PATH")
+
+    def test_payload_manifest_symlink_parent_rejected(self):
+        root = self._make_manifest_root("manifest-sha256.txt", "0" * 64 + "  link/payload.bin")
+        outside = self.root / "outside"
+        outside.mkdir()
+        (root / "data" / "link").symlink_to(outside, target_is_directory=True)
+        with self.assertRaises(IntakeError) as caught:
+            validate_manifest_paths(root)
+        self.assertEqual(caught.exception.code, "MANIFEST_PATH_SYMLINK")
+
+    def test_percent_encoded_parent_traversal_rejected(self):
+        root = self._make_manifest_root("manifest-sha256.txt", "0" * 64 + "  %2e%2e/outside.bin")
+        with self.assertRaises(IntakeError) as caught:
+            validate_manifest_paths(root)
+        self.assertEqual(caught.exception.code, "UNSAFE_MANIFEST_PATH")
 
 if __name__ == "__main__":
     unittest.main()
