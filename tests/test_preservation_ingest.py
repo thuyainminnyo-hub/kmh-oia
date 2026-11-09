@@ -3,6 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import bagit
+
 from scripts.preservation_ingest import IntakeError, ingest
 
 
@@ -27,6 +29,11 @@ class PreservationIngestTests(unittest.TestCase):
         self.assertEqual(self.source.read_bytes(), original)
         self.assertEqual(result["source_sha256"], result["staged_sha256"])
         self.assertEqual(result["rights_status"], "unknown")
+        accepted_bag = payload.parents[2]
+        bagit.Bag(str(accepted_bag)).validate()
+        self.assertFalse((accepted_bag / "intake-receipt.json").exists())
+        report = self.workspace / "reports" / (result["object_id"] + "-" + result["run_id"] + ".json")
+        self.assertTrue(report.is_file())
 
     def test_duplicate_object_id_never_overwrites(self):
         ingest(self.source, "fixture-002", self.workspace)
