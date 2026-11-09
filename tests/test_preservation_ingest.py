@@ -590,5 +590,29 @@ ingest(source, object_id, workspace, crash_hook=crash)
                 now="2026-11-10T10:30:00+00:00",
             )
 
+
+    def test_rfc8785_jcs_canonicalization_vectors(self):
+        from scripts.preservation_ingest import _canonical_json_bytes
+        value = {
+            "numbers": [333333333.33333329, 1e30, 4.50, 2e-3, 1e-27],
+            "literals": [None, True, False],
+            "b": 1,
+            "a": 2,
+        }
+        canonical = _canonical_json_bytes(value)
+        self.assertEqual(
+            canonical,
+            b'{"a":2,"b":1,"literals":[null,true,false],"numbers":[333333333.3333333,1e+30,4.5,0.002,1e-27]}',
+        )
+        self.assertEqual(_canonical_json_bytes({"€": "Euro", "a": "ASCII"}), b'{"a":"ASCII","€":"Euro"}')
+
+    def test_rfc8785_jcs_rejects_non_finite_numbers(self):
+        from scripts.preservation_ingest import _canonical_json_bytes
+        with self.assertRaises(IntakeError):
+            _canonical_json_bytes({"invalid": float("nan")})
+        with self.assertRaises(IntakeError):
+            _canonical_json_bytes({"invalid": float("inf")})
+
+
 if __name__ == "__main__":
     unittest.main()
