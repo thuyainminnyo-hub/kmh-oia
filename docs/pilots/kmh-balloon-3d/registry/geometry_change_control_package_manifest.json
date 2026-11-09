@@ -6,5 +6,9 @@
   "empty_template_blocker_count": 30,
   "validator_result": "PASS_EXPECTED_HOLD",
   "baseline_asset_hash_checks": "2_OF_2_MATCH",
+  "regression_tests": 7,
+  "regression_test_result": "PASS",
+  "candidate_asset_hash_verification": "SUPPORTED_VIA_CANDIDATE_ROOT",
+  "synthetic_complete_fixture_decision": "ELIGIBLE_FOR_HUMAN_RELEASE_REVIEW",
   "no_geometry_modified": true
 }
