@@ -1,0 +1,13 @@
+{
+  "audit_version": "1.0",
+  "audit_date": "2026-11-09",
+  "images_audited": 16,
+  "images_with_exif": 0,
+  "camera_pose_documented": 0,
+  "lens_calibration_documented": 0,
+  "scale_reference_documented": 0,
+  "state_confirmed": 0,
+  "photogrammetry_ready": false,
+  "geometry_v2": "HOLD",
+  "note": "File hashes, pixel dimensions and conservative classifications are in the local audit ZIP. No physical dimensions or capture states were inferred."
+}

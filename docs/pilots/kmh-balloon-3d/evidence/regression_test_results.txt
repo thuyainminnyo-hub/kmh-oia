@@ -1,0 +1,2 @@
+7 tests passed in 17.853s.
+Tests: empty request HOLD; complete evidence routes to human release review only; UNKNOWN state rejected; missing owner approval rejected; candidate hash mismatch rejected; baseline hash mismatch rejected; attachment-mechanics inference rejected.

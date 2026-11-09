@@ -1,0 +1,47 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "asset_id": "KMH-BAL-001",
+  "review_id": "KMH-BAL-3D-REVIEW-2026-11-09-01",
+  "status": "STATE_DIFFERENCE_REPORTED__NO_GEOMETRY_CHANGE",
+  "model": {
+    "file": "geometry/KMH_BAL_001_BODY_BLOCKOUT_v1.glb",
+    "bounds_normalized_units": [1.76, 1.76, 1.0],
+    "height_to_maximum_planar_width_ratio": 0.568182,
+    "units": "NORMALIZED_ARBITRARY",
+    "symmetry": "Front and side projections are identical by construction."
+  },
+  "user_provided_domain_clarification": {
+    "statement": "The project owner reports that attaching the 40-viss ယမ်းခွေ (Yan-Khwe) in the real-world configuration can make the balloon appear longer.",
+    "interpretation": "The apparent difference may reflect distinct base/unloaded and displayed/attached reference states.",
+    "independent_measurement": "Not available",
+    "mechanical_response": "Not measured; no calculations or inferences permitted from this record."
+  },
+  "visual_states": [
+    {
+      "state_id": "BASE-UNLOADED",
+      "description": "Envelope appearance without the separate suspended Yan-Khwe attachment.",
+      "evidence_status": "NEEDS_STATE_ATTRIBUTION"
+    },
+    {
+      "state_id": "DISPLAYED-ATTACHED",
+      "description": "Envelope appearance in the reported real-world display configuration with separate suspended Yan-Khwe.",
+      "evidence_status": "USER_REPORTED_STATE; NEEDS_VISUAL_CAPTURE"
+    }
+  ],
+  "references": [
+    {"file": "16812.jpg", "role": "lettering-facing", "use": "qualitative visual reference only", "state": "UNKNOWN"},
+    {"file": "16813.jpg", "role": "Buddha-facing", "use": "qualitative visual reference only", "state": "UNKNOWN"},
+    {"file": "16814.jpg", "role": "side narrative", "use": "qualitative visual reference only", "state": "UNKNOWN"}
+  ],
+  "finding": "The difference between the normalized blockout and reference photos is unresolved and may be state-dependent. Do not classify it as proof of incorrect geometry.",
+  "correction": "Crop-window ratios are not balloon silhouette measurements and must not be used as geometry metrics.",
+  "gates": {
+    "topology": "PASS_FOR_TOPOLOGY_ONLY",
+    "visual_similarity": "STATE_DEPENDENT__NOT_YET_VALIDATED",
+    "physical_scale": "HOLD",
+    "state_specific_profile": "HOLD",
+    "geometry_v2": "HOLD",
+    "production": "NOT_AUTHORIZED"
+  },
+  "decision": "Preserve Geometry v1. Distinguish BASE/UNLOADED and DISPLAYED/ATTACHED reference states. Attribute source photos to a state and obtain calibrated state-specific visual and measurement evidence before any Geometry v2 proposal."
+}

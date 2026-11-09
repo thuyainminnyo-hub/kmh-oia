@@ -1,0 +1,47 @@
+{
+  "asset_id": "KMH-BAL-001",
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "status": "PREPARED",
+  "checkpoint_date": "2026-11-09",
+  "physical_reference": {
+    "height_ft": 25,
+    "height_m": 7.62,
+    "classification": "USER_CONFIRMED_MEASUREMENT",
+    "independent_corroboration": "PENDING",
+    "measurement_method": "NOT_RECORDED",
+    "measurement_tolerance": "NOT_RECORDED",
+    "width_m": null,
+    "depth_m": null
+  },
+  "original_reference_set": {
+    "count": 3,
+    "views": [
+      "buddha-facing",
+      "side-artwork-orientation-unconfirmed",
+      "rear-lettering"
+    ],
+    "calibrated_360_capture": false,
+    "hashes": "PENDING_CAPTURE_MANIFEST"
+  },
+  "execution": {
+    "tripo_h3_1": "NOT_EXECUTED",
+    "colmap": "NOT_EXECUTED",
+    "blender_master": "NOT_CREATED",
+    "independent_qa": "PENDING",
+    "production_approval": "HOLD"
+  },
+  "gates": {
+    "input_integrity": "PENDING",
+    "capture_quality": "PENDING",
+    "geometry": "PENDING",
+    "scale": "PENDING",
+    "artwork_fidelity": "PENDING",
+    "human_approval": "PENDING"
+  },
+  "governance": {
+    "api_keys_in_repository": false,
+    "paid_generation_requires_explicit_approval": true,
+    "production_promotion_requires_human_approval": true,
+    "immutable_originals": true
+  }
+}

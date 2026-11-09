@@ -1,0 +1,181 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "registry_id": "KMH-BAL-001-SOURCE-OWNER-CONFIRMATION",
+  "version": "1.0",
+  "status": "WAITING_FOR_SOURCE_OWNER_CONFIRMATION",
+  "allowed_states": [
+    "BASE-UNLOADED",
+    "DISPLAYED-ATTACHED",
+    "UNKNOWN",
+    "NOT_APPLICABLE"
+  ],
+  "records": [
+    {
+      "filename": "16812.jpg",
+      "source_class": "ORIGINAL_PHOTO",
+      "visual_role": "REAR_LETTERING_FACING",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16813.jpg",
+      "source_class": "ORIGINAL_PHOTO",
+      "visual_role": "FRONT_BUDDHA_FACING",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16814.jpg",
+      "source_class": "ORIGINAL_PHOTO",
+      "visual_role": "SIDE_NARRATIVE_FACING",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16822.jpg",
+      "source_class": "2019_VIDEO_SCREENSHOT",
+      "visual_role": "YAN_KHWE_DETAIL",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16824.jpg",
+      "source_class": "2019_VIDEO_SCREENSHOT",
+      "visual_role": "YAN_KHWE_DETAIL",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16826.jpg",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "FRONT_OR_OBLIQUE_ARTWORK",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16828.jpg",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "LETTERING_FACING",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16830.jpg",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "FRONT_BUDDHA_OR_OBLIQUE",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16832.jpg",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "SIDE_NARRATIVE_OR_OBLIQUE",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16834.jpg",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "FRONT_BUDDHA_FACING",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16836.jpg",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "SIDE_OR_REAR_OBLIQUE",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16838.jpg",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "SIDE_OR_REAR_OBLIQUE",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16840.jpg",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "LETTERING_FACING_OBLIQUE",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16842.jpg",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "LETTERING_FACING",
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16844.jpg",
+      "source_class": "GROUND_LAID_ARTWORK_PHOTO",
+      "visual_role": "RADIAL_PANEL_ARTWORK",
+      "current_state": "NOT_APPLICABLE",
+      "confirmed_state": "NOT_APPLICABLE",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    },
+    {
+      "filename": "16850.jpg",
+      "source_class": "DOCUMENT_PHOTO",
+      "visual_role": "COMPETITION_RULES_DOCUMENT",
+      "current_state": "NOT_APPLICABLE",
+      "confirmed_state": "NOT_APPLICABLE",
+      "confirmation_basis": "NOT_YET_CONFIRMED",
+      "confirmed_by": null,
+      "evidence_reference": null
+    }
+  ],
+  "policy": {
+    "state_promotion_requires_human_source_evidence": true,
+    "visual_inference_only_is_insufficient": true,
+    "cropped_or_occluded_attachment_region_does_not_prove_unloaded_state": true,
+    "yan_khwe_closeup_alone_does_not_prove_attachment_to_balloon": true,
+    "original_images_must_remain_unchanged": true
+  }
+}

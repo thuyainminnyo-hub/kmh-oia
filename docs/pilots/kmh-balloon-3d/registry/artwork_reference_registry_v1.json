@@ -1,0 +1,128 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "registry_id": "KMH-BAL-001-ARTWORK-REFERENCE-ATLAS",
+  "version": "1.0",
+  "status": "ARTWORK_ZONES_IDENTIFIED__UV_MAPPING_NOT_STARTED",
+  "reference_images": [
+    {
+      "file": "16812.jpg",
+      "sha256": "0e91f274578a19530f832a36f6049306ca629b600780dc092ddbfac18fbb4fa8",
+      "width_px": 1152,
+      "height_px": 2048,
+      "view_role": "REAR_LETTERING_FACING",
+      "capture_calibration": "NOT_CALIBRATED",
+      "balloon_state": "UNKNOWN_BASE_OR_DISPLAYED"
+    },
+    {
+      "file": "16813.jpg",
+      "sha256": "923d66df054e503d9b80c1ff70a8da0146d4813866d2bcf305c92c090576fb43",
+      "width_px": 1152,
+      "height_px": 2048,
+      "view_role": "FRONT_BUDDHA_FACING",
+      "capture_calibration": "NOT_CALIBRATED",
+      "balloon_state": "UNKNOWN_BASE_OR_DISPLAYED"
+    },
+    {
+      "file": "16814.jpg",
+      "sha256": "ed322b14ff43cb264bf9760ada554bf51054adc473cd625f0d3602d3bf1b8a9f",
+      "width_px": 1152,
+      "height_px": 2048,
+      "view_role": "SIDE_NARRATIVE_FACING",
+      "capture_calibration": "NOT_CALIBRATED",
+      "balloon_state": "UNKNOWN_BASE_OR_DISPLAYED"
+    }
+  ],
+  "artwork_zones": [
+    {
+      "zone_id": "ART-01",
+      "name": "Crown rim / upper edge",
+      "description": "Dark upper perimeter/rim visible along crown edge.",
+      "references": [
+        "16812.jpg",
+        "16813.jpg",
+        "16814.jpg"
+      ],
+      "status": "REFERENCE_IDENTIFIED_UV_PENDING"
+    },
+    {
+      "zone_id": "ART-02",
+      "name": "Upper gradient / surface field",
+      "description": "Warm orange-brown upper field with fine decorative strokes and mottling.",
+      "references": [
+        "16812.jpg",
+        "16813.jpg",
+        "16814.jpg"
+      ],
+      "status": "REFERENCE_IDENTIFIED_UV_PENDING"
+    },
+    {
+      "zone_id": "ART-03",
+      "name": "Front Buddha and halo composition",
+      "description": "Central seated Buddha figure, circular/radiating halo and surrounding decoration.",
+      "references": [
+        "16813.jpg"
+      ],
+      "status": "REFERENCE_IDENTIFIED_UV_PENDING"
+    },
+    {
+      "zone_id": "ART-04",
+      "name": "Side narrative artwork",
+      "description": "Narrative scene with multiple figures and decorative motifs; physical left/right unknown.",
+      "references": [
+        "16814.jpg"
+      ],
+      "status": "REFERENCE_IDENTIFIED_UV_PENDING"
+    },
+    {
+      "zone_id": "ART-05",
+      "name": "Rear lettering",
+      "description": "Large stylized lettering and secondary text on lettering-facing surface; transcription unverified.",
+      "references": [
+        "16812.jpg"
+      ],
+      "status": "REFERENCE_IDENTIFIED_UV_PENDING"
+    },
+    {
+      "zone_id": "ART-06",
+      "name": "Lower dark band and radial ornament",
+      "description": "Dark lower surface band with red/orange decorative motifs; full wrap continuity unknown.",
+      "references": [
+        "16812.jpg",
+        "16813.jpg",
+        "16814.jpg"
+      ],
+      "status": "REFERENCE_IDENTIFIED_UV_PENDING"
+    },
+    {
+      "zone_id": "ART-07",
+      "name": "Surface linework / flame-like strokes",
+      "description": "Fine warm-colored linework integrated into the upper painted field.",
+      "references": [
+        "16812.jpg",
+        "16814.jpg"
+      ],
+      "status": "REFERENCE_IDENTIFIED_UV_PENDING"
+    }
+  ],
+  "uv_policy": {
+    "uv_mapping_started": false,
+    "uv_coordinates": null,
+    "texture_baking": false,
+    "source_artwork_mutation": false,
+    "human_approval_required": true
+  },
+  "state_policy": {
+    "apply_artwork_to": [
+      "BASE-UNLOADED",
+      "DISPLAYED-ATTACHED"
+    ],
+    "state_geometry_is_shared_for_now": true,
+    "state_specific_artwork_offset": "NOT_DEFINED"
+  },
+  "limitations": [
+    "References are perspective photographs, not calibrated geometry captures.",
+    "Image-space region boxes are not UV coordinates.",
+    "No physical dimensions or panel construction are inferred.",
+    "No final artwork has been generated or baked."
+  ]
+}

@@ -1,0 +1,223 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "audit_id": "KMH-BAL-001-STATE-ATTRIBUTION-AUDIT",
+  "version": "1.0",
+  "status": "NO_EXISTING_IMAGE_CONFIRMS_BALLOON_STATE",
+  "summary": {
+    "total_files": 16,
+    "base_unloaded_confirmed": 0,
+    "displayed_attached_confirmed": 0,
+    "unknown_state": 14,
+    "not_applicable": 2,
+    "photogrammetry_ready": false
+  },
+  "video_groups": {
+    "VID-2019-CHANNEL-TAUNGGYI": [
+      "16822.jpg",
+      "16824.jpg"
+    ],
+    "VID-SOCIAL-BALLOON": [
+      "16826.jpg",
+      "16828.jpg",
+      "16830.jpg",
+      "16832.jpg",
+      "16834.jpg",
+      "16836.jpg",
+      "16838.jpg",
+      "16840.jpg",
+      "16842.jpg"
+    ]
+  },
+  "records": [
+    {
+      "file": "16812.jpg",
+      "sha256": "0e91f274578a19530f832a36f6049306ca629b600780dc092ddbfac18fbb4fa8",
+      "source_class": "ORIGINAL_PHOTO",
+      "visual_role": "REAR_LETTERING_FACING",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Lower attachment area partly occluded; no definitive state cue.",
+      "photogrammetry_usable": false,
+      "independent_capture": null
+    },
+    {
+      "file": "16813.jpg",
+      "sha256": "923d66df054e503d9b80c1ff70a8da0146d4813866d2bcf305c92c090576fb43",
+      "source_class": "ORIGINAL_PHOTO",
+      "visual_role": "FRONT_BUDDHA_FACING",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Lower attachment condition not established.",
+      "photogrammetry_usable": false,
+      "independent_capture": null
+    },
+    {
+      "file": "16814.jpg",
+      "sha256": "ed322b14ff43cb264bf9760ada554bf51054adc473cd625f0d3602d3bf1b8a9f",
+      "source_class": "ORIGINAL_PHOTO",
+      "visual_role": "SIDE_NARRATIVE_FACING",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Lower attachment condition not established.",
+      "photogrammetry_usable": false,
+      "independent_capture": null
+    },
+    {
+      "file": "16822.jpg",
+      "sha256": "0331500dc001098d64a847fa927c0235862a715f6b83a8b3f2b174ea6d9e6f42",
+      "source_class": "2019_VIDEO_SCREENSHOT",
+      "visual_role": "YAN_KHWE_DETAIL",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Close-up of separate Yan-Khwe; balloon-to-attachment connection not visible.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16824.jpg",
+      "sha256": "cbe0f4f6386e6e1cfe3b46bf4d0079c4a83112a4773b5814913cb952bfe197a8",
+      "source_class": "2019_VIDEO_SCREENSHOT",
+      "visual_role": "YAN_KHWE_DETAIL",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Close-up of same video subject; balloon envelope not visible.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16826.jpg",
+      "sha256": "3c71bd9ec1f1890482cd2ea82964d0c9b8b1585356891d158d43f27dee5fc6c8",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "FRONT_OR_OBLIQUE_ARTWORK",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Balloon visible; base is occluded/cropped.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16828.jpg",
+      "sha256": "f36e05ce87ed8cfc3687c258b6ab90e74d9c4bbfdcaa0b49646565f66616f8e8",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "LETTERING_FACING",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Balloon visible; base is occluded/cropped.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16830.jpg",
+      "sha256": "c7921e4a84913187b12ac5bd784e1f1642b4355e2a95eceb4fb291b9bec89b48",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "FRONT_BUDDHA_OR_OBLIQUE",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Balloon visible; base is occluded/cropped.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16832.jpg",
+      "sha256": "0820458db67579bbf0b0c0663306696ed6174e74410af8a1be9237a9aef4e7b2",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "SIDE_NARRATIVE_OR_OBLIQUE",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Video frame; not an independent calibrated view.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16834.jpg",
+      "sha256": "1735e3dbbe649a5f8a56175b39dbdf6712e37d45fad218871acac5ab26855c60",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "FRONT_BUDDHA_FACING",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "People and crop obscure lower attachment region.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16836.jpg",
+      "sha256": "afaf09f8ba40a9bfaf5b7f1806000fba9ab235022f5da317a4747fefa33c6769",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "SIDE_OR_REAR_OBLIQUE",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Lower region occluded.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16838.jpg",
+      "sha256": "fa37ac034356a22ef621939b68f890444e08c92833a63d2fcaf4c58d01039b8f",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "SIDE_OR_REAR_OBLIQUE",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Same source video; not an independent capture.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16840.jpg",
+      "sha256": "0c40282e16f5ff9960befb45700fe479c808048a10579609023f6e26975a3042",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "LETTERING_FACING_OBLIQUE",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Same source video; attachment status unknown.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16842.jpg",
+      "sha256": "7e67ba8542975e398348d3f9d18f366729950e6934ab59aabf5b272f8f9e0d93",
+      "source_class": "SOCIAL_VIDEO_SCREENSHOT",
+      "visual_role": "LETTERING_FACING",
+      "state_attribution": "UNKNOWN",
+      "state_confidence": "NONE",
+      "review_note": "Same source video; attachment status unknown.",
+      "photogrammetry_usable": false,
+      "independent_capture": false
+    },
+    {
+      "file": "16844.jpg",
+      "sha256": "26e9e470020a73e81af1d3b90730f2b7659f0f0f85fa9b93712502cf81b9f86e",
+      "source_class": "GROUND_LAID_ARTWORK_PHOTO",
+      "visual_role": "RADIAL_PANEL_ARTWORK",
+      "state_attribution": "NOT_APPLICABLE",
+      "state_confidence": "NONE",
+      "review_note": "Ground-laid artwork only; not a balloon-state reference.",
+      "photogrammetry_usable": false,
+      "independent_capture": null
+    },
+    {
+      "file": "16850.jpg",
+      "sha256": "9150ab673265aa0cdab2264e64b3f10442ee0835d6f7ce11b992180ed87cd3ad",
+      "source_class": "DOCUMENT_PHOTO",
+      "visual_role": "COMPETITION_RULES_DOCUMENT",
+      "state_attribution": "NOT_APPLICABLE",
+      "state_confidence": "NONE",
+      "review_note": "Photographed rules page; document-evidence track.",
+      "photogrammetry_usable": false,
+      "independent_capture": null
+    }
+  ],
+  "next_evidence_requirements": [
+    "Directly confirm the state represented by each reference from the source owner/operator.",
+    "Obtain unobstructed state-attributed views that include the full envelope and lower attachment region.",
+    "Keep each capture set to one confirmed visual state; do not mix the two states in one reconstruction set.",
+    "Preserve originals and record SHA-256, camera metadata, viewpoint, time and source provenance.",
+    "Acquire additional overlapping views only under safe and permitted conditions."
+  ],
+  "gates": {
+    "state_attribution": "BLOCKED",
+    "calibrated_photogrammetry": "BLOCKED",
+    "COLMAP": "NOT_AUTHORIZED",
+    "UV_MAPPING": "NOT_READY",
+    "GEOMETRY_V2": "HOLD"
+  }
+}

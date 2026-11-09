@@ -1,0 +1,51 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "registry_id": "KMH-BAL-001-OWNER-DIMENSION-REGISTER",
+  "version": "1.0",
+  "dimensions": [
+    {
+      "dimension_id": "DIM-001",
+      "feature": "OVERALL_ENVELOPE_HEIGHT",
+      "value": 25,
+      "unit": "ft",
+      "semantic_type": "HEIGHT",
+      "source": "PROJECT_OWNER_CONFIRMED",
+      "independent_measurement": "PENDING"
+    },
+    {
+      "dimension_id": "DIM-002",
+      "feature": "MAXIMUM_BODY_CIRCUMFERENCE",
+      "value": 75,
+      "unit": "ft",
+      "semantic_type": "CIRCUMFERENCE",
+      "source": "PROJECT_OWNER_CONFIRMED",
+      "independent_measurement": "PENDING",
+      "note": "Circumference, not diameter."
+    },
+    {
+      "dimension_id": "DIM-003",
+      "feature": "BOTTOM_RING_DIAMETER",
+      "value": 7.5,
+      "unit": "ft",
+      "semantic_type": "DIAMETER",
+      "source": "PROJECT_OWNER_CONFIRMED",
+      "independent_measurement": "PENDING"
+    },
+    {
+      "dimension_id": "DIM-004",
+      "feature": "TOP_RING_DIAMETER",
+      "value": 25,
+      "unit": "ft",
+      "semantic_type": "DIAMETER",
+      "source": "PROJECT_OWNER_CONFIRMED",
+      "independent_measurement": "PENDING",
+      "note": "Do not conflate with historical Top Circle circumference records."
+    }
+  ],
+  "semantic_rules": {
+    "circumference_is_not_diameter": true,
+    "height_requires_defined_datum": true,
+    "owner_confirmed_values_are_not_independent_measurements": true,
+    "preserve_state_and_source_provenance": true
+  }
+}
