@@ -373,5 +373,35 @@ ingest(source, object_id, workspace, crash_hook=crash)
         self.assertTrue(journal.exists())
 
 
+
+    def test_read_only_recovery_planner_detects_valid_staging_only_bag(self):
+        from scripts.preservation_ingest import plan_ingest_recovery, _write_json
+        receipt = ingest(self.source, "planner-staging-001", self.workspace)
+        accepted = self.workspace / "accepted" / "planner-staging-001"
+        staging = self.workspace / "staging" / "planner-staging-001-recovery"
+        staging.parent.mkdir(exist_ok=True)
+        accepted.rename(staging)
+        journal = self.workspace / "reports" / "planner-staging-001-pending.promotion-pending.json"
+        _write_json(journal, {
+            "schema": "kmh.preservation-promotion-journal.v1",
+            "run_id": receipt["run_id"],
+            "object_id": "planner-staging-001",
+            "staging_path": "staging/planner-staging-001-recovery",
+            "accepted_path": "accepted/planner-staging-001",
+            "source_sha256": receipt["source_sha256"],
+            "source_byte_length": receipt["source_byte_length"],
+            "state": "promotion_pending",
+        })
+        before = {str(p.relative_to(self.workspace)): (p.read_bytes() if p.is_file() else None)
+                  for p in self.workspace.rglob("*")}
+        plans = plan_ingest_recovery(self.workspace)
+        after = {str(p.relative_to(self.workspace)): (p.read_bytes() if p.is_file() else None)
+                 for p in self.workspace.rglob("*")}
+        self.assertEqual(before, after)
+        self.assertEqual(len(plans), 1)
+        self.assertEqual(plans[0]["status"], "staged_bag_verified_promotion_not_completed")
+        self.assertEqual(plans[0]["proposed_action"], "operator_review_promotion")
+        self.assertTrue(journal.exists())
+
 if __name__ == "__main__":
     unittest.main()
