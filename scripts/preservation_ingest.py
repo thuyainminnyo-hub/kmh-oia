@@ -296,10 +296,12 @@ def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
                         "location": label,
                         "path": str(bag_path.relative_to(root)),
                         "identity": {
-                            "device": candidate_stat.st_dev,
-                            "inode": candidate_stat.st_ino,
+                            # POSIX identifiers/timestamps may exceed the I-JSON safe integer range.
+                            # Decimal strings preserve exact values across languages and JCS signers.
+                            "device": str(candidate_stat.st_dev),
+                            "inode": str(candidate_stat.st_ino),
                             "mode": candidate_stat.st_mode,
-                            "mtime_ns": candidate_stat.st_mtime_ns,
+                            "mtime_ns": str(candidate_stat.st_mtime_ns),
                         },
                         "bagit_valid": True,
                         "payload_sha256": digest,
