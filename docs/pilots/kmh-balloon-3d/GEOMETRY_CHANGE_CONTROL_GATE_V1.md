@@ -45,6 +45,21 @@ Both are required:
 
 A Geometry v2 candidate remains on HOLD if any evidence item, QA result, limitation statement or approval is missing.
 
+## Regression test coverage
+
+Nine cases cover:
+1. Empty request remains `BLOCKED_HOLD`.
+2. Complete synthetic evidence reaches only `ELIGIBLE_FOR_HUMAN_RELEASE_REVIEW`.
+3. UNKNOWN state is rejected.
+4. Missing project-owner approval is rejected.
+5. Candidate asset hash mismatch is rejected.
+6. Baseline hash mismatch is rejected.
+7. Attachment-mechanics inference is rejected.
+8. Missing candidate asset root is rejected.
+9. Missing locked-baseline asset root is rejected.
+
+Both `--asset-root` and `--candidate-root` are mandatory for eligibility. Synthetic byte fixtures test evidence/hash gates only; they are not real GLBs and do not replace mesh QA.
+
 ## Release policy
 The validator can return only `ELIGIBLE_FOR_HUMAN_RELEASE_REVIEW`; it never changes assets, approves a PR, merges, or deploys. Merge and production approval are separate decisions.
 
