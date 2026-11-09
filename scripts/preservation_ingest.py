@@ -279,14 +279,32 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
             "result": "accepted",
             "completed_at_utc": datetime.now(timezone.utc).isoformat(),
         })
+        # Write a durable intent record before promotion. If the process stops
+        # after rename but before the final receipt, recovery can reconcile it.
+        receipt["accepted_path"] = str(final_path.relative_to(workspace_path))
+        journal_path = reports_root / f"{object_id}-{run_id}.promotion-pending.json"
+        _write_json(journal_path, {
+            "schema": "kmh.preservation-promotion-journal.v1",
+            "run_id": run_id,
+            "object_id": object_id,
+            "staging_path": str(run_dir.relative_to(workspace_path)),
+            "accepted_path": str(final_path.relative_to(workspace_path)),
+            "source_sha256": source_sha,
+            "source_byte_length": source_length,
+            "state": "promotion_pending",
+        })
         # Keep the receipt outside the BagIt root: adding a tag file after
         # manifest generation would invalidate the tag manifest.
         if final_path.exists():
             raise IntakeError("DUPLICATE_OBJECT_ID", "Object ID appeared during ingest; no overwrite performed")
         os.replace(run_dir, final_path)
-        receipt["accepted_path"] = str(final_path.relative_to(workspace_path))
+        _fsync_directory(accepted_root)
+        receipt["promotion_status"] = "promoted"
         _write_json(reports_root / f"{object_id}-{run_id}.json", receipt)
+        journal_path.unlink(missing_ok=True)
+        _fsync_directory(reports_root)
         reservation_path.unlink(missing_ok=True)
+        _fsync_directory(reservations_root)
         return receipt
     except Exception as exc:
         if isinstance(exc, IntakeError):
@@ -295,18 +313,31 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
             code = "BAGIT_VALIDATION_FAILED"
         else:
             code = "INGEST_FAILED"
-        receipt.update({
-            "result": "quarantined",
-            "error_code": code,
-            "diagnostics": str(exc),
-            "completed_at_utc": datetime.now(timezone.utc).isoformat(),
-        })
-        if run_dir.exists():
-            quarantine_path = quarantine_root / f"{object_id}-{run_id}"
-            os.replace(run_dir, quarantine_path)
-            receipt["quarantine_path"] = str(quarantine_path.relative_to(workspace_path))
+        if final_path.exists() and not run_dir.exists():
+            # Promotion succeeded; do not mislabel or move the accepted Bag
+            # merely because writing its final receipt failed.
+            receipt.update({
+                "result": "accepted_receipt_pending",
+                "promotion_status": "promoted",
+                "error_code": "FINAL_RECEIPT_WRITE_FAILED",
+                "diagnostics": str(exc),
+                "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+                "accepted_path": str(final_path.relative_to(workspace_path)),
+            })
+        else:
+            receipt.update({
+                "result": "quarantined",
+                "error_code": code,
+                "diagnostics": str(exc),
+                "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+            })
+            if run_dir.exists():
+                quarantine_path = quarantine_root / f"{object_id}-{run_id}"
+                os.replace(run_dir, quarantine_path)
+                receipt["quarantine_path"] = str(quarantine_path.relative_to(workspace_path))
         _write_json(reports_root / f"{object_id}-{run_id}.json", receipt)
-        reservation_path.unlink(missing_ok=True)
+        if receipt["result"] != "accepted_receipt_pending":
+            reservation_path.unlink(missing_ok=True)
         raise IntakeError(code, str(exc)) from exc
 
 
