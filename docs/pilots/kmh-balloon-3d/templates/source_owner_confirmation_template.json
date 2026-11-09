@@ -1,0 +1,52 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "confirmation_id": "KMH-BAL-001-SOURCE-CONFIRM-YYYYMMDD-001",
+  "version": "1.0",
+  "status": "EMPTY_CONFIRMATION_TEMPLATE",
+  "source_owner_or_confirmer": {
+    "name_or_role": null,
+    "relationship_to_source": null,
+    "contact_or_record_reference": null,
+    "confirmation_date": null
+  },
+  "subject": {
+    "same_balloon_or_team_confirmed": null,
+    "team_or_source_identity": null,
+    "balloon_category": null,
+    "competition_year_or_capture_date": null
+  },
+  "allowed_visual_states": [
+    "BASE-UNLOADED",
+    "DISPLAYED-ATTACHED",
+    "UNKNOWN",
+    "NOT_APPLICABLE"
+  ],
+  "acceptable_confirmation_basis": [
+    "DIRECT_WITNESS",
+    "ORIGINAL_CREATOR",
+    "TEAM_RECORD",
+    "DOCUMENTED_SOURCE",
+    "UNKNOWN"
+  ],
+  "images": [
+    {
+      "filename": "16812.jpg",
+      "sha256": null,
+      "current_state": "UNKNOWN",
+      "confirmed_state": "UNKNOWN",
+      "confirmation_basis": "UNKNOWN",
+      "confirmed_by": null,
+      "relationship_to_source": null,
+      "evidence_reference": null,
+      "confirmation_date": null,
+      "orientation_confirmed": false,
+      "notes": null
+    }
+  ],
+  "review": {
+    "reviewer": null,
+    "review_date": null,
+    "decision": "PENDING",
+    "comments": null
+  }
+}
