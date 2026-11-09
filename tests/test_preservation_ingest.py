@@ -68,6 +68,39 @@ class PreservationIngestTests(unittest.TestCase):
             ingest(fifo, "fixture-005", self.workspace)
         self.assertEqual(caught.exception.code, "SOURCE_NOT_REGULAR_FILE")
 
+    def _make_test_bag(self, name):
+        bag_root = self.root / name
+        bag_root.mkdir()
+        (bag_root / "data").mkdir()
+        (bag_root / "data" / "payload.bin").write_bytes(b"preservation-test-payload")
+        return bagit.make_bag(str(bag_root), checksums=["sha256", "sha512"])
+
+    def test_payload_tampering_detected(self):
+        bag = self._make_test_bag("tampered")
+        payload = Path(bag.path) / "data" / "payload.bin"
+        payload.write_bytes(b"tampered-payload")
+        with self.assertRaises(bagit.BagValidationError):
+            bag.validate()
+
+    def test_missing_payload_detected(self):
+        bag = self._make_test_bag("missing")
+        (Path(bag.path) / "data" / "payload.bin").unlink()
+        with self.assertRaises(bagit.BagValidationError):
+            bag.validate()
+
+    def test_unexpected_payload_detected(self):
+        bag = self._make_test_bag("unexpected")
+        (Path(bag.path) / "data" / "extra.bin").write_bytes(b"unexpected")
+        with self.assertRaises(bagit.BagValidationError):
+            bag.validate()
+
+    def test_corrupt_tag_manifest_detected(self):
+        bag = self._make_test_bag("corrupt-tag")
+        tag_manifest = Path(bag.path) / "tagmanifest-sha512.txt"
+        tag_manifest.write_text("0" * 128 + "  bagit.txt\\n", encoding="utf-8")
+        with self.assertRaises(bagit.BagValidationError):
+            bag.validate()
+
     def test_missing_source_rejected(self):
         with self.assertRaises(IntakeError) as caught:
             ingest(self.root / "missing.mid", "fixture-004", self.workspace)
