@@ -32,6 +32,12 @@ class PreservationIngestTests(unittest.TestCase):
         self.assertEqual(result["rights_status"], "unknown")
         accepted_bag = payload.parents[2]
         bagit.Bag(str(accepted_bag)).validate()
+        self.assertTrue((accepted_bag / "manifest-sha256.txt").is_file())
+        self.assertTrue((accepted_bag / "manifest-sha512.txt").is_file())
+        self.assertTrue((accepted_bag / "tagmanifest-sha256.txt").is_file())
+        self.assertTrue((accepted_bag / "tagmanifest-sha512.txt").is_file())
+        self.assertEqual(result["manifest_algorithms"], ["sha256", "sha512"])
+        self.assertNotEqual(result["validation_tool_version"], "unknown")
         self.assertFalse((accepted_bag / "intake-receipt.json").exists())
         report = self.workspace / "reports" / (result["object_id"] + "-" + result["run_id"] + ".json")
         self.assertTrue(report.is_file())
