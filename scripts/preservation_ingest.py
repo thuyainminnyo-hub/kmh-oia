@@ -336,6 +336,96 @@ def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
     return plans
 
 
+
+RECOVERY_APPROVAL_SCHEMA = "kmh.preservation-recovery-approval.v1"
+RECOVERY_ACTIONS = {
+    "operator_review_finalize_receipt": "finalize_receipt_for_verified_accepted_bag",
+    "operator_review_promotion": "promote_verified_staging_bag",
+}
+
+
+def _canonical_plan_digest(plan: dict) -> str:
+    digest_input = dict(plan)
+    supplied_digest = digest_input.pop("plan_sha256", None)
+    canonical = json.dumps(
+        digest_input,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    calculated = hashlib.sha256(canonical).hexdigest()
+    if supplied_digest != calculated:
+        raise IntakeError("STALE_OR_TAMPERED_PLAN", "Recovery plan digest does not match its canonical contents")
+    return calculated
+
+
+def build_recovery_approval_record(
+    plan: dict,
+    *,
+    action: str,
+    actor_id: str,
+    approved_at: str,
+    expires_at: str,
+    approval_id: str,
+) -> dict:
+    """Build an approval record bound to a verified plan; does not authenticate actor."""
+    plan_digest = _canonical_plan_digest(plan)
+    expected_action = RECOVERY_ACTIONS.get(plan.get("proposed_action"))
+    if expected_action is None or action != expected_action:
+        raise IntakeError("RECOVERY_ACTION_NOT_ALLOWED", "Requested action is not allowlisted for this recovery plan")
+    if not isinstance(actor_id, str) or not actor_id.strip() or len(actor_id) > 200:
+        raise IntakeError("INVALID_APPROVER", "A non-empty external actor identifier is required")
+    if not isinstance(approval_id, str) or not OBJECT_ID_RE.fullmatch(approval_id):
+        raise IntakeError("INVALID_APPROVAL_ID", "Approval ID is invalid")
+    try:
+        approved = datetime.fromisoformat(approved_at.replace("Z", "+00:00"))
+        expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+    except (AttributeError, ValueError) as exc:
+        raise IntakeError("INVALID_APPROVAL_TIME", "Approval timestamps must be ISO-8601") from exc
+    if approved.tzinfo is None or expires.tzinfo is None or expires <= approved:
+        raise IntakeError("INVALID_APPROVAL_TIME", "Approval timestamps must be timezone-aware and expiry must follow approval")
+    return {
+        "schema": RECOVERY_APPROVAL_SCHEMA,
+        "approval_id": approval_id,
+        "actor_id": actor_id.strip(),
+        "action": action,
+        "plan_sha256": plan_digest,
+        "journal_sha256": plan.get("journal_sha256"),
+        "approved_at": approved.isoformat(),
+        "expires_at": expires.isoformat(),
+    }
+
+
+def validate_recovery_approval(
+    record: dict,
+    current_plan: dict,
+    *,
+    authorize_actor: Callable[[str, str], bool] | None,
+    now: str,
+) -> None:
+    """Validate plan freshness, action, expiry and delegated actor authorization."""
+    current_digest = _canonical_plan_digest(current_plan)
+    if record.get("schema") != RECOVERY_APPROVAL_SCHEMA:
+        raise IntakeError("INVALID_APPROVAL_SCHEMA", "Unsupported approval record schema")
+    if record.get("plan_sha256") != current_digest or record.get("journal_sha256") != current_plan.get("journal_sha256"):
+        raise IntakeError("STALE_APPROVAL", "Approval is not bound to the current recovery plan")
+    expected_action = RECOVERY_ACTIONS.get(current_plan.get("proposed_action"))
+    if expected_action is None or record.get("action") != expected_action:
+        raise IntakeError("RECOVERY_ACTION_NOT_ALLOWED", "Approval action is not allowed for the current plan")
+    try:
+        expires = datetime.fromisoformat(record["expires_at"])
+        current_time = datetime.fromisoformat(now.replace("Z", "+00:00"))
+    except (KeyError, AttributeError, ValueError) as exc:
+        raise IntakeError("INVALID_APPROVAL_TIME", "Approval expiry or validation time is invalid") from exc
+    if expires.tzinfo is None or current_time.tzinfo is None or current_time >= expires:
+        raise IntakeError("APPROVAL_EXPIRED", "Approval has expired or has invalid timezone information")
+    actor_id = record.get("actor_id")
+    if not isinstance(actor_id, str) or not actor_id.strip():
+        raise IntakeError("INVALID_APPROVER", "Approval actor identifier is missing")
+    if authorize_actor is None or not authorize_actor(actor_id, record["action"]):
+        raise IntakeError("ACTOR_NOT_AUTHORIZED", "Trusted authorization provider did not authorize this actor and action")
+
+
 def ingest(
     source: str | Path,
     object_id: str,
