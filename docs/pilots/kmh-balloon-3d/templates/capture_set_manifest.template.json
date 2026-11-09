@@ -1,0 +1,104 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "capture_set_id": "KMH-BAL-001-CAPTURE-SET-YYYYMMDD-001",
+  "version": "1.0",
+  "status": "TEMPLATE_ONLY_NOT_CAPTURE_EVIDENCE",
+  "subject": {
+    "asset_id": "KMH-BAL-001",
+    "team_id": null,
+    "team_name_as_supplied": null,
+    "competition_year": null,
+    "balloon_category": "UNKNOWN",
+    "subject_identity_confidence": "UNKNOWN"
+  },
+  "visual_state": {
+    "state_id": "UNKNOWN",
+    "allowed_values": [
+      "BASE-UNLOADED",
+      "DISPLAYED-ATTACHED",
+      "UNKNOWN"
+    ],
+    "source_of_state_label": "UNKNOWN",
+    "state_attribution_confidence": "UNKNOWN",
+    "notes": null
+  },
+  "capture_session": {
+    "capture_date_time": null,
+    "operator": null,
+    "device_make_model": null,
+    "lens_or_camera_module": null,
+    "focal_length_mm": null,
+    "image_dimensions_px": null,
+    "original_files_preserved": false,
+    "editing_applied_to_originals": false,
+    "lighting_conditions": null,
+    "weather_or_environment": null,
+    "balloon_configuration_description": null,
+    "permissions_or_consent_reference": null
+  },
+  "images": [
+    {
+      "filename": "IMG_0001.jpg",
+      "sha256": null,
+      "mime_type": null,
+      "width_px": null,
+      "height_px": null,
+      "sequence_number": 1,
+      "view_group": "UNKNOWN",
+      "view_group_allowed": [
+        "FRONT_BUDDHA",
+        "REAR_LETTERING",
+        "SIDE_NARRATIVE",
+        "LEFT_OBLIQUE",
+        "RIGHT_OBLIQUE",
+        "UPPER_VIEW",
+        "LOWER_VIEW",
+        "DETAIL",
+        "UNKNOWN"
+      ],
+      "physical_orientation_confirmed": false,
+      "state_id": "UNKNOWN",
+      "state_evidence": "UNKNOWN",
+      "sharpness_review": "PENDING",
+      "occlusion_review": "PENDING",
+      "exposure_review": "PENDING",
+      "scale_reference_visible": false,
+      "scale_reference_id": null,
+      "notes": null
+    }
+  ],
+  "measurements": [
+    {
+      "measurement_id": "MEAS-001",
+      "feature": "OVERALL_ENVELOPE_HEIGHT",
+      "value": null,
+      "unit": "ft",
+      "state_id": "UNKNOWN",
+      "method": null,
+      "instrument": null,
+      "operator": null,
+      "date": null,
+      "endpoints_or_definition": null,
+      "uncertainty_or_tolerance": null,
+      "independent_verification": "PENDING"
+    }
+  ],
+  "capture_quality_gates": {
+    "same_subject_confirmed": false,
+    "single_stable_visual_state_per_set": false,
+    "viewpoint_diversity": "NOT_REVIEWED",
+    "overlap": "NOT_REVIEWED",
+    "parallax": "NOT_REVIEWED",
+    "lighting_consistency": "NOT_REVIEWED",
+    "sharpness": "NOT_REVIEWED",
+    "scale_control": "NOT_REVIEWED",
+    "state_attribution": "NOT_REVIEWED",
+    "metadata_completeness": "NOT_REVIEWED"
+  },
+  "reconstruction_authorization": {
+    "colmap": "NOT_AUTHORIZED_UNTIL_CAPTURE_QA_PASS",
+    "tripo_paid_generation": "REQUIRES_SEPARATE_EXPLICIT_APPROVAL",
+    "geometry_v2": "HOLD",
+    "production": "NOT_AUTHORIZED"
+  }
+}
