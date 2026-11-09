@@ -84,7 +84,7 @@ class PreservationIngestTests(unittest.TestCase):
 
     def test_missing_payload_detected(self):
         bag = self._make_test_bag("missing")
-        (Path(bag.path) / "data" / "payload.bin").unlink()
+        (Path(bag.path) / "data" / "data" / "payload.bin").unlink()
         with self.assertRaises(bagit.BagValidationError):
             bag.validate()
 
@@ -99,7 +99,9 @@ class PreservationIngestTests(unittest.TestCase):
         tag_manifest = Path(bag.path) / "tagmanifest-sha512.txt"
         tag_manifest.write_text("0" * 128 + "  bagit.txt\n", encoding="utf-8")
         with self.assertRaises(bagit.BagValidationError):
-            bag.validate()
+        reloaded_bag = bagit.Bag(bag.path)
+        with self.assertRaises(bagit.BagValidationError):
+            reloaded_bag.validate()
 
     def test_missing_source_rejected(self):
         with self.assertRaises(IntakeError) as caught:
