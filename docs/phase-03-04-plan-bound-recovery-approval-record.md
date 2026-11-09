@@ -64,3 +64,13 @@ Commits:
 5. Keep recovery execution disabled until all safety acceptance criteria pass.
 
 PR #217 remains OPEN / DRAFT. Gate A remains open; no production-readiness claim.
+
+## Verification addendum (2026-11-10)
+
+For approval implementation commit `13145607ab4267146ffd8b73f8a0b70b6a790c53`, KMH OIA Tests run `42720606630` succeeded (645 tests). The focused approval regression tests were added in commit `3a17f942e0be78b231cd2464fe602ee4621d533b`; exact-commit OIA Tests run `42720628758` succeeded with 647 tests, including both approval tests. Preservation Gate A run `42720628840` succeeded on Linux and Windows. OIA Validation run `42720628693` succeeded; MIDI Fixture Integrity run `42720628805` succeeded.
+
+Documentation commit `c14e0d9a3be5bdfa3bb65a00a0c674f162a00ef0` also completed OIA Tests, Preservation Gate A, OIA Validation, and MIDI Fixture Integrity successfully. A subsequent documentation clarification commit `3f533bbaab25afe16af19dfaccdc96648ddc8510` has new workflows queued/in progress; do not claim those newest documentation workflows complete until checked.
+
+PREMIS clarification: PREMIS 3.0 has four top-level entities—Objects, Events, Rights, Agents. Intellectual Entity is a category/type of PREMIS Object in version 3.0, not a fifth top-level entity. The Library of Congress hierarchical listing contains a stale introductory five-entity sentence that conflicts with the Data Dictionary landing page, the PREMIS 3.0 ontology and its own Object hierarchy. KMH follows the four-entity model. References: https://www.loc.gov/standards/premis/v3/ and https://www.loc.gov/standards/premis/ontology/owl-version3.html.
+
+Security boundary remains: approval tests use an injected authorization callback; they do not authenticate a real operator. Approval records are unsigned; no recovery mutation executor, replay/revocation ledger, or production authentication integration exists. No recovery mutation is enabled.
