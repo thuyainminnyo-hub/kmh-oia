@@ -5,12 +5,14 @@ This worker treats the source as opaque bytes. It never invokes the MIDI parser.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import importlib.metadata
 import json
 import os
 import platform
 import re
+import secrets
 import stat
 import sys
 import tempfile
@@ -21,6 +23,8 @@ from pathlib import Path
 from urllib.parse import unquote
 
 import bagit
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 SCHEMA = "kmh.preservation-intake-receipt.v1"
 OBJECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
@@ -387,6 +391,7 @@ def build_recovery_approval_record(
     return {
         "schema": RECOVERY_APPROVAL_SCHEMA,
         "approval_id": approval_id,
+        "nonce": secrets.token_urlsafe(24),
         "actor_id": actor_id.strip(),
         "action": action,
         "plan_sha256": plan_digest,
@@ -424,6 +429,71 @@ def validate_recovery_approval(
         raise IntakeError("INVALID_APPROVER", "Approval actor identifier is missing")
     if authorize_actor is None or not authorize_actor(actor_id, record["action"]):
         raise IntakeError("ACTOR_NOT_AUTHORIZED", "Trusted authorization provider did not authorize this actor and action")
+
+
+
+def _canonical_approval_bytes(record: dict) -> bytes:
+    unsigned = {key: value for key, value in record.items() if key not in {"signature", "signature_algorithm", "signing_key_id"}}
+    return json.dumps(
+        unsigned,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def sign_recovery_approval_record(
+    record: dict,
+    *,
+    private_key: Ed25519PrivateKey,
+    key_id: str,
+) -> dict:
+    """Return a signed copy; caller must obtain private_key from trusted key storage."""
+    if not isinstance(private_key, Ed25519PrivateKey):
+        raise IntakeError("INVALID_SIGNING_KEY", "An Ed25519 private key object is required")
+    if not isinstance(key_id, str) or not key_id.strip() or len(key_id) > 200:
+        raise IntakeError("INVALID_SIGNING_KEY_ID", "A non-empty signing key ID is required")
+    signed = dict(record)
+    signed["signature_algorithm"] = "Ed25519"
+    signed["signing_key_id"] = key_id.strip()
+    signed["signature"] = base64.b64encode(private_key.sign(_canonical_approval_bytes(signed))).decode("ascii")
+    return signed
+
+
+def validate_signed_recovery_approval(
+    record: dict,
+    current_plan: dict,
+    *,
+    trusted_public_keys: dict[str, Ed25519PublicKey],
+    authorize_actor: Callable[[str, str], bool] | None,
+    consume_nonce: Callable[[str, str], bool] | None,
+    now: str,
+) -> None:
+    """Verify signature and policy; nonce callback must atomically reject replay and fail closed."""
+    if record.get("signature_algorithm") != "Ed25519":
+        raise IntakeError("INVALID_APPROVAL_SIGNATURE", "Unsupported approval signature algorithm")
+    key_id = record.get("signing_key_id")
+    public_key = trusted_public_keys.get(key_id) if isinstance(key_id, str) else None
+    if not isinstance(public_key, Ed25519PublicKey):
+        raise IntakeError("UNTRUSTED_SIGNING_KEY", "Signing key is not in the trusted key registry")
+    try:
+        signature = base64.b64decode(record["signature"], validate=True)
+        public_key.verify(signature, _canonical_approval_bytes(record))
+    except (KeyError, ValueError, InvalidSignature) as exc:
+        raise IntakeError("INVALID_APPROVAL_SIGNATURE", "Approval signature is invalid") from exc
+    validate_recovery_approval(
+        record,
+        current_plan,
+        authorize_actor=authorize_actor,
+        now=now,
+    )
+    nonce = record.get("nonce")
+    approval_id = record.get("approval_id")
+    if not isinstance(nonce, str) or not nonce or not isinstance(approval_id, str):
+        raise IntakeError("INVALID_APPROVAL_NONCE", "Approval nonce or ID is missing")
+    if consume_nonce is None or not consume_nonce(approval_id, nonce):
+        raise IntakeError("APPROVAL_REPLAY_OR_NONCE_STORE_UNAVAILABLE", "Nonce store rejected approval or is unavailable")
+
 
 
 def ingest(
