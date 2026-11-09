@@ -403,5 +403,20 @@ ingest(source, object_id, workspace, crash_hook=crash)
         self.assertEqual(plans[0]["proposed_action"], "operator_review_promotion")
         self.assertTrue(journal.exists())
 
+
+    def test_recovery_plan_digest_is_deterministic_and_binds_journal_bytes(self):
+        from scripts.preservation_ingest import plan_ingest_recovery
+        journal, _accepted = self._create_pending_journal_for_accepted_bag("planner-digest-001")
+        first = plan_ingest_recovery(self.workspace)[0]
+        second = plan_ingest_recovery(self.workspace)[0]
+        self.assertEqual(first["plan_sha256"], second["plan_sha256"])
+        self.assertEqual(first["journal_sha256"], second["journal_sha256"])
+        original_digest = first["plan_sha256"]
+        journal.write_bytes(journal.read_bytes() + b" ")
+        third = plan_ingest_recovery(self.workspace)[0]
+        self.assertNotEqual(third["journal_sha256"], first["journal_sha256"])
+        self.assertNotEqual(third["plan_sha256"], original_digest)
+        self.assertEqual(third["plan_sha256"], plan_ingest_recovery(self.workspace)[0]["plan_sha256"])
+
 if __name__ == "__main__":
     unittest.main()
