@@ -97,7 +97,7 @@ class PreservationIngestTests(unittest.TestCase):
     def test_corrupt_tag_manifest_detected(self):
         bag = self._make_test_bag("corrupt-tag")
         tag_manifest = Path(bag.path) / "tagmanifest-sha512.txt"
-        tag_manifest.write_text("0" * 128 + "  bagit.txt\\n", encoding="utf-8")
+        tag_manifest.write_text("0" * 128 + "  bagit.txt\n", encoding="utf-8")
         with self.assertRaises(bagit.BagValidationError):
             bag.validate()
 
