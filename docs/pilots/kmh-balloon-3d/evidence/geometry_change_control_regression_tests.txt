@@ -1,0 +1,24 @@
+KMH_BAL_001 Geometry Change-Control Regression Suite
+Result: PASS
+Tests executed: 9
+Execution time: 12.210 seconds
+Environment: Local Python test execution
+Scope: validator metadata, approval, state, and SHA-256 fail-closed behavior
+
+PASS test_01_empty_request_fails_closed
+PASS test_02_complete_request_only_reaches_human_review
+PASS test_03_unknown_state_rejected
+PASS test_04_missing_project_owner_approval_rejected
+PASS test_05_candidate_hash_mismatch_rejected
+PASS test_06_baseline_hash_mismatch_rejected
+PASS test_07_attachment_mechanics_inference_rejected
+PASS test_08_candidate_root_required
+PASS test_09_baseline_root_required
+
+Interpretation:
+- Incomplete requests remain BLOCKED_HOLD.
+- A complete synthetic fixture returns only ELIGIBLE_FOR_HUMAN_RELEASE_REVIEW.
+- It does not approve, merge, or deploy geometry.
+- Missing asset roots and hash mismatches are rejected.
+- Synthetic byte fixtures exercise metadata/hash gates only; they are not actual GLBs and do not validate mesh quality.
+- Original Geometry v1 assets were not modified.
