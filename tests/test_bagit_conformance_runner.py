@@ -10,7 +10,7 @@ class BagDeclarationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             bag = Path(tmp)
             (bag / "bagit.txt").write_text(
-                "BagIt-Version: 1.0\\nTag-File-Character-Encoding: UTF-8\\n",
+                "BagIt-Version: 1.0\nTag-File-Character-Encoding: UTF-8\n",
                 encoding="utf-8",
             )
             self.assertEqual(validate_bag_declaration(bag), (True, ""))
@@ -19,7 +19,7 @@ class BagDeclarationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             bag = Path(tmp)
             (bag / "bagit.txt").write_text(
-                "BagIt-Version : 1.0\\nTag-File-Character-Encoding : UTF-8\\n",
+                "BagIt-Version : 1.0\nTag-File-Character-Encoding : UTF-8\n",
                 encoding="utf-8",
             )
             valid, reason = validate_bag_declaration(bag)
@@ -29,7 +29,7 @@ class BagDeclarationTests(unittest.TestCase):
     def test_rejects_wrong_line_count(self):
         with tempfile.TemporaryDirectory() as tmp:
             bag = Path(tmp)
-            (bag / "bagit.txt").write_text("BagIt-Version: 1.0\\n", encoding="utf-8")
+            (bag / "bagit.txt").write_text("BagIt-Version: 1.0\n", encoding="utf-8")
             self.assertFalse(validate_bag_declaration(bag)[0])
 
 
