@@ -13,12 +13,11 @@ from pathlib import Path
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--suite-path", required=True, type=Path)
-    parser.add_argument("--validator-path", required=True, type=Path)
+    parser.add_argument("--suite-commit", required=True)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
     suite = args.suite_path.resolve()
-    validator = args.validator_path.resolve()
     version_dir = suite / "v1.0"
     if not version_dir.is_dir():
         raise SystemExit(f"Missing BagIt v1.0 fixture directory: {version_dir}")
@@ -66,8 +65,9 @@ def main() -> int:
         "schema": "kmh.bagit-conformance-report.v1",
         "suite": "LibraryOfCongress/bagit-conformance-suite",
         "suite_version": "v1.0",
+        "suite_commit": args.suite_commit,
         "validator": "LibraryOfCongress/bagit-python",
-        "validator_path": str(validator),
+        "validator_version": __import__("importlib.metadata", fromlist=["version"]).version("bagit"),
         "platform": platform.platform(),
         "python_version": platform.python_version(),
         "run_at_utc": datetime.now(timezone.utc).isoformat(),
