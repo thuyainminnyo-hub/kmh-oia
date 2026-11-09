@@ -170,7 +170,7 @@ class PreservationIngestTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "UNSAFE_MANIFEST_PATH")
 
     def test_payload_manifest_symlink_parent_rejected(self):
-        root = self._make_manifest_root("manifest-sha256.txt", "0" * 64 + "  link/payload.bin")
+        root = self._make_manifest_root("manifest-sha256.txt", "0" * 64 + "  data/link/payload.bin")
         outside = self.root / "outside"
         outside.mkdir()
         (root / "data" / "link").symlink_to(outside, target_is_directory=True)
@@ -183,6 +183,32 @@ class PreservationIngestTests(unittest.TestCase):
         with self.assertRaises(IntakeError) as caught:
             validate_manifest_paths(root)
         self.assertEqual(caught.exception.code, "UNSAFE_MANIFEST_PATH")
+
+    def test_payload_manifest_accepts_bag_root_relative_data_path(self):
+        root = self._make_manifest_root("manifest-sha256.txt", "0" * 64 + "  data/payload.bin")
+        (root / "data" / "payload.bin").write_bytes(b"payload")
+        validate_manifest_paths(root)
+
+    def test_tag_manifest_rejects_payload_path(self):
+        root = self._make_manifest_root("tagmanifest-sha256.txt", "0" * 64 + "  data/payload.bin")
+        with self.assertRaises(IntakeError) as caught:
+            validate_manifest_paths(root)
+        self.assertEqual(caught.exception.code, "TAG_PATH_REFERENCES_PAYLOAD")
+
+    def test_recovery_inspection_reports_orphans_without_deleting(self):
+        from scripts.preservation_ingest import inspect_incomplete_ingests
+        reservations = self.workspace / "reservations"
+        staging = self.workspace / "staging"
+        reservations.mkdir()
+        staging.mkdir()
+        lock = reservations / "orphan-001.lock"
+        lock.write_text('{"object_id":"orphan-001"}', encoding="utf-8")
+        staged = staging / "orphan-run"
+        staged.mkdir()
+        findings = inspect_incomplete_ingests(self.workspace)
+        self.assertEqual({item["kind"] for item in findings}, {"reservation", "staging_directory"})
+        self.assertTrue(lock.exists())
+        self.assertTrue(staged.exists())
 
 if __name__ == "__main__":
     unittest.main()
