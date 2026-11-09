@@ -161,7 +161,9 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
             "result": "accepted",
             "completed_at_utc": datetime.now(timezone.utc).isoformat(),
         })
-        # Keep the receipt outside the BagIt root: adding a tag file after\n        # manifest generation would invalidate the tag manifest.\n        if final_path.exists():
+        # Keep the receipt outside the BagIt root: adding a tag file after
+        # manifest generation would invalidate the tag manifest.
+        if final_path.exists():
             raise IntakeError("DUPLICATE_OBJECT_ID", "Object ID appeared during ingest; no overwrite performed")
         os.replace(run_dir, final_path)
         receipt["accepted_path"] = str(final_path.relative_to(workspace_path))
