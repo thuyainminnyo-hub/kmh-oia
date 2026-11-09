@@ -43,7 +43,7 @@ jobs:
       - name: Run Gate A tests
         env:
           EVIDENCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python -m unittest tests.test_preservation_ingest -v
+        run: python -m unittest tests.test_preservation_ingest tests.test_bagit_conformance_runner -v
       - name: Run LOC BagIt conformance fixtures
         run: >-
           python scripts/run_bagit_conformance.py
