@@ -36,7 +36,7 @@ class BagDeclarationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             bag = Path(tmp)
             (bag / "bagit.txt").write_bytes(
-                b"BagIt-Version: 1.0\\r\\nTag-File-Character-Encoding: UTF-8\\r\\n"
+                b"BagIt-Version: 1.0\r\nTag-File-Character-Encoding: UTF-8\r\n"
             )
             self.assertEqual(validate_bag_declaration(bag), (True, ""))
 
@@ -44,7 +44,7 @@ class BagDeclarationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             bag = Path(tmp)
             (bag / "bagit.txt").write_bytes(
-                b"\\xef\\xbb\\xbfBagIt-Version: 1.0\\nTag-File-Character-Encoding: UTF-8\\n"
+                b"\xef\xbb\xbfBagIt-Version: 1.0\nTag-File-Character-Encoding: UTF-8\n"
             )
             valid, reason = validate_bag_declaration(bag)
             self.assertFalse(valid)
