@@ -2,7 +2,7 @@
   "project": "KMH Myanmar Balloon 3D Intelligence",
   "asset_id": "KMH-BAL-001",
   "review_id": "KMH-BAL-3D-REVIEW-2026-11-09-01",
-  "status": "VISUAL_DISCREPANCY_FLAGGED__NO_GEOMETRY_CHANGE",
+  "status": "QUALITATIVE_DISCREPANCY_FLAGGED__NO_GEOMETRY_CHANGE",
   "model": {
     "file": "geometry/KMH_BAL_001_BODY_BLOCKOUT_v1.glb",
     "bounds_normalized_units": [1.76, 1.76, 1.0],
@@ -11,23 +11,24 @@
     "symmetry": "Front and side projections are identical by construction."
   },
   "references": [
-    {"file": "16812.jpg", "role": "lettering-facing", "estimated_image_frame_height_width_ratio": 1.243, "method": "manual visual bounding-box estimate; not calibrated"},
-    {"file": "16813.jpg", "role": "Buddha-facing", "estimated_image_frame_height_width_ratio": 1.319, "method": "manual visual bounding-box estimate; not calibrated"},
-    {"file": "16814.jpg", "role": "side narrative", "estimated_image_frame_height_width_ratio": 1.25, "method": "manual visual bounding-box estimate; not calibrated"}
+    {"file": "16812.jpg", "role": "lettering-facing", "use": "qualitative visual reference only", "not_a_measurement": true},
+    {"file": "16813.jpg", "role": "Buddha-facing", "use": "qualitative visual reference only", "not_a_measurement": true},
+    {"file": "16814.jpg", "role": "side narrative", "use": "qualitative visual reference only", "not_a_measurement": true}
   ],
-  "finding": "The current blockout appears substantially wider/shorter than the supplied balloon reference photographs. This is a qualitative discrepancy signal only, not a calibrated dimension result.",
+  "finding": "The supplied perspective photographs visually suggest a taller/narrower envelope than the current normalized blockout. This is a qualitative observation only; no numeric reference-image height/width ratio has been measured.",
+  "correction": "Earlier values calculated from crop-window dimensions were crop aspect ratios, not balloon silhouette measurements. They are superseded and must not be used as geometry metrics.",
   "limitations": [
-    "Perspective, camera pitch, inflation state, ground support, occlusion and image crop affect apparent proportions.",
+    "Perspective, camera pitch, inflation state, ground support, occlusion, lens distortion and crop affect apparent silhouette.",
     "The references are not a calibrated overlapping photogrammetry set.",
-    "No true physical width, depth, or physical height/width ratio is inferred.",
-    "This review does not authorize a mesh change."
+    "No physical width, depth, or reference-image height/width ratio is inferred.",
+    "This review does not authorize mesh changes."
   ],
   "gates": {
     "topology": "PASS_FOR_TOPOLOGY_ONLY",
-    "visual_similarity": "NOT_VALIDATED__DISCREPANCY_FLAGGED",
+    "visual_similarity": "NOT_VALIDATED__QUALITATIVE_DISCREPANCY_FLAGGED",
     "physical_scale": "HOLD",
     "geometry_v2": "HOLD",
     "production": "NOT_AUTHORIZED"
   },
-  "decision": "Preserve Geometry v1 unchanged. Obtain calibrated front/side capture views, independent width/depth measurements, crown profile and lower taper evidence before proposing Geometry v2."
+  "decision": "Preserve Geometry v1 unchanged. Obtain calibrated front/side captures and independent measurements before proposing Geometry v2."
 }
