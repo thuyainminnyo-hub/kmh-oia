@@ -17,6 +17,7 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import unquote
 
 import bagit
 
@@ -79,44 +80,46 @@ def _capture_source(source: Path, destination: Path) -> tuple[str, int]:
 
 
 def validate_manifest_paths(bag_root: str | Path) -> None:
-    """Reject manifest paths that escape the bag or traverse symlinks.
+    """Reject manifest paths that escape their RFC 8493 base directory.
 
-    This is a lexical and current-filesystem preflight. It is not a substitute
-    for descriptor-relative, race-free path opening in hostile writable roots.
+    This preflight also rejects symlink components. It is not race-free against
+    a hostile process that can mutate the staging tree concurrently.
     """
     root = Path(bag_root).resolve(strict=True)
     manifest_files = sorted(root.glob("manifest-*.txt")) + sorted(root.glob("tagmanifest-*.txt"))
     for manifest in manifest_files:
         if manifest.is_symlink():
             raise IntakeError("MANIFEST_SYMLINK", f"Manifest is a symlink: {manifest.name}")
+        is_payload_manifest = manifest.name.startswith("manifest-")
+        base = root / "data" if is_payload_manifest else root
+        if is_payload_manifest and not base.is_dir():
+            raise IntakeError("MISSING_PAYLOAD_DIRECTORY", "Payload manifest exists without data directory")
         for line_number, line in enumerate(manifest.read_text(encoding="utf-8").splitlines(), 1):
             if not line.strip():
                 continue
             try:
-                _checksum, relative_name = line.split(None, 1)
+                _checksum, encoded_name = line.split(None, 1)
             except ValueError as exc:
                 raise IntakeError("INVALID_MANIFEST_ENTRY", f"Malformed entry in {manifest.name}:{line_number}") from exc
-            name = relative_name.lstrip("*")
-            normalized = name.replace("\\\\", "/")
-            parts = normalized.split("/")
+            name = unquote(encoded_name.lstrip("*"), errors="strict")
+            parts = name.split("/")
             if (
                 not name
                 or name.startswith(("/", "~"))
                 or re.match(r"^[A-Za-z]:", name)
-                or "\\\\" in name
+                or "\\" in name
                 or any(part in ("", ".", "..") for part in parts)
             ):
                 raise IntakeError("UNSAFE_MANIFEST_PATH", f"Unsafe manifest path in {manifest.name}:{line_number}")
-            candidate = root.joinpath(*parts)
-            current = root
+            current = base
             for part in parts:
                 current = current / part
                 if current.is_symlink():
                     raise IntakeError("MANIFEST_PATH_SYMLINK", f"Manifest path traverses a symlink: {name}")
             try:
-                candidate.resolve(strict=False).relative_to(root)
-            except ValueError as exc:
-                raise IntakeError("UNSAFE_MANIFEST_PATH", f"Manifest path escapes bag: {name}") from exc
+                current.resolve(strict=False).relative_to(base.resolve(strict=True))
+            except (ValueError, OSError) as exc:
+                raise IntakeError("UNSAFE_MANIFEST_PATH", f"Manifest path escapes base directory: {name}") from exc
 
 def _write_json(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
