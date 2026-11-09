@@ -51,6 +51,7 @@ def _capture_source(source: Path, destination: Path) -> tuple[str, int]:
     except OSError as exc:
         raise IntakeError("SOURCE_OPEN_FAILED", str(exc)) from exc
 
+    destination.parent.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256()
     length = 0
     try:
@@ -160,8 +161,7 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
             "result": "accepted",
             "completed_at_utc": datetime.now(timezone.utc).isoformat(),
         })
-        _write_json(run_dir / "intake-receipt.json", receipt)
-        if final_path.exists():
+        # Keep the receipt outside the BagIt root: adding a tag file after\n        # manifest generation would invalidate the tag manifest.\n        if final_path.exists():
             raise IntakeError("DUPLICATE_OBJECT_ID", "Object ID appeared during ingest; no overwrite performed")
         os.replace(run_dir, final_path)
         receipt["accepted_path"] = str(final_path.relative_to(workspace_path))
