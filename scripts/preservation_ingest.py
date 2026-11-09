@@ -247,8 +247,15 @@ def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
                 or metadata.get("source_byte_length", -1) < 0
             ):
                 raise IntakeError("INVALID_PROMOTION_JOURNAL", "Journal schema or required evidence is invalid")
+            expected_accepted = f"accepted/{metadata['object_id']}"
+            if metadata.get("accepted_path") != expected_accepted:
+                raise IntakeError("INVALID_PROMOTION_JOURNAL", "Accepted path does not match object ID")
+            staging_relative = metadata.get("staging_path")
+            if not isinstance(staging_relative, str) or not staging_relative.startswith("staging/"):
+                raise IntakeError("INVALID_PROMOTION_JOURNAL", "Staging path must remain under staging/")
             accepted = _safe_workspace_child(root, metadata["accepted_path"])
-            staging = _safe_workspace_child(root, metadata["staging_path"]) if (root / metadata["staging_path"]).exists() else None
+            staging_candidate = root / staging_relative
+            staging = _safe_workspace_child(root, staging_relative) if staging_candidate.exists() else None
             candidates = []
             for label, bag_path in (("accepted", accepted), ("staging", staging)):
                 if bag_path is None:
