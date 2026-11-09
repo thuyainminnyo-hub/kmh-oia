@@ -37,6 +37,11 @@ def main() -> int:
         return 2
 
     blockers = []
+    # Fail closed: evidence references and hashes are insufficient without local files.
+    if args.asset_root is None:
+        blockers.append("Locked baseline asset root is required for file/hash verification.")
+    if args.candidate_root is None:
+        blockers.append("Candidate asset root is required for file/hash verification.")
     state = data.get("target_state")
     if state not in ALLOWED_STATES:
         blockers.append("Target state must be confirmed BASE-UNLOADED or DISPLAYED-ATTACHED.")
