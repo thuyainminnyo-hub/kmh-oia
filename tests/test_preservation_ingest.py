@@ -308,5 +308,70 @@ ingest(source, object_id, workspace, crash_hook=crash)
                     payload = accepted / "data/source/original.mid"
                     self.assertEqual(payload.read_bytes(), self.source.read_bytes())
 
+
+    def _create_pending_journal_for_accepted_bag(self, object_id):
+        from scripts.preservation_ingest import _write_json
+        receipt = ingest(self.source, object_id, self.workspace)
+        run_id = receipt["run_id"]
+        journal = self.workspace / "reports" / f"{object_id}-{run_id}.promotion-pending.json"
+        _write_json(journal, {
+            "schema": "kmh.preservation-promotion-journal.v1",
+            "run_id": run_id,
+            "object_id": object_id,
+            "staging_path": f"staging/{object_id}-{run_id}-missing",
+            "accepted_path": f"accepted/{object_id}",
+            "source_sha256": receipt["source_sha256"],
+            "source_byte_length": receipt["source_byte_length"],
+            "state": "promotion_pending",
+        })
+        return journal, self.workspace / "accepted" / object_id
+
+    def test_read_only_recovery_planner_verifies_accepted_bag_without_mutation(self):
+        from scripts.preservation_ingest import plan_ingest_recovery
+        journal, accepted = self._create_pending_journal_for_accepted_bag("planner-accepted-001")
+        before = {str(p.relative_to(self.workspace)): (p.read_bytes() if p.is_file() else None)
+                  for p in self.workspace.rglob("*")}
+        plans = plan_ingest_recovery(self.workspace)
+        after = {str(p.relative_to(self.workspace)): (p.read_bytes() if p.is_file() else None)
+                 for p in self.workspace.rglob("*")}
+        self.assertEqual(before, after)
+        self.assertTrue(journal.exists())
+        self.assertTrue((accepted / "bagit.txt").exists())
+        self.assertEqual(len(plans), 1)
+        self.assertEqual(plans[0]["status"], "accepted_bag_verified_receipt_reconciliation_required")
+        self.assertEqual(plans[0]["proposed_action"], "operator_review_finalize_receipt")
+        self.assertTrue(plans[0]["evidence"]["candidates"][0]["source_evidence_matches"])
+
+    def test_read_only_recovery_planner_flags_corrupt_accepted_bag(self):
+        from scripts.preservation_ingest import plan_ingest_recovery
+        journal, accepted = self._create_pending_journal_for_accepted_bag("planner-corrupt-001")
+        payload = accepted / "data" / "source" / "original.mid"
+        payload.write_bytes(b"tampered")
+        plans = plan_ingest_recovery(self.workspace)
+        self.assertEqual(plans[0]["status"], "no_matching_valid_bag_found")
+        self.assertEqual(plans[0]["proposed_action"], "manual_investigation")
+        self.assertTrue(journal.exists())
+
+    def test_read_only_recovery_planner_rejects_journal_path_traversal(self):
+        from scripts.preservation_ingest import plan_ingest_recovery, _write_json
+        reports = self.workspace / "reports"
+        reports.mkdir()
+        journal = reports / "unsafe.promotion-pending.json"
+        _write_json(journal, {
+            "schema": "kmh.preservation-promotion-journal.v1",
+            "run_id": "unsafe",
+            "object_id": "unsafe-001",
+            "staging_path": "staging/../outside",
+            "accepted_path": "accepted/unsafe-001",
+            "source_sha256": "a" * 64,
+            "source_byte_length": 1,
+            "state": "promotion_pending",
+        })
+        plans = plan_ingest_recovery(self.workspace)
+        self.assertEqual(plans[0]["status"], "journal_or_path_invalid")
+        self.assertEqual(plans[0]["proposed_action"], "manual_investigation")
+        self.assertTrue(journal.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
