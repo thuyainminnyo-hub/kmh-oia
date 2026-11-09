@@ -101,7 +101,7 @@ def validate_manifest_paths(bag_root: str | Path) -> None:
                 _checksum, encoded_name = line.split(None, 1)
             except ValueError as exc:
                 raise IntakeError("INVALID_MANIFEST_ENTRY", f"Malformed entry in {manifest.name}:{line_number}") from exc
-            name = unquote(encoded_name.lstrip("*"), errors="strict")
+            name = unquote(encoded_name, errors="strict")
             parts = name.split("/")
             if (
                 not name
