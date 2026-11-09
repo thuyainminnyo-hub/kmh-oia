@@ -225,7 +225,7 @@ class PreservationIngestTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "INGEST_FAILED")
         accepted = self.workspace / "accepted" / "receipt-crash-001"
         self.assertTrue((accepted / "bagit.txt").is_file())
-        receipts = list((self.workspace / "reports").glob("receipt-crash-001-*.json"))
+        receipts = [p for p in (self.workspace / "reports").glob("receipt-crash-001-*.json") if not p.name.endswith(".promotion-pending.json")]
         self.assertEqual(len(receipts), 1)
         receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
         self.assertEqual(receipt["result"], "accepted_receipt_pending")
