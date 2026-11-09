@@ -256,7 +256,7 @@ def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
                 len(staging_parts) < 2
                 or staging_parts[0] != "staging"
                 or any(part in ("", ".", "..") for part in staging_parts)
-                or "\\\\" in staging_relative
+                or "\\" in staging_relative
             ):
                 raise IntakeError("INVALID_PROMOTION_JOURNAL", "Staging path must be a safe path under staging/")
             accepted_candidate = root / metadata["accepted_path"]
