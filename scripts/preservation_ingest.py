@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 import bagit
+import rfc8785
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
@@ -329,16 +330,20 @@ def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
             plan["status"] = "journal_or_path_invalid"
             plan["proposed_action"] = "manual_investigation"
             plan["evidence"] = {"diagnostic": str(exc)}
-        canonical_plan = json.dumps(
-            plan,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
+        canonical_plan = _canonical_json_bytes(plan)
         plan["plan_sha256"] = hashlib.sha256(canonical_plan).hexdigest()
         plans.append(plan)
     return plans
 
+
+
+
+def _canonical_json_bytes(value: object) -> bytes:
+    """Serialize an I-JSON-compatible value using RFC 8785 JCS."""
+    try:
+        return rfc8785.dumps(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise IntakeError("INVALID_CANONICAL_JSON", "Value is not valid RFC 8785 JSON data") from exc
 
 
 RECOVERY_APPROVAL_SCHEMA = "kmh.preservation-recovery-approval.v1"
@@ -351,12 +356,7 @@ RECOVERY_ACTIONS = {
 def _canonical_plan_digest(plan: dict) -> str:
     digest_input = dict(plan)
     supplied_digest = digest_input.pop("plan_sha256", None)
-    canonical = json.dumps(
-        digest_input,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
+    canonical = _canonical_json_bytes(digest_input)
     calculated = hashlib.sha256(canonical).hexdigest()
     if supplied_digest != calculated:
         raise IntakeError("STALE_OR_TAMPERED_PLAN", "Recovery plan digest does not match its canonical contents")
@@ -442,12 +442,7 @@ def validate_recovery_approval(
 
 def _canonical_approval_bytes(record: dict) -> bytes:
     unsigned = {key: value for key, value in record.items() if key != "signature"}
-    return json.dumps(
-        unsigned,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
+    return _canonical_json_bytes(unsigned)
 
 
 def sign_recovery_approval_record(
