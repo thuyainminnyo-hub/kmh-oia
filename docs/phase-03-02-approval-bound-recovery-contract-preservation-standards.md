@@ -23,7 +23,7 @@ PR #217 remains OPEN / DRAFT. These results do not prove power-loss or device-le
 ### Preservation standards
 - BagIt / RFC 8493 is the packaging and transfer layer: payload plus checksum manifests and tag files.
 - OCFL 1.1 is a separate storage-layout/versioning layer. It emphasizes rebuildability, parsability, immutable version directories, inventory digests, and storage diversity. Do not conflate BagIt conformance with OCFL conformance.
-- PREMIS 3.0 supplies preservation metadata entities: Objects, Events, Agents, and Rights. Recovery, validation, fixity check, migration, and restore should eventually be mapped to PREMIS Events with outcomes and responsible Agents.
+- PREMIS 3.0 provides a preservation metadata data model with Intellectual Entities, Objects, Events, Rights, and Agents. Recovery, validation, fixity check, migration, and restore should eventually be mapped to PREMIS Events with outcomes and responsible Agents.
 - The 2025 NDSA Fixity Survey Report, published 30 April 2026, summarizes 89 responses; 94% reported using fixity information, while capture/verification frequency, recording locations, and algorithms varied. This supports an explicit KMH fixity policy rather than assuming one universal cadence.
 
 References:
