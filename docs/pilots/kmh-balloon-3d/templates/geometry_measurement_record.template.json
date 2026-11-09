@@ -1,0 +1,45 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "record_id": "KMH-BAL-001-GEOMETRY-MEASUREMENT-YYYYMMDD-001",
+  "version": "1.0",
+  "status": "EMPTY_TEMPLATE_NOT_MEASUREMENT_EVIDENCE",
+  "visual_state": {
+    "state_id": "UNKNOWN",
+    "allowed_values": [
+      "BASE-UNLOADED",
+      "DISPLAYED-ATTACHED",
+      "UNKNOWN"
+    ],
+    "confirmed_by": null,
+    "confirmation_basis": null,
+    "evidence_reference": null
+  },
+  "measurement_session": {
+    "date": null,
+    "observer": null,
+    "method": null,
+    "instrument": null,
+    "permission_or_record_reference": null
+  },
+  "measurements": [
+    {
+      "measurement_id": "MEAS-001",
+      "station_id": "PROFILE-01",
+      "station_definition": "CROWN_UPPER_ENVELOPE",
+      "feature": "PROFILE_WIDTH",
+      "value": null,
+      "unit": "ft",
+      "semantic_type": "WIDTH",
+      "datum_or_endpoints": null,
+      "method": null,
+      "instrument": null,
+      "uncertainty_or_tolerance": null,
+      "source_evidence": null,
+      "independent_verification": "PENDING"
+    }
+  ],
+  "geometry_change_authorization": {
+    "geometry_v1": "PRESERVE",
+    "geometry_v2": "HOLD_PENDING_INDEPENDENT_MEASUREMENTS_AND_HUMAN_APPROVAL"
+  }
+}
