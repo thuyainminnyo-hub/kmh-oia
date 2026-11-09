@@ -182,6 +182,21 @@ def inspect_incomplete_ingests(workspace: str | Path) -> list[dict]:
                     "status": "may_be_active_or_incomplete",
                     "action": "manual_review_required",
                 })
+    if (root / "reports").is_dir():
+        for journal in sorted((root / "reports").glob("*.promotion-pending.json")):
+            try:
+                metadata = json.loads(journal.read_text(encoding="utf-8"))
+                status = "promotion_journal_requires_reconciliation"
+            except (OSError, json.JSONDecodeError):
+                metadata = {}
+                status = "promotion_journal_unreadable"
+            findings.append({
+                "kind": "promotion_journal",
+                "path": str(journal.relative_to(root)),
+                "status": status,
+                "metadata": metadata,
+                "action": "manual_review_required",
+            })
     return findings
 
 
