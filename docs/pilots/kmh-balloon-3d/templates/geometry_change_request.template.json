@@ -1,0 +1,60 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "change_request_id": "KMH-BAL-001-GEOM-CHANGE-YYYYMMDD-001",
+  "version": "1.0",
+  "status": "DRAFT_NOT_AUTHORIZED",
+  "target_geometry_version": "v2",
+  "target_state": "UNKNOWN",
+  "allowed_states": ["BASE-UNLOADED", "DISPLAYED-ATTACHED"],
+  "baseline": {
+    "body_file": "geometry/KMH_BAL_001_BODY_BLOCKOUT_v1.glb",
+    "body_sha256": "1c3b57d2146686926e6d421aaf07b5382ba634a9d9df4138804fe921a20078b9",
+    "lower_skirt_file": "geometry/KMH_BAL_001_LOWER_SKIRT_BLOCKOUT_v1.glb",
+    "lower_skirt_sha256": "ab57f9ee89dbfcedc494566f9b41809917da41e6ddd966775129f73e2a9d284b"
+  },
+  "proposed_assets": {
+    "body_file": null,
+    "body_sha256": null,
+    "lower_skirt_file": null,
+    "lower_skirt_sha256": null,
+    "source_preserved": true
+  },
+  "change_rationale": {
+    "observed_deviation": null,
+    "expected_benefit": null,
+    "why_existing_geometry_is_insufficient": null,
+    "affected_features": []
+  },
+  "supporting_evidence": {
+    "source_confirmation_record": null,
+    "capture_set_manifest": null,
+    "camera_calibration_record": null,
+    "scale_control_record": null,
+    "measurement_record": null,
+    "source_image_hashes": [],
+    "state_attribution_confirmed": false,
+    "independent_measurement_verified": false
+  },
+  "qa_results": {
+    "mesh_integrity": "NOT_RUN",
+    "dimension_residuals": "NOT_RUN",
+    "silhouette_comparison": "NOT_RUN",
+    "state_consistency": "NOT_RUN",
+    "source_provenance": "NOT_RUN",
+    "limitations_recorded": false
+  },
+  "approvals": {
+    "technical_reviewer": {"name_or_role":null,"decision":"PENDING","date":null,"evidence_reference":null},
+    "project_owner": {"name_or_role":null,"decision":"PENDING","date":null,"evidence_reference":null}
+  },
+  "release": {
+    "authorized": false,
+    "merge_approval": "PENDING",
+    "production_approval": "NOT_AUTHORIZED"
+  },
+  "scope_guard": {
+    "non_operational_visual_geometry_only": true,
+    "pyrotechnic_operational_calculation_included": false,
+    "attachment_mechanics_inferred": false
+  }
+}
