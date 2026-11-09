@@ -1,66 +1,81 @@
 # KMH Balloon 3D — Measurement & Calibration Gate v1
 
-**Status:** OPEN — measurement inputs incomplete  
+**Status:** OPEN — dimensions recorded; verification and provenance still incomplete  
 **Asset:** KMH-BAL-001 (balloon body)  
 **Related asset:** KMH-BAL-001-ATT-001 — ယမ်းခွေ (Yan-Khwe), separate suspended reference asset  
 **Baseline:** Geometry Blockout v1 remains unchanged  
-**Decision:** Do not scale or promote Geometry v2 until the minimum dimensional evidence below is recorded.
 
-## 1. Confirmed and unknown dimensions
+## 1. User-provided size record
 
-| Parameter | Current value | Evidence status | Notes |
-|---|---:|---|---|
-| Overall body height | 25 ft / 7.62 m | USER_CONFIRMED_MEASUREMENT | Measurement method, date, operator, tolerance and independent corroboration are not yet recorded. |
-| Maximum body width / diameter | Unknown | MISSING | Required for a defensible first scale calibration. |
-| Front-to-back depth | Unknown | MISSING | Do not assume a circular or rotationally symmetric planform. |
-| Crown / top profile | Unknown | VISUAL_REFERENCE_ONLY | Needs calibrated views or direct measurement. |
-| Lower taper and skirt dimensions | Unknown | VISUAL_REFERENCE_ONLY | Keep skirt separately addressable until seam evidence is available. |
+The user supplied the following dimensions for the balloon size identification record. These are recorded as `USER_PROVIDED_DIMENSION`, not independently surveyed measurements; measurement date, method, operator, instrument and tolerance are not yet supplied.
 
-## 2. Measurement record template
+| Parameter | User-provided value | Metric conversion | Evidence status |
+|---|---:|---:|---|
+| Body circumference / လုံးပတ်အရှည် | 75 ft | 22.86 m | USER_PROVIDED_DIMENSION |
+| Overall height / အမြင့် | 25 ft | 7.62 m | USER_CONFIRMED_MEASUREMENT; provenance pending |
+| Top circular opening/ring diameter / ခေါင်အဝိုင်းအချင်း | 25 ft | 7.62 m | USER_PROVIDED_DIMENSION |
+| Bottom circular opening/ring diameter / အောက်ခြေအဝိုင်းအချင်း | 7 ft or 7.5 ft | 2.13 m or 2.29 m | USER_PROVIDED_RANGE; exact value pending |
+
+### Terminology lock
+
+- **အချင်း (Diameter):** မီးပုံးပျံကိုယ်ထည်ရဲ့ တစ်ဖက်မှတစ်ဖက် အကျယ်။
+- **လုံးပတ် (Circumference):** မီးပုံးပျံကိုယ်ထည်ကို ပတ်တိုင်းထားတဲ့ အလျား။
+- Do not use diameter and circumference interchangeably.
+
+### Consistency check — pending clarification
+
+If 75 ft is the circumference of a circular cross-section, its equivalent diameter is approximately 23.87 ft (7.28 m). A 25 ft diameter circle would have a circumference of approximately 78.54 ft (23.94 m). These values are close but not identical. Keep the user's 75 ft circumference and 25 ft top diameter as separate supplied dimensions; do not silently reconcile them or assume they refer to the same measurement plane.
+
+The earlier general reference range of 18–25 ft for maximum body diameter remains a secondary-source range and is not a replacement for these user-provided dimensions.
+
+## 2. Still unknown / to be clarified
+
+- Whether 75 ft circumference refers to the widest body cross-section or another measurement path.
+- Whether the 25 ft top circular diameter is the crown/top ring diameter, and its exact measurement plane.
+- Whether the bottom diameter is 7 ft or 7.5 ft.
+- Front-to-back depth at the widest body cross-section, if distinct from the across-body width.
+- Measurement method, date, operator, instrument and uncertainty/tolerance for each value.
+
+## 3. Measurement record template
 
 Record each measurement as a separate observation. Do not overwrite raw observations with an average.
 
 - measurement_id: unique ID
 - asset_id: KMH-BAL-001
-- parameter: overall_height | max_width | front_back_depth | crown_width | skirt_diameter | other
+- parameter: overall_height | body_circumference | max_body_diameter | top_ring_diameter | bottom_ring_diameter | front_back_depth | other
 - value: numeric value
 - unit: ft | m | in | cm
 - method: tape | laser_distance_meter | surveyed_reference | calibrated_photogrammetry | other
-- measurement_location: where the endpoints / measurement plane were taken
+- measurement_location: exact endpoints or measurement plane
 - date_time: ISO 8601 with timezone
 - operator: person or team
 - instrument: make/model and calibration status, if applicable
 - uncertainty_or_tolerance: numeric value and unit, or explicitly unknown
 - raw_evidence: photo/video/file reference
 - review_status: unreviewed | independently_checked | accepted | rejected
-- notes: conditions, balloon state, deformation, wind, suspension, etc.
+- notes: object state, deformation, environmental conditions and other context
 
-## 3. Minimum evidence required before Geometry v2
+## 4. Gate requirements before Geometry v2
 
-1. Record maximum width at the widest body cross-section, with a photo showing the measurement endpoints or a clearly identified measurement plane.
-2. Record front-to-back depth independently. Do not substitute width unless the shape is demonstrated to be circular.
-3. Re-record or corroborate the 7.62 m height with method, date, operator and tolerance.
-4. Capture a scale reference in at least two orthogonal views, where practical.
-5. Preserve original images and metadata; calculate SHA-256 hashes for the evidence manifest.
-6. Have a second reviewer check the measurement record before applying scale to the mesh.
+1. Clarify the measurement plane/path for the 75 ft circumference.
+2. Confirm whether the bottom ring is 7 ft or 7.5 ft.
+3. Record orthogonal width/depth evidence at the widest body section; do not infer a circular cross-section without evidence.
+4. Capture scale references in orthogonal views where practical.
+5. Preserve originals and metadata; calculate SHA-256 hashes for the evidence manifest.
+6. Have a second reviewer check the dimensional record before applying physical scale.
 
-## 4. Calibration rules
+## 5. Calibration rules
 
 - Preserve Geometry Blockout v1 as an immutable baseline.
 - Store physical dimensions separately from normalized geometry parameters.
-- Apply scale only after the measurement record is accepted.
-- If width and depth differ, retain a non-circular cross-section; do not force radial symmetry.
-- Keep the balloon body, lower skirt and ယမ်းခွေ as separate asset records / mesh objects unless physical evidence proves a different boundary.
+- Apply physical scale only after the measurement record is accepted.
+- Keep body, lower skirt and ယမ်းခွေ as separate asset records / mesh objects unless evidence proves a different boundary.
 - Do not infer pyrotechnic construction or operation from visual references.
 
-## 5. Gate decision
+## 6. Current gate decision
 
-**Current gate: HOLD — NOT READY FOR PHYSICAL SCALE CALIBRATION.**
+**HOLD — DIMENSIONS RECORDED, GEOMETRY V2 SCALE NOT YET APPROVED.**
 
-Reason: height is user-confirmed, but width and depth are missing; measurement provenance and uncertainty are incomplete.
+Reason: values have been supplied, but measurement provenance, uncertainty, the circumference measurement path and the exact bottom diameter remain unresolved. Geometry v1 remains a normalized topology blockout, not a measured reconstruction or production-ready model.
 
-**Pass condition:** minimum dimensions are recorded with traceable evidence and independently reviewed. Only then create Geometry v2 and run dimensional, topology, silhouette and cross-section QA.
-
-## 6. Current non-claims
-
-This gate does not certify the original balloon's engineering design, structural safety, material properties, internal supports, attachment strength, or pyrotechnic safety. Geometry v1 remains a normalized topology blockout, not a measured reconstruction or production-ready model.
+This gate does not certify engineering design, structural safety, material properties, internal supports, attachment strength, or pyrotechnic safety.
