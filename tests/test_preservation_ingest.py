@@ -518,6 +518,24 @@ ingest(source, object_id, workspace, crash_hook=crash)
                 consume_nonce=lambda _approval_id, _nonce: True,
                 now="2026-11-10T10:30:00+00:00",
             )
+        key_tampered = dict(signed)
+        key_tampered["signing_key_id"] = "kmh-other-key"
+        with self.assertRaises(IntakeError):
+            validate_signed_recovery_approval(
+                key_tampered, plan,
+                trusted_public_keys={"kmh-test-key-01": private_key.public_key(), "kmh-other-key": private_key.public_key()},
+                authorize_actor=lambda _actor, _action: True,
+                consume_nonce=lambda _approval_id, _nonce: True,
+                now="2026-11-10T10:30:00+00:00",
+            )
+        with self.assertRaises(IntakeError):
+            validate_signed_recovery_approval(
+                signed, plan,
+                trusted_public_keys={"kmh-test-key-01": private_key.public_key()},
+                authorize_actor=lambda _actor, _action: True,
+                consume_nonce=lambda _approval_id, _nonce: False,
+                now="2026-11-10T10:30:00+00:00",
+            )
 
     def test_signed_recovery_approval_fails_closed_without_nonce_store_or_trusted_key(self):
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
