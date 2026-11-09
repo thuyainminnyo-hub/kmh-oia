@@ -259,9 +259,18 @@ def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
                 or "\\\\" in staging_relative
             ):
                 raise IntakeError("INVALID_PROMOTION_JOURNAL", "Staging path must be a safe path under staging/")
-            accepted = _safe_workspace_child(root, metadata["accepted_path"])
+            accepted_candidate = root / metadata["accepted_path"]
+            accepted = (
+                _safe_workspace_child(root, metadata["accepted_path"])
+                if accepted_candidate.exists() or accepted_candidate.is_symlink()
+                else None
+            )
             staging_candidate = root / staging_relative
-            staging = _safe_workspace_child(root, staging_relative) if staging_candidate.exists() else None
+            staging = (
+                _safe_workspace_child(root, staging_relative)
+                if staging_candidate.exists() or staging_candidate.is_symlink()
+                else None
+            )
             candidates = []
             for label, bag_path in (("accepted", accepted), ("staging", staging)):
                 if bag_path is None:
