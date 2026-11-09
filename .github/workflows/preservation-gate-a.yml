@@ -79,8 +79,10 @@ jobs:
           python-version: "3.12"
       - name: Install pinned preservation dependency
         run: python -m pip install -r requirements-preservation.txt
-      - name: Run strict declaration tests
-        run: python -m unittest tests.test_bagit_conformance_runner -v
+      - name: Run Windows preservation and declaration tests
+        env:
+          EVIDENCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m unittest tests.test_preservation_ingest tests.test_bagit_conformance_runner -v
       - name: Run LOC BagIt conformance fixtures
         run: >-
           python scripts/run_bagit_conformance.py
