@@ -153,7 +153,7 @@ def _write_json(path: Path, value: dict) -> None:
 
 
 def inspect_incomplete_ingests(workspace: str | Path) -> list[dict]:
-    """Report orphan reservations/staging directories without deleting evidence."""
+    """Report reservation/staging candidates without assuming they are stale or deleting evidence."""
     root = Path(workspace).resolve(strict=True)
     findings = []
     reservations = root / "reservations"
@@ -162,7 +162,7 @@ def inspect_incomplete_ingests(workspace: str | Path) -> list[dict]:
         for lock_path in sorted(reservations.glob("*.lock")):
             try:
                 metadata = json.loads(lock_path.read_text(encoding="utf-8"))
-                status = "reservation_present"
+                status = "reservation_present_liveness_unverified"
             except (OSError, json.JSONDecodeError):
                 metadata = {}
                 status = "reservation_unreadable"
@@ -179,7 +179,7 @@ def inspect_incomplete_ingests(workspace: str | Path) -> list[dict]:
                 findings.append({
                     "kind": "staging_directory",
                     "path": str(run_path.relative_to(root)),
-                    "status": "incomplete_or_unpromoted",
+                    "status": "may_be_active_or_incomplete",
                     "action": "manual_review_required",
                 })
     return findings
