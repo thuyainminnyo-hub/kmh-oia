@@ -201,6 +201,103 @@ def inspect_incomplete_ingests(workspace: str | Path) -> list[dict]:
     return findings
 
 
+
+def _safe_workspace_child(root: Path, relative: str) -> Path:
+    """Resolve a journal path without following symlinks or escaping workspace."""
+    if not isinstance(relative, str) or not relative or relative.startswith(("/", "\\\\")) or "\\\\" in relative:
+        raise IntakeError("UNSAFE_RECOVERY_PATH", "Recovery path must be a non-empty workspace-relative POSIX path")
+    parts = relative.split("/")
+    if any(part in ("", ".", "..") for part in parts):
+        raise IntakeError("UNSAFE_RECOVERY_PATH", "Recovery path contains an unsafe component")
+    candidate = root
+    for part in parts:
+        candidate = candidate / part
+        if candidate.is_symlink():
+            raise IntakeError("UNSAFE_RECOVERY_PATH", "Recovery path traverses a symlink")
+    try:
+        candidate.resolve(strict=True).relative_to(root)
+    except (OSError, ValueError) as exc:
+        raise IntakeError("UNSAFE_RECOVERY_PATH", "Recovery path is missing or escapes workspace") from exc
+    return candidate
+
+
+def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
+    """Build a read-only recovery plan; never modifies bags, journals, receipts or locks."""
+    root = Path(workspace).resolve(strict=True)
+    reports = root / "reports"
+    if not reports.is_dir():
+        return []
+    plans = []
+    for journal in sorted(reports.glob("*.promotion-pending.json")):
+        plan = {
+            "journal_path": str(journal.relative_to(root)),
+            "status": "manual_review_required",
+            "proposed_action": "none",
+            "evidence": {},
+        }
+        try:
+            metadata = json.loads(journal.read_text(encoding="utf-8"))
+            if (
+                metadata.get("schema") != "kmh.preservation-promotion-journal.v1"
+                or metadata.get("state") != "promotion_pending"
+                or not OBJECT_ID_RE.fullmatch(metadata.get("object_id", ""))
+                or not isinstance(metadata.get("source_sha256"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", metadata.get("source_sha256", ""))
+                or not isinstance(metadata.get("source_byte_length"), int)
+                or metadata.get("source_byte_length", -1) < 0
+            ):
+                raise IntakeError("INVALID_PROMOTION_JOURNAL", "Journal schema or required evidence is invalid")
+            accepted = _safe_workspace_child(root, metadata["accepted_path"])
+            staging = _safe_workspace_child(root, metadata["staging_path"]) if (root / metadata["staging_path"]).exists() else None
+            candidates = []
+            for label, bag_path in (("accepted", accepted), ("staging", staging)):
+                if bag_path is None:
+                    continue
+                if not bag_path.is_dir():
+                    continue
+                try:
+                    validate_manifest_paths(bag_path)
+                    bag = bagit.Bag(str(bag_path))
+                    bag.validate()
+                    payload = bag_path / "data" / "source" / "original.mid"
+                    digest, length = sha256_file(payload)
+                    matches = digest == metadata["source_sha256"] and length == metadata["source_byte_length"]
+                    candidates.append({
+                        "location": label,
+                        "path": str(bag_path.relative_to(root)),
+                        "bagit_valid": True,
+                        "payload_sha256": digest,
+                        "payload_byte_length": length,
+                        "source_evidence_matches": matches,
+                    })
+                except (OSError, ValueError, bagit.BagValidationError, IntakeError) as exc:
+                    candidates.append({
+                        "location": label,
+                        "path": str(bag_path.relative_to(root)),
+                        "bagit_valid": False,
+                        "source_evidence_matches": False,
+                        "diagnostic": str(exc),
+                    })
+            plan["evidence"] = {"object_id": metadata["object_id"], "candidates": candidates}
+            accepted_match = any(x["location"] == "accepted" and x["bagit_valid"] and x["source_evidence_matches"] for x in candidates)
+            staging_match = any(x["location"] == "staging" and x["bagit_valid"] and x["source_evidence_matches"] for x in candidates)
+            if accepted_match:
+                plan["status"] = "accepted_bag_verified_receipt_reconciliation_required"
+                plan["proposed_action"] = "operator_review_finalize_receipt"
+            elif staging_match:
+                plan["status"] = "staged_bag_verified_promotion_not_completed"
+                plan["proposed_action"] = "operator_review_promotion"
+            else:
+                plan["status"] = "no_matching_valid_bag_found"
+                plan["proposed_action"] = "manual_investigation"
+        except (OSError, json.JSONDecodeError, IntakeError, TypeError, AttributeError) as exc:
+            plan["status"] = "journal_or_path_invalid"
+            plan["proposed_action"] = "manual_investigation"
+            plan["evidence"] = {"diagnostic": str(exc)}
+        plans.append(plan)
+    return plans
+
+
 def ingest(
     source: str | Path,
     object_id: str,
