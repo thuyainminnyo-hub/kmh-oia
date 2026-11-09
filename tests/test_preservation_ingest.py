@@ -480,5 +480,77 @@ ingest(source, object_id, workspace, crash_hook=crash)
                 now="2026-11-10T11:00:00+00:00",
             )
 
+
+    def test_signed_recovery_approval_verifies_ed25519_and_consumes_nonce(self):
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from scripts.preservation_ingest import (
+            build_recovery_approval_record,
+            sign_recovery_approval_record,
+            validate_signed_recovery_approval,
+        )
+        self._create_pending_journal_for_accepted_bag("signed-approval-001")
+        plan = __import__("scripts.preservation_ingest", fromlist=["plan_ingest_recovery"]).plan_ingest_recovery(self.workspace)[0]
+        record = build_recovery_approval_record(
+            plan, action="finalize_receipt_for_verified_accepted_bag",
+            actor_id="archivist:operator-17",
+            approved_at="2026-11-10T10:00:00+00:00",
+            expires_at="2026-11-10T11:00:00+00:00",
+            approval_id="signed-approval-001",
+        )
+        private_key = Ed25519PrivateKey.generate()
+        signed = sign_recovery_approval_record(record, private_key=private_key, key_id="kmh-test-key-01")
+        consumed = []
+        validate_signed_recovery_approval(
+            signed, plan,
+            trusted_public_keys={"kmh-test-key-01": private_key.public_key()},
+            authorize_actor=lambda actor, action: actor == "archivist:operator-17" and action == signed["action"],
+            consume_nonce=lambda approval_id, nonce: consumed.append((approval_id, nonce)) is None,
+            now="2026-11-10T10:30:00+00:00",
+        )
+        self.assertEqual(len(consumed), 1)
+        tampered = dict(signed)
+        tampered["actor_id"] = "archivist:attacker"
+        with self.assertRaises(IntakeError):
+            validate_signed_recovery_approval(
+                tampered, plan,
+                trusted_public_keys={"kmh-test-key-01": private_key.public_key()},
+                authorize_actor=lambda _actor, _action: True,
+                consume_nonce=lambda _approval_id, _nonce: True,
+                now="2026-11-10T10:30:00+00:00",
+            )
+
+    def test_signed_recovery_approval_fails_closed_without_nonce_store_or_trusted_key(self):
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from scripts.preservation_ingest import (
+            build_recovery_approval_record,
+            sign_recovery_approval_record,
+            validate_signed_recovery_approval,
+        )
+        self._create_pending_journal_for_accepted_bag("signed-approval-002")
+        plan = __import__("scripts.preservation_ingest", fromlist=["plan_ingest_recovery"]).plan_ingest_recovery(self.workspace)[0]
+        record = build_recovery_approval_record(
+            plan, action="finalize_receipt_for_verified_accepted_bag",
+            actor_id="archivist:operator-17",
+            approved_at="2026-11-10T10:00:00+00:00",
+            expires_at="2026-11-10T11:00:00+00:00",
+            approval_id="signed-approval-002",
+        )
+        private_key = Ed25519PrivateKey.generate()
+        signed = sign_recovery_approval_record(record, private_key=private_key, key_id="kmh-test-key-02")
+        with self.assertRaises(IntakeError):
+            validate_signed_recovery_approval(
+                signed, plan, trusted_public_keys={},
+                authorize_actor=lambda _actor, _action: True,
+                consume_nonce=lambda _approval_id, _nonce: True,
+                now="2026-11-10T10:30:00+00:00",
+            )
+        with self.assertRaises(IntakeError):
+            validate_signed_recovery_approval(
+                signed, plan, trusted_public_keys={"kmh-test-key-02": private_key.public_key()},
+                authorize_actor=lambda _actor, _action: True,
+                consume_nonce=None,
+                now="2026-11-10T10:30:00+00:00",
+            )
+
 if __name__ == "__main__":
     unittest.main()
