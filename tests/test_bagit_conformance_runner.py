@@ -32,6 +32,23 @@ class BagDeclarationTests(unittest.TestCase):
             (bag / "bagit.txt").write_text("BagIt-Version: 1.0\n", encoding="utf-8")
             self.assertFalse(validate_bag_declaration(bag)[0])
 
+    def test_accepts_crlf_line_endings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bag = Path(tmp)
+            (bag / "bagit.txt").write_bytes(
+                b"BagIt-Version: 1.0\\r\\nTag-File-Character-Encoding: UTF-8\\r\\n"
+            )
+            self.assertEqual(validate_bag_declaration(bag), (True, ""))
+
+    def test_rejects_utf8_bom(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bag = Path(tmp)
+            (bag / "bagit.txt").write_bytes(
+                b"\\xef\\xbb\\xbfBagIt-Version: 1.0\\nTag-File-Character-Encoding: UTF-8\\n"
+            )
+            valid, reason = validate_bag_declaration(bag)
+            self.assertFalse(valid)
+            self.assertIn("BOM", reason)
 
 if __name__ == "__main__":
     unittest.main()
