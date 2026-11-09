@@ -210,5 +210,40 @@ class PreservationIngestTests(unittest.TestCase):
         self.assertTrue(lock.exists())
         self.assertTrue(staged.exists())
 
+    def test_receipt_failure_after_promotion_preserves_accepted_bag(self):
+        from scripts import preservation_ingest as worker
+        original_write = worker._write_json
+        calls = {"count": 0}
+        def fail_final_receipt_once(path, value):
+            calls["count"] += 1
+            if calls["count"] == 2:
+                raise OSError("simulated final receipt write failure")
+            return original_write(path, value)
+        with patch("scripts.preservation_ingest._write_json", side_effect=fail_final_receipt_once):
+            with self.assertRaises(IntakeError) as caught:
+                ingest(self.source, "receipt-crash-001", self.workspace)
+        self.assertEqual(caught.exception.code, "INGEST_FAILED")
+        accepted = self.workspace / "accepted" / "receipt-crash-001"
+        self.assertTrue((accepted / "bagit.txt").is_file())
+        receipts = list((self.workspace / "reports").glob("receipt-crash-001-*.json"))
+        self.assertEqual(len(receipts), 1)
+        receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
+        self.assertEqual(receipt["result"], "accepted_receipt_pending")
+        journals = list((self.workspace / "reports").glob("receipt-crash-001-*.promotion-pending.json"))
+        self.assertEqual(len(journals), 1)
+        self.assertTrue((self.workspace / "reservations" / "receipt-crash-001.lock").exists())
+
+    def test_recovery_inspection_reports_pending_promotion_journal(self):
+        from scripts.preservation_ingest import inspect_incomplete_ingests
+        reports = self.workspace / "reports"
+        reports.mkdir()
+        journal = reports / "object-001-run.promotion-pending.json"
+        journal.write_text('{"object_id":"object-001","state":"promotion_pending"}', encoding="utf-8")
+        findings = inspect_incomplete_ingests(self.workspace)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["kind"], "promotion_journal")
+        self.assertEqual(findings[0]["status"], "promotion_journal_requires_reconciliation")
+        self.assertTrue(journal.exists())
+
 if __name__ == "__main__":
     unittest.main()
