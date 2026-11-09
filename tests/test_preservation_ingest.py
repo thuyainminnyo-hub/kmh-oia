@@ -604,7 +604,7 @@ ingest(source, object_id, workspace, crash_hook=crash)
             canonical,
             b'{"a":2,"b":1,"literals":[null,true,false],"numbers":[333333333.3333333,1e+30,4.5,0.002,1e-27]}',
         )
-        self.assertEqual(_canonical_json_bytes({"€": "Euro", "a": "ASCII"}), b'{"a":"ASCII","€":"Euro"}')
+        self.assertEqual(_canonical_json_bytes({"€": "Euro", "a": "ASCII"}), '{"a":"ASCII","€":"Euro"}'.encode("utf-8"))
 
     def test_rfc8785_jcs_rejects_non_finite_numbers(self):
         from scripts.preservation_ingest import _canonical_json_bytes
