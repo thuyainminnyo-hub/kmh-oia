@@ -1,0 +1,118 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "asset_id": "KMH-BAL-001",
+  "comparison_version": "1.0",
+  "comparison_type": "QUALITATIVE_REFERENCE_REVIEW_ONLY",
+  "geometry_baseline": {
+    "body_sha256": "",
+    "lower_skirt_sha256": "",
+    "body_bounds_normalized": [
+      [
+        -0.88,
+        -0.88,
+        0
+      ],
+      [
+        0.88,
+        0.88,
+        1
+      ]
+    ],
+    "body_extents_normalized": [
+      1.76,
+      1.76,
+      1
+    ],
+    "lower_skirt_bounds_normalized": [
+      [
+        -0.92,
+        -0.92,
+        -0.055
+      ],
+      [
+        0.92,
+        0.92,
+        0.03
+      ]
+    ],
+    "lower_skirt_extents_normalized": [
+      1.84,
+      1.84,
+      0.085
+    ]
+  },
+  "reference_groups": {
+    "original_semantic_views": [
+      "16812.jpg",
+      "16813.jpg",
+      "16814.jpg"
+    ],
+    "yan_khwe_attached_frames": [
+      "16822.jpg",
+      "16824.jpg"
+    ],
+    "supplementary_video_screenshots": [
+      "16826.jpg",
+      "16828.jpg",
+      "16830.jpg",
+      "16832.jpg",
+      "16834.jpg",
+      "16836.jpg",
+      "16838.jpg",
+      "16840.jpg",
+      "16842.jpg"
+    ],
+    "ground_laid_artwork": [
+      "16844.jpg"
+    ],
+    "separate_competition_document": [
+      "16850.jpg"
+    ]
+  },
+  "observations": [
+    {
+      "id": "OBS-01",
+      "finding": "Geometry v1 is a normalized rotationally symmetric parametric blockout with circular horizontal sections.",
+      "status": "MODEL_DERIVED"
+    },
+    {
+      "id": "OBS-02",
+      "finding": "Original images are semantic artwork views, not calibrated orthographic captures.",
+      "status": "SOURCE_LIMITATION"
+    },
+    {
+      "id": "OBS-03",
+      "finding": "Supplementary screenshots are video frames, not independent calibrated camera stations.",
+      "status": "SOURCE_LIMITATION"
+    },
+    {
+      "id": "OBS-04",
+      "finding": "No reliable pixel-to-model dimensional residual can be computed from current images.",
+      "status": "NOT_MEASURABLE"
+    },
+    {
+      "id": "OBS-05",
+      "finding": "Yan-Khwe is a separate visual attachment asset, excluded from shell silhouette fitting.",
+      "status": "SCOPE_BOUNDARY"
+    },
+    {
+      "id": "OBS-06",
+      "finding": "Image 16844 shows laid-out radial artwork, not a measured bottom ring.",
+      "status": "SCOPE_BOUNDARY"
+    }
+  ],
+  "gate": {
+    "qualitative_reference_review": "PARTIAL_PASS",
+    "calibrated_silhouette_fit": "NOT_READY",
+    "dimension_residual_analysis": "NOT_READY",
+    "geometry_v2_authorization": "HOLD",
+    "promotion_authorized": false
+  },
+  "limitations": [
+    "No camera calibration, lens correction, camera pose, scale marker, or orthographic capture set.",
+    "No verified visual-state labels for each image.",
+    "No measured width/depth profile or maximum-body station.",
+    "Normalized model bounds are not physical units.",
+    "No pyrotechnic or operational geometry is analyzed."
+  ]
+}
