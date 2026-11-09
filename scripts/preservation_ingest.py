@@ -236,7 +236,9 @@ def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
             "evidence": {},
         }
         try:
-            metadata = json.loads(journal.read_text(encoding="utf-8"))
+            journal_bytes = journal.read_bytes()
+            plan["journal_sha256"] = hashlib.sha256(journal_bytes).hexdigest()
+            metadata = json.loads(journal_bytes.decode("utf-8"))
             if (
                 metadata.get("schema") != "kmh.preservation-promotion-journal.v1"
                 or metadata.get("state") != "promotion_pending"
@@ -284,9 +286,16 @@ def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
                     payload = bag_path / "data" / "source" / "original.mid"
                     digest, length = sha256_file(payload)
                     matches = digest == metadata["source_sha256"] and length == metadata["source_byte_length"]
+                    candidate_stat = bag_path.stat()
                     candidates.append({
                         "location": label,
                         "path": str(bag_path.relative_to(root)),
+                        "identity": {
+                            "device": candidate_stat.st_dev,
+                            "inode": candidate_stat.st_ino,
+                            "mode": candidate_stat.st_mode,
+                            "mtime_ns": candidate_stat.st_mtime_ns,
+                        },
                         "bagit_valid": True,
                         "payload_sha256": digest,
                         "payload_byte_length": length,
@@ -316,6 +325,13 @@ def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
             plan["status"] = "journal_or_path_invalid"
             plan["proposed_action"] = "manual_investigation"
             plan["evidence"] = {"diagnostic": str(exc)}
+        canonical_plan = json.dumps(
+            plan,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        plan["plan_sha256"] = hashlib.sha256(canonical_plan).hexdigest()
         plans.append(plan)
     return plans
 
