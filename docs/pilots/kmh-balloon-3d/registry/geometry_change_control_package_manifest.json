@@ -1,0 +1,10 @@
+{
+  "package": "KMH_BAL_001 Geometry Change-Control Gate v1.0",
+  "baseline_body_sha256": "1c3b57d2146686926e6d421aaf07b5382ba634a9d9df4138804fe921a20078b9",
+  "baseline_lower_skirt_sha256": "ab57f9ee89dbfcedc494566f9b41809917da41e6ddd966775129f73e2a9d284b",
+  "empty_template_expected_decision": "BLOCKED_HOLD",
+  "empty_template_blocker_count": 30,
+  "validator_result": "PASS_EXPECTED_HOLD",
+  "baseline_asset_hash_checks": "2_OF_2_MATCH",
+  "no_geometry_modified": true
+}
