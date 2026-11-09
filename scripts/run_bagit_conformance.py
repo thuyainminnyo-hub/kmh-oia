@@ -8,7 +8,27 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 
+
+def validate_bag_declaration(bag_path: Path) -> tuple[bool, str]:
+    """Apply RFC 8493 v1.0's strict two-line bagit.txt declaration grammar."""
+    declaration = bag_path / "bagit.txt"
+    try:
+        raw = declaration.read_bytes()
+        text = raw.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return False, str(exc)
+    if raw.startswith(bytes((0xEF, 0xBB, 0xBF))):
+        return False, "bagit.txt must not contain a UTF-8 BOM"
+    lines = text.splitlines()
+    if len(lines) != 2:
+        return False, "bagit.txt must contain exactly two lines"
+    if not re.fullmatch(r"BagIt-Version: 1\\.0", lines[0]):
+        return False, "invalid BagIt-Version declaration syntax/value"
+    if not re.fullmatch(r"Tag-File-Character-Encoding: [^\\s].*", lines[1]):
+        return False, "invalid Tag-File-Character-Encoding declaration syntax/value"
+    return True, ""
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -41,17 +61,20 @@ def main() -> int:
                 text=True,
                 check=False,
             )
-            if category == "valid":
-                passed = proc.returncode == 0
-            elif category in ("invalid", "linux-only", "windows-only"):
-                passed = proc.returncode != 0
-            else:  # Warning fixtures are valid bags; warnings are retained verbatim.
-                passed = proc.returncode == 0
+            declaration_valid, declaration_error = validate_bag_declaration(bag_path)
+            bagit_python_valid = proc.returncode == 0
+            effective_valid = bagit_python_valid and declaration_valid
+            expected_valid = category in ("valid", "warning")
+            passed = effective_valid == expected_valid
             record = {
                 "fixture": bag_path.name,
                 "category": category,
-                "expected": "valid" if category in ("valid", "warning") else "invalid",
+                "expected": "valid" if expected_valid else "invalid",
                 "exit_code": proc.returncode,
+                "bagit_python_valid": bagit_python_valid,
+                "strict_declaration_valid": declaration_valid,
+                "strict_declaration_error": declaration_error,
+                "effective_valid": effective_valid,
                 "passed": passed,
                 "stdout": proc.stdout,
                 "stderr": proc.stderr,
