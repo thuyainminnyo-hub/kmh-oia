@@ -11,7 +11,7 @@ The user supplied the following dimensions for the balloon size identification r
 
 | Parameter | User-provided value | Metric conversion | Evidence status |
 |---|---:|---:|---|
-| Body circumference / လုံးပတ်အရှည် | 75 ft | 22.86 m | USER_PROVIDED_DIMENSION |
+| Maximum-body circumference / အကျယ်ဆုံးနေရာ၏ လုံးပတ်အရှည် | 75 ft | 22.86 m | USER_PROVIDED_DIMENSION; measurement path confirmed by user |
 | Overall height / အမြင့် | 25 ft | 7.62 m | USER_CONFIRMED_MEASUREMENT; provenance pending |
 | Top circular opening/ring diameter / ခေါင်အဝိုင်းအချင်း | 25 ft | 7.62 m | USER_PROVIDED_DIMENSION |
 | Bottom circular opening/ring diameter / အောက်ခြေအဝိုင်းအချင်း | 7 ft or 7.5 ft | 2.13 m or 2.29 m | USER_PROVIDED_RANGE; exact value pending |
@@ -22,18 +22,19 @@ The user supplied the following dimensions for the balloon size identification r
 - **လုံးပတ် (Circumference):** မီးပုံးပျံကိုယ်ထည်ကို ပတ်တိုင်းထားတဲ့ အလျား။
 - Do not use diameter and circumference interchangeably.
 
-### Consistency check — pending clarification
+### Confirmed measurement path and consistency note
 
-If 75 ft is the circumference of a circular cross-section, its equivalent diameter is approximately 23.87 ft (7.28 m). A 25 ft diameter circle would have a circumference of approximately 78.54 ft (23.94 m). These values are close but not identical. Keep the user's 75 ft circumference and 25 ft top diameter as separate supplied dimensions; do not silently reconcile them or assume they refer to the same measurement plane.
+**User clarification:** the 75 ft circumference is measured around the balloon body's widest section. This resolves the previous uncertainty about where the circumference was taken.
+
+For reference only, if that cross-section were a perfect circle, 75 ft circumference would correspond to a diameter of approximately 23.87 ft (7.28 m). A 25 ft diameter circle would have a circumference of approximately 78.54 ft (23.94 m). The measured cross-section may not be perfectly circular; therefore, retain 75 ft as the directly supplied circumference and do not replace it with the derived diameter. Keep the 25 ft top-ring diameter as a separate measurement at its own plane.
 
 The earlier general reference range of 18–25 ft for maximum body diameter remains a secondary-source range and is not a replacement for these user-provided dimensions.
 
 ## 2. Still unknown / to be clarified
 
-- Whether 75 ft circumference refers to the widest body cross-section or another measurement path.
 - Whether the 25 ft top circular diameter is the crown/top ring diameter, and its exact measurement plane.
 - Whether the bottom diameter is 7 ft or 7.5 ft.
-- Front-to-back depth at the widest body cross-section, if distinct from the across-body width.
+- Across-body width and front-to-back depth at the widest body cross-section, if distinct; the circumference alone does not determine both dimensions unless the section shape is known.
 - Measurement method, date, operator, instrument and uncertainty/tolerance for each value.
 
 ## 3. Measurement record template
@@ -42,7 +43,7 @@ Record each measurement as a separate observation. Do not overwrite raw observat
 
 - measurement_id: unique ID
 - asset_id: KMH-BAL-001
-- parameter: overall_height | body_circumference | max_body_diameter | top_ring_diameter | bottom_ring_diameter | front_back_depth | other
+- parameter: overall_height | max_section_circumference | max_body_diameter | top_ring_diameter | bottom_ring_diameter | front_back_depth | other
 - value: numeric value
 - unit: ft | m | in | cm
 - method: tape | laser_distance_meter | surveyed_reference | calibrated_photogrammetry | other
@@ -57,9 +58,9 @@ Record each measurement as a separate observation. Do not overwrite raw observat
 
 ## 4. Gate requirements before Geometry v2
 
-1. Clarify the measurement plane/path for the 75 ft circumference.
+1. Confirm whether the top circular diameter is specifically the crown/top ring and document its plane.
 2. Confirm whether the bottom ring is 7 ft or 7.5 ft.
-3. Record orthogonal width/depth evidence at the widest body section; do not infer a circular cross-section without evidence.
+3. Record orthogonal width/depth evidence at the widest body section; do not infer a circular cross-section from circumference alone.
 4. Capture scale references in orthogonal views where practical.
 5. Preserve originals and metadata; calculate SHA-256 hashes for the evidence manifest.
 6. Have a second reviewer check the dimensional record before applying physical scale.
@@ -76,6 +77,6 @@ Record each measurement as a separate observation. Do not overwrite raw observat
 
 **HOLD — DIMENSIONS RECORDED, GEOMETRY V2 SCALE NOT YET APPROVED.**
 
-Reason: values have been supplied, but measurement provenance, uncertainty, the circumference measurement path and the exact bottom diameter remain unresolved. Geometry v1 remains a normalized topology blockout, not a measured reconstruction or production-ready model.
+Reason: the 75 ft circumference measurement path is now user-confirmed as the widest body section, but measurement provenance and uncertainty, the exact bottom diameter, and orthogonal section dimensions remain unresolved. Geometry v1 remains a normalized topology blockout, not a measured reconstruction or production-ready model.
 
 This gate does not certify engineering design, structural safety, material properties, internal supports, attachment strength, or pyrotechnic safety.
