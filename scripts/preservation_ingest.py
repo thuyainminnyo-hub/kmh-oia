@@ -108,7 +108,28 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
     quarantine_root.mkdir(exist_ok=True)
     reports_root.mkdir(exist_ok=True)
     final_path = accepted_root / object_id
+    reservations_root = workspace_path / "reservations"
+    reservations_root.mkdir(exist_ok=True)
+    reservation_path = reservations_root / f"{object_id}.lock"
+    try:
+        reservation_fd = os.open(
+            reservation_path,
+            os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            0o600,
+        )
+    except FileExistsError as exc:
+        raise IntakeError("OBJECT_ID_RESERVED", "Object ID is currently reserved by another ingest") from exc
+    with os.fdopen(reservation_fd, "w", encoding="utf-8") as reservation_stream:
+        reservation_stream.write(json.dumps({
+            "object_id": object_id,
+            "pid": os.getpid(),
+            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        }) + "\\n")
+        reservation_stream.flush()
+        os.fsync(reservation_stream.fileno())
+
     if final_path.exists():
+        reservation_path.unlink(missing_ok=True)
         raise IntakeError("DUPLICATE_OBJECT_ID", "Object ID already exists; no overwrite performed")
 
     run_id = str(uuid.uuid4())
@@ -168,6 +189,7 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
         os.replace(run_dir, final_path)
         receipt["accepted_path"] = str(final_path.relative_to(workspace_path))
         _write_json(reports_root / f"{object_id}-{run_id}.json", receipt)
+        reservation_path.unlink(missing_ok=True)
         return receipt
     except Exception as exc:
         if isinstance(exc, IntakeError):
@@ -187,6 +209,7 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
             os.replace(run_dir, quarantine_path)
             receipt["quarantine_path"] = str(quarantine_path.relative_to(workspace_path))
         _write_json(reports_root / f"{object_id}-{run_id}.json", receipt)
+        reservation_path.unlink(missing_ok=True)
         raise IntakeError(code, str(exc)) from exc
 
 
