@@ -78,6 +78,46 @@ def _capture_source(source: Path, destination: Path) -> tuple[str, int]:
     return digest.hexdigest(), length
 
 
+def validate_manifest_paths(bag_root: str | Path) -> None:
+    """Reject manifest paths that escape the bag or traverse symlinks.
+
+    This is a lexical and current-filesystem preflight. It is not a substitute
+    for descriptor-relative, race-free path opening in hostile writable roots.
+    """
+    root = Path(bag_root).resolve(strict=True)
+    manifest_files = sorted(root.glob("manifest-*.txt")) + sorted(root.glob("tagmanifest-*.txt"))
+    for manifest in manifest_files:
+        if manifest.is_symlink():
+            raise IntakeError("MANIFEST_SYMLINK", f"Manifest is a symlink: {manifest.name}")
+        for line_number, line in enumerate(manifest.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                _checksum, relative_name = line.split(None, 1)
+            except ValueError as exc:
+                raise IntakeError("INVALID_MANIFEST_ENTRY", f"Malformed entry in {manifest.name}:{line_number}") from exc
+            name = relative_name.lstrip("*")
+            normalized = name.replace("\\\\", "/")
+            parts = normalized.split("/")
+            if (
+                not name
+                or name.startswith(("/", "~"))
+                or re.match(r"^[A-Za-z]:", name)
+                or "\\\\" in name
+                or any(part in ("", ".", "..") for part in parts)
+            ):
+                raise IntakeError("UNSAFE_MANIFEST_PATH", f"Unsafe manifest path in {manifest.name}:{line_number}")
+            candidate = root.joinpath(*parts)
+            current = root
+            for part in parts:
+                current = current / part
+                if current.is_symlink():
+                    raise IntakeError("MANIFEST_PATH_SYMLINK", f"Manifest path traverses a symlink: {name}")
+            try:
+                candidate.resolve(strict=False).relative_to(root)
+            except ValueError as exc:
+                raise IntakeError("UNSAFE_MANIFEST_PATH", f"Manifest path escapes bag: {name}") from exc
+
 def _write_json(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
@@ -167,6 +207,7 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
             bag_info={"External-Identifier": object_id, "Source-File-Name": source_path.name},
             checksums=["sha256", "sha512"],
         )
+        validate_manifest_paths(run_dir)
         bag.validate()
         payload = run_dir / "data" / "source" / "original.mid"
         payload_sha, payload_length = sha256_file(payload)
