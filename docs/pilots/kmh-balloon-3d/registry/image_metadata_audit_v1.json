@@ -1,0 +1,100 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "audit_id": "KMH-BAL-001-IMAGE-METADATA-AUDIT",
+  "version": "1.0",
+  "status": "METADATA_AUDIT_COMPLETE__PHOTOGRAMMETRY_NOT_READY",
+  "summary": {
+    "total_files": 16,
+    "missing_files": 0,
+    "exif_present": 0,
+    "camera_model_available": 0,
+    "datetime_original_available": 0,
+    "exact_duplicate_groups": [],
+    "unique_image_dimensions": [
+      {
+        "width_px": 1152,
+        "height_px": 2048
+      },
+      {
+        "width_px": 1845,
+        "height_px": 2048
+      }
+    ],
+    "state_confirmed_count": 0,
+    "calibrated_photogrammetry_ready_count": 0,
+    "near_duplicate_screen": {
+      "status": "WITHDRAWN_NOT_RELIABLE",
+      "method": "8x8 average hash",
+      "reason": "Excessive false-positive candidates across similarly framed vertical images.",
+      "decision": "Do not use as duplicate evidence."
+    }
+  },
+  "source_groups": [
+    {
+      "files": [
+        "16812.jpg",
+        "16813.jpg",
+        "16814.jpg"
+      ],
+      "role": "ORIGINAL_ARTWORK_REFERENCE",
+      "permitted_use": "Qualitative artwork and visual identity review."
+    },
+    {
+      "files": [
+        "16822.jpg",
+        "16824.jpg"
+      ],
+      "role": "YAN_KHWE_DETAIL_SCREENSHOT",
+      "permitted_use": "Separate attachment-detail heritage reference only."
+    },
+    {
+      "files": [
+        "16826.jpg",
+        "16828.jpg",
+        "16830.jpg",
+        "16832.jpg",
+        "16834.jpg",
+        "16836.jpg",
+        "16838.jpg",
+        "16840.jpg",
+        "16842.jpg"
+      ],
+      "role": "VIDEO_FRAME_REFERENCE",
+      "permitted_use": "Supplementary qualitative appearance only; same video sequence."
+    },
+    {
+      "files": [
+        "16844.jpg"
+      ],
+      "role": "GROUND_LAID_ARTWORK_REFERENCE",
+      "permitted_use": "Decorative panel artwork only."
+    },
+    {
+      "files": [
+        "16850.jpg"
+      ],
+      "role": "RULES_DOCUMENT_IMAGE",
+      "permitted_use": "Separate document transcription/evidence track."
+    }
+  ],
+  "methods": {
+    "file_integrity": "SHA-256 of original files",
+    "metadata": "Image headers and EXIF tag presence",
+    "duplicate_identity": "Exact SHA-256 comparison only",
+    "not_performed": [
+      "camera calibration",
+      "lens distortion estimation",
+      "3D reconstruction",
+      "UV mapping",
+      "OCR",
+      "reliable perceptual duplicate clustering"
+    ]
+  },
+  "gates": {
+    "state_attribution": "BLOCKED",
+    "calibrated_photogrammetry": "BLOCKED",
+    "COLMAP": "BLOCKED_PENDING_HUMAN_QA",
+    "UV_MAPPING": "NOT_READY",
+    "GEOMETRY_V2": "HOLD"
+  }
+}
