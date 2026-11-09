@@ -1,0 +1,86 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "package": "KMH_BAL_001_Blender_Scene_Master_v1.0",
+  "status": "PORTABLE_GLTF_SCENE_READY__BLENDER_BUILDER_INCLUDED",
+  "local_package": {
+    "scene_master": {
+      "file": "geometry/KMH_BAL_001_TWO_STATE_REVIEW_SCENE_v1.glb",
+      "sha256": "c6512e9d8c33039c8c27ee1fcaa0baaa7c559e0bba44d5bccf65026d7ec2e9e8",
+      "layout": "Two state branches shown side-by-side. X offsets are presentation-only, not physical positions."
+    },
+    "envelope": {
+      "file": "geometry/KMH_BAL_001_BODY_BLOCKOUT_v1.glb",
+      "sha256": "1c3b57d2146686926e6d421aaf07b5382ba634a9d9df4138804fe921a20078b9",
+      "vertices": 1282,
+      "faces": 2560,
+      "extents_normalized": [
+        1.76,
+        1.76,
+        1
+      ],
+      "watertight": true,
+      "winding_consistent": true
+    },
+    "lower_skirt": {
+      "file": "geometry/KMH_BAL_001_LOWER_SKIRT_BLOCKOUT_v1.glb",
+      "sha256": "ab57f9ee89dbfcedc494566f9b41809917da41e6ddd966775129f73e2a9d284b",
+      "vertices": 514,
+      "faces": 1024,
+      "extents_normalized": [
+        1.84,
+        1.84,
+        0.085
+      ],
+      "watertight": true,
+      "winding_consistent": true
+    },
+    "attachment": {
+      "asset_id": "KMH-BAL-001-ATT-001",
+      "label": "ယမ်းခွေ (Yan-Khwe)",
+      "state": "REFERENCE_ONLY_NOT_MODELED_NOT_POSITIONED"
+    }
+  },
+  "scene_states": {
+    "BASE-UNLOADED": {
+      "root_node": "STATE_BASE_UNLOADED",
+      "envelope_node": "BASE_UNLOADED_BODY",
+      "lower_skirt_node": "BASE_UNLOADED_LOWER_SKIRT"
+    },
+    "DISPLAYED-ATTACHED": {
+      "root_node": "STATE_DISPLAYED_ATTACHED",
+      "envelope_node": "DISPLAYED_ATTACHED_BODY",
+      "lower_skirt_node": "DISPLAYED_ATTACHED_LOWER_SKIRT",
+      "attachment_reference_node": "ATT_001_YAN_KHWE_REFERENCE_ONLY_UNPLACED",
+      "deformation": "NOT_MODELED_OR_MEASURED"
+    }
+  },
+  "artwork_layers": [
+    "FRONT_BUDDHA_HALO",
+    "REAR_LETTERING",
+    "SIDE_NARRATIVE_ARTWORK",
+    "LOWER_RADIAL_ORNAMENT",
+    "COLOR_AND_SURFACE_PATTERNS"
+  ],
+  "dimensions": {
+    "height_ft": "25 (user-confirmed)",
+    "maximum_body_circumference_ft": "75 (user-confirmed; circumference)",
+    "bottom_ring_diameter_ft": "7.5 (user-confirmed)",
+    "top_ring_diameter_ft": "25 (user-confirmed; diameter)",
+    "physical_scale_applied": false,
+    "width_depth_and_state_specific_profile": "unverified"
+  },
+  "validation": {
+    "portable_glb_export_and_reload": "PASS",
+    "required_scene_nodes": "PASS",
+    "shared_geometry_resources": "2",
+    "asset_hashes": "MATCH",
+    "metadata_only": true,
+    "physical_geometry_validation": false
+  },
+  "governance": {
+    "geometry_v1": "PRESERVED",
+    "blender_native_blend": "NOT_GENERATED_BLENDER_UNAVAILABLE",
+    "geometry_v2": "HOLD",
+    "production": "NOT_AUTHORIZED"
+  }
+}
