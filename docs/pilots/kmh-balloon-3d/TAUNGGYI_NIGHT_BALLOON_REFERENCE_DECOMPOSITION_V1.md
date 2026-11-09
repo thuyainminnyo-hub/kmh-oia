@@ -30,20 +30,16 @@ These are secondary-source claims supplied as background context, not independen
 
 ## 4. User-provided size identification record
 
-The user supplied these dimensions for KMH-BAL-001:
-
 | Parameter | Value | Metric equivalent | Status |
 |---|---:|---:|---|
-| Body circumference (လုံးပတ်အရှည်) | 75 ft | 22.86 m | USER_PROVIDED_DIMENSION |
-| Overall height (အမြင့်) | 25 ft | 7.62 m | USER_CONFIRMED_MEASUREMENT; provenance pending |
-| Top circular diameter (ခေါင်အဝိုင်းအချင်း) | 25 ft | 7.62 m | USER_PROVIDED_DIMENSION |
-| Bottom circular diameter (အောက်ခြေအဝိုင်းအချင်း) | 7 ft or 7.5 ft | 2.13 m or 2.29 m | USER_PROVIDED_RANGE; exact value pending |
+| Maximum-body circumference (အကျယ်ဆုံးနေရာ၏ လုံးပတ်အရှည်) | 75 ft | 22.86 m | USER-PROVIDED; path confirmed |
+| Overall height (အမြင့်) | 25 ft | 7.62 m | USER-CONFIRMED; provenance pending |
+| Top circular diameter (ခေါင်အဝိုင်းအချင်း) | 25 ft | 7.62 m | USER-PROVIDED |
+| Bottom circular diameter (အောက်ခြေအဝိုင်းအချင်း) | **7.5 ft** | **2.29 m** | USER-CONFIRMED |
 
 **Terminology:** အချင်း (Diameter) means the straight-line width from one side of the balloon body to the other. လုံးပတ် (Circumference) means the length measured around the body. They are different measurements and must not be interchanged.
 
-**Consistency note:** If 75 ft is the circumference of a circular cross-section, the equivalent diameter is about 23.87 ft. A 25 ft diameter circle has a circumference of about 78.54 ft. Preserve both user-provided values as separate measurements until the exact measurement path/plane is clarified; do not silently reconcile them.
-
-The earlier 18–25 ft diameter figure remains a general secondary-source range, not a measured value for this specific balloon.
+**Measurement path:** The user confirmed that 75 ft is measured around the balloon body's widest section. If that section were perfectly circular, the equivalent diameter would be about 23.87 ft; retain the supplied circumference as the primary value and do not infer an exact width without cross-section evidence. The top diameter is a separate measurement at the top ring plane.
 
 ## 5. Measurement glossary — user-confirmed terminology
 
@@ -73,9 +69,8 @@ Out of scope:
 
 ## 8. Next evidence needed
 
-1. Clarify whether the 75 ft circumference is measured around the widest body section or another path.
-2. Confirm whether the bottom circular diameter is 7 ft or 7.5 ft.
-3. Obtain orthogonal photographs or measured drawings for width/depth and ring placement.
-4. Record measurement method, date, operator, instrument and tolerance; independently review before Geometry v2 calibration.
+1. Confirm the exact measurement plane for the 25 ft top circular diameter.
+2. Obtain orthogonal photographs or measured drawings for width/depth and ring placement.
+3. Record measurement method, date, operator, instrument and tolerance; independently review before Geometry v2 calibration.
 
-**Current decision:** user-provided dimensions have been recorded; keep physical scale calibration on HOLD until the measurement path, bottom diameter and provenance are resolved. No pyrotechnic construction or operating details are to be modelled or documented.
+**Current decision:** user-provided dimensions have been updated, including the confirmed 7.5 ft bottom ring; keep physical scale calibration on HOLD until measurement provenance, top-ring plane and orthogonal section dimensions are documented. No pyrotechnic construction or operating details are to be modelled or documented.
