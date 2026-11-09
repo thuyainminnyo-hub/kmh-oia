@@ -82,8 +82,9 @@ def _capture_source(source: Path, destination: Path) -> tuple[str, int]:
 def validate_manifest_paths(bag_root: str | Path) -> None:
     """Reject manifest paths that escape their RFC 8493 base directory.
 
-    This preflight also rejects symlink components. It is not race-free against
-    a hostile process that can mutate the staging tree concurrently.
+    Payload manifest paths are bag-root-relative and must remain under data/.
+    Tag manifest paths are bag-root-relative and must not point into data/.
+    This preflight is not race-free against concurrent staging-tree mutation.
     """
     root = Path(bag_root).resolve(strict=True)
     manifest_files = sorted(root.glob("manifest-*.txt")) + sorted(root.glob("tagmanifest-*.txt"))
@@ -91,9 +92,7 @@ def validate_manifest_paths(bag_root: str | Path) -> None:
         if manifest.is_symlink():
             raise IntakeError("MANIFEST_SYMLINK", f"Manifest is a symlink: {manifest.name}")
         is_payload_manifest = manifest.name.startswith("manifest-")
-        base = root / "data" if is_payload_manifest else root
-        if is_payload_manifest and not base.is_dir():
-            raise IntakeError("MISSING_PAYLOAD_DIRECTORY", "Payload manifest exists without data directory")
+        base = root
         for line_number, line in enumerate(manifest.read_text(encoding="utf-8").splitlines(), 1):
             if not line.strip():
                 continue
@@ -111,15 +110,19 @@ def validate_manifest_paths(bag_root: str | Path) -> None:
                 or any(part in ("", ".", "..") for part in parts)
             ):
                 raise IntakeError("UNSAFE_MANIFEST_PATH", f"Unsafe manifest path in {manifest.name}:{line_number}")
+            if is_payload_manifest and (len(parts) < 2 or parts[0] != "data"):
+                raise IntakeError("PAYLOAD_PATH_OUTSIDE_DATA", f"Payload manifest path is not under data/: {name}")
+            if not is_payload_manifest and parts[0] == "data":
+                raise IntakeError("TAG_PATH_REFERENCES_PAYLOAD", f"Tag manifest references payload path: {name}")
             current = base
             for part in parts:
                 current = current / part
                 if current.is_symlink():
                     raise IntakeError("MANIFEST_PATH_SYMLINK", f"Manifest path traverses a symlink: {name}")
             try:
-                current.resolve(strict=False).relative_to(base.resolve(strict=True))
+                current.resolve(strict=False).relative_to(base)
             except (ValueError, OSError) as exc:
-                raise IntakeError("UNSAFE_MANIFEST_PATH", f"Manifest path escapes base directory: {name}") from exc
+                raise IntakeError("UNSAFE_MANIFEST_PATH", f"Manifest path escapes bag root: {name}") from exc
 
 def _fsync_directory(path: Path) -> bool:
     """Best-effort directory-entry durability; supported on POSIX platforms."""
