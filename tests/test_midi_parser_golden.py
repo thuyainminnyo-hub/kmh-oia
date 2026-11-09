@@ -329,5 +329,26 @@ class TestMIDIGoldenInvalidFixtures(unittest.TestCase):
             library.close()
 
 
+
+
+class TestGoldenFixtureCatalog(unittest.TestCase):
+    def test_catalog_valid_fixtures_are_accepted(self):
+        from midi_fixture_catalog import build_catalog
+
+        catalog = build_catalog()
+        for fixture_id, raw in catalog["valid"].items():
+            with self.subTest(fixture=fixture_id):
+                parse_midi(raw)
+
+    def test_catalog_invalid_fixtures_are_rejected(self):
+        from midi_fixture_catalog import build_catalog
+
+        catalog = build_catalog()
+        for fixture_id, raw in catalog["invalid"].items():
+            with self.subTest(fixture=fixture_id):
+                with self.assertRaises(MIDIFormatError):
+                    parse_midi(raw)
+
+
 if __name__ == "__main__":
     unittest.main()
