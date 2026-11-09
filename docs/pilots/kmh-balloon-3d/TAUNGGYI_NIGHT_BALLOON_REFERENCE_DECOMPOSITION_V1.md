@@ -28,7 +28,14 @@ The supplied narrative states:
 
 **User clarification:** Record the 18–25 ft figure as the reported maximum body diameter / width range for the balloon envelope. In dimensional terminology, diameter is the straight-line width across the body; circumference is the distance around it. This is a `REFERENCE_ESTIMATED_RANGE`, not a direct measurement of the specific balloon being reconstructed. Do not choose a single value within the range or scale Geometry v1 from it until the exact balloon's width is measured or independently corroborated. The user's separately confirmed 25 ft (7.62 m) height remains `USER_CONFIRMED_MEASUREMENT`, with method, date, operator, tolerance and independent corroboration still pending.
 
-## 4. Visual modelling scope
+## 4. Measurement glossary — user-confirmed terminology
+
+- **အချင်း (Diameter):** မီးပုံးပျံကိုယ်ထည်ရဲ့ တစ်ဖက်မှတစ်ဖက် အကျယ်။ English: the straight-line width across the balloon body through its widest cross-section. Record in the project as `maximum_body_diameter` / `maximum_body_width`.
+- **လုံးပတ် (Circumference):** မီးပုံးပျံကိုယ်ထည်ကို ပတ်တိုင်းထားတဲ့ အလျား။ English: the distance around the balloon body. Do not use this term for diameter.
+
+For this project, the user's intended meaning is explicit: **18–25 ft refers to the balloon body's diameter / across-body width, not its circumference.** Retain this terminology in all future geometry, measurement, and evidence records.
+
+## 5. Visual modelling scope
 
 Allowed project work:
 - envelope silhouette and surface segmentation;
@@ -41,7 +48,7 @@ Out of scope:
 - pyrotechnic recipes, quantities, assembly, wiring, fuse timing, ignition, firing sequence, lift calculations for a pyrotechnic payload, or operational deployment instructions;
 - engineering certification, structural safety claims, or real-world construction guidance.
 
-## 5. Evidence and confidence rules
+## 6. Evidence and confidence rules
 
 - Preserve the user's supplied narrative and its cited URLs as a source lead, not as independently verified facts.
 - Attribute each numerical claim to its source and keep it separate from measured geometry.
@@ -49,7 +56,7 @@ Out of scope:
 - Do not merge the Yan-Khwe, suspended display frame, and balloon envelope into one mesh or asset record without direct evidence.
 - Keep Geometry Blockout v1 unchanged until physical dimensions are independently documented.
 
-## 6. Next evidence needed
+## 7. Next evidence needed
 
 1. Full, legible competition-rule page(s) for rule transcription and compliance mapping.
 2. Direct orthogonal photographs or measured drawings for envelope width/depth and visible ring placement.
