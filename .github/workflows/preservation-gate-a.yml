@@ -12,6 +12,7 @@ on:
     branches: ["phase-02-71/midi-golden-fixtures"]
     paths:
       - "scripts/preservation_ingest.py"
+      - "scripts/run_bagit_conformance.py"
       - "tests/test_preservation_ingest.py"
       - "requirements-preservation.txt"
       - ".github/workflows/preservation-gate-a.yml"
