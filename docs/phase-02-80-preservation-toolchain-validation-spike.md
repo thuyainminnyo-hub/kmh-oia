@@ -125,3 +125,36 @@ All reports must identify the exact source commit and fixture hashes. Do not rep
 ## Decision
 
 Start with BagIt-Python + OCFL-PY + official PREMIS XSD in a local synthetic-fixture spike. Keep the Python worker isolated from the production web runtime. If OCFL-PY's documented validation gaps fail the acceptance tests, evaluate OCFL-Java as the single alternative. No production dependency or deployment is approved by this specification.
+
+
+## Phase 02.80 — Toolchain Research Correction & Candidate Revalidation (2026-11-09)
+
+This addendum supersedes any stale reading of the old `ocfl-py 1.1.1` PyPI page.
+
+### Updated evidence
+
+- Current PyPI project metadata lists `ocfl-py 2.1.0`, released 2026-06-26. Its current project description states that it implements OCFL v1.1 while retaining v1.0 support; it is a beta implementation and documents validator error/warning coverage. The old 1.1.1 page carries a historical v1.0 "work in progress" description and must not be used to characterize the current release.
+  - https://pypi.org/project/ocfl-py/
+  - https://github.com/zimeon/ocfl-py
+- OCFL's official site confirms v1.1.1 is a patch clarification to v1.1; object and storage-root version declarations remain v1.1. The 1.1.1 changes clarify case-sensitive filesystem handling and distinguish content-addressing digests from fixity digests.
+  - https://ocfl.io/news/
+  - https://ocfl.io/1.1/spec/change-log.html
+- OCFL publishes official validation codes and fixture objects; the selected implementation must be run against the official good/bad/warn corpus, not merely its own tests.
+  - https://ocfl.io/1.1/spec/validation-codes.html
+  - https://github.com/OCFL/fixtures
+- The Library of Congress BagIt Python project supports package creation and validation, including checksum mismatch, missing payload file, and unexpected payload file detection. Its documented defaults include SHA-256 and SHA-512 manifests.
+  - https://github.com/LibraryOfCongress/bagit-python
+- PREMIS 3.0 official schema is available from the Library of Congress; XSD validation must be supplemented with semantic checks for object/event/agent/rights relationships.
+  - https://www.loc.gov/standards/premis/schemas.html
+  - https://github.com/LibraryOfCongress/premis-v3-0
+
+### Updated decision
+
+Keep `bagit-python` as the BagIt candidate. Keep `ocfl-py 2.1.0` as the first OCFL candidate, but treat it as a beta reference implementation until its reported validator coverage and official fixture results are recorded. Do not use the historical 1.1.1 package page as the current capability statement.
+
+Before choosing a fallback, compare:
+1. `ocfl-py 2.1.0` against official OCFL v1.1 good/bad/warn fixtures.
+2. `ocfl-java` from the OCFL organization against the same fixture corpus.
+3. A documented independent implementation only if its license, maintenance, and fixture results are inspectable.
+
+No tool is yet approved for production. Pin exact versions and dependency hashes only after the prototype tests pass.
