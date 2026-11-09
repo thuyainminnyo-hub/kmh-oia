@@ -6,6 +6,7 @@ on:
       - "scripts/preservation_ingest.py"
       - "scripts/run_bagit_conformance.py"
       - "tests/test_preservation_ingest.py"
+      - "tests/test_bagit_conformance_runner.py"
       - "requirements-preservation.txt"
       - ".github/workflows/preservation-gate-a.yml"
   push:
