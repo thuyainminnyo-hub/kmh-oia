@@ -418,12 +418,20 @@ def validate_recovery_approval(
     if expected_action is None or record.get("action") != expected_action:
         raise IntakeError("RECOVERY_ACTION_NOT_ALLOWED", "Approval action is not allowed for the current plan")
     try:
+        approved = datetime.fromisoformat(record["approved_at"])
         expires = datetime.fromisoformat(record["expires_at"])
         current_time = datetime.fromisoformat(now.replace("Z", "+00:00"))
     except (KeyError, AttributeError, ValueError) as exc:
-        raise IntakeError("INVALID_APPROVAL_TIME", "Approval expiry or validation time is invalid") from exc
-    if expires.tzinfo is None or current_time.tzinfo is None or current_time >= expires:
-        raise IntakeError("APPROVAL_EXPIRED", "Approval has expired or has invalid timezone information")
+        raise IntakeError("INVALID_APPROVAL_TIME", "Approval, expiry or validation time is invalid") from exc
+    if (
+        approved.tzinfo is None
+        or expires.tzinfo is None
+        or current_time.tzinfo is None
+        or approved > current_time
+        or expires <= approved
+        or current_time >= expires
+    ):
+        raise IntakeError("APPROVAL_EXPIRED", "Approval time, expiry or validation time is invalid")
     actor_id = record.get("actor_id")
     if not isinstance(actor_id, str) or not actor_id.strip():
         raise IntakeError("INVALID_APPROVER", "Approval actor identifier is missing")
