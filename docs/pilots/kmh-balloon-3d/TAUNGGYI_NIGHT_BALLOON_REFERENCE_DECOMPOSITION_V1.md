@@ -26,16 +26,31 @@ The supplied narrative states:
 - reported envelope diameter / maximum body width: approximately 18–25 ft (5.49–7.62 m);
 - payload mass: reported as over 20 viss / approximately 40 lb.
 
-**User clarification:** Record the 18–25 ft figure as the reported maximum body diameter / width range for the balloon envelope. In dimensional terminology, diameter is the straight-line width across the body; circumference is the distance around it. This is a `REFERENCE_ESTIMATED_RANGE`, not a direct measurement of the specific balloon being reconstructed. Do not choose a single value within the range or scale Geometry v1 from it until the exact balloon's width is measured or independently corroborated. The user's separately confirmed 25 ft (7.62 m) height remains `USER_CONFIRMED_MEASUREMENT`, with method, date, operator, tolerance and independent corroboration still pending.
+These are secondary-source claims supplied as background context, not independently verified dimensions of this specific balloon.
 
-## 4. Measurement glossary — user-confirmed terminology
+## 4. User-provided size identification record
 
-- **အချင်း (Diameter):** မီးပုံးပျံကိုယ်ထည်ရဲ့ တစ်ဖက်မှတစ်ဖက် အကျယ်။ English: the straight-line width across the balloon body through its widest cross-section. Record in the project as `maximum_body_diameter` / `maximum_body_width`.
-- **လုံးပတ် (Circumference):** မီးပုံးပျံကိုယ်ထည်ကို ပတ်တိုင်းထားတဲ့ အလျား။ English: the distance around the balloon body. Do not use this term for diameter.
+The user supplied these dimensions for KMH-BAL-001:
 
-For this project, the user's intended meaning is explicit: **18–25 ft refers to the balloon body's diameter / across-body width, not its circumference.** Retain this terminology in all future geometry, measurement, and evidence records.
+| Parameter | Value | Metric equivalent | Status |
+|---|---:|---:|---|
+| Body circumference (လုံးပတ်အရှည်) | 75 ft | 22.86 m | USER_PROVIDED_DIMENSION |
+| Overall height (အမြင့်) | 25 ft | 7.62 m | USER_CONFIRMED_MEASUREMENT; provenance pending |
+| Top circular diameter (ခေါင်အဝိုင်းအချင်း) | 25 ft | 7.62 m | USER_PROVIDED_DIMENSION |
+| Bottom circular diameter (အောက်ခြေအဝိုင်းအချင်း) | 7 ft or 7.5 ft | 2.13 m or 2.29 m | USER_PROVIDED_RANGE; exact value pending |
 
-## 5. Visual modelling scope
+**Terminology:** အချင်း (Diameter) means the straight-line width from one side of the balloon body to the other. လုံးပတ် (Circumference) means the length measured around the body. They are different measurements and must not be interchanged.
+
+**Consistency note:** If 75 ft is the circumference of a circular cross-section, the equivalent diameter is about 23.87 ft. A 25 ft diameter circle has a circumference of about 78.54 ft. Preserve both user-provided values as separate measurements until the exact measurement path/plane is clarified; do not silently reconcile them.
+
+The earlier 18–25 ft diameter figure remains a general secondary-source range, not a measured value for this specific balloon.
+
+## 5. Measurement glossary — user-confirmed terminology
+
+- **အချင်း (Diameter):** မီးပုံးပျံကိုယ်ထည်ရဲ့ တစ်ဖက်မှတစ်ဖက် အကျယ်။ English: the straight-line width across the balloon body through a specified cross-section. Record as `maximum_body_diameter` or the relevant ring diameter.
+- **လုံးပတ် (Circumference):** မီးပုံးပျံကိုယ်ထည်ကို ပတ်တိုင်းထားတဲ့ အလျား. English: the distance around the balloon body. Record as `body_circumference`.
+
+## 6. Visual modelling scope
 
 Allowed project work:
 - envelope silhouette and surface segmentation;
@@ -48,7 +63,7 @@ Out of scope:
 - pyrotechnic recipes, quantities, assembly, wiring, fuse timing, ignition, firing sequence, lift calculations for a pyrotechnic payload, or operational deployment instructions;
 - engineering certification, structural safety claims, or real-world construction guidance.
 
-## 6. Evidence and confidence rules
+## 7. Evidence and confidence rules
 
 - Preserve the user's supplied narrative and its cited URLs as a source lead, not as independently verified facts.
 - Attribute each numerical claim to its source and keep it separate from measured geometry.
@@ -56,11 +71,11 @@ Out of scope:
 - Do not merge the Yan-Khwe, suspended display frame, and balloon envelope into one mesh or asset record without direct evidence.
 - Keep Geometry Blockout v1 unchanged until physical dimensions are independently documented.
 
-## 7. Next evidence needed
+## 8. Next evidence needed
 
-1. Full, legible competition-rule page(s) for rule transcription and compliance mapping.
-2. Direct orthogonal photographs or measured drawings for envelope width/depth and visible ring placement.
-3. Source-specific confirmation of whether the 18–25 ft diameter claim applies to this exact balloon or only to a general class.
-4. Independent review of all dimensions before Geometry v2 scale calibration.
+1. Clarify whether the 75 ft circumference is measured around the widest body section or another path.
+2. Confirm whether the bottom circular diameter is 7 ft or 7.5 ft.
+3. Obtain orthogonal photographs or measured drawings for width/depth and ring placement.
+4. Record measurement method, date, operator, instrument and tolerance; independently review before Geometry v2 calibration.
 
-**Current decision:** update the reference taxonomy and visual asset map; keep physical scale calibration on HOLD. No pyrotechnic construction or operating details are to be modelled or documented.
+**Current decision:** user-provided dimensions have been recorded; keep physical scale calibration on HOLD until the measurement path, bottom diameter and provenance are resolved. No pyrotechnic construction or operating details are to be modelled or documented.
