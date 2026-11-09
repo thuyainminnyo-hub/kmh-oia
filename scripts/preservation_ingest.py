@@ -433,7 +433,7 @@ def validate_recovery_approval(
 
 
 def _canonical_approval_bytes(record: dict) -> bytes:
-    unsigned = {key: value for key, value in record.items() if key not in {"signature", "signature_algorithm", "signing_key_id"}}
+    unsigned = {key: value for key, value in record.items() if key != "signature"}
     return json.dumps(
         unsigned,
         ensure_ascii=False,
