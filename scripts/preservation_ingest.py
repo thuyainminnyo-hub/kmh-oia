@@ -251,8 +251,14 @@ def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
             if metadata.get("accepted_path") != expected_accepted:
                 raise IntakeError("INVALID_PROMOTION_JOURNAL", "Accepted path does not match object ID")
             staging_relative = metadata.get("staging_path")
-            if not isinstance(staging_relative, str) or not staging_relative.startswith("staging/"):
-                raise IntakeError("INVALID_PROMOTION_JOURNAL", "Staging path must remain under staging/")
+            staging_parts = staging_relative.split("/") if isinstance(staging_relative, str) else []
+            if (
+                len(staging_parts) < 2
+                or staging_parts[0] != "staging"
+                or any(part in ("", ".", "..") for part in staging_parts)
+                or "\\\\" in staging_relative
+            ):
+                raise IntakeError("INVALID_PROMOTION_JOURNAL", "Staging path must be a safe path under staging/")
             accepted = _safe_workspace_child(root, metadata["accepted_path"])
             staging_candidate = root / staging_relative
             staging = _safe_workspace_child(root, staging_relative) if staging_candidate.exists() else None
