@@ -23,10 +23,10 @@
 
 The supplied narrative states:
 - typical night-balloon height: approximately 22–25 ft;
-- reported envelope diameter: approximately 18–25 ft;
+- reported envelope diameter / maximum body width: approximately 18–25 ft (5.49–7.62 m);
 - payload mass: reported as over 20 viss / approximately 40 lb.
 
-These are **SECONDARY_SOURCE_CLAIMS** supplied by the user, not direct measurements of the specific balloon being reconstructed. Do not use them to scale Geometry v1 or to infer width/depth. The user's separately confirmed 25 ft (7.62 m) height remains `USER_CONFIRMED_MEASUREMENT`, with method, date, operator, tolerance and independent corroboration still pending.
+**User clarification:** Record the 18–25 ft figure as the reported maximum body diameter / width range for the balloon envelope. In dimensional terminology, diameter is the straight-line width across the body; circumference is the distance around it. This is a `REFERENCE_ESTIMATED_RANGE`, not a direct measurement of the specific balloon being reconstructed. Do not choose a single value within the range or scale Geometry v1 from it until the exact balloon's width is measured or independently corroborated. The user's separately confirmed 25 ft (7.62 m) height remains `USER_CONFIRMED_MEASUREMENT`, with method, date, operator, tolerance and independent corroboration still pending.
 
 ## 4. Visual modelling scope
 
