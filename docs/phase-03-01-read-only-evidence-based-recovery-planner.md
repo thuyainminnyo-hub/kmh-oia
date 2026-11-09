@@ -60,3 +60,29 @@ Commits:
 3. Design an operator-approved reconciliation command with explicit idempotency and audit receipt semantics.
 4. Add reservation liveness protocol using process, host, and boot identity; do not expire by age alone.
 5. Plan VM/block-device crash tests on supported Linux filesystems for power-loss claims.
+
+## Verification addendum — staging-only recovery fix (2026-11-10)
+
+A review of the crash-state matrix found that the read-only planner must allow the accepted path to be absent while still inspecting a valid staging Bag. Otherwise it could not classify the crash state after BagIt validation and before promotion.
+
+Correction:
+- Missing accepted path is now represented as no accepted candidate.
+- Existing accepted or staging paths still pass through workspace-relative path and symlink checks.
+- A valid staging-only Bag is hash-compared with the journal and classified for operator review; no mutation is performed.
+- A single backslash in a journal staging path is rejected.
+
+Added regression test:
+- `test_read_only_recovery_planner_detects_valid_staging_only_bag`, including a before/after filesystem snapshot to prove the planner remains read-only.
+
+Latest code commit: `9090dd2e7305231edfc5ed946abc271acc9cf029`.
+Latest full OIA test run: `42719759053` — SUCCESS, 644 tests passed; staging-only planner test, tamper test, traversal test, no-mutation accepted test, and eight-checkpoint subprocess crash test all passed.
+Latest Preservation Gate A: Linux job completed SUCCESS; Windows job still running at time of inspection. Do not claim latest Windows pass until its job completes.
+MIDI Fixture Integrity: SUCCESS. OIA Validation: in progress at inspection.
+
+Research references:
+- MC³, 2026 COMPSAC: https://ieeexplore.ieee.org/abstract/document/11645445/
+- Differential crash-consistency fuzzing, Proceedings of ISP RAS 2026: https://m.mathnet.ru/php/archive.phtml?jrnid=tisp&option_lang=eng&paperid=1121&wshow=paper
+- PoWER, USENIX OSDI 2025: https://www.usenix.org/conference/osdi25/technical-sessions
+- Fawkes, recovered-state verification for DBMS durability: https://doi.org/10.1145/3731569.3764841
+
+Scope remains limited: subprocess termination is not power loss, kernel crash, or device-level durability proof. No complete RFC 8493, PREMIS, or OCFL conformance, independent replica recovery, rights clearance, or production readiness is claimed.
