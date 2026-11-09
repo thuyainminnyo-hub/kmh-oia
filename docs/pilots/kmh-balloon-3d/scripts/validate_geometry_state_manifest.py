@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Validate the KMH balloon two-state visual scene manifest.
 
-This validates metadata integrity only. It does not calculate or simulate physics.
+This validates metadata integrity and local asset hashes only. It does not
+calculate, simulate, or validate physical geometry.
 """
 from __future__ import annotations
 import argparse
@@ -35,7 +36,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("manifest", type=Path)
     ap.add_argument("--project-root", type=Path, default=None,
-                    help="Root containing geometry/ assets. Defaults to manifest parent.")
+                    help="Root containing geometry/ assets.")
     args = ap.parse_args()
 
     try:
@@ -45,54 +46,66 @@ def main() -> int:
         return 2
 
     errors = []
-    state_ids = {s.get("state_id") for s in data.get("states", [])}
+    states = data.get("states", [])
+    state_ids = {s.get("state_id") for s in states}
     if state_ids != REQUIRED_STATES:
         errors.append(f"Expected state IDs {sorted(REQUIRED_STATES)}, got {sorted(state_ids)}")
 
     shared = data.get("shared_assets", {})
     envelope = shared.get("envelope_master", {})
+    skirt = shared.get("lower_skirt", {})
     attachment = shared.get("yan_khwe_attachment", {})
-    if not envelope.get("file"):
-        errors.append("Missing envelope master file.")
-    if attachment.get("mesh_status") != "NOT_MODELED":
-        errors.append("Yan-Khwe attachment must remain reference-only and NOT_MODELED.")
-    if attachment.get("geometry_inference") != "PROHIBITED":
-        errors.append("Attachment geometry inference must be explicitly prohibited.")
 
-    base = next((s for s in data.get("states", []) if s.get("state_id") == "BASE-UNLOADED"), {})
-    displayed = next((s for s in data.get("states", []) if s.get("state_id") == "DISPLAYED-ATTACHED"), {})
+    if not envelope.get("file") or not envelope.get("sha256"):
+        errors.append("Envelope asset path/hash is required.")
+    if not skirt.get("file") or not skirt.get("sha256"):
+        errors.append("Lower-skirt asset path/hash is required.")
+    if skirt.get("merge_into_envelope_master") is not False:
+        errors.append("Lower skirt must remain separately addressable.")
+    if attachment.get("mesh_status") != "NOT_MODELED":
+        errors.append("Yan-Khwe must remain reference-only and NOT_MODELED.")
+    if attachment.get("geometry_inference") != "PROHIBITED":
+        errors.append("Attachment geometry inference must be prohibited.")
+
+    base = next((s for s in states if s.get("state_id") == "BASE-UNLOADED"), {})
+    displayed = next((s for s in states if s.get("state_id") == "DISPLAYED-ATTACHED"), {})
     if base.get("envelope_asset") != displayed.get("envelope_asset"):
-        errors.append("Both states must reuse the same preserved envelope master until evidence supports overrides.")
+        errors.append("Both states must reuse the same preserved envelope master.")
+    if base.get("lower_skirt_asset") != displayed.get("lower_skirt_asset"):
+        errors.append("Both states must reuse the same preserved lower-skirt asset.")
     if displayed.get("attachment_asset") != attachment.get("asset_id"):
-        errors.append("Displayed state must reference the separate attachment asset.")
+        errors.append("Displayed state must reference the separate Yan-Khwe asset.")
     if displayed.get("envelope_profile_override") is not None:
-        errors.append("State-specific profile override must remain null until measured evidence exists.")
+        errors.append("Profile override must remain null until measured evidence exists.")
 
     for key, where in walk_keys(data):
         if key in FORBIDDEN_KEYS:
             errors.append(f"Forbidden operational field '{key}' at {where}.")
 
     if args.project_root is not None:
-        mesh_file = args.project_root / envelope["file"]
-        if not mesh_file.exists():
-            errors.append(f"Envelope mesh not found at {mesh_file}.")
-        else:
-            observed_sha = sha256(mesh_file)
-            if observed_sha != envelope.get("sha256"):
-                errors.append("Envelope mesh SHA-256 does not match manifest.")
+        for label, asset in (("envelope_master", envelope), ("lower_skirt", skirt)):
+            rel = asset.get("file")
+            if not rel:
+                continue
+            asset_path = args.project_root / rel
+            if not asset_path.exists():
+                errors.append(f"{label} asset not found: {asset_path}")
+            elif sha256(asset_path) != asset.get("sha256"):
+                errors.append(f"{label} SHA-256 mismatch.")
     else:
-        print("WARN: asset file hash not checked; pass --project-root to verify the local GLB.")
+        print("WARN: asset hashes not checked; pass --project-root to verify local GLBs.")
 
     if errors:
-        for e in errors:
-            print(f"FAIL: {e}")
+        for error in errors:
+            print(f"FAIL: {error}")
         return 1
 
-    print("PASS: state manifest structure and asset invariants are valid.")
-    print("PASS: base and displayed states reuse the same preserved envelope mesh.")
-    print("PASS: Yan-Khwe remains a separate reference-only, non-modeled asset.")
-    print("PASS: no forbidden operational fields were found.")
-    print("NOTE: this is metadata validation only; it does not validate physical geometry.")
+    print("PASS: both required visual states are present.")
+    print("PASS: both states reuse the same preserved envelope and lower-skirt assets.")
+    print("PASS: Yan-Khwe is separate, reference-only, and not modeled.")
+    print("PASS: body and lower-skirt asset hashes match the manifest.")
+    print("PASS: no prohibited operational fields were found.")
+    print("NOTE: metadata integrity does not validate physical geometry or state deformation.")
     return 0
 
 if __name__ == "__main__":
