@@ -1,7 +1,9 @@
 import json
 import os
 import tempfile
+import threading
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import bagit
@@ -47,6 +49,40 @@ class PreservationIngestTests(unittest.TestCase):
         with self.assertRaises(IntakeError) as caught:
             ingest(self.source, "fixture-002", self.workspace)
         self.assertEqual(caught.exception.code, "DUPLICATE_OBJECT_ID")
+
+    def test_concurrent_same_object_id_is_atomically_reserved(self):
+        entered_capture = threading.Event()
+        release_capture = threading.Event()
+        original_capture = __import__("scripts.preservation_ingest", fromlist=["_capture_source"])._capture_source
+        outcomes = []
+
+        def blocking_capture(source, destination):
+            entered_capture.set()
+            if not release_capture.wait(timeout=5):
+                raise RuntimeError("test capture release timed out")
+            return original_capture(source, destination)
+
+        def first_ingest():
+            try:
+                outcomes.append(("first", ingest(self.source, "race-001", self.workspace)))
+            except Exception as exc:
+                outcomes.append(("first_error", exc))
+
+        with patch("scripts.preservation_ingest._capture_source", side_effect=blocking_capture):
+            thread = threading.Thread(target=first_ingest)
+            thread.start()
+            self.assertTrue(entered_capture.wait(timeout=5), "first ingest did not reach capture")
+            with self.assertRaises(IntakeError) as caught:
+                ingest(self.source, "race-001", self.workspace)
+            self.assertEqual(caught.exception.code, "OBJECT_ID_RESERVED")
+            release_capture.set()
+            thread.join(timeout=10)
+            self.assertFalse(thread.is_alive(), "first ingest did not finish")
+
+        self.assertEqual(len(outcomes), 1)
+        self.assertEqual(outcomes[0][0], "first")
+        self.assertEqual(outcomes[0][1]["result"], "accepted")
+        self.assertFalse((self.workspace / "reservations" / "race-001.lock").exists())
 
     def test_invalid_object_id_rejected(self):
         with self.assertRaises(IntakeError) as caught:
