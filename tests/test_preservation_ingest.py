@@ -418,5 +418,67 @@ ingest(source, object_id, workspace, crash_hook=crash)
         self.assertNotEqual(third["plan_sha256"], original_digest)
         self.assertEqual(third["plan_sha256"], plan_ingest_recovery(self.workspace)[0]["plan_sha256"])
 
+
+    def test_recovery_approval_is_bound_to_plan_and_authorized_actor(self):
+        from scripts.preservation_ingest import (
+            build_recovery_approval_record,
+            validate_recovery_approval,
+        )
+        self._create_pending_journal_for_accepted_bag("approval-plan-001")
+        plan = __import__("scripts.preservation_ingest", fromlist=["plan_ingest_recovery"]).plan_ingest_recovery(self.workspace)[0]
+        record = build_recovery_approval_record(
+            plan,
+            action="finalize_receipt_for_verified_accepted_bag",
+            actor_id="archivist:operator-17",
+            approved_at="2026-11-10T10:00:00+00:00",
+            expires_at="2026-11-10T11:00:00+00:00",
+            approval_id="approval-001",
+        )
+        validate_recovery_approval(
+            record, plan,
+            authorize_actor=lambda actor, action: actor == "archivist:operator-17" and action == record["action"],
+            now="2026-11-10T10:30:00+00:00",
+        )
+        with self.assertRaises(IntakeError):
+            validate_recovery_approval(
+                record, plan, authorize_actor=lambda _actor, _action: False,
+                now="2026-11-10T10:30:00+00:00",
+            )
+        changed_plan = dict(plan)
+        changed_plan["status"] = "tampered"
+        with self.assertRaises(IntakeError):
+            validate_recovery_approval(
+                record, changed_plan, authorize_actor=lambda _actor, _action: True,
+                now="2026-11-10T10:30:00+00:00",
+            )
+
+    def test_recovery_approval_rejects_expired_or_disallowed_action(self):
+        from scripts.preservation_ingest import (
+            build_recovery_approval_record,
+            validate_recovery_approval,
+        )
+        self._create_pending_journal_for_accepted_bag("approval-expiry-001")
+        plan = __import__("scripts.preservation_ingest", fromlist=["plan_ingest_recovery"]).plan_ingest_recovery(self.workspace)[0]
+        with self.assertRaises(IntakeError):
+            build_recovery_approval_record(
+                plan, action="promote_verified_staging_bag",
+                actor_id="archivist:operator-17",
+                approved_at="2026-11-10T10:00:00+00:00",
+                expires_at="2026-11-10T11:00:00+00:00",
+                approval_id="approval-002",
+            )
+        record = build_recovery_approval_record(
+            plan, action="finalize_receipt_for_verified_accepted_bag",
+            actor_id="archivist:operator-17",
+            approved_at="2026-11-10T10:00:00+00:00",
+            expires_at="2026-11-10T11:00:00+00:00",
+            approval_id="approval-003",
+        )
+        with self.assertRaises(IntakeError):
+            validate_recovery_approval(
+                record, plan, authorize_actor=lambda _actor, _action: True,
+                now="2026-11-10T11:00:00+00:00",
+            )
+
 if __name__ == "__main__":
     unittest.main()
