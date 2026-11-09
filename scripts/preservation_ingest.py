@@ -342,7 +342,7 @@ def _canonical_json_bytes(value: object) -> bytes:
     """Serialize an I-JSON-compatible value using RFC 8785 JCS."""
     try:
         return rfc8785.dumps(value)
-    except (TypeError, ValueError, OverflowError) as exc:
+    except Exception as exc:
         raise IntakeError("INVALID_CANONICAL_JSON", "Value is not valid RFC 8785 JSON data") from exc
 
 
