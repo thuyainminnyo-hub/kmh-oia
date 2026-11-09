@@ -1,0 +1,40 @@
+{
+  "project": "KMH Myanmar Balloon 3D Intelligence",
+  "asset_id": "KMH-BAL-001",
+  "qa_version": "1.0",
+  "scope": "NON_OPERATIONAL_VISUAL_GEOMETRY_STRUCTURAL_QA_ONLY",
+  "state": "UNKNOWN",
+  "body": {
+    "sha256": "1c3b57d2146686926e6d421aaf07b5382ba634a9d9df4138804fe921a20078b9",
+    "file_bytes": 46876,
+    "mesh_count": 1,
+    "vertices": 1282,
+    "faces": 2560,
+    "finite_vertices": true,
+    "valid_face_indices": true,
+    "watertight": true,
+    "winding_consistent": true,
+    "structural_status": "PASS"
+  },
+  "lower_skirt": {
+    "sha256": "ab57f9ee89dbfcedc494566f9b41809917da41e6ddd966775129f73e2a9d284b",
+    "file_bytes": 19260,
+    "mesh_count": 1,
+    "vertices": 514,
+    "faces": 1024,
+    "finite_vertices": true,
+    "valid_face_indices": true,
+    "watertight": true,
+    "winding_consistent": true,
+    "structural_status": "PASS"
+  },
+  "decision": "BLOCKED_HOLD",
+  "blockers": ["VISUAL_STATE_NOT_CONFIRMED"],
+  "promotion_authorized": false,
+  "limitations": [
+    "Structural QA only; no physical scale or dimensional accuracy verified.",
+    "No source provenance, camera calibration, photogrammetry, or silhouette QA.",
+    "Normalized geometry is not a physical scale model.",
+    "No geometry promotion, merge, production, or operational authorization."
+  ]
+}
