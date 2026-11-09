@@ -10,7 +10,6 @@ import json
 import os
 import platform
 import re
-import shutil
 import stat
 import sys
 import tempfile
@@ -45,7 +44,7 @@ def sha256_file(path: Path) -> tuple[str, int]:
 
 
 def _capture_source(source: Path, destination: Path) -> tuple[str, int]:
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     try:
         fd = os.open(source, flags)
     except OSError as exc:
