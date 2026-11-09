@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -52,6 +53,14 @@ class PreservationIngestTests(unittest.TestCase):
         with self.assertRaises(IntakeError) as caught:
             ingest(link, "fixture-003", self.workspace)
         self.assertEqual(caught.exception.code, "SOURCE_SYMLINK")
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "FIFO test requires POSIX mkfifo")
+    def test_fifo_source_rejected_without_blocking(self):
+        fifo = self.root / "source.fifo"
+        os.mkfifo(fifo)
+        with self.assertRaises(IntakeError) as caught:
+            ingest(fifo, "fixture-005", self.workspace)
+        self.assertEqual(caught.exception.code, "SOURCE_NOT_REGULAR_FILE")
 
     def test_missing_source_rejected(self):
         with self.assertRaises(IntakeError) as caught:
