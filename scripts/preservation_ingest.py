@@ -124,7 +124,7 @@ def ingest(source: str | Path, object_id: str, workspace: str | Path) -> dict:
             "object_id": object_id,
             "pid": os.getpid(),
             "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        }) + "\\n")
+        }) + "\n")
         reservation_stream.flush()
         os.fsync(reservation_stream.fileno())
 
