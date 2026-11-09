@@ -1,51 +1,64 @@
 # KMH_BAL_001 — UV Mapping Readiness Gate v1.0
 
-## Decision
-**NOT READY FOR FINAL UV MAPPING.** The existing Geometry v1 files have no UV coordinate arrays or material assignments. The mesh topology is valid for the provisional blockout, but physical scale, profile, state attribution, panel seams and source-artwork alignment are not yet validated.
+**Decision: NOT READY FOR FINAL UV MAPPING.**
 
-## Direct mesh inspection
-Both local GLBs were inspected programmatically:
-- Body and lower-skirt topology are watertight with consistent winding.
-- Neither asset contains a UV coordinate array.
+This gate prevents UV and texture work being applied to provisional geometry or source photographs whose visual state is unknown.
+
+## Direct inspection of preserved Geometry v1
+Both local GLB assets were inspected programmatically:
+- Body and lower-skirt meshes are watertight with consistent winding.
+- Neither asset currently has a UV-coordinate array.
 - Neither asset has a material assignment.
-- Units remain normalized arbitrary units.
+- Both use normalized arbitrary units; no physical scale has been applied.
 
-This is a direct asset inspection, not a physical accuracy or visual-likeness claim.
+This is an asset/topology inspection only. It does not certify likeness, physical dimensions, or surface accuracy.
 
 ## Readiness matrix
 
 | Gate | Status | Evidence / blocker |
 |---|---|---|
-| Stable geometry baseline | Partial | Topology passes; dimensions/profile remain provisional |
-| Visual-state attribution | Blocked | 16812, 16813 and 16814 are not attributed to BASE or DISPLAYED state |
-| Calibrated multi-view capture | Blocked | Existing photographs are not a calibrated overlapping orbit |
-| Artwork source quality | Partial | Broad zones identified; lettering transcription and occluded details unresolved |
-| Surface seams / panel topology | Blocked | Panel boundaries and full-wrap continuity unverified |
-| UV coordinate layer | Not present | No UV arrays in either GLB |
-| Texture bake / atlas | Not started | No validated geometry/UV base |
-| Human artwork approval | Pending | Current atlas is semantic zoning only |
+| Stable geometry baseline | Partial | Topology passes; physical scale and profile remain provisional |
+| Visual state attribution | Blocked | Originals 16812–16814 are not proven BASE-UNLOADED or DISPLAYED-ATTACHED |
+| Calibrated multi-view capture | Blocked | Existing images are not a calibrated overlapping orbit |
+| Artwork source quality | Partial | Seven broad zones identified; lettering and occluded content unresolved |
+| Surface seams / panel topology | Blocked | Seam positions and full-circumference continuity unknown |
+| UV coordinate layer | Not present | No UV arrays in preserved GLBs |
+| Texture bake / atlas | Not started | No accepted UV layer or calibrated texture model |
+| Human artwork approval | Pending | Artwork atlas is a semantic zone map only |
 
-## Recommended mapping strategy
+## Recommended pipeline
 
-### A. Photogrammetry texture atlas
-After state-specific calibrated capture and acceptance of dense geometry, evaluate COLMAP mesh texturing. COLMAP documents a pipeline from overlapping views through SfM camera/structure recovery and MVS dense geometry; its mesh texturer can then assign faces to suitable source images and create a texture atlas with per-face UV coordinates. The texturing stage requires the undistorted image workspace.
+### 1. Geometry and camera capture first
+Use separate, state-attributed capture sets for `BASE-UNLOADED` and `DISPLAYED-ATTACHED`. Do not combine images from different states in one reconstruction. Each visible surface region should appear in multiple overlapping images, from different viewpoints, with similar illumination and preserved camera metadata.
 
-### B. Curated heritage artwork UV
-For hand-curated artwork placement, wait for approved surface segmentation and seam locations. Use Blender's seam-aware Unwrap on accepted organic surface geometry. Do not use Smart UV Project as the default for large continuous murals or lettering: its angle-based grouping can split a surface into many islands. It may be appropriate for small isolated parts where discontinuity is acceptable.
+COLMAP's official tutorial describes SfM as recovering sparse structure and camera parameters from overlapping images taken at different viewpoints, followed by MVS for dense geometry. It advises good surface texture, similar illumination, high overlap, each object visible in at least three images, and changing camera position rather than rotating in place. <https://colmap.github.io/tutorial.html>
 
-### C. Separate artwork layers
-Keep Buddha/halo, rear lettering, side narrative, lower radial ornament and surface color field as separate source-linked layers. Do not guess missing text or obscured imagery. Preserve every original image and its provenance.
+### 2. Choose the texture route based on evidence
+**Photogrammetry-derived texture:** after an accepted dense mesh and registered/undistorted camera set exist, evaluate COLMAP `mesh_texturer`. The official tutorial states that it produces a texture atlas and per-face UV coordinates from undistorted images. Its dense workflow requires image undistortion, stereo depth/normal estimation, fusion, and optional meshing before texturing. <https://colmap.github.io/tutorial.html>
+
+**Curated heritage artwork:** for Buddha/halo, rear lettering, side narrative and radial ornament, wait until surface geometry, orientation and seam locations are approved. Use seam-aware Blender Unwrap and preserve source-linked layers. Blender's UV operator reference describes Smart UV Project as angle-based splitting; the angle threshold trades island count against distortion. It is presented as useful for objects such as mechanical parts or architecture, so it should not be blindly selected for continuous painted heritage artwork. <https://docs.blender.org/manual/en/4.5/modeling/meshes/editing/uv.html>
+
+### 3. Separate artwork layers
+Retain these independent zones:
+- Crown rim / upper edge.
+- Upper gradient / surface field.
+- Front Buddha and halo.
+- Side narrative.
+- Rear lettering.
+- Lower dark band / radial ornament.
+- Surface linework.
+
+Do not guess Burmese lettering, occluded religious artwork, physical left/right orientation, or full-wrap repeat patterns.
 
 ## Required gates before UV creation
-1. Identify the visual state of each reference: BASE-UNLOADED, DISPLAYED-ATTACHED or UNKNOWN.
-2. Acquire calibrated state-specific views with high overlap, similar illumination and sufficient surface texture.
-3. Preserve camera metadata and add a scale reference; record independently measured dimensions and uncertainty.
-4. Confirm surface seams, panel boundaries, and full-wrap artwork continuity.
-5. Validate geometry, normals and surface coverage.
-6. Obtain human approval for artwork orientation, lettering, religious composition and color.
-7. Generate UVs on a versioned geometry copy; preserve Geometry v1 unchanged.
-
-COLMAP recommends textured images, similar illumination, high visual overlap, each object region visible in at least three images, and different camera viewpoints rather than rotation-only capture. The SfM stage recovers sparse structure and camera parameters; MVS densifies the reconstruction. See the technical references.
+1. Confirm each source image's visual state and subject attribution.
+2. Acquire calibrated, sharp, overlapping captures with view diversity and camera metadata.
+3. Record a known scale reference and independent measurement provenance.
+4. Validate accepted geometry and surface coverage.
+5. Confirm panel seams, boundaries and artwork continuity.
+6. Obtain human approval for religious imagery, lettering, orientation, colors and layout.
+7. Create a versioned UV copy; preserve Geometry v1 untouched.
+8. QA UV stretch, island overlap, texel density, seam continuity, image resolution and source provenance.
 
 ## Current gate status
 - UV mapping: **NOT STARTED**
@@ -55,9 +68,9 @@ COLMAP recommends textured images, similar illumination, high visual overlap, ea
 - Production: **NOT AUTHORIZED**
 
 ## Technical references
-- COLMAP Tutorial: https://colmap.github.io/tutorial
-- COLMAP FAQ: https://colmap.github.io/faq.html
-- Blender 5.0 UV Operators: https://docs.blender.org/manual/en/5.0/modeling/meshes/editing/uv.html
-- Lang, Pathé & Günzel (2026), *From Furtwängler to Photogrammetry: A Standardized 3D Workflow for Greek Pottery*: https://scholarworks.iu.edu/journals/index.php/sdh/article/view/41912
+- COLMAP Tutorial: https://colmap.github.io/tutorial.html
+- COLMAP FAQ (feature extraction and camera-model guidance): https://colmap.github.io/faq.html
+- Blender 4.5 LTS UV Operators: https://docs.blender.org/manual/en/4.5/modeling/meshes/editing/uv.html
+- Lang, Pathé & Günzel (published 27 February 2026), *From Furtwängler to Photogrammetry: A Standardized 3D Workflow for Greek Pottery*, Studies in Digital Heritage 9(2), 340–382: https://doi.org/10.14434/sdh.v9i2.41912
 
-This gate is for non-operational digital-heritage reconstruction only.
+This gate covers non-operational digital-heritage reconstruction only.
