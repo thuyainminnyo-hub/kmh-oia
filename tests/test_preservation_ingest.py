@@ -148,7 +148,7 @@ class PreservationIngestTests(unittest.TestCase):
         root.mkdir()
         if payload:
             (root / "data").mkdir()
-        (root / manifest_name).write_text(entry + "\\n", encoding="utf-8")
+        (root / manifest_name).write_text(entry + "\n", encoding="utf-8")
         return root
 
     def test_payload_manifest_parent_traversal_rejected(self):
