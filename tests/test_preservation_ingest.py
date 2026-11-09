@@ -401,6 +401,10 @@ ingest(source, object_id, workspace, crash_hook=crash)
         self.assertEqual(len(plans), 1)
         self.assertEqual(plans[0]["status"], "staged_bag_verified_promotion_not_completed")
         self.assertEqual(plans[0]["proposed_action"], "operator_review_promotion")
+        identity = plans[0]["evidence"]["candidates"][0]["identity"]
+        self.assertIsInstance(identity["device"], str)
+        self.assertIsInstance(identity["inode"], str)
+        self.assertIsInstance(identity["mtime_ns"], str)
         self.assertTrue(journal.exists())
 
 
