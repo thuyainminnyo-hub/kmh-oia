@@ -731,6 +731,11 @@ ingest(source, object_id, workspace, crash_hook=crash)
                 registry_entry=registry["keys"]["music-signing-06"],
                 key_id="music-signing-06", at="2026-11-10T00:02:00+00:00",
             )
+        with self.assertRaises(IntakeError):
+            transition_signing_key(
+                registry, "music-signing-06", target_state="active",
+                at="2026-11-10T00:00:30+00:00", reason="premature activation",
+            )
         active = transition_signing_key(
             registry, "music-signing-06", target_state="active",
             at="2026-11-10T00:01:00+00:00", reason="initial activation",
