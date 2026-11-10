@@ -1,0 +1,1003 @@
+"""Format-agnostic, evidence-preserving BagIt intake prototype (Gate A).
+
+This worker treats the source as opaque bytes. It never invokes the MIDI parser.
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import importlib.metadata
+import json
+import os
+import platform
+import re
+import secrets
+import stat
+import sys
+import tempfile
+import uuid
+from collections.abc import Callable
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import unquote
+
+import bagit
+import rfc8785
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+
+SCHEMA = "kmh.preservation-intake-receipt.v1"
+OBJECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+CHUNK_SIZE = 1024 * 1024
+
+
+class IntakeError(Exception):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
+def sha256_file(path: Path) -> tuple[str, int]:
+    digest = hashlib.sha256()
+    length = 0
+    with path.open("rb") as stream:
+        while True:
+            block = stream.read(CHUNK_SIZE)
+            if not block:
+                break
+            digest.update(block)
+            length += len(block)
+    return digest.hexdigest(), length
+
+
+def _capture_source(source: Path, destination: Path) -> tuple[str, int]:
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    try:
+        fd = os.open(source, flags)
+    except OSError as exc:
+        raise IntakeError("SOURCE_OPEN_FAILED", str(exc)) from exc
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha256()
+    length = 0
+    try:
+        before = os.fstat(fd)
+        if not stat.S_ISREG(before.st_mode):
+            raise IntakeError("SOURCE_NOT_REGULAR_FILE", "Source must be a regular file")
+        with os.fdopen(fd, "rb", closefd=False) as reader, destination.open("xb") as writer:
+            while True:
+                block = reader.read(CHUNK_SIZE)
+                if not block:
+                    break
+                writer.write(block)
+                digest.update(block)
+                length += len(block)
+            writer.flush()
+            os.fsync(writer.fileno())
+        after = os.fstat(fd)
+        identity_before = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        identity_after = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+        if identity_before != identity_after or length != after.st_size:
+            raise IntakeError("SOURCE_CHANGED_DURING_CAPTURE", "Source metadata changed during capture")
+    finally:
+        os.close(fd)
+    return digest.hexdigest(), length
+
+
+def validate_manifest_paths(bag_root: str | Path) -> None:
+    """Reject manifest paths that escape their RFC 8493 base directory.
+
+    Payload manifest paths are bag-root-relative and must remain under data/.
+    Tag manifest paths are bag-root-relative and must not point into data/.
+    This preflight is not race-free against concurrent staging-tree mutation.
+    """
+    root = Path(bag_root).resolve(strict=True)
+    manifest_files = sorted(root.glob("manifest-*.txt")) + sorted(root.glob("tagmanifest-*.txt"))
+    for manifest in manifest_files:
+        if manifest.is_symlink():
+            raise IntakeError("MANIFEST_SYMLINK", f"Manifest is a symlink: {manifest.name}")
+        is_payload_manifest = manifest.name.startswith("manifest-")
+        base = root
+        for line_number, line in enumerate(manifest.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                _checksum, encoded_name = line.split(None, 1)
+            except ValueError as exc:
+                raise IntakeError("INVALID_MANIFEST_ENTRY", f"Malformed entry in {manifest.name}:{line_number}") from exc
+            name = unquote(encoded_name, errors="strict")
+            parts = name.split("/")
+            if (
+                not name
+                or name.startswith(("/", "~"))
+                or re.match(r"^[A-Za-z]:", name)
+                or "\\" in name
+                or any(part in ("", ".", "..") for part in parts)
+            ):
+                raise IntakeError("UNSAFE_MANIFEST_PATH", f"Unsafe manifest path in {manifest.name}:{line_number}")
+            if is_payload_manifest and (len(parts) < 2 or parts[0] != "data"):
+                raise IntakeError("PAYLOAD_PATH_OUTSIDE_DATA", f"Payload manifest path is not under data/: {name}")
+            if not is_payload_manifest and parts[0] == "data":
+                raise IntakeError("TAG_PATH_REFERENCES_PAYLOAD", f"Tag manifest references payload path: {name}")
+            current = base
+            for part in parts:
+                current = current / part
+                if current.is_symlink():
+                    raise IntakeError("MANIFEST_PATH_SYMLINK", f"Manifest path traverses a symlink: {name}")
+            try:
+                current.resolve(strict=False).relative_to(base)
+            except (ValueError, OSError) as exc:
+                raise IntakeError("UNSAFE_MANIFEST_PATH", f"Manifest path escapes bag root: {name}") from exc
+
+def _fsync_directory(path: Path) -> bool:
+    """Best-effort directory-entry durability; supported on POSIX platforms."""
+    if os.name != "posix":
+        return False
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    try:
+        fd = os.open(path, flags)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        return True
+    except OSError:
+        return False
+
+
+def _write_json(path: Path, value: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + "." + uuid.uuid4().hex + ".tmp")
+    with temporary.open("x", encoding="utf-8") as stream:
+        json.dump(value, stream, indent=2, sort_keys=True)
+        stream.write("\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(temporary, path)
+    _fsync_directory(path.parent)
+
+
+def inspect_incomplete_ingests(workspace: str | Path) -> list[dict]:
+    """Report reservation/staging candidates without assuming they are stale or deleting evidence."""
+    root = Path(workspace).resolve(strict=True)
+    findings = []
+    reservations = root / "reservations"
+    staging = root / "staging"
+    if reservations.is_dir():
+        for lock_path in sorted(reservations.glob("*.lock")):
+            try:
+                metadata = json.loads(lock_path.read_text(encoding="utf-8"))
+                status = "reservation_present_liveness_unverified"
+            except (OSError, json.JSONDecodeError):
+                metadata = {}
+                status = "reservation_unreadable"
+            findings.append({
+                "kind": "reservation",
+                "path": str(lock_path.relative_to(root)),
+                "status": status,
+                "metadata": metadata,
+                "action": "manual_review_required",
+            })
+    if staging.is_dir():
+        for run_path in sorted(staging.iterdir()):
+            if run_path.is_dir():
+                findings.append({
+                    "kind": "staging_directory",
+                    "path": str(run_path.relative_to(root)),
+                    "status": "may_be_active_or_incomplete",
+                    "action": "manual_review_required",
+                })
+    if (root / "reports").is_dir():
+        for journal in sorted((root / "reports").glob("*.promotion-pending.json")):
+            try:
+                metadata = json.loads(journal.read_text(encoding="utf-8"))
+                status = "promotion_journal_requires_reconciliation"
+            except (OSError, json.JSONDecodeError):
+                metadata = {}
+                status = "promotion_journal_unreadable"
+            findings.append({
+                "kind": "promotion_journal",
+                "path": str(journal.relative_to(root)),
+                "status": status,
+                "metadata": metadata,
+                "action": "manual_review_required",
+            })
+    return findings
+
+
+
+def _safe_workspace_child(root: Path, relative: str) -> Path:
+    """Resolve a journal path without following symlinks or escaping workspace."""
+    if not isinstance(relative, str) or not relative or relative.startswith(("/", "\\\\")) or "\\\\" in relative:
+        raise IntakeError("UNSAFE_RECOVERY_PATH", "Recovery path must be a non-empty workspace-relative POSIX path")
+    parts = relative.split("/")
+    if any(part in ("", ".", "..") for part in parts):
+        raise IntakeError("UNSAFE_RECOVERY_PATH", "Recovery path contains an unsafe component")
+    candidate = root
+    for part in parts:
+        candidate = candidate / part
+        if candidate.is_symlink():
+            raise IntakeError("UNSAFE_RECOVERY_PATH", "Recovery path traverses a symlink")
+    try:
+        candidate.resolve(strict=True).relative_to(root)
+    except (OSError, ValueError) as exc:
+        raise IntakeError("UNSAFE_RECOVERY_PATH", "Recovery path is missing or escapes workspace") from exc
+    return candidate
+
+
+def plan_ingest_recovery(workspace: str | Path) -> list[dict]:
+    """Build a read-only recovery plan; never modifies bags, journals, receipts or locks."""
+    root = Path(workspace).resolve(strict=True)
+    reports = root / "reports"
+    if not reports.is_dir():
+        return []
+    plans = []
+    for journal in sorted(reports.glob("*.promotion-pending.json")):
+        plan = {
+            "journal_path": str(journal.relative_to(root)),
+            "status": "manual_review_required",
+            "proposed_action": "none",
+            "evidence": {},
+        }
+        try:
+            journal_bytes = journal.read_bytes()
+            plan["journal_sha256"] = hashlib.sha256(journal_bytes).hexdigest()
+            metadata = json.loads(journal_bytes.decode("utf-8"))
+            if (
+                metadata.get("schema") != "kmh.preservation-promotion-journal.v1"
+                or metadata.get("state") != "promotion_pending"
+                or not OBJECT_ID_RE.fullmatch(metadata.get("object_id", ""))
+                or not isinstance(metadata.get("source_sha256"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", metadata.get("source_sha256", ""))
+                or not isinstance(metadata.get("source_byte_length"), int)
+                or metadata.get("source_byte_length", -1) < 0
+            ):
+                raise IntakeError("INVALID_PROMOTION_JOURNAL", "Journal schema or required evidence is invalid")
+            expected_accepted = f"accepted/{metadata['object_id']}"
+            if metadata.get("accepted_path") != expected_accepted:
+                raise IntakeError("INVALID_PROMOTION_JOURNAL", "Accepted path does not match object ID")
+            staging_relative = metadata.get("staging_path")
+            staging_parts = staging_relative.split("/") if isinstance(staging_relative, str) else []
+            if (
+                len(staging_parts) < 2
+                or staging_parts[0] != "staging"
+                or any(part in ("", ".", "..") for part in staging_parts)
+                or "\\" in staging_relative
+            ):
+                raise IntakeError("INVALID_PROMOTION_JOURNAL", "Staging path must be a safe path under staging/")
+            accepted_candidate = root / metadata["accepted_path"]
+            accepted = (
+                _safe_workspace_child(root, metadata["accepted_path"])
+                if accepted_candidate.exists() or accepted_candidate.is_symlink()
+                else None
+            )
+            staging_candidate = root / staging_relative
+            staging = (
+                _safe_workspace_child(root, staging_relative)
+                if staging_candidate.exists() or staging_candidate.is_symlink()
+                else None
+            )
+            candidates = []
+            for label, bag_path in (("accepted", accepted), ("staging", staging)):
+                if bag_path is None:
+                    continue
+                if not bag_path.is_dir():
+                    continue
+                try:
+                    validate_manifest_paths(bag_path)
+                    bag = bagit.Bag(str(bag_path))
+                    bag.validate()
+                    payload = bag_path / "data" / "source" / "original.mid"
+                    digest, length = sha256_file(payload)
+                    matches = digest == metadata["source_sha256"] and length == metadata["source_byte_length"]
+                    candidate_stat = bag_path.stat()
+                    candidates.append({
+                        "location": label,
+                        "path": str(bag_path.relative_to(root)),
+                        "identity": {
+                            # POSIX identifiers/timestamps may exceed the I-JSON safe integer range.
+                            # Decimal strings preserve exact values across languages and JCS signers.
+                            "device": str(candidate_stat.st_dev),
+                            "inode": str(candidate_stat.st_ino),
+                            "mode": candidate_stat.st_mode,
+                            "mtime_ns": str(candidate_stat.st_mtime_ns),
+                        },
+                        "bagit_valid": True,
+                        "payload_sha256": digest,
+                        "payload_byte_length": length,
+                        "source_evidence_matches": matches,
+                    })
+                except (OSError, ValueError, bagit.BagValidationError, IntakeError) as exc:
+                    candidates.append({
+                        "location": label,
+                        "path": str(bag_path.relative_to(root)),
+                        "bagit_valid": False,
+                        "source_evidence_matches": False,
+                        "diagnostic": str(exc),
+                    })
+            plan["evidence"] = {"object_id": metadata["object_id"], "candidates": candidates}
+            accepted_match = any(x["location"] == "accepted" and x["bagit_valid"] and x["source_evidence_matches"] for x in candidates)
+            staging_match = any(x["location"] == "staging" and x["bagit_valid"] and x["source_evidence_matches"] for x in candidates)
+            if accepted_match:
+                plan["status"] = "accepted_bag_verified_receipt_reconciliation_required"
+                plan["proposed_action"] = "operator_review_finalize_receipt"
+            elif staging_match:
+                plan["status"] = "staged_bag_verified_promotion_not_completed"
+                plan["proposed_action"] = "operator_review_promotion"
+            else:
+                plan["status"] = "no_matching_valid_bag_found"
+                plan["proposed_action"] = "manual_investigation"
+        except (OSError, json.JSONDecodeError, IntakeError, TypeError, AttributeError) as exc:
+            plan["status"] = "journal_or_path_invalid"
+            plan["proposed_action"] = "manual_investigation"
+            plan["evidence"] = {"diagnostic": str(exc)}
+        canonical_plan = _canonical_json_bytes(plan)
+        plan["plan_sha256"] = hashlib.sha256(canonical_plan).hexdigest()
+        plans.append(plan)
+    return plans
+
+
+
+
+def _canonical_json_bytes(value: object) -> bytes:
+    """Serialize an I-JSON-compatible value using RFC 8785 JCS."""
+    try:
+        return rfc8785.dumps(value)
+    except Exception as exc:
+        raise IntakeError("INVALID_CANONICAL_JSON", "Value is not valid RFC 8785 JSON data") from exc
+
+
+RECOVERY_APPROVAL_SCHEMA = "kmh.preservation-recovery-approval.v1"
+RECOVERY_ACTIONS = {
+    "operator_review_finalize_receipt": "finalize_receipt_for_verified_accepted_bag",
+    "operator_review_promotion": "promote_verified_staging_bag",
+}
+
+
+def _canonical_plan_digest(plan: dict) -> str:
+    digest_input = dict(plan)
+    supplied_digest = digest_input.pop("plan_sha256", None)
+    canonical = _canonical_json_bytes(digest_input)
+    calculated = hashlib.sha256(canonical).hexdigest()
+    if supplied_digest != calculated:
+        raise IntakeError("STALE_OR_TAMPERED_PLAN", "Recovery plan digest does not match its canonical contents")
+    return calculated
+
+
+def build_recovery_approval_record(
+    plan: dict,
+    *,
+    action: str,
+    actor_id: str,
+    approved_at: str,
+    expires_at: str,
+    approval_id: str,
+) -> dict:
+    """Build an approval record bound to a verified plan; does not authenticate actor."""
+    plan_digest = _canonical_plan_digest(plan)
+    expected_action = RECOVERY_ACTIONS.get(plan.get("proposed_action"))
+    if expected_action is None or action != expected_action:
+        raise IntakeError("RECOVERY_ACTION_NOT_ALLOWED", "Requested action is not allowlisted for this recovery plan")
+    if not isinstance(actor_id, str) or not actor_id.strip() or len(actor_id) > 200:
+        raise IntakeError("INVALID_APPROVER", "A non-empty external actor identifier is required")
+    if not isinstance(approval_id, str) or not OBJECT_ID_RE.fullmatch(approval_id):
+        raise IntakeError("INVALID_APPROVAL_ID", "Approval ID is invalid")
+    try:
+        approved = datetime.fromisoformat(approved_at.replace("Z", "+00:00"))
+        expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+    except (AttributeError, ValueError) as exc:
+        raise IntakeError("INVALID_APPROVAL_TIME", "Approval timestamps must be ISO-8601") from exc
+    if approved.tzinfo is None or expires.tzinfo is None or expires <= approved:
+        raise IntakeError("INVALID_APPROVAL_TIME", "Approval timestamps must be timezone-aware and expiry must follow approval")
+    return {
+        "schema": RECOVERY_APPROVAL_SCHEMA,
+        "approval_id": approval_id,
+        "nonce": secrets.token_urlsafe(24),
+        "actor_id": actor_id.strip(),
+        "action": action,
+        "plan_sha256": plan_digest,
+        "journal_sha256": plan.get("journal_sha256"),
+        "approved_at": approved.isoformat(),
+        "expires_at": expires.isoformat(),
+    }
+
+
+def validate_recovery_approval(
+    record: dict,
+    current_plan: dict,
+    *,
+    authorize_actor: Callable[[str, str], bool] | None,
+    now: str,
+) -> None:
+    """Validate plan freshness, action, expiry and delegated actor authorization."""
+    current_digest = _canonical_plan_digest(current_plan)
+    if record.get("schema") != RECOVERY_APPROVAL_SCHEMA:
+        raise IntakeError("INVALID_APPROVAL_SCHEMA", "Unsupported approval record schema")
+    if record.get("plan_sha256") != current_digest or record.get("journal_sha256") != current_plan.get("journal_sha256"):
+        raise IntakeError("STALE_APPROVAL", "Approval is not bound to the current recovery plan")
+    expected_action = RECOVERY_ACTIONS.get(current_plan.get("proposed_action"))
+    if expected_action is None or record.get("action") != expected_action:
+        raise IntakeError("RECOVERY_ACTION_NOT_ALLOWED", "Approval action is not allowed for the current plan")
+    try:
+        approved = datetime.fromisoformat(record["approved_at"])
+        expires = datetime.fromisoformat(record["expires_at"])
+        current_time = datetime.fromisoformat(now.replace("Z", "+00:00"))
+    except (KeyError, AttributeError, ValueError) as exc:
+        raise IntakeError("INVALID_APPROVAL_TIME", "Approval, expiry or validation time is invalid") from exc
+    if (
+        approved.tzinfo is None
+        or expires.tzinfo is None
+        or current_time.tzinfo is None
+        or approved > current_time
+        or expires <= approved
+        or current_time >= expires
+    ):
+        raise IntakeError("APPROVAL_EXPIRED", "Approval time, expiry or validation time is invalid")
+    actor_id = record.get("actor_id")
+    if not isinstance(actor_id, str) or not actor_id.strip():
+        raise IntakeError("INVALID_APPROVER", "Approval actor identifier is missing")
+    if authorize_actor is None or not authorize_actor(actor_id, record["action"]):
+        raise IntakeError("ACTOR_NOT_AUTHORIZED", "Trusted authorization provider did not authorize this actor and action")
+
+
+
+def _canonical_approval_bytes(record: dict) -> bytes:
+    unsigned = {key: value for key, value in record.items() if key != "signature"}
+    return _canonical_json_bytes(unsigned)
+
+
+def sign_recovery_approval_record(
+    record: dict,
+    *,
+    private_key: Ed25519PrivateKey,
+    key_id: str,
+) -> dict:
+    """Return a signed copy; caller must obtain private_key from trusted key storage."""
+    if not isinstance(private_key, Ed25519PrivateKey):
+        raise IntakeError("INVALID_SIGNING_KEY", "An Ed25519 private key object is required")
+    if not isinstance(key_id, str) or not key_id.strip() or len(key_id) > 200:
+        raise IntakeError("INVALID_SIGNING_KEY_ID", "A non-empty signing key ID is required")
+    signed = dict(record)
+    signed["signature_algorithm"] = "Ed25519"
+    signed["signing_key_id"] = key_id.strip()
+    signed["signature"] = base64.b64encode(private_key.sign(_canonical_approval_bytes(signed))).decode("ascii")
+    return signed
+
+
+def validate_signed_recovery_approval(
+    record: dict,
+    current_plan: dict,
+    *,
+    trusted_public_keys: dict[str, Ed25519PublicKey],
+    authorize_actor: Callable[[str, str], bool] | None,
+    consume_nonce: Callable[[str, str], bool] | None,
+    now: str,
+) -> None:
+    """Verify signature and policy; nonce callback must atomically reject replay and fail closed."""
+    if record.get("signature_algorithm") != "Ed25519":
+        raise IntakeError("INVALID_APPROVAL_SIGNATURE", "Unsupported approval signature algorithm")
+    key_id = record.get("signing_key_id")
+    public_key = trusted_public_keys.get(key_id) if isinstance(key_id, str) else None
+    if not isinstance(public_key, Ed25519PublicKey):
+        raise IntakeError("UNTRUSTED_SIGNING_KEY", "Signing key is not in the trusted key registry")
+    try:
+        signature = base64.b64decode(record["signature"], validate=True)
+        public_key.verify(signature, _canonical_approval_bytes(record))
+    except (KeyError, ValueError, InvalidSignature) as exc:
+        raise IntakeError("INVALID_APPROVAL_SIGNATURE", "Approval signature is invalid") from exc
+    validate_recovery_approval(
+        record,
+        current_plan,
+        authorize_actor=authorize_actor,
+        now=now,
+    )
+    nonce = record.get("nonce")
+    approval_id = record.get("approval_id")
+    if not isinstance(nonce, str) or not nonce or not isinstance(approval_id, str):
+        raise IntakeError("INVALID_APPROVAL_NONCE", "Approval nonce or ID is missing")
+    if consume_nonce is None or not consume_nonce(approval_id, nonce):
+        raise IntakeError("APPROVAL_REPLAY_OR_NONCE_STORE_UNAVAILABLE", "Nonce store rejected approval or is unavailable")
+
+
+
+
+KEY_REGISTRY_SCHEMA = "kmh.preservation-signing-key-registry.v1"
+KEY_ENTRY_SCHEMA = "kmh.preservation-signing-key.v1"
+KEY_STATES = {"pre_active", "active", "retired", "compromised", "revoked"}
+KEY_TRANSITIONS = {
+    "pre_active": {"active", "revoked"},
+    "active": {"retired", "compromised", "revoked"},
+    "retired": {"compromised", "revoked"},
+    "compromised": {"revoked"},
+    "revoked": set(),
+}
+
+
+def _parse_aware_time(value: str, code: str = "INVALID_KEY_TIME") -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (AttributeError, ValueError) as exc:
+        raise IntakeError(code, "Timestamp must be ISO-8601") from exc
+    if parsed.tzinfo is None:
+        raise IntakeError(code, "Timestamp must include a timezone")
+    return parsed
+
+
+def _raw_ed25519_public_bytes(public_key: Ed25519PublicKey) -> bytes:
+    if not isinstance(public_key, Ed25519PublicKey):
+        raise IntakeError("INVALID_PUBLIC_KEY", "An Ed25519 public key is required")
+    return public_key.public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+
+
+def build_signing_key_registry_entry(
+    key_id: str,
+    public_key: Ed25519PublicKey,
+    *,
+    created_at: str,
+    activate_at: str,
+    signing_not_after: str | None = None,
+) -> dict:
+    """Build public metadata only. Private key custody stays outside this registry."""
+    if not isinstance(key_id, str) or not OBJECT_ID_RE.fullmatch(key_id):
+        raise IntakeError("INVALID_SIGNING_KEY_ID", "Signing key ID is invalid")
+    raw_public = _raw_ed25519_public_bytes(public_key)
+    created = _parse_aware_time(created_at)
+    activate = _parse_aware_time(activate_at)
+    if activate < created:
+        raise IntakeError("INVALID_KEY_TIME", "Activation cannot precede key registration")
+    not_after = None
+    if signing_not_after is not None:
+        not_after_dt = _parse_aware_time(signing_not_after)
+        if not_after_dt <= activate:
+            raise IntakeError("INVALID_KEY_TIME", "Signing end must follow activation")
+        not_after = not_after_dt.isoformat()
+    return {
+        "schema": KEY_ENTRY_SCHEMA,
+        "key_id": key_id,
+        "algorithm": "Ed25519",
+        "public_key_b64": base64.b64encode(raw_public).decode("ascii"),
+        "public_key_sha256": hashlib.sha256(raw_public).hexdigest(),
+        "state": "pre_active",
+        "created_at": created.isoformat(),
+        "activate_at": activate.isoformat(),
+        "signing_not_after": not_after,
+        "state_changed_at": created.isoformat(),
+        "reason": "registered",
+        "replacement_key_id": None,
+        "state_history": [{
+            "state": "pre_active",
+            "at": created.isoformat(),
+            "reason": "registered",
+        }],
+    }
+
+
+def _validate_signing_key_registry_entry(entry: dict) -> Ed25519PublicKey:
+    if not isinstance(entry, dict) or entry.get("schema") != KEY_ENTRY_SCHEMA:
+        raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Unsupported signing key entry")
+    key_id = entry.get("key_id")
+    if not isinstance(key_id, str) or not OBJECT_ID_RE.fullmatch(key_id):
+        raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Invalid key ID")
+    if entry.get("algorithm") != "Ed25519" or entry.get("state") not in KEY_STATES:
+        raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Unsupported key algorithm or lifecycle state")
+    try:
+        raw_public = base64.b64decode(entry["public_key_b64"], validate=True)
+    except (KeyError, ValueError) as exc:
+        raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Public key encoding is invalid") from exc
+    if len(raw_public) != 32 or hashlib.sha256(raw_public).hexdigest() != entry.get("public_key_sha256"):
+        raise IntakeError("KEY_REGISTRY_FINGERPRINT_MISMATCH", "Public key fingerprint does not match registered key bytes")
+    _parse_aware_time(entry.get("created_at"))
+    activate = _parse_aware_time(entry.get("activate_at"))
+    changed = _parse_aware_time(entry.get("state_changed_at"))
+    created = _parse_aware_time(entry.get("created_at"))
+    if activate < created or changed < created:
+        raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Key lifecycle timestamps are inconsistent")
+    if entry.get("signing_not_after") is not None:
+        if _parse_aware_time(entry["signing_not_after"]) <= activate:
+            raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Signing validity interval is invalid")
+    return Ed25519PublicKey.from_public_bytes(raw_public)
+
+
+def new_signing_key_registry() -> dict:
+    return {"schema": KEY_REGISTRY_SCHEMA, "version": 1, "keys": {}, "events": []}
+
+
+def register_signing_key(registry: dict, entry: dict) -> dict:
+    if not isinstance(registry, dict) or registry.get("schema") != KEY_REGISTRY_SCHEMA or registry.get("version") != 1:
+        raise IntakeError("INVALID_KEY_REGISTRY", "Unsupported signing key registry")
+    public_key = _validate_signing_key_registry_entry(entry)
+    key_id = entry["key_id"]
+    if key_id in registry.get("keys", {}):
+        raise IntakeError("DUPLICATE_SIGNING_KEY_ID", "Signing key ID is already registered")
+    updated = {
+        "schema": KEY_REGISTRY_SCHEMA,
+        "version": 1,
+        "keys": dict(registry.get("keys", {})),
+        "events": list(registry.get("events", [])),
+    }
+    updated["keys"][key_id] = dict(entry)
+    updated["events"].append({
+        "event": "key_registered",
+        "key_id": key_id,
+        "public_key_sha256": entry["public_key_sha256"],
+        "at": entry["created_at"],
+    })
+    return updated
+
+
+def transition_signing_key(
+    registry: dict,
+    key_id: str,
+    *,
+    target_state: str,
+    at: str,
+    reason: str,
+    replacement_key_id: str | None = None,
+) -> dict:
+    if not isinstance(registry, dict) or registry.get("schema") != KEY_REGISTRY_SCHEMA or registry.get("version") != 1:
+        raise IntakeError("INVALID_KEY_REGISTRY", "Unsupported signing key registry")
+    current = registry.get("keys", {}).get(key_id)
+    _validate_signing_key_registry_entry(current)
+    transitioned_at = _parse_aware_time(at)
+    changed_at = _parse_aware_time(current["state_changed_at"])
+    if transitioned_at < changed_at:
+        raise IntakeError("INVALID_KEY_TIME", "Key lifecycle time cannot move backwards")
+    if target_state not in KEY_TRANSITIONS.get(current["state"], set()):
+        raise IntakeError("INVALID_KEY_STATE_TRANSITION", f"Cannot transition {current['state']} to {target_state}")
+    if target_state in {"retired", "compromised", "revoked"} and (not isinstance(reason, str) or not reason.strip()):
+        raise IntakeError("KEY_STATE_REASON_REQUIRED", "A reason is required for retirement, compromise or revocation")
+    if target_state == "active":
+        activation = _parse_aware_time(current["activate_at"])
+        if transitioned_at < activation:
+            raise IntakeError("KEY_NOT_YET_ACTIVATABLE", "Key cannot become active before its activation time")
+        if current.get("signing_not_after") and transitioned_at >= _parse_aware_time(current["signing_not_after"]):
+            raise IntakeError("SIGNING_KEY_EXPIRED", "Key cannot be activated after its signing period")
+    if target_state == "retired":
+        if not isinstance(replacement_key_id, str) or replacement_key_id not in registry["keys"] or replacement_key_id == key_id:
+            raise IntakeError("REPLACEMENT_KEY_REQUIRED", "Retirement requires a separately registered replacement key")
+        replacement = registry["keys"][replacement_key_id]
+        _validate_signing_key_registry_entry(replacement)
+        if replacement["state"] != "active":
+            raise IntakeError("REPLACEMENT_KEY_NOT_ACTIVE", "Replacement key must be active before retiring the old key")
+    updated = {
+        "schema": KEY_REGISTRY_SCHEMA,
+        "version": 1,
+        "keys": dict(registry["keys"]),
+        "events": list(registry.get("events", [])),
+    }
+    updated_entry = dict(current)
+    updated_entry["state_history"] = list(current.get("state_history", []))
+    updated_entry["state"] = target_state
+    updated_entry["state_changed_at"] = transitioned_at.isoformat()
+    updated_entry["reason"] = reason.strip() if isinstance(reason, str) else ""
+    updated_entry["replacement_key_id"] = replacement_key_id
+    updated_entry["state_history"].append({
+        "state": target_state,
+        "at": transitioned_at.isoformat(),
+        "reason": updated_entry["reason"],
+        "replacement_key_id": replacement_key_id,
+    })
+    updated["keys"][key_id] = updated_entry
+    updated["events"].append({
+        "event": "key_state_changed",
+        "key_id": key_id,
+        "from": current["state"],
+        "to": target_state,
+        "at": transitioned_at.isoformat(),
+        "reason": updated_entry["reason"],
+        "replacement_key_id": replacement_key_id,
+    })
+    return updated
+
+
+def rotate_signing_key_registry(
+    registry: dict,
+    old_key_id: str,
+    replacement_entry: dict,
+    *,
+    at: str,
+    reason: str,
+) -> dict:
+    """Return one logical registry snapshot with new key active and old key retired."""
+    old_entry = registry.get("keys", {}).get(old_key_id, {})
+    if old_entry.get("state") != "active":
+        raise IntakeError("KEY_NOT_ACTIVE", "Only an active key can be normally rotated")
+    staged = register_signing_key(registry, replacement_entry)
+    replacement_id = replacement_entry["key_id"]
+    staged = transition_signing_key(
+        staged, replacement_id, target_state="active", at=at, reason="activated for key rotation"
+    )
+    staged = transition_signing_key(
+        staged, old_key_id, target_state="retired", at=at,
+        reason=reason, replacement_key_id=replacement_id,
+    )
+    staged["events"].append({
+        "event": "key_rotation_completed",
+        "old_key_id": old_key_id,
+        "new_key_id": replacement_id,
+        "at": _parse_aware_time(at).isoformat(),
+        "reason": reason,
+    })
+    return staged
+
+
+def compromise_signing_key(
+    registry: dict,
+    key_id: str,
+    *,
+    at: str,
+    reason: str,
+    replacement_entry: dict | None = None,
+) -> dict:
+    """Mark a key compromised immediately; optional replacement is registered separately."""
+    updated = transition_signing_key(
+        registry, key_id, target_state="compromised", at=at, reason=reason
+    )
+    if replacement_entry is not None:
+        updated = register_signing_key(updated, replacement_entry)
+        updated = transition_signing_key(
+            updated, replacement_entry["key_id"], target_state="active",
+            at=at, reason="emergency replacement after key compromise",
+        )
+        updated["events"].append({
+            "event": "key_compromise_replacement_activated",
+            "compromised_key_id": key_id,
+            "replacement_key_id": replacement_entry["key_id"],
+            "at": _parse_aware_time(at).isoformat(),
+        })
+    return updated
+
+
+def _registry_entry_eligible_for_signing(entry: dict, at: str) -> Ed25519PublicKey:
+    public_key = _validate_signing_key_registry_entry(entry)
+    signing_time = _parse_aware_time(at, "INVALID_APPROVAL_TIME")
+    activate_time = _parse_aware_time(entry["activate_at"])
+    if entry["state"] != "active":
+        raise IntakeError("SIGNING_KEY_NOT_ACTIVE", "Only an active signing key may create new approvals")
+    if signing_time < activate_time:
+        raise IntakeError("SIGNING_KEY_NOT_YET_ACTIVE", "Signing time precedes key activation")
+    if entry.get("signing_not_after") and signing_time >= _parse_aware_time(entry["signing_not_after"]):
+        raise IntakeError("SIGNING_KEY_EXPIRED", "Signing key is past its authorized signing period")
+    return public_key
+
+
+def sign_recovery_approval_with_registry(
+    record: dict,
+    *,
+    private_key: Ed25519PrivateKey,
+    registry_entry: dict,
+    key_id: str,
+    at: str,
+) -> dict:
+    registered_public = _registry_entry_eligible_for_signing(registry_entry, at)
+    supplied_public = private_key.public_key() if isinstance(private_key, Ed25519PrivateKey) else None
+    if supplied_public is None or _raw_ed25519_public_bytes(supplied_public) != _raw_ed25519_public_bytes(registered_public):
+        raise IntakeError("SIGNING_KEY_MISMATCH", "Private key does not match the active registry public key")
+    if registry_entry.get("key_id") != key_id:
+        raise IntakeError("SIGNING_KEY_MISMATCH", "Requested key ID does not match registry entry")
+    return sign_recovery_approval_record(record, private_key=private_key, key_id=key_id)
+
+
+def validate_signed_recovery_approval_with_registry(
+    record: dict,
+    current_plan: dict,
+    *,
+    key_registry: dict,
+    authorize_actor: Callable[[str, str], bool] | None,
+    consume_nonce: Callable[[str, str], bool] | None,
+    now: str,
+) -> None:
+    key_id = record.get("signing_key_id")
+    entry = key_registry.get("keys", {}).get(key_id) if isinstance(key_registry, dict) else None
+    if entry is None:
+        raise IntakeError("UNTRUSTED_SIGNING_KEY", "Signing key is not registered")
+    _registry_entry_eligible_for_signing(entry, record.get("approved_at", ""))
+    public_key = _validate_signing_key_registry_entry(entry)
+    validate_signed_recovery_approval(
+        record,
+        current_plan,
+        trusted_public_keys={key_id: public_key},
+        authorize_actor=authorize_actor,
+        consume_nonce=consume_nonce,
+        now=now,
+    )
+
+
+
+def ingest(
+    source: str | Path,
+    object_id: str,
+    workspace: str | Path,
+    *,
+    crash_hook: Callable[[str], None] | None = None,
+) -> dict:
+    """Ingest opaque bytes. crash_hook is a test-only fault-injection seam; default is inert."""
+    def checkpoint(name: str) -> None:
+        if crash_hook is not None:
+            crash_hook(name)
+
+    if not OBJECT_ID_RE.fullmatch(object_id):
+        raise IntakeError("INVALID_OBJECT_ID", "Object ID must be 1-64 safe ASCII letters, digits, '_' or '-'")
+    source_path = Path(source)
+    workspace_path = Path(workspace).resolve()
+    if source_path.is_symlink():
+        raise IntakeError("SOURCE_SYMLINK", "Symlink sources are not accepted")
+    if not source_path.exists():
+        raise IntakeError("SOURCE_NOT_FOUND", "Source file does not exist")
+    if not workspace_path.is_dir():
+        raise IntakeError("WORKSPACE_NOT_FOUND", "Workspace must already exist")
+
+    accepted_root = workspace_path / "accepted"
+    quarantine_root = workspace_path / "quarantine"
+    reports_root = workspace_path / "reports"
+    accepted_root.mkdir(exist_ok=True)
+    quarantine_root.mkdir(exist_ok=True)
+    reports_root.mkdir(exist_ok=True)
+    final_path = accepted_root / object_id
+    reservations_root = workspace_path / "reservations"
+    reservations_root.mkdir(exist_ok=True)
+    reservation_path = reservations_root / f"{object_id}.lock"
+    try:
+        reservation_fd = os.open(
+            reservation_path,
+            os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            0o600,
+        )
+    except FileExistsError as exc:
+        raise IntakeError("OBJECT_ID_RESERVED", "Object ID is currently reserved by another ingest") from exc
+    with os.fdopen(reservation_fd, "w", encoding="utf-8") as reservation_stream:
+        reservation_stream.write(json.dumps({
+            "object_id": object_id,
+            "pid": os.getpid(),
+            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        }) + "\n")
+        reservation_stream.flush()
+        os.fsync(reservation_stream.fileno())
+    checkpoint("reservation_durable")
+
+    if final_path.exists():
+        reservation_path.unlink(missing_ok=True)
+        raise IntakeError("DUPLICATE_OBJECT_ID", "Object ID already exists; no overwrite performed")
+
+    run_id = str(uuid.uuid4())
+    started = datetime.now(timezone.utc).isoformat()
+    staging_root = workspace_path / "staging"
+    staging_root.mkdir(exist_ok=True)
+    run_dir = Path(tempfile.mkdtemp(prefix=f"{object_id}-{run_id}-", dir=staging_root))
+    receipt = {
+        "schema": SCHEMA,
+        "run_id": run_id,
+        "object_id": object_id,
+        "source_name": source_path.name,
+        "started_at_utc": started,
+        "worker_version": "0.1.0",
+        "source_commit": os.getenv("EVIDENCE_COMMIT_SHA", os.getenv("GITHUB_SHA", "")),
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+        "rights_status": "unknown",
+        "result": "rejected",
+    }
+    try:
+        source_sha, source_length = _capture_source(source_path, run_dir / "source" / "original.mid")
+        checkpoint("source_captured")
+        staged_sha, staged_length = sha256_file(run_dir / "source" / "original.mid")
+        receipt.update({
+            "source_byte_length": source_length,
+            "source_sha256": source_sha,
+            "staged_byte_length": staged_length,
+            "staged_sha256": staged_sha,
+        })
+        if (source_sha, source_length) != (staged_sha, staged_length):
+            raise IntakeError("STAGED_COPY_MISMATCH", "Staged bytes differ from captured source stream")
+
+        bag = bagit.make_bag(
+            str(run_dir),
+            bag_info={"External-Identifier": object_id, "Source-File-Name": source_path.name},
+            checksums=["sha256", "sha512"],
+        )
+        validate_manifest_paths(run_dir)
+        bag.validate()
+        checkpoint("bag_validated")
+        payload = run_dir / "data" / "source" / "original.mid"
+        payload_sha, payload_length = sha256_file(payload)
+        if (payload_sha, payload_length) != (source_sha, source_length):
+            raise IntakeError("BAG_PAYLOAD_MISMATCH", "BagIt payload differs from captured source")
+
+        receipt.update({
+            "bagit_version": "1.0",
+            "manifest_algorithms": ["sha256", "sha512"],
+            "validation_tool": "bagit-python",
+            "validation_tool_version": importlib.metadata.version("bagit"),
+            "validation_status": "valid",
+            "result": "accepted",
+            "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+        })
+        # Write a durable intent record before promotion. If the process stops
+        # after rename but before the final receipt, recovery can reconcile it.
+        receipt["accepted_path"] = str(final_path.relative_to(workspace_path))
+        journal_path = reports_root / f"{object_id}-{run_id}.promotion-pending.json"
+        _write_json(journal_path, {
+            "schema": "kmh.preservation-promotion-journal.v1",
+            "run_id": run_id,
+            "object_id": object_id,
+            "staging_path": str(run_dir.relative_to(workspace_path)),
+            "accepted_path": str(final_path.relative_to(workspace_path)),
+            "source_sha256": source_sha,
+            "source_byte_length": source_length,
+            "state": "promotion_pending",
+        })
+        checkpoint("journal_durable")
+        # Keep the receipt outside the BagIt root: adding a tag file after
+        # manifest generation would invalidate the tag manifest.
+        if final_path.exists():
+            raise IntakeError("DUPLICATE_OBJECT_ID", "Object ID appeared during ingest; no overwrite performed")
+        os.replace(run_dir, final_path)
+        _fsync_directory(accepted_root)
+        checkpoint("promotion_durable")
+        receipt["promotion_status"] = "promoted"
+        _write_json(reports_root / f"{object_id}-{run_id}.json", receipt)
+        checkpoint("receipt_durable")
+        journal_path.unlink(missing_ok=True)
+        _fsync_directory(reports_root)
+        checkpoint("journal_removed")
+        reservation_path.unlink(missing_ok=True)
+        _fsync_directory(reservations_root)
+        checkpoint("reservation_released")
+        return receipt
+    except Exception as exc:
+        if isinstance(exc, IntakeError):
+            code = exc.code
+        elif isinstance(exc, bagit.BagValidationError):
+            code = "BAGIT_VALIDATION_FAILED"
+        else:
+            code = "INGEST_FAILED"
+        if final_path.exists() and not run_dir.exists():
+            # Promotion succeeded; do not mislabel or move the accepted Bag
+            # merely because writing its final receipt failed.
+            receipt.update({
+                "result": "accepted_receipt_pending",
+                "promotion_status": "promoted",
+                "error_code": "FINAL_RECEIPT_WRITE_FAILED",
+                "diagnostics": str(exc),
+                "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+                "accepted_path": str(final_path.relative_to(workspace_path)),
+            })
+        else:
+            receipt.update({
+                "result": "quarantined",
+                "error_code": code,
+                "diagnostics": str(exc),
+                "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+            })
+            if run_dir.exists():
+                quarantine_path = quarantine_root / f"{object_id}-{run_id}"
+                os.replace(run_dir, quarantine_path)
+                receipt["quarantine_path"] = str(quarantine_path.relative_to(workspace_path))
+        _write_json(reports_root / f"{object_id}-{run_id}.json", receipt)
+        if receipt["result"] != "accepted_receipt_pending":
+            reservation_path.unlink(missing_ok=True)
+        raise IntakeError(code, str(exc)) from exc
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source", required=True)
+    parser.add_argument("--object-id", required=True)
+    parser.add_argument("--workspace", required=True)
+    args = parser.parse_args()
+    try:
+        result = ingest(args.source, args.object_id, args.workspace)
+    except IntakeError as exc:
+        print(json.dumps({"result": "quarantined", "error_code": exc.code, "message": str(exc)}), file=sys.stderr)
+        return 2
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

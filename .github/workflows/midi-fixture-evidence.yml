@@ -1,0 +1,50 @@
+name: KMH MIDI Fixture Integrity
+
+on:
+  pull_request:
+    paths:
+      - "src/music_intelligence/midi_parser.py"
+      - "tests/test_midi_parser_golden.py"
+      - "tests/fixtures/midi_golden_manifest.json"
+      - "scripts/midi_fixture_evidence.py"
+      - "scripts/midi_independent_oracle.py"
+      - ".github/workflows/midi-fixture-evidence.yml"
+  push:
+    branches:
+      - "phase-02-71/midi-golden-fixtures"
+    paths:
+      - "src/music_intelligence/midi_parser.py"
+      - "tests/test_midi_parser_golden.py"
+      - "tests/fixtures/midi_golden_manifest.json"
+      - "scripts/midi_fixture_evidence.py"
+      - ".github/workflows/midi-fixture-evidence.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  fixture-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run golden fixture test suite
+        run: python -m unittest tests.test_midi_parser_golden -v
+      - name: Install independent parser oracle
+        run: python -m pip install "mido==1.3.3"
+      - name: Cross-check valid fixtures with independent Mido parser
+        run: python scripts/midi_independent_oracle.py > midi-independent-parser-evidence.json
+      - name: Verify pinned fixture SHA-256 evidence
+        env:
+          EVIDENCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python scripts/midi_fixture_evidence.py --output midi-fixture-evidence.json
+      - name: Upload fixture integrity evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmh-midi-fixture-sha256-evidence
+          path: |
+            midi-fixture-evidence.json
+            midi-independent-parser-evidence.json

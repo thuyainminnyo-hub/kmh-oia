@@ -1,0 +1,98 @@
+name: KMH Preservation Gate A
+
+on:
+  pull_request:
+    paths:
+      - "scripts/preservation_ingest.py"
+      - "scripts/run_bagit_conformance.py"
+      - "tests/test_preservation_ingest.py"
+      - "tests/test_bagit_conformance_runner.py"
+      - "requirements-preservation.txt"
+      - ".github/workflows/preservation-gate-a.yml"
+  push:
+    branches: ["phase-02-71/midi-golden-fixtures"]
+    paths:
+      - "scripts/preservation_ingest.py"
+      - "scripts/run_bagit_conformance.py"
+      - "tests/test_preservation_ingest.py"
+      - "tests/test_bagit_conformance_runner.py"
+      - "requirements-preservation.txt"
+      - ".github/workflows/preservation-gate-a.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  bagit-intake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Disable Git line-ending conversion for conformance fixtures
+        run: git config --global core.autocrlf false
+      - name: Checkout LOC BagIt Conformance Suite (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: LibraryOfCongress/bagit-conformance-suite
+          ref: 9ab48705c06664f9f419ca740c728c9f89a61e7c
+          path: tests/third_party/bagit-conformance-suite
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned preservation dependency
+        run: python -m pip install -r requirements-preservation.txt
+      - name: Run Gate A tests
+        env:
+          EVIDENCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python -m unittest tests.test_preservation_ingest tests.test_bagit_conformance_runner -v
+      - name: Run LOC BagIt conformance fixtures
+        run: >-
+          python scripts/run_bagit_conformance.py
+          --suite-path tests/third_party/bagit-conformance-suite
+          --suite-commit 9ab48705c06664f9f419ca740c728c9f89a61e7c
+          --output artifacts/bagit-conformance-report.json
+      - name: Upload conformance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bagit-conformance-evidence
+          path: artifacts/bagit-conformance-report.json
+          if-no-files-found: warn
+
+  bagit-windows-conformance:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Disable Git line-ending conversion for conformance fixtures
+        run: git config --global core.autocrlf false
+      - name: Checkout LOC BagIt Conformance Suite (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: LibraryOfCongress/bagit-conformance-suite
+          ref: 9ab48705c06664f9f419ca740c728c9f89a61e7c
+          path: tests/third_party/bagit-conformance-suite
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned preservation dependency
+        run: python -m pip install -r requirements-preservation.txt
+      - name: Run Windows preservation and declaration tests
+        env:
+          EVIDENCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m unittest tests.test_preservation_ingest tests.test_bagit_conformance_runner -v
+      - name: Run LOC BagIt conformance fixtures
+        run: >-
+          python scripts/run_bagit_conformance.py
+          --suite-path tests/third_party/bagit-conformance-suite
+          --suite-commit 9ab48705c06664f9f419ca740c728c9f89a61e7c
+          --output artifacts/bagit-conformance-report-windows.json
+      - name: Upload Windows conformance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bagit-conformance-evidence-windows
+          path: artifacts/bagit-conformance-report-windows.json
+          if-no-files-found: warn
