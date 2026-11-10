@@ -25,6 +25,7 @@ from urllib.parse import unquote
 import bagit
 import rfc8785
 from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 SCHEMA = "kmh.preservation-intake-receipt.v1"
@@ -498,6 +499,307 @@ def validate_signed_recovery_approval(
         raise IntakeError("INVALID_APPROVAL_NONCE", "Approval nonce or ID is missing")
     if consume_nonce is None or not consume_nonce(approval_id, nonce):
         raise IntakeError("APPROVAL_REPLAY_OR_NONCE_STORE_UNAVAILABLE", "Nonce store rejected approval or is unavailable")
+
+
+
+
+KEY_REGISTRY_SCHEMA = "kmh.preservation-signing-key-registry.v1"
+KEY_ENTRY_SCHEMA = "kmh.preservation-signing-key.v1"
+KEY_STATES = {"pre_active", "active", "retired", "compromised", "revoked"}
+KEY_TRANSITIONS = {
+    "pre_active": {"active", "revoked"},
+    "active": {"retired", "compromised", "revoked"},
+    "retired": {"compromised", "revoked"},
+    "compromised": {"revoked"},
+    "revoked": set(),
+}
+
+
+def _parse_aware_time(value: str, code: str = "INVALID_KEY_TIME") -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (AttributeError, ValueError) as exc:
+        raise IntakeError(code, "Timestamp must be ISO-8601") from exc
+    if parsed.tzinfo is None:
+        raise IntakeError(code, "Timestamp must include a timezone")
+    return parsed
+
+
+def _raw_ed25519_public_bytes(public_key: Ed25519PublicKey) -> bytes:
+    if not isinstance(public_key, Ed25519PublicKey):
+        raise IntakeError("INVALID_PUBLIC_KEY", "An Ed25519 public key is required")
+    return public_key.public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+
+
+def build_signing_key_registry_entry(
+    key_id: str,
+    public_key: Ed25519PublicKey,
+    *,
+    created_at: str,
+    activate_at: str,
+    signing_not_after: str | None = None,
+) -> dict:
+    """Build public metadata only. Private key custody stays outside this registry."""
+    if not isinstance(key_id, str) or not OBJECT_ID_RE.fullmatch(key_id):
+        raise IntakeError("INVALID_SIGNING_KEY_ID", "Signing key ID is invalid")
+    raw_public = _raw_ed25519_public_bytes(public_key)
+    created = _parse_aware_time(created_at)
+    activate = _parse_aware_time(activate_at)
+    if activate < created:
+        raise IntakeError("INVALID_KEY_TIME", "Activation cannot precede key registration")
+    not_after = None
+    if signing_not_after is not None:
+        not_after_dt = _parse_aware_time(signing_not_after)
+        if not_after_dt <= activate:
+            raise IntakeError("INVALID_KEY_TIME", "Signing end must follow activation")
+        not_after = not_after_dt.isoformat()
+    return {
+        "schema": KEY_ENTRY_SCHEMA,
+        "key_id": key_id,
+        "algorithm": "Ed25519",
+        "public_key_b64": base64.b64encode(raw_public).decode("ascii"),
+        "public_key_sha256": hashlib.sha256(raw_public).hexdigest(),
+        "state": "pre_active",
+        "created_at": created.isoformat(),
+        "activate_at": activate.isoformat(),
+        "signing_not_after": not_after,
+        "state_changed_at": created.isoformat(),
+        "reason": "registered",
+        "replacement_key_id": None,
+        "state_history": [{
+            "state": "pre_active",
+            "at": created.isoformat(),
+            "reason": "registered",
+        }],
+    }
+
+
+def _validate_signing_key_registry_entry(entry: dict) -> Ed25519PublicKey:
+    if not isinstance(entry, dict) or entry.get("schema") != KEY_ENTRY_SCHEMA:
+        raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Unsupported signing key entry")
+    key_id = entry.get("key_id")
+    if not isinstance(key_id, str) or not OBJECT_ID_RE.fullmatch(key_id):
+        raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Invalid key ID")
+    if entry.get("algorithm") != "Ed25519" or entry.get("state") not in KEY_STATES:
+        raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Unsupported key algorithm or lifecycle state")
+    try:
+        raw_public = base64.b64decode(entry["public_key_b64"], validate=True)
+    except (KeyError, ValueError) as exc:
+        raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Public key encoding is invalid") from exc
+    if len(raw_public) != 32 or hashlib.sha256(raw_public).hexdigest() != entry.get("public_key_sha256"):
+        raise IntakeError("KEY_REGISTRY_FINGERPRINT_MISMATCH", "Public key fingerprint does not match registered key bytes")
+    _parse_aware_time(entry.get("created_at"))
+    activate = _parse_aware_time(entry.get("activate_at"))
+    changed = _parse_aware_time(entry.get("state_changed_at"))
+    created = _parse_aware_time(entry.get("created_at"))
+    if activate < created or changed < created:
+        raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Key lifecycle timestamps are inconsistent")
+    if entry.get("signing_not_after") is not None:
+        if _parse_aware_time(entry["signing_not_after"]) <= activate:
+            raise IntakeError("INVALID_KEY_REGISTRY_ENTRY", "Signing validity interval is invalid")
+    return Ed25519PublicKey.from_public_bytes(raw_public)
+
+
+def new_signing_key_registry() -> dict:
+    return {"schema": KEY_REGISTRY_SCHEMA, "version": 1, "keys": {}, "events": []}
+
+
+def register_signing_key(registry: dict, entry: dict) -> dict:
+    if not isinstance(registry, dict) or registry.get("schema") != KEY_REGISTRY_SCHEMA or registry.get("version") != 1:
+        raise IntakeError("INVALID_KEY_REGISTRY", "Unsupported signing key registry")
+    public_key = _validate_signing_key_registry_entry(entry)
+    key_id = entry["key_id"]
+    if key_id in registry.get("keys", {}):
+        raise IntakeError("DUPLICATE_SIGNING_KEY_ID", "Signing key ID is already registered")
+    updated = {
+        "schema": KEY_REGISTRY_SCHEMA,
+        "version": 1,
+        "keys": dict(registry.get("keys", {})),
+        "events": list(registry.get("events", [])),
+    }
+    updated["keys"][key_id] = dict(entry)
+    updated["events"].append({
+        "event": "key_registered",
+        "key_id": key_id,
+        "public_key_sha256": entry["public_key_sha256"],
+        "at": entry["created_at"],
+    })
+    return updated
+
+
+def transition_signing_key(
+    registry: dict,
+    key_id: str,
+    *,
+    target_state: str,
+    at: str,
+    reason: str,
+    replacement_key_id: str | None = None,
+) -> dict:
+    if not isinstance(registry, dict) or registry.get("schema") != KEY_REGISTRY_SCHEMA or registry.get("version") != 1:
+        raise IntakeError("INVALID_KEY_REGISTRY", "Unsupported signing key registry")
+    current = registry.get("keys", {}).get(key_id)
+    _validate_signing_key_registry_entry(current)
+    transitioned_at = _parse_aware_time(at)
+    changed_at = _parse_aware_time(current["state_changed_at"])
+    if transitioned_at < changed_at:
+        raise IntakeError("INVALID_KEY_TIME", "Key lifecycle time cannot move backwards")
+    if target_state not in KEY_TRANSITIONS.get(current["state"], set()):
+        raise IntakeError("INVALID_KEY_STATE_TRANSITION", f"Cannot transition {current['state']} to {target_state}")
+    if target_state in {"retired", "compromised", "revoked"} and (not isinstance(reason, str) or not reason.strip()):
+        raise IntakeError("KEY_STATE_REASON_REQUIRED", "A reason is required for retirement, compromise or revocation")
+    if target_state == "retired":
+        if not isinstance(replacement_key_id, str) or replacement_key_id not in registry["keys"] or replacement_key_id == key_id:
+            raise IntakeError("REPLACEMENT_KEY_REQUIRED", "Retirement requires a separately registered replacement key")
+        replacement = registry["keys"][replacement_key_id]
+        _validate_signing_key_registry_entry(replacement)
+        if replacement["state"] != "active":
+            raise IntakeError("REPLACEMENT_KEY_NOT_ACTIVE", "Replacement key must be active before retiring the old key")
+    updated = {
+        "schema": KEY_REGISTRY_SCHEMA,
+        "version": 1,
+        "keys": dict(registry["keys"]),
+        "events": list(registry.get("events", [])),
+    }
+    updated_entry = dict(current)
+    updated_entry["state_history"] = list(current.get("state_history", []))
+    updated_entry["state"] = target_state
+    updated_entry["state_changed_at"] = transitioned_at.isoformat()
+    updated_entry["reason"] = reason.strip() if isinstance(reason, str) else ""
+    updated_entry["replacement_key_id"] = replacement_key_id
+    updated_entry["state_history"].append({
+        "state": target_state,
+        "at": transitioned_at.isoformat(),
+        "reason": updated_entry["reason"],
+        "replacement_key_id": replacement_key_id,
+    })
+    updated["keys"][key_id] = updated_entry
+    updated["events"].append({
+        "event": "key_state_changed",
+        "key_id": key_id,
+        "from": current["state"],
+        "to": target_state,
+        "at": transitioned_at.isoformat(),
+        "reason": updated_entry["reason"],
+        "replacement_key_id": replacement_key_id,
+    })
+    return updated
+
+
+def rotate_signing_key_registry(
+    registry: dict,
+    old_key_id: str,
+    replacement_entry: dict,
+    *,
+    at: str,
+    reason: str,
+) -> dict:
+    """Return one logical registry snapshot with new key active and old key retired."""
+    old_entry = registry.get("keys", {}).get(old_key_id, {})
+    if old_entry.get("state") != "active":
+        raise IntakeError("KEY_NOT_ACTIVE", "Only an active key can be normally rotated")
+    staged = register_signing_key(registry, replacement_entry)
+    replacement_id = replacement_entry["key_id"]
+    staged = transition_signing_key(
+        staged, replacement_id, target_state="active", at=at, reason="activated for key rotation"
+    )
+    staged = transition_signing_key(
+        staged, old_key_id, target_state="retired", at=at,
+        reason=reason, replacement_key_id=replacement_id,
+    )
+    staged["events"].append({
+        "event": "key_rotation_completed",
+        "old_key_id": old_key_id,
+        "new_key_id": replacement_id,
+        "at": _parse_aware_time(at).isoformat(),
+        "reason": reason,
+    })
+    return staged
+
+
+def compromise_signing_key(
+    registry: dict,
+    key_id: str,
+    *,
+    at: str,
+    reason: str,
+    replacement_entry: dict | None = None,
+) -> dict:
+    """Mark a key compromised immediately; optional replacement is registered separately."""
+    updated = transition_signing_key(
+        registry, key_id, target_state="compromised", at=at, reason=reason
+    )
+    if replacement_entry is not None:
+        updated = register_signing_key(updated, replacement_entry)
+        updated = transition_signing_key(
+            updated, replacement_entry["key_id"], target_state="active",
+            at=at, reason="emergency replacement after key compromise",
+        )
+        updated["events"].append({
+            "event": "key_compromise_replacement_activated",
+            "compromised_key_id": key_id,
+            "replacement_key_id": replacement_entry["key_id"],
+            "at": _parse_aware_time(at).isoformat(),
+        })
+    return updated
+
+
+def _registry_entry_eligible_for_signing(entry: dict, at: str) -> Ed25519PublicKey:
+    public_key = _validate_signing_key_registry_entry(entry)
+    signing_time = _parse_aware_time(at, "INVALID_APPROVAL_TIME")
+    activate_time = _parse_aware_time(entry["activate_at"])
+    if entry["state"] != "active":
+        raise IntakeError("SIGNING_KEY_NOT_ACTIVE", "Only an active signing key may create new approvals")
+    if signing_time < activate_time:
+        raise IntakeError("SIGNING_KEY_NOT_YET_ACTIVE", "Signing time precedes key activation")
+    if entry.get("signing_not_after") and signing_time >= _parse_aware_time(entry["signing_not_after"]):
+        raise IntakeError("SIGNING_KEY_EXPIRED", "Signing key is past its authorized signing period")
+    return public_key
+
+
+def sign_recovery_approval_with_registry(
+    record: dict,
+    *,
+    private_key: Ed25519PrivateKey,
+    registry_entry: dict,
+    key_id: str,
+    at: str,
+) -> dict:
+    registered_public = _registry_entry_eligible_for_signing(registry_entry, at)
+    supplied_public = private_key.public_key() if isinstance(private_key, Ed25519PrivateKey) else None
+    if supplied_public is None or _raw_ed25519_public_bytes(supplied_public) != _raw_ed25519_public_bytes(registered_public):
+        raise IntakeError("SIGNING_KEY_MISMATCH", "Private key does not match the active registry public key")
+    if registry_entry.get("key_id") != key_id:
+        raise IntakeError("SIGNING_KEY_MISMATCH", "Requested key ID does not match registry entry")
+    return sign_recovery_approval_record(record, private_key=private_key, key_id=key_id)
+
+
+def validate_signed_recovery_approval_with_registry(
+    record: dict,
+    current_plan: dict,
+    *,
+    key_registry: dict,
+    authorize_actor: Callable[[str, str], bool] | None,
+    consume_nonce: Callable[[str, str], bool] | None,
+    now: str,
+) -> None:
+    key_id = record.get("signing_key_id")
+    entry = key_registry.get("keys", {}).get(key_id) if isinstance(key_registry, dict) else None
+    if entry is None:
+        raise IntakeError("UNTRUSTED_SIGNING_KEY", "Signing key is not registered")
+    _registry_entry_eligible_for_signing(entry, record.get("approved_at", ""))
+    public_key = _validate_signing_key_registry_entry(entry)
+    validate_signed_recovery_approval(
+        record,
+        current_plan,
+        trusted_public_keys={key_id: public_key},
+        authorize_actor=authorize_actor,
+        consume_nonce=consume_nonce,
+        now=now,
+    )
 
 
 
