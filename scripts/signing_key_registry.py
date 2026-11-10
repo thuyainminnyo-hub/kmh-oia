@@ -220,6 +220,8 @@ class DurableSigningKeyRegistry:
     def rotate(self, old_key_id: str, replacement_entry: dict, *, at: str, reason: str) -> None:
         """Register, activate replacement and retire old key in one SQLite transaction."""
         _validate_signing_key_registry_entry(replacement_entry)
+        if not isinstance(reason, str) or not reason.strip():
+            raise IntakeError("KEY_STATE_REASON_REQUIRED", "A reason is required for key rotation")
         with self._transaction() as connection:
             old = self._entry(connection, old_key_id)
             if old["state"] != "active":
@@ -271,15 +273,15 @@ class DurableSigningKeyRegistry:
         finally:
             connection.close()
 
-    def public_keys_for_execution(self) -> dict:
-        """Return active, currently eligible Ed25519 public keys for new approvals."""
+    def public_keys_for_execution(self, *, at: str) -> dict:
+        """Return active Ed25519 keys eligible at the caller-supplied trusted time."""
         connection = self._connect()
         try:
             rows = connection.execute("SELECT entry_json FROM signing_keys WHERE state='active'").fetchall()
             result = {}
             for row in rows:
                 entry = json.loads(row["entry_json"])
-                public_key = _registry_entry_eligible_for_signing(entry, entry["state_changed_at"])
+                public_key = _registry_entry_eligible_for_signing(entry, at)
                 result[entry["key_id"]] = public_key
             return result
         finally:
