@@ -651,6 +651,12 @@ def transition_signing_key(
         raise IntakeError("INVALID_KEY_STATE_TRANSITION", f"Cannot transition {current['state']} to {target_state}")
     if target_state in {"retired", "compromised", "revoked"} and (not isinstance(reason, str) or not reason.strip()):
         raise IntakeError("KEY_STATE_REASON_REQUIRED", "A reason is required for retirement, compromise or revocation")
+    if target_state == "active":
+        activation = _parse_aware_time(current["activate_at"])
+        if transitioned_at < activation:
+            raise IntakeError("KEY_NOT_YET_ACTIVATABLE", "Key cannot become active before its activation time")
+        if current.get("signing_not_after") and transitioned_at >= _parse_aware_time(current["signing_not_after"]):
+            raise IntakeError("SIGNING_KEY_EXPIRED", "Key cannot be activated after its signing period")
     if target_state == "retired":
         if not isinstance(replacement_key_id, str) or replacement_key_id not in registry["keys"] or replacement_key_id == key_id:
             raise IntakeError("REPLACEMENT_KEY_REQUIRED", "Retirement requires a separately registered replacement key")
