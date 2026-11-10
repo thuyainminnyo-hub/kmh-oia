@@ -618,5 +618,136 @@ ingest(source, object_id, workspace, crash_hook=crash)
             _canonical_json_bytes({"invalid": float("inf")})
 
 
+
+    def test_signing_key_registry_registration_activation_and_rotation(self):
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from scripts.preservation_ingest import (
+            build_signing_key_registry_entry, new_signing_key_registry,
+            register_signing_key, transition_signing_key, rotate_signing_key_registry,
+        )
+        old_private = Ed25519PrivateKey.generate()
+        new_private = Ed25519PrivateKey.generate()
+        old_entry = build_signing_key_registry_entry(
+            "music-signing-01", old_private.public_key(),
+            created_at="2026-11-10T00:00:00+00:00",
+            activate_at="2026-11-10T00:01:00+00:00",
+        )
+        registry = register_signing_key(new_signing_key_registry(), old_entry)
+        registry = transition_signing_key(
+            registry, "music-signing-01", target_state="active",
+            at="2026-11-10T00:01:00+00:00", reason="initial activation",
+        )
+        replacement = build_signing_key_registry_entry(
+            "music-signing-02", new_private.public_key(),
+            created_at="2026-11-10T01:00:00+00:00",
+            activate_at="2026-11-10T01:01:00+00:00",
+        )
+        rotated = rotate_signing_key_registry(
+            registry, "music-signing-01", replacement,
+            at="2026-11-10T01:01:00+00:00", reason="scheduled rotation",
+        )
+        self.assertEqual(rotated["keys"]["music-signing-01"]["state"], "retired")
+        self.assertEqual(rotated["keys"]["music-signing-02"]["state"], "active")
+        self.assertEqual(rotated["keys"]["music-signing-01"]["replacement_key_id"], "music-signing-02")
+        self.assertEqual(rotated["events"][-1]["event"], "key_rotation_completed")
+
+    def test_signing_key_registry_rejects_invalid_transitions_and_fingerprint_tampering(self):
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from scripts.preservation_ingest import (
+            build_signing_key_registry_entry, new_signing_key_registry,
+            register_signing_key, transition_signing_key, _validate_signing_key_registry_entry,
+        )
+        private = Ed25519PrivateKey.generate()
+        entry = build_signing_key_registry_entry(
+            "music-signing-03", private.public_key(),
+            created_at="2026-11-10T00:00:00+00:00",
+            activate_at="2026-11-10T00:01:00+00:00",
+        )
+        registry = register_signing_key(new_signing_key_registry(), entry)
+        with self.assertRaises(IntakeError):
+            transition_signing_key(
+                registry, "music-signing-03", target_state="retired",
+                at="2026-11-10T00:02:00+00:00", reason="no replacement",
+            )
+        tampered = dict(entry)
+        tampered["public_key_sha256"] = "0" * 64
+        with self.assertRaises(IntakeError):
+            _validate_signing_key_registry_entry(tampered)
+        with self.assertRaises(IntakeError):
+            register_signing_key(registry, entry)
+
+    def test_signing_key_registry_compromise_blocks_new_approvals_and_activates_replacement(self):
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from scripts.preservation_ingest import (
+            build_signing_key_registry_entry, new_signing_key_registry,
+            register_signing_key, transition_signing_key, compromise_signing_key,
+            _registry_entry_eligible_for_signing,
+        )
+        compromised_private = Ed25519PrivateKey.generate()
+        replacement_private = Ed25519PrivateKey.generate()
+        compromised_entry = build_signing_key_registry_entry(
+            "music-signing-04", compromised_private.public_key(),
+            created_at="2026-11-10T00:00:00+00:00",
+            activate_at="2026-11-10T00:01:00+00:00",
+        )
+        registry = register_signing_key(new_signing_key_registry(), compromised_entry)
+        registry = transition_signing_key(
+            registry, "music-signing-04", target_state="active",
+            at="2026-11-10T00:01:00+00:00", reason="initial activation",
+        )
+        replacement = build_signing_key_registry_entry(
+            "music-signing-05", replacement_private.public_key(),
+            created_at="2026-11-10T00:02:00+00:00",
+            activate_at="2026-11-10T00:03:00+00:00",
+        )
+        registry = compromise_signing_key(
+            registry, "music-signing-04",
+            at="2026-11-10T00:03:00+00:00",
+            reason="suspected private-key exposure",
+            replacement_entry=replacement,
+        )
+        self.assertEqual(registry["keys"]["music-signing-04"]["state"], "compromised")
+        self.assertEqual(registry["keys"]["music-signing-05"]["state"], "active")
+        with self.assertRaises(IntakeError):
+            _registry_entry_eligible_for_signing(registry["keys"]["music-signing-04"], "2026-11-10T00:04:00+00:00")
+
+    def test_registry_bound_signing_checks_active_state_key_match_and_activation_time(self):
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from scripts.preservation_ingest import (
+            build_signing_key_registry_entry, new_signing_key_registry,
+            register_signing_key, transition_signing_key,
+            sign_recovery_approval_with_registry,
+        )
+        private = Ed25519PrivateKey.generate()
+        entry = build_signing_key_registry_entry(
+            "music-signing-06", private.public_key(),
+            created_at="2026-11-10T00:00:00+00:00",
+            activate_at="2026-11-10T00:01:00+00:00",
+        )
+        registry = register_signing_key(new_signing_key_registry(), entry)
+        with self.assertRaises(IntakeError):
+            sign_recovery_approval_with_registry(
+                {"approval_id": "approval-1"}, private_key=private,
+                registry_entry=registry["keys"]["music-signing-06"],
+                key_id="music-signing-06", at="2026-11-10T00:02:00+00:00",
+            )
+        active = transition_signing_key(
+            registry, "music-signing-06", target_state="active",
+            at="2026-11-10T00:01:00+00:00", reason="initial activation",
+        )
+        signed = sign_recovery_approval_with_registry(
+            {"approval_id": "approval-1"}, private_key=private,
+            registry_entry=active["keys"]["music-signing-06"],
+            key_id="music-signing-06", at="2026-11-10T00:02:00+00:00",
+        )
+        self.assertEqual(signed["signing_key_id"], "music-signing-06")
+        with self.assertRaises(IntakeError):
+            sign_recovery_approval_with_registry(
+                {"approval_id": "approval-1"}, private_key=Ed25519PrivateKey.generate(),
+                registry_entry=active["keys"]["music-signing-06"],
+                key_id="music-signing-06", at="2026-11-10T00:02:00+00:00",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
