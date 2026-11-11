@@ -2,6 +2,9 @@
 
 from dataclasses import dataclass
 from typing import Protocol
+from time import time
+
+from src.agent_trust import ActionRequest, AgentTrustRegistry, HumanApproval
 
 from src.agent import Agent, AgentRequest, DeterministicAgent
 from src.autonomy_policy import AutonomyPolicy
@@ -49,19 +52,55 @@ class ContextAssembly:
         }
 
 class GovernedTool:
-    def __init__(self, security: SecurityPolicy | None = None, registry: ToolExecutor | None = None, recovery: RecoveryPolicy | None = None) -> None:
+    def __init__(
+        self,
+        security: SecurityPolicy | None = None,
+        registry: ToolExecutor | None = None,
+        recovery: RecoveryPolicy | None = None,
+        trust_registry: AgentTrustRegistry | None = None,
+        trust_agent_id: str | None = None,
+        trust_scopes: dict[str, str] | None = None,
+    ) -> None:
         self.security = security or ToolSecurityPolicy()
         self.registry = registry or ToolRegistry()
         self.recovery = recovery or DeterministicRecoveryPolicy()
+        self.trust_registry = trust_registry
+        self.trust_agent_id = trust_agent_id
+        self.trust_scopes = dict(trust_scopes or {})
 
-    def execute(self, request: ToolRequest) -> ToolResult:
+    def execute(
+        self, request: ToolRequest, *, approval: HumanApproval | None = None
+    ) -> ToolResult:
+        # The trust gate is independent from the model/reasoning path and runs
+        # immediately before the existing tool allowlist and execution boundary.
+        if self.trust_registry is not None:
+            required_scope = self.trust_scopes.get(request.tool_name)
+            if not self.trust_agent_id or not required_scope:
+                return ToolResult(
+                    request.tool_name, "", False,
+                    "agent trust identity or exact tool scope is not configured",
+                )
+            trust = self.trust_registry.authorize(
+                ActionRequest(
+                    request_id=request.request_id,
+                    agent_id=self.trust_agent_id,
+                    tool_name=request.tool_name,
+                    resource=request.resource,
+                    required_scope=required_scope,
+                ),
+                now_epoch=int(time()),
+                approval=approval,
+            )
+            if not trust.allowed:
+                return ToolResult(request.tool_name, "", False, trust.reason)
+
         decision = self.security.authorize(request.tool_name)
         if not decision.allowed:
             return ToolResult(request.tool_name, "", False, decision.reason)
         return self.recovery.run(lambda: self.registry.execute(request))
 
 class OIARuntime:
-    def __init__(self, state: StateStoreContract | None = None, security: SecurityPolicy | None = None, registry: ToolExecutor | None = None, agent: Agent | None = None, evaluator: Evaluator | None = None, responder: Responder | None = None, tracer: Tracer | None = None, core: OIACore | None = None, workflow: Workflow | None = None, gateway: InputGatewayContract | None = None, context_assembly: ContextAssemblyContract | None = None, error_boundary: ErrorBoundary | None = None, memory: MemoryStore | None = None, knowledge: KnowledgeSource | None = None, recovery: RecoveryPolicy | None = None, autonomy_policy: AutonomyPolicy | None = None, autonomy_scope: str = "local") -> None:
+    def __init__(self, state: StateStoreContract | None = None, security: SecurityPolicy | None = None, registry: ToolExecutor | None = None, agent: Agent | None = None, evaluator: Evaluator | None = None, responder: Responder | None = None, tracer: Tracer | None = None, core: OIACore | None = None, workflow: Workflow | None = None, gateway: InputGatewayContract | None = None, context_assembly: ContextAssemblyContract | None = None, error_boundary: ErrorBoundary | None = None, memory: MemoryStore | None = None, knowledge: KnowledgeSource | None = None, recovery: RecoveryPolicy | None = None, autonomy_policy: AutonomyPolicy | None = None, autonomy_scope: str = "local", trust_registry: AgentTrustRegistry | None = None, trust_agent_id: str | None = None, trust_scopes: dict[str, str] | None = None) -> None:
         self.state = state or StateStore()
         self.memory = memory or InMemoryMemoryStore()
         self.knowledge = knowledge or StaticKnowledgeSource()
@@ -69,7 +108,7 @@ class OIARuntime:
         self.context = context_assembly or ContextAssembly(self.memory, self.knowledge)
         self.core = core or DeterministicOIACore()
         self.workflow = workflow or DeterministicWorkflow()
-        self.tool = GovernedTool(security, registry, recovery)
+        self.tool = GovernedTool(security, registry, recovery, trust_registry, trust_agent_id, trust_scopes)
         self.autonomy_policy = autonomy_policy or AutonomyPolicy({"echo"}, {"local"})
         self.autonomy_scope = autonomy_scope
         self.agent = agent or DeterministicAgent()
@@ -82,7 +121,7 @@ class OIARuntime:
         output, stages, _ = self.execute_detailed(goal, session_id, tool_name)
         return output, stages
 
-    def execute_detailed(self, goal: str, session_id: str = "default", tool_name: str | None = "echo") -> tuple[str, list[str], list[TraceEvent]]:
+    def execute_detailed(self, goal: str, session_id: str = "default", tool_name: str | None = "echo", *, resource: str = "local", human_approval: HumanApproval | None = None) -> tuple[str, list[str], list[TraceEvent]]:
         stages: list[str] = []
         execution = ExecutionContext.create(session_id)
         ids = {"request_id": execution.request_id, "session_id": execution.session_id, "workflow_id": execution.workflow_id, "task_id": execution.task_id, "agent_id": execution.agent_id, "trace_id": execution.trace_id}
@@ -114,7 +153,7 @@ class OIARuntime:
             if not autonomy.allowed:
                 emit("tool_security", status="blocked", tool=selected_tool, reason=autonomy.reason, autonomy_status="blocked", autonomy_action=selected_tool, autonomy_scope=self.autonomy_scope, autonomy_reason=autonomy.reason)
                 raise PermissionError(autonomy.reason)
-            result = self.tool.execute(ToolRequest(selected_tool, decision.input_text))
+            result = self.tool.execute(ToolRequest(selected_tool, decision.input_text, execution.request_id, resource), approval=human_approval)
             emit("tool_security", status="ok" if result.success else "blocked", tool=selected_tool, reason=result.reason, autonomy_status="ok", autonomy_action=selected_tool, autonomy_scope=self.autonomy_scope, autonomy_reason=autonomy.reason)
             if not result.success:
                 raise PermissionError(result.reason)
