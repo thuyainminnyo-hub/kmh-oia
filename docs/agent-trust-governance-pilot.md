@@ -42,18 +42,53 @@ python -m unittest discover -s tests -v
 - Prompt injection is mitigated at the authorization boundary by refusing to treat text as authority; this is not a model-level prompt-injection detector.
 - No production deployment, CI run, or external penetration test is claimed.
 
-## Standards alignment and remaining gaps
+## Standards and implementation research (2026-11-12)
 
-The implementation is directionally aligned with NIST's October 27, 2026 agent identity design tenets for distinct agent identities, delegation and attenuation, human review triggers, and architectural separation of policy from reasoning. It is not yet conformant evidence for those tenets: identity is not cryptographically verifiable, mandates are not signed, grants are not just-in-time/zero-standing, and human approval is not independently authenticated.
+NIST's October 27, 2026 *Design Tenets for Agent Identity Management Systems* provides the primary architecture checklist for this pilot. It calls for distinct cryptographically verifiable agent identity, cryptographic linkage and attenuated delegation, zero standing privilege, short-lived audience-specific JIT authorization with runtime re-verification, risk-triggered human review, signed task mandates, separation of policy from reasoning, deterministic access decisions, and independent tamper-evident evidence. This pilot is only a local policy prototype; it does not yet demonstrate conformance.
 
-## Next implementation gates
-1. Add resource-level policy, signed task mandates, and signed/short-lived JIT delegation credentials.
-2. Bind logical agent identity to authenticated workloads and environment-specific credentials.
-3. Replace data-object human approvals with authenticated out-of-band approval for high-impact actions.
-4. Implement durable, tamper-evident append-only audit and trace/provenance correlation.
-5. Add negative tests for prompt-injected tool output, confused-deputy attempts, replay, branching delegation, and revocation during a workflow.
-6. Run the complete test suite and CI on this branch.
-7. Require security and operations owner review before any production deployment.
+### Recommended KMH target architecture
+
+1. **Workload identity:** keep a stable logical KMH agent ID, but bind each running workload instance to an attested SPIFFE ID. Obtain short-lived SVIDs through the SPIFFE Workload API; do not store private keys or static bearer credentials in agent configuration. Prefer X.509-SVID plus mTLS for service-to-service calls where supported. Use JWT-SVID only where federation or an L7 boundary requires it, with strict issuer, audience, expiry, signature and key-ID validation.
+2. **Credential exchange:** use workload identity federation to exchange a validated SPIFFE JWT-SVID for a short-lived, audience-bound downstream access token. OpenAI documents this exact SPIFFE JWT-SVID-to-short-lived-token pattern. Use OAuth 2.0 Token Exchange (RFC 8693) where the authorization server supports delegated subject/actor token exchange; use certificate-bound tokens/mTLS (RFC 8705) to reduce bearer-token replay exposure where supported.
+3. **Signed task mandate:** define a canonical, versioned mandate payload containing mandate ID, issuer/subject/actor identities, parent mandate, task ID, permitted tools/actions/resources, denied actions, maximum delegation depth, audience, issued-at, not-before, expiry, nonce, and policy version. Sign the canonical payload with an asymmetric issuer key held outside the agent process. Verify signature, issuer trust, audience, time window, nonce/replay state, and every parent-child scope intersection before issuing authority. Never accept a model-generated claim as a signature or authority source.
+4. **Zero-standing/JIT grants:** keep agents with no active tool grant while idle. At task start, mint a narrowly scoped, short-lived capability for one task and audience. Re-authorize each tool invocation against current mandate, resource, risk and revocation state. Enforce separation of duties for conflicting actions; do not turn a JIT grant into a reusable long-lived credential.
+5. **Human approval:** keep the existing exact action binding (request, agent, tool, resource), but move approval to a trusted out-of-band channel with a fresh human authentication step. Approval must be single-use, expire quickly, and be invalidated by any change to the action digest. The agent runtime must not be able to access or invoke the human signing key. Apply risk thresholds rather than asking for approval on every low-risk action to reduce consent fatigue.
+6. **Independent evidence:** replace process-local audit with a durable append-only store outside the agent's administrative control. Record signed mandate digest, verified workload identity and credential thumbprint, delegation chain, policy version, request/action digest, approval evidence reference, allow/deny result, reason code, timestamps, revocation state and output/artifact digest. Add hash chaining or signed checkpoints, protected retention, external timestamping/anchoring, and independent read/verification. Preserve denied attempts and revocation receipts. Evidence must remain verifiable after credential rotation or agent retirement.
+7. **Artifact provenance:** bind produced files, messages, code and their exact versions to the producing workload identity, mandate and execution trace using content digests; an agent ID string in metadata alone is not proof of provenance.
+
+### Standards mapping and current gap
+
+| Design area | Pilot status | Required evidence |
+|---|---|---|
+| Distinct identity | Application ID only | SPIFFE attestation and credential validation |
+| Delegation | Local scope attenuation | Signed parent-linked mandate chain |
+| Zero standing privilege | Not implemented | No idle grant; task-scoped JIT issuance |
+| Short-lived authorization | Grant expiry only | Audience-bound ephemeral credential and per-call recheck |
+| Human review | Local approval data object | Out-of-band authenticated, single-use approval |
+| Mandates | Not implemented | Signature verification and constraint enforcement |
+| Policy/reasoning separation | Local deterministic gate | Prove untrusted model/tool text cannot mutate policy or credentials |
+| Deterministic decision | Local rule checks | Versioned policy, resource/action decision tests |
+| Immutable evidence | In-memory list only | Durable independent tamper-evident audit |
+| Runtime monitoring | Basic request checks | Context/risk drift signals, revocation and containment evidence |
+
+### Next implementation gates
+
+1. Specify and threat-model the signed mandate schema and trust-root/key-rotation lifecycle.
+2. Add SPIFFE/SPIRE workload identity adapter behind a provider interface; retain a clearly labelled local test provider for unit tests only.
+3. Implement task-scoped JIT authorization and per-invocation revocation/audience/resource checks.
+4. Integrate a trusted out-of-band human approval provider and action-digest binding.
+5. Implement durable independent audit with integrity verification, retention, and export.
+6. Add tests for signature tampering, wrong issuer/audience, expired/not-yet-valid mandate, replay, delegation-chain tampering, confused deputy, cross-resource substitution, revoked workload, approval-key isolation, audit-store outage/fail-closed behavior, and historical verification after key rotation.
+7. Run full CI against the exact current branch head; require security and operations owner review before any production deployment.
+
+### Research references
+
+- NIST, *Design Tenets for Agent Identity Management Systems* (2026-10-27): https://www.nist.gov/blogs/cybersecurity-insights/design-tenets-agent-identity-management-systems
+- SPIFFE Workload API: https://spiffe.io/docs/latest/spiffe-specs/spiffe_workload_api/
+- SPIRE Concepts and workload attestation: https://spiffe.io/docs/latest/spire-about/spire-concepts/
+- OpenAI, *Configuring workload identity federation for SPIFFE*: https://developers.openai.com/api/docs/guides/workload-identity-federation/spiffe
+- IETF RFC 8693, OAuth 2.0 Token Exchange: https://www.rfc-editor.org/rfc/rfc8693.html
+- IETF RFC 8705, OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens: https://www.rfc-editor.org/rfc/rfc8705.html
 
 ## Decision boundary
 This implementation is a deterministic local trust-control slice. It does not authorize production use and must not be described as enterprise-grade IAM until the above gates are completed and independently verified.
