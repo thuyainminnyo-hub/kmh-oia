@@ -70,9 +70,17 @@ class SignedMandate:
 
 
 @dataclass(frozen=True)
+class VerifiedMandate:
+    """Proof object minted only after this validator verifies a mandate."""
+
+    mandate: TaskMandate
+
+
+@dataclass(frozen=True)
 class MandateValidation:
     valid: bool
     reason: str
+    verified_mandate: VerifiedMandate | None = None
 
 
 class SignatureVerifier(Protocol):
@@ -129,7 +137,7 @@ class MandateValidator:
         expected_workload_id: str,
         requested_scope: str,
         requested_resource: str,
-        parent: TaskMandate | None = None,
+        parent: VerifiedMandate | None = None,
     ) -> MandateValidation:
         mandate = signed.mandate
         required_strings = (
@@ -175,20 +183,24 @@ class MandateValidator:
             if mandate.parent_mandate_id is not None or mandate.delegation_depth != 0:
                 return MandateValidation(False, "root mandate cannot claim a parent")
         else:
-            if mandate.parent_mandate_id != parent.mandate_id:
+            verified_parent = parent.mandate
+            if mandate.parent_mandate_id != verified_parent.mandate_id:
                 return MandateValidation(False, "parent mandate link mismatch")
-            if mandate.issuer != parent.subject_agent_id:
+            if mandate.issuer != verified_parent.subject_agent_id:
                 return MandateValidation(False, "delegation issuer is not parent subject")
-            if mandate.delegation_depth != parent.delegation_depth + 1:
+            if mandate.delegation_depth != verified_parent.delegation_depth + 1:
                 return MandateValidation(False, "delegation depth is not contiguous")
-            if not mandate.scopes.issubset(parent.scopes):
+            if not mandate.scopes.issubset(verified_parent.scopes):
                 return MandateValidation(False, "delegated scopes exceed parent authority")
-            if not mandate.resources.issubset(parent.resources):
+            if not mandate.resources.issubset(verified_parent.resources):
                 return MandateValidation(False, "delegated resources exceed parent authority")
-            if mandate.expires_at > parent.expires_at:
+            if mandate.expires_at > verified_parent.expires_at:
                 return MandateValidation(False, "child mandate outlives parent mandate")
-            if mandate.max_delegation_depth > parent.max_delegation_depth:
+            if mandate.max_delegation_depth > verified_parent.max_delegation_depth:
                 return MandateValidation(False, "child delegation limit exceeds parent")
         if not self.nonce_store.claim(mandate.issuer, mandate.nonce, mandate.expires_at, now):
             return MandateValidation(False, "mandate nonce replay or expiry detected")
-        return MandateValidation(True, "mandate signature and constraints verified")
+        return MandateValidation(
+            True, "mandate signature and constraints verified",
+            VerifiedMandate(mandate),
+        )
