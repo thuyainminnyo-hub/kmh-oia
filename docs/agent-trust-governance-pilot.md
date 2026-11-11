@@ -69,6 +69,26 @@ Extended `src/mandates.py` so a root mandate issued by a third-party representat
 
 Important limitation: the role-aware `SignatureVerifier` is still only an interface. The test verifier is a digest fixture, not asymmetric cryptography. `VerifiedAuthorityAssertion` and `VerifiedMandate` are ordinary Python objects, not language-enforced unforgeable capabilities; only trusted in-process code may construct/pass them. Production must use a trusted key resolver that binds issuer + role + key ID to approved trust anchors, verify the delegator's instruction to the mandate issuer, and protect proof objects across process boundaries.
 
+### November 2026 research: credential-to-execution evidence binding
+
+The IETF Datatracker lists draft-thaha-wimse-agent-evidence-binding-03, last updated 2026-11-01, as an active individual Internet-Draft with no formal standing in the IETF standards process. It is a companion to the WIMSE AI Identity Management System draft and maps credential-level agent identity/policy claims to per-call execution evidence.
+
+The draft separates two bindings:
+- aee_evidence is a credential-level claim binding the expected Evidence Service, policy-pack digest and persistent logical agent ID, with optional assurance/registration/credential digests. It applies across the calls covered by that credential.
+- AEE-Caller-Ref is a per-call HTTP Structured Field linking one caller execution receipt (evidence service, sequence, record hash, transaction and optional call digest) to the serving party's admission record. It must not be placed in a reusable multi-call token.
+
+A serving party must validate credential and proof-of-possession, check registration and assurance freshness/status, authorize the principal and current actor, recompute the request digest itself (never trust the caller-provided digest), reject mismatches and replayed caller references, record an admission receipt for both allow and deny, and fail closed when required evidence cannot be checked. The draft explicitly says the Actor Chain is attribution, not proof of authority; authority across hops still needs per-hop signed evidence. The companion SCITT Agent Execution Evidence draft describes receipts, assurance statements and linked verification. Neither draft is an adopted RFC.
+
+### Local execution-evidence binding slice
+
+Added src/execution_evidence.py and tests/test_execution_evidence.py:
+- Credential-level evidence claim shape for evidence service, policy-pack digest, logical agent ID and optional assurance digest.
+- Per-call receipt carrying logical/runtime agent IDs, policy digest, request digest, resource, tool, action, decision, reason code, timestamp and optional output digest.
+- Request digest is computed by the local builder from canonicalized request content.
+- Verification recomputes the digest from the actual received request and checks request ID, runtime identity, logical identity, policy digest and audit sequence.
+- Tests cover successful link, request tampering, identity/policy/sequence mismatch, invalid claim digest and output digest.
+
+This is a local prototype only: no signed JWT/CWT credential claim, no HTTP Structured Field parser/transport integration, no cryptographic Execution Receipt, no SCITT registration/transparency service, no remote linked verification, no atomic replay store, and no actual serving-party admission pipeline integration. The local digest receipt is not independently verifiable evidence of who executed an action; it becomes trustworthy only when authenticated workload identity, trusted signing, secure receipt storage and independent verification are implemented. The local AgentEvidenceClaim digest representation is a simplified prototype, not a wire-compatible implementation of the draft's digest structure.
 ### Local signed-mandate validation slice
 
 Added `src/mandates.py` with:
