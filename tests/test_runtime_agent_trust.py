@@ -1,6 +1,6 @@
 import unittest
 
-from src.agent_trust import AgentIdentity, AgentTrustRegistry, DelegationGrant
+from src.agent_trust import AgentIdentity, AgentTrustRegistry, DelegationGrant, HumanApproval
 from src.components import OIARuntime
 
 
@@ -32,6 +32,31 @@ class RuntimeAgentTrustIntegrationTests(unittest.TestCase):
         )
         with self.assertRaises(PermissionError):
             runtime.execute_detailed("hello")
+
+
+    def test_runtime_sensitive_action_requires_request_bound_human_approval(self):
+        registry = AgentTrustRegistry(sensitive_tools=frozenset({"echo"}))
+        registry.register_agent(
+            AgentIdentity("runtime-agent", "owner-1", "oia-runtime", "test")
+        )
+        registry.add_root_grant(DelegationGrant(
+            "runtime-root", "owner-1", "runtime-agent",
+            frozenset({"tool:echo"}), 4_102_444_800,
+        ))
+        runtime = OIARuntime(
+            trust_registry=registry,
+            trust_agent_id="runtime-agent",
+            trust_scopes={"echo": "tool:echo"},
+        )
+        with self.assertRaises(PermissionError):
+            runtime.execute_detailed("hello", request_id="approval-req-1")
+        approval = HumanApproval(
+            "approval-req-1", "runtime-agent", "echo", "local", "human-owner", True
+        )
+        response, _, _ = runtime.execute_detailed(
+            "hello", request_id="approval-req-1", human_approval=approval
+        )
+        self.assertEqual(response, "hello")
 
     def test_runtime_authorizes_tool_at_execution_boundary(self):
         runtime = OIARuntime(
