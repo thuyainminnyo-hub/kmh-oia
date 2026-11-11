@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
+
+
+_GENESIS_HASH = "0" * 64
 
 
 def canonical_json(value: Any) -> bytes:
@@ -66,6 +69,7 @@ class ExecutionReceipt:
     reason_code: str
     occurred_at_epoch: int
     output_digest: str | None = None
+    previous_receipt_hash: str = _GENESIS_HASH
 
     def canonical_payload(self) -> bytes:
         return canonical_json({
@@ -83,6 +87,7 @@ class ExecutionReceipt:
             "reason_code": self.reason_code,
             "occurred_at_epoch": self.occurred_at_epoch,
             "output_digest": self.output_digest,
+            "previous_receipt_hash": self.previous_receipt_hash,
         })
 
     @property
@@ -175,3 +180,38 @@ def verify_execution_link(
         audit_event_sequence=audit_event_sequence,
         request_id=actual_request_id,
     )
+
+
+class ExecutionEvidenceChain:
+    """In-memory hash chain for local verification; not a SCITT transparency log."""
+
+    def __init__(self) -> None:
+        self._receipts: list[ExecutionReceipt] = []
+
+    @property
+    def receipts(self) -> tuple[ExecutionReceipt, ...]:
+        return tuple(self._receipts)
+
+    def append(self, receipt: ExecutionReceipt) -> ExecutionReceipt:
+        expected_sequence = len(self._receipts) + 1
+        if receipt.sequence != expected_sequence:
+            raise ValueError("execution receipt sequence must be contiguous")
+        expected_previous = (
+            _GENESIS_HASH if not self._receipts
+            else self._receipts[-1].receipt_digest
+        )
+        if receipt.previous_receipt_hash not in {_GENESIS_HASH, expected_previous}:
+            raise ValueError("caller-supplied previous receipt hash is not trusted")
+        chained = replace(receipt, previous_receipt_hash=expected_previous)
+        self._receipts.append(chained)
+        return chained
+
+    def verify(self) -> bool:
+        previous = _GENESIS_HASH
+        for expected_sequence, receipt in enumerate(self._receipts, start=1):
+            if receipt.sequence != expected_sequence:
+                return False
+            if receipt.previous_receipt_hash != previous:
+                return False
+            previous = receipt.receipt_digest
+        return True
