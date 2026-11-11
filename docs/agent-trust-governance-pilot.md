@@ -91,6 +91,12 @@ Extended src/execution_evidence.py with an in-memory ExecutionEvidenceChain. It 
 
 This improves the local evidence prototype but is not a SCITT implementation: no COSE-signed statements, SCITT Registration API, transparency service, inclusion/consistency proofs, epoch statements, offline Bundle verifier, caller/serving-party dual chains, task lifecycle semantics, or remote storage/independent verification. The in-memory chain can be rewritten by the process owner and must not be represented as tamper-proof or independently auditable.
 
+### Linked caller and serving-party evidence prototype
+
+Added src/linked_evidence.py and tests/test_linked_evidence.py. The serving-side ledger independently recomputes the request digest, records allow/deny/indeterminate admission outcomes, rejects duplicate caller receipt references within this process, and chains admission receipts. A linking function checks request ID, caller identity, caller receipt digest and request digest across the caller and serving-party records. Tests cover successful linking, request substitution, duplicate-reference replay, identity/request mismatch and recording denied calls.
+
+This is still an in-memory application prototype. It has no authenticated caller receipt signature, no independent trust registry, no persistent/distributed replay protection, no concurrency/transaction guarantees, no serving gateway integration, and no SCITT signed statement or transparency receipt. It cannot detect calls that bypass the instrumented gateway. Do not treat the hash chain as non-equivocating or tamper-proof against the process/database administrator.
+
 ### Local execution-evidence binding slice
 
 Added src/execution_evidence.py and tests/test_execution_evidence.py:
