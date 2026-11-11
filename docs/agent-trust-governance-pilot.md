@@ -79,6 +79,18 @@ The draft separates two bindings:
 
 A serving party must validate credential and proof-of-possession, check registration and assurance freshness/status, authorize the principal and current actor, recompute the request digest itself (never trust the caller-provided digest), reject mismatches and replayed caller references, record an admission receipt for both allow and deny, and fail closed when required evidence cannot be checked. The draft explicitly says the Actor Chain is attribution, not proof of authority; authority across hops still needs per-hop signed evidence. The companion SCITT Agent Execution Evidence draft describes receipts, assurance statements and linked verification. Neither draft is an adopted RFC.
 
+### SCITT Agent Execution Evidence profile review (2026-11-12)
+
+The current IETF Datatracker entry identifies draft-thaha-scitt-agent-execution-evidence-02, last updated 2026-11-01, as an active individual Internet-Draft, intended Standards Track but with no RFC stream or formal standing. It profiles SCITT Signed Statements and transparency receipts for agent execution evidence. Its key architectural contribution is dual-sided evidence: the caller's Harness records why/how it made a call; the Serving Party records its independent admission decision and what it checked. Comparing both parties' hash-chained records can reveal an omitted call. It also specifies task lifecycle receipts, per-call model/tool decision points, policy/configuration digests on receipts, cross-operator call linking, registration policy, offline verification and Bundles.
+
+The draft's explicit limits matter: only calls passing instrumented Decision Points are evidenced; activity inside an uninstrumented model/tool or through an unmediated channel is not captured. A hash chain alone is not a non-equivocating transparency service; epoch sealing, SCITT registration/receipts and independently verifiable log consistency are required. The draft is work in progress, not an adopted RFC.
+
+### Local hash-chained receipt sequence refinement
+
+Extended src/execution_evidence.py with an in-memory ExecutionEvidenceChain. It assigns/verifies contiguous receipt sequence order, binds each receipt to the preceding receipt digest, rejects sequence gaps and detects mutation during local chain verification. Added tests for successful chain verification, sequence-gap rejection and receipt-tampering detection.
+
+This improves the local evidence prototype but is not a SCITT implementation: no COSE-signed statements, SCITT Registration API, transparency service, inclusion/consistency proofs, epoch statements, offline Bundle verifier, caller/serving-party dual chains, task lifecycle semantics, or remote storage/independent verification. The in-memory chain can be rewritten by the process owner and must not be represented as tamper-proof or independently auditable.
+
 ### Local execution-evidence binding slice
 
 Added src/execution_evidence.py and tests/test_execution_evidence.py:
