@@ -149,36 +149,35 @@ class AgentTrustRegistry:
         self._grants[grant.grant_id] = grant
 
     def _effective_grant(self, agent_id: str, now_epoch: int) -> DelegationGrant | None:
-        roots = [
-            grant for grant in self._grants.values()
-            if grant.parent_grant_id is None
-        ]
-        valid: list[DelegationGrant] = []
-        for root in roots:
-            current = root
-            seen = {root.grant_id}
-            chain_valid = root.expires_at_epoch > now_epoch
-            while chain_valid:
-                children = [
-                    item for item in self._grants.values()
-                    if item.parent_grant_id == current.grant_id
-                    and item.issuer == current.subject_agent_id
-                ]
-                if not children:
-                    break
-                if len(children) != 1:
-                    chain_valid = False
-                    break
-                child = children[0]
-                if (child.grant_id in seen or child.expires_at_epoch <= now_epoch
-                        or not child.scopes.issubset(current.scopes)):
-                    chain_valid = False
-                    break
-                seen.add(child.grant_id)
-                current = child
-            if chain_valid and current.subject_agent_id == agent_id:
-                valid.append(current)
-        return valid[0] if len(valid) == 1 else None
+        matches: list[DelegationGrant] = []
+
+        def visit(
+            grant: DelegationGrant,
+            inherited_scopes: frozenset[str] | None,
+            seen: frozenset[str],
+        ) -> None:
+            if grant.grant_id in seen or grant.expires_at_epoch <= now_epoch:
+                return
+            if inherited_scopes is not None and not grant.scopes.issubset(inherited_scopes):
+                return
+            subject = self._agents.get(grant.subject_agent_id)
+            if subject is None or not subject.active:
+                return
+            if grant.subject_agent_id == agent_id:
+                matches.append(grant)
+                return
+            next_seen = seen | {grant.grant_id}
+            for child in self._grants.values():
+                if (child.parent_grant_id == grant.grant_id
+                        and child.issuer == grant.subject_agent_id):
+                    visit(child, grant.scopes, next_seen)
+
+        for root in self._grants.values():
+            if root.parent_grant_id is None:
+                visit(root, None, frozenset())
+        # Multiple independent authority chains for one agent are ambiguous:
+        # fail closed rather than merging privileges.
+        return matches[0] if len(matches) == 1 else None
 
     def authorize(
         self,
