@@ -16,6 +16,7 @@ class AgentTrustRegistryTests(unittest.TestCase):
         self.registry = AgentTrustRegistry(audit=self.audit)
         self.registry.register_agent(AgentIdentity("planner", "owner-1", "planning", "test"))
         self.registry.register_agent(AgentIdentity("worker", "owner-1", "worker", "test"))
+        self.registry.register_agent(AgentIdentity("worker-2", "owner-1", "worker", "test"))
         self.registry.add_root_grant(DelegationGrant(
             "root", "owner-1", "planner",
             frozenset({"content:read", "content:write", "publish"}),
@@ -24,6 +25,10 @@ class AgentTrustRegistryTests(unittest.TestCase):
         self.registry.delegate(DelegationGrant(
             "worker-read", "planner", "worker",
             frozenset({"content:read", "publish"}), 9_000, "root",
+        ))
+        self.registry.delegate(DelegationGrant(
+            "worker-2-read", "planner", "worker-2",
+            frozenset({"content:read"}), 9_000, "root",
         ))
 
     def request(self, **overrides):
@@ -85,6 +90,16 @@ class AgentTrustRegistryTests(unittest.TestCase):
         )
         self.assertEqual([e.sequence for e in self.audit.events], [1, 2])
         self.assertEqual([e.decision for e in self.audit.events], ["allow", "deny"])
+
+
+    def test_sibling_delegations_do_not_block_valid_branch(self):
+        decision = self.registry.authorize(self.request(), now_epoch=100)
+        self.assertTrue(decision.allowed)
+
+    def test_revoked_delegating_agent_invalidates_descendant_grant(self):
+        self.registry.revoke_agent("planner")
+        decision = self.registry.authorize(self.request(), now_epoch=100)
+        self.assertFalse(decision.allowed)
 
     def test_duplicate_agent_identity_is_rejected(self):
         with self.assertRaises(ValueError):
