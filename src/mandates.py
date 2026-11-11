@@ -28,6 +28,9 @@ class TaskMandate:
     expires_at: int
     nonce: str
     key_id: str
+    principal_id: str
+    delegator_id: str
+    authority_assertion_id: str | None = None
     parent_mandate_id: str | None = None
     delegation_depth: int = 0
     max_delegation_depth: int = 0
@@ -49,6 +52,9 @@ class TaskMandate:
             "expires_at": self.expires_at,
             "nonce": self.nonce,
             "key_id": self.key_id,
+            "principal_id": self.principal_id,
+            "delegator_id": self.delegator_id,
+            "authority_assertion_id": self.authority_assertion_id,
             "parent_mandate_id": self.parent_mandate_id,
             "delegation_depth": self.delegation_depth,
             "max_delegation_depth": self.max_delegation_depth,
@@ -67,6 +73,68 @@ class TaskMandate:
 class SignedMandate:
     mandate: TaskMandate
     signature: bytes
+
+@dataclass(frozen=True)
+class AuthorityAssertion:
+    """Evidence that a delegator is permitted to grant an agent mandate."""
+    assertion_id: str
+    issuer: str
+    principal_id: str
+    delegator_id: str
+    scopes: frozenset[str]
+    resources: frozenset[str]
+    expires_at: int
+    nonce: str
+    key_id: str
+
+    def canonical_payload(self) -> bytes:
+        payload = {
+            "assertion_id": self.assertion_id, "issuer": self.issuer,
+            "principal_id": self.principal_id, "delegator_id": self.delegator_id,
+            "scopes": sorted(self.scopes), "resources": sorted(self.resources),
+            "expires_at": self.expires_at, "nonce": self.nonce, "key_id": self.key_id,
+        }
+        return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
+@dataclass(frozen=True)
+class SignedAuthorityAssertion:
+    assertion: AuthorityAssertion
+    signature: bytes
+
+
+@dataclass(frozen=True)
+class VerifiedAuthorityAssertion:
+    assertion: AuthorityAssertion
+
+
+class AuthorityAssertionValidator:
+    """Validates evidence of delegator authority independently from the mandate."""
+    def __init__(self, verifier: SignatureVerifier, nonce_store: NonceStore) -> None:
+        self.verifier = verifier
+        self.nonce_store = nonce_store
+
+    def validate(self, signed: SignedAuthorityAssertion, *, now: int,
+                 expected_principal_id: str, expected_delegator_id: str,
+                 requested_scopes: frozenset[str],
+                 requested_resources: frozenset[str]) -> VerifiedAuthorityAssertion | None:
+        a = signed.assertion
+        required = (a.assertion_id, a.issuer, a.principal_id, a.delegator_id, a.nonce, a.key_id)
+        if not all(isinstance(v, str) and v.strip() for v in required):
+            return None
+        if not signed.signature or a.expires_at <= now:
+            return None
+        if not self.verifier.verify(key_id=a.key_id, message=a.canonical_payload(), signature=signed.signature):
+            return None
+        if a.principal_id != expected_principal_id or a.delegator_id != expected_delegator_id:
+            return None
+        if not requested_scopes or not requested_scopes.issubset(a.scopes):
+            return None
+        if not requested_resources or not requested_resources.issubset(a.resources):
+            return None
+        if not self.nonce_store.claim(a.issuer, a.nonce, a.expires_at, now):
+            return None
+        return VerifiedAuthorityAssertion(a)
 
 
 @dataclass(frozen=True)
@@ -138,12 +206,14 @@ class MandateValidator:
         requested_scope: str,
         requested_resource: str,
         parent: VerifiedMandate | None = None,
+        authority: VerifiedAuthorityAssertion | None = None,
     ) -> MandateValidation:
         mandate = signed.mandate
         required_strings = (
             mandate.mandate_id, mandate.issuer, mandate.subject_agent_id,
             mandate.actor_workload_id, mandate.task_id, mandate.audience,
             mandate.nonce, mandate.key_id, mandate.policy_version,
+            mandate.principal_id, mandate.delegator_id,
         )
         if not all(isinstance(value, str) and value.strip() for value in required_strings):
             return MandateValidation(False, "mandate contains empty required fields")
@@ -182,8 +252,31 @@ class MandateValidator:
         if parent is None:
             if mandate.parent_mandate_id is not None or mandate.delegation_depth != 0:
                 return MandateValidation(False, "root mandate cannot claim a parent")
+            if mandate.delegator_id == mandate.principal_id:
+                if authority is not None:
+                    return MandateValidation(False, "self-delegated root must not claim third-party authority")
+            else:
+                if authority is None:
+                    return MandateValidation(False, "delegator authority assertion is required")
+                a = authority.assertion
+                if mandate.authority_assertion_id != a.assertion_id:
+                    return MandateValidation(False, "authority assertion reference mismatch")
+                if a.principal_id != mandate.principal_id or a.delegator_id != mandate.delegator_id:
+                    return MandateValidation(False, "authority assertion principal/delegator mismatch")
+                if not mandate.scopes.issubset(a.scopes):
+                    return MandateValidation(False, "mandate scopes exceed delegator authority")
+                if not mandate.resources.issubset(a.resources):
+                    return MandateValidation(False, "mandate resources exceed delegator authority")
+                if mandate.expires_at > a.expires_at:
+                    return MandateValidation(False, "mandate outlives delegator authority")
         else:
+            if authority is not None:
+                return MandateValidation(False, "child mandate cannot replace root authority evidence")
             verified_parent = parent.mandate
+            if mandate.principal_id != verified_parent.principal_id:
+                return MandateValidation(False, "delegated mandate principal mismatch")
+            if mandate.delegator_id != verified_parent.subject_agent_id:
+                return MandateValidation(False, "child delegator must be parent agent")
             if mandate.parent_mandate_id != verified_parent.mandate_id:
                 return MandateValidation(False, "parent mandate link mismatch")
             if mandate.issuer != verified_parent.subject_agent_id:
