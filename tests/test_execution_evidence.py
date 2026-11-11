@@ -1,7 +1,9 @@
 import unittest
+from dataclasses import replace
 
 from src.execution_evidence import (
     AgentEvidenceClaim,
+    ExecutionEvidenceChain,
     build_execution_receipt,
     verify_execution_link,
 )
@@ -66,6 +68,31 @@ class ExecutionEvidenceTests(unittest.TestCase):
         self.assertIsNone(self.verify(expected_runtime_agent_id="spiffe://other"))
         self.assertIsNone(self.verify(expected_policy_pack_digest="c" * 64))
         self.assertIsNone(self.verify(audit_event_sequence=2))
+
+
+    def test_execution_receipt_chain_is_contiguous_and_verifiable(self):
+        chain = ExecutionEvidenceChain()
+        first = chain.append(self.receipt)
+        second_input = build_execution_receipt(
+            claim=self.claim, request=self.request, request_id="req-002",
+            runtime_agent_id="runtime-1", sequence=2, resource="vendor-7",
+            tool="payment", action="create-payment", decision="allow",
+            reason_code="approved", occurred_at_epoch=1_800_000_001,
+        )
+        second = chain.append(second_input)
+        self.assertEqual(second.previous_receipt_hash, first.receipt_digest)
+        self.assertTrue(chain.verify())
+
+    def test_execution_receipt_chain_rejects_sequence_gap(self):
+        chain = ExecutionEvidenceChain()
+        with self.assertRaises(ValueError):
+            chain.append(replace(self.receipt, sequence=2))
+
+    def test_execution_receipt_chain_detects_receipt_tampering(self):
+        chain = ExecutionEvidenceChain()
+        chain.append(self.receipt)
+        chain._receipts[0] = replace(chain._receipts[0], decision="allow")
+        self.assertFalse(chain.verify())
 
     def test_claim_requires_valid_policy_digest(self):
         invalid = AgentEvidenceClaim(
