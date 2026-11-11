@@ -100,6 +100,7 @@ class AgentTrustRegistry:
         self._agents: dict[str, AgentIdentity] = {}
         self._grants: dict[str, DelegationGrant] = {}
         self._sensitive_tools = sensitive_tools
+        self._used_approvals: set[str] = set()
         self.audit = audit or InMemoryAppendOnlyAudit()
 
     def register_agent(self, identity: AgentIdentity) -> None:
@@ -197,10 +198,15 @@ class AgentTrustRegistry:
             grant = self._effective_grant(request.agent_id, now_epoch)
             if grant is None or request.required_scope not in grant.scopes:
                 decision = AuthorizationDecision(False, "no valid delegated grant for required scope")
-            elif request.tool_name in self._sensitive_tools and not self._approval_matches(request, approval):
-                decision = AuthorizationDecision(False, "exact human approval required")
+            elif request.tool_name in self._sensitive_tools and (
+                not self._approval_matches(request, approval)
+                or request.request_id in self._used_approvals
+            ):
+                decision = AuthorizationDecision(False, "fresh exact human approval required")
             else:
                 decision = AuthorizationDecision(True, "authorized by deterministic policy")
+                if request.tool_name in self._sensitive_tools:
+                    self._used_approvals.add(request.request_id)
         self.audit.append(AuditEvent(
             sequence=len(self.audit.events) + 1,
             request_id=request.request_id,
