@@ -33,20 +33,25 @@ python -m unittest discover -s tests -v
 ## Current limitations — do not overstate readiness
 - Registry and grants are in-memory only; restart loses state.
 - Agent IDs are application identifiers, not cryptographically authenticated workload identities.
+- Grants are persistent in-memory policy records, not zero-standing-privilege JIT credentials.
 - Grants are not signed and there is no credential issuance/rotation integration.
 - HumanApproval is a local data contract, not a verified human authentication workflow.
 - Audit is append-only within this process only; it is not tamper-evident, durable, or externally anchored.
-- The module is not yet wired into the OIARuntime/GovernedTool execution path.
+- The local trust gate is wired into OIARuntime/GovernedTool immediately before the existing tool allowlist and executor. Per-tool scopes must be configured explicitly; absent mappings fail closed.
 - No MCP server, A2A transport, external policy engine, or production secrets integration is included.
 - Prompt injection is mitigated at the authorization boundary by refusing to treat text as authority; this is not a model-level prompt-injection detector.
 - No production deployment, CI run, or external penetration test is claimed.
 
+## Standards alignment and remaining gaps
+
+The implementation is directionally aligned with NIST's October 27, 2026 agent identity design tenets for distinct agent identities, delegation and attenuation, human review triggers, and architectural separation of policy from reasoning. It is not yet conformant evidence for those tenets: identity is not cryptographically verifiable, mandates are not signed, grants are not just-in-time/zero-standing, and human approval is not independently authenticated.
+
 ## Next implementation gates
-1. Wire authorization into the runtime immediately before every tool execution.
-2. Add resource/action-level policy and signed, expiring delegation credentials.
-3. Bind agent identities to authenticated workloads and environment-specific secrets.
-4. Implement a durable append-only audit backend and trace correlation.
-5. Add negative tests for prompt-injected tool output, confused-deputy attempts, replay, and revocation during a workflow.
+1. Add resource-level policy, signed task mandates, and signed/short-lived JIT delegation credentials.
+2. Bind logical agent identity to authenticated workloads and environment-specific credentials.
+3. Replace data-object human approvals with authenticated out-of-band approval for high-impact actions.
+4. Implement durable, tamper-evident append-only audit and trace/provenance correlation.
+5. Add negative tests for prompt-injected tool output, confused-deputy attempts, replay, branching delegation, and revocation during a workflow.
 6. Run the complete test suite and CI on this branch.
 7. Require security and operations owner review before any production deployment.
 
