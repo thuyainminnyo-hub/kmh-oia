@@ -55,6 +55,20 @@ The IETF draft *Credential Delegation Protocol for AI Agents in Multi-System Env
 
 These drafts reinforce that a signed mandate alone is not sufficient: the relying party must separately trust the issuer and the source of the delegator's authority; validate the mandate; then apply its own authorization policy. Prompt injection can still manipulate an agent into requesting an action that is technically within its mandate, so runtime risk controls and human intent checks remain necessary.
 
+### IETF draft review: authority is distinct from mandate
+
+The current IETF Datatracker entry confirms `draft-hulea-wimse-agent-mandate-01` is an active individual Internet-Draft last updated 2026-11-01, not an endorsed IETF standard or RFC. Its central design distinction is important for KMH: (1) an Authority Assertion says what powers a delegator holds for a principal; (2) a separate Mandate Assertion says what authority was actually granted to the agent. A narrowing delegation chain alone cannot prove that the root delegator was entitled to delegate.
+
+The draft also defines an explicit Validation Profile, attributed claims by artifact issuer/role, deterministic validation separate from relying-party policy, post-token-exchange constraint enforcement, status/revocation handling, obligations, and a single-execution access token. A valid mandate does not prove that the action reflects the principal's current intent or that the agent was not prompt-injected.
+
+The October 30, 2026 WIMSE Credential Delegation Protocol draft profiles existing OAuth Token Exchange, DPoP, Rich Authorization Requests and CIBA rather than defining a new OAuth grant or token format. It proposes ephemeral agent keys, capability-shaped resource/operation tokens, credential wrapping, consent-gated delegation, cascading revocation and tamper-evident audit. Both documents are work in progress and must be treated as design input, not normative standards.
+
+### Follow-up code refinement: separate authority evidence
+
+Extended `src/mandates.py` so a root mandate issued by a third-party representative must reference a separately validated `AuthorityAssertion`. The assertion binds its issuer, principal, delegator, scopes, resources, expiry, nonce and key ID. Its verifier call is role-aware (`authority_source`) and mandate signature verification is role-aware (`mandate_issuer`), so the configured trust adapter can distinguish issuer roles. Child mandates preserve the original principal and must be issued by the parent agent identity. Tests cover missing authority evidence and scope/resource widening.
+
+Important limitation: the role-aware `SignatureVerifier` is still only an interface. The test verifier is a digest fixture, not asymmetric cryptography. `VerifiedAuthorityAssertion` and `VerifiedMandate` are ordinary Python objects, not language-enforced unforgeable capabilities; only trusted in-process code may construct/pass them. Production must use a trusted key resolver that binds issuer + role + key ID to approved trust anchors, verify the delegator's instruction to the mandate issuer, and protect proof objects across process boundaries.
+
 ### Local signed-mandate validation slice
 
 Added `src/mandates.py` with:
@@ -63,6 +77,7 @@ Added `src/mandates.py` with:
 - Audience, subject-agent, workload ID, time-window, maximum-lifetime, scope, resource and delegation-depth validation.
 - Parent-child issuer linkage and attenuation checks for scopes, resources, expiry and delegation depth.
 - A `VerifiedMandate` proof object returned only after validation; child validation requires this proof object rather than an arbitrary parent payload.
+- Separate root `AuthorityAssertion` and `VerifiedAuthorityAssertion` flow for third-party delegators; the mandate and authority artifact signatures are checked with distinct issuer roles.
 - Nonce replay detection through a pluggable `NonceStore`; the included in-memory implementation is single-process test/local only.
 
 Added `tests/test_mandates.py` for signature tampering, wrong audience/identity, time bounds, lifetime, scope/resource escalation, root/child constraints, replay and depth limits. Its digest-only verifier is strictly a test fixture and is NOT a cryptographic signature implementation.
@@ -88,7 +103,7 @@ Added `tests/test_mandates.py` for signature tampering, wrong audience/identity,
 | Zero standing privilege | Not implemented | No idle grant; task-scoped JIT issuance |
 | Short-lived authorization | Grant expiry only | Audience-bound ephemeral credential and per-call recheck |
 | Human review | Local approval data object | Out-of-band authenticated, single-use approval |
-| Mandates | Local validation slice added; no production signature provider or runtime wiring | Trusted issuer/key validation, signed authority evidence, downstream enforcement |
+| Mandates | Local Authority Assertion + Mandate validation interfaces; no production crypto/runtime wiring | Trusted issuer-role anchors, proof of delegator instruction, Validation Profile, obligations and downstream enforcement |
 | Policy/reasoning separation | Local deterministic gate | Prove untrusted model/tool text cannot mutate policy or credentials |
 | Deterministic decision | Local rule checks | Versioned policy, resource/action decision tests |
 | Immutable evidence | In-memory list only | Durable independent tamper-evident audit |
