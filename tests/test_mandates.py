@@ -91,7 +91,9 @@ class MandateValidatorTests(unittest.TestCase):
         self.assertFalse(self.validate(self.signed(child_shaped_root)).valid)
 
     def test_delegated_mandate_must_attenuate_parent(self):
-        parent = self.mandate
+        parent_result = self.validate()
+        self.assertTrue(parent_result.valid)
+        parent = parent_result.verified_mandate
         child = TaskMandate(
             mandate_id="m-child", issuer="agent-1",
             subject_agent_id="agent-2",
@@ -114,7 +116,9 @@ class MandateValidatorTests(unittest.TestCase):
         ).valid)
 
     def test_child_cannot_widen_parent_scope_or_resource_or_expiry(self):
-        parent = self.mandate
+        parent_result = self.validate()
+        self.assertTrue(parent_result.valid)
+        parent = parent_result.verified_mandate
         variants = [
             {"scopes": frozenset({"tool:admin"})},
             {"resources": frozenset({"document:999"})},
