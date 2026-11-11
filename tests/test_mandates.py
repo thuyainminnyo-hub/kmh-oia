@@ -15,8 +15,9 @@ from src.mandates import (
 class DigestOnlyTestVerifier:
     """Test fixture only; SHA-256 is not a production signature algorithm."""
 
-    def verify(self, *, key_id, message, signature):
-        return key_id == "test-key" and signature == hashlib.sha256(message).digest()
+    def verify(self, *, issuer, role, key_id, message, signature):
+        return (key_id == "test-key" and bool(issuer) and role in {"authority_source", "mandate_issuer"}
+                and signature == hashlib.sha256(message).digest())
 
 
 class MandateValidatorTests(unittest.TestCase):
