@@ -66,6 +66,9 @@ class AuditEvent:
 
 
 class AuditSink(Protocol):
+    @property
+    def events(self) -> tuple[AuditEvent, ...]: ...
+
     def append(self, event: AuditEvent) -> None: ...
 
 
