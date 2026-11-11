@@ -124,7 +124,7 @@ class AuthorityAssertionValidator:
             return None
         if not signed.signature or a.expires_at <= now:
             return None
-        if not self.verifier.verify(key_id=a.key_id, message=a.canonical_payload(), signature=signed.signature):
+        if not self.verifier.verify(issuer=a.issuer, role="authority_source", key_id=a.key_id, message=a.canonical_payload(), signature=signed.signature):
             return None
         if a.principal_id != expected_principal_id or a.delegator_id != expected_delegator_id:
             return None
@@ -154,7 +154,7 @@ class MandateValidation:
 class SignatureVerifier(Protocol):
     """Adapter to a real asymmetric signature verifier and trusted key resolver."""
 
-    def verify(self, *, key_id: str, message: bytes, signature: bytes) -> bool: ...
+    def verify(self, *, issuer: str, role: str, key_id: str, message: bytes, signature: bytes) -> bool: ...
 
 
 class NonceStore(Protocol):
@@ -220,6 +220,8 @@ class MandateValidator:
         if not signed.signature:
             return MandateValidation(False, "mandate signature is missing")
         if not self.signature_verifier.verify(
+            issuer=mandate.issuer,
+            role="mandate_issuer",
             key_id=mandate.key_id,
             message=mandate.canonical_payload(),
             signature=signed.signature,
