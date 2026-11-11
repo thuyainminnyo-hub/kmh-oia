@@ -13,6 +13,7 @@ Branch: `feat/agent-trust-governance-pilot`
 - Revocation of registered agents.
 - Action-specific human approval for configured sensitive tools.
 - Append-only in-memory decision audit with contiguous sequence numbers.
+- Added an optional SQLite-backed durable audit sink with a SHA-256 hash chain, append-only update/delete triggers, restart persistence, and chain verification (`src/durable_audit.py`).
 - Unit tests for allow/deny, escalation, expiry, approval binding, revocation, and audit ordering.
 
 ## Security invariants
@@ -36,7 +37,7 @@ python -m unittest discover -s tests -v
 - Grants are persistent in-memory policy records, not zero-standing-privilege JIT credentials.
 - Grants are not signed and there is no credential issuance/rotation integration.
 - HumanApproval is a local data contract, not a verified human authentication workflow.
-- Audit is append-only within this process only; it is not tamper-evident, durable, or externally anchored.
+- The default audit sink is still in-memory. The optional SQLite sink persists events and detects row tampering through a hash chain, but a privileged database administrator can still rewrite the database and recompute the chain; it is not independently administered, WORM storage, or externally anchored.
 - The local trust gate is wired into OIARuntime/GovernedTool immediately before the existing tool allowlist and executor. Per-tool scopes must be configured explicitly; absent mappings fail closed.
 - No MCP server, A2A transport, external policy engine, or production secrets integration is included.
 - Prompt injection is mitigated at the authorization boundary by refusing to treat text as authority; this is not a model-level prompt-injection detector.
@@ -78,7 +79,7 @@ NIST's October 27, 2026 *Design Tenets for Agent Identity Management Systems* pr
 3. Implement task-scoped JIT authorization and per-invocation revocation/audience/resource checks.
 4. Integrate a trusted out-of-band human approval provider and action-digest binding.
 5. Implement durable independent audit with integrity verification, retention, and export.
-6. Add tests for signature tampering, wrong issuer/audience, expired/not-yet-valid mandate, replay, delegation-chain tampering, confused deputy, cross-resource substitution, revoked workload, approval-key isolation, audit-store outage/fail-closed behavior, and historical verification after key rotation.
+6. Add tests for signature tampering, wrong issuer/audience, expired/not-yet-valid mandate, replay, delegation-chain tampering, confused deputy, cross-resource substitution, revoked workload, approval-key isolation, audit-store outage/fail-closed behavior, and historical verification after key rotation. The SQLite sink currently has persistence, sequence, append-only trigger, and hash-chain tamper-detection tests.
 7. Run full CI against the exact current branch head; require security and operations owner review before any production deployment.
 
 ### Research references
