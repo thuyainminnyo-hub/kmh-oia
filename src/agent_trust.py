@@ -146,14 +146,12 @@ class AgentTrustRegistry:
         self._grants[grant.grant_id] = grant
 
     def _effective_grant(self, agent_id: str, now_epoch: int) -> DelegationGrant | None:
-        candidates = [
+        roots = [
             grant for grant in self._grants.values()
-            if grant.subject_agent_id == agent_id
-            and grant.parent_grant_id is None
+            if grant.parent_grant_id is None
         ]
-        # A single active authority chain per agent keeps the initial pilot deterministic.
         valid: list[DelegationGrant] = []
-        for root in candidates:
+        for root in roots:
             current = root
             seen = {root.grant_id}
             chain_valid = root.expires_at_epoch > now_epoch
@@ -161,7 +159,7 @@ class AgentTrustRegistry:
                 children = [
                     item for item in self._grants.values()
                     if item.parent_grant_id == current.grant_id
-                    and item.subject_agent_id == agent_id
+                    and item.issuer == current.subject_agent_id
                 ]
                 if not children:
                     break
@@ -169,15 +167,13 @@ class AgentTrustRegistry:
                     chain_valid = False
                     break
                 child = children[0]
-                if child.grant_id in seen or child.expires_at_epoch <= now_epoch:
+                if (child.grant_id in seen or child.expires_at_epoch <= now_epoch
+                        or not child.scopes.issubset(current.scopes)):
                     chain_valid = False
                     break
                 seen.add(child.grant_id)
-                if not child.scopes.issubset(current.scopes):
-                    chain_valid = False
-                    break
                 current = child
-            if chain_valid:
+            if chain_valid and current.subject_agent_id == agent_id:
                 valid.append(current)
         return valid[0] if len(valid) == 1 else None
 
