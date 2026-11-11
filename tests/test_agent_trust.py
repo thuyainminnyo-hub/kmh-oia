@@ -79,6 +79,18 @@ class AgentTrustRegistryTests(unittest.TestCase):
             self.registry.authorize(request, now_epoch=100, approval=approval).allowed
         )
 
+
+    def test_sensitive_approval_is_single_use(self):
+        request = self.request(tool_name="publish", required_scope="publish")
+        approval = HumanApproval(
+            "req-1", "worker", "publish", "content/item-1", "human-owner", True
+        )
+        self.assertTrue(
+            self.registry.authorize(request, now_epoch=100, approval=approval).allowed
+        )
+        replay = self.registry.authorize(request, now_epoch=100, approval=approval)
+        self.assertFalse(replay.allowed)
+
     def test_revoked_agent_is_denied(self):
         self.registry.revoke_agent("worker")
         self.assertFalse(self.registry.authorize(self.request(), now_epoch=100).allowed)
