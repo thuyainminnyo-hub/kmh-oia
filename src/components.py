@@ -121,10 +121,13 @@ class OIARuntime:
         output, stages, _ = self.execute_detailed(goal, session_id, tool_name)
         return output, stages
 
-    def execute_detailed(self, goal: str, session_id: str = "default", tool_name: str | None = "echo", *, resource: str = "local", human_approval: HumanApproval | None = None) -> tuple[str, list[str], list[TraceEvent]]:
+    def execute_detailed(self, goal: str, session_id: str = "default", tool_name: str | None = "echo", *, resource: str = "local", human_approval: HumanApproval | None = None, request_id: str | None = None) -> tuple[str, list[str], list[TraceEvent]]:
         stages: list[str] = []
         execution = ExecutionContext.create(session_id)
-        ids = {"request_id": execution.request_id, "session_id": execution.session_id, "workflow_id": execution.workflow_id, "task_id": execution.task_id, "agent_id": execution.agent_id, "trace_id": execution.trace_id}
+        action_request_id = request_id or execution.request_id
+        if not isinstance(action_request_id, str) or not action_request_id.strip():
+            raise ValueError("request_id must be a non-empty string")
+        ids = {"request_id": action_request_id, "session_id": execution.session_id, "workflow_id": execution.workflow_id, "task_id": execution.task_id, "agent_id": execution.agent_id, "trace_id": execution.trace_id}
 
         def emit(stage: str, status: str = "ok", **metadata: str) -> None:
             event = TraceEvent(stage, status, {**ids, "status": status, **metadata})
@@ -153,7 +156,7 @@ class OIARuntime:
             if not autonomy.allowed:
                 emit("tool_security", status="blocked", tool=selected_tool, reason=autonomy.reason, autonomy_status="blocked", autonomy_action=selected_tool, autonomy_scope=self.autonomy_scope, autonomy_reason=autonomy.reason)
                 raise PermissionError(autonomy.reason)
-            result = self.tool.execute(ToolRequest(selected_tool, decision.input_text, execution.request_id, resource), approval=human_approval)
+            result = self.tool.execute(ToolRequest(selected_tool, decision.input_text, action_request_id, resource), approval=human_approval)
             emit("tool_security", status="ok" if result.success else "blocked", tool=selected_tool, reason=result.reason, autonomy_status="ok", autonomy_action=selected_tool, autonomy_scope=self.autonomy_scope, autonomy_reason=autonomy.reason)
             if not result.success:
                 raise PermissionError(result.reason)
