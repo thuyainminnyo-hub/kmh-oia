@@ -47,6 +47,28 @@ python -m unittest discover -s tests -v
 
 NIST's October 27, 2026 *Design Tenets for Agent Identity Management Systems* provides the primary architecture checklist for this pilot. It calls for distinct cryptographically verifiable agent identity, cryptographic linkage and attenuated delegation, zero standing privilege, short-lived audience-specific JIT authorization with runtime re-verification, risk-triggered human review, signed task mandates, separation of policy from reasoning, deterministic access decisions, and independent tamper-evident evidence. This pilot is only a local policy prototype; it does not yet demonstrate conformance.
 
+### November 2026 mandate-protocol research
+
+The IETF draft *Verifiable Mandates for Agents Acting Across Administrative Domains* (draft-hulea-wimse-agent-mandate-01, published 2026-11-01) distinguishes evidence that a delegator has authority from evidence that the delegator actually granted a mandate. It also separates deterministic mandate validation from the relying party's own authorization decision, attributes claims to their issuers, and requires mandate constraints to remain enforced after token exchange. This is an active Internet-Draft, not an adopted RFC.
+
+The IETF draft *Credential Delegation Protocol for AI Agents in Multi-System Environments* (draft-sweeney-wimse-credential-delegation-02, published 2026-10-30) profiles OAuth Token Exchange, DPoP, Rich Authorization Requests and CIBA, with ephemeral agent keys, resource-scoped capability tokens, server-side credential vaulting, consent, cascading revocation and audit. It is also work in progress, not a standard.
+
+These drafts reinforce that a signed mandate alone is not sufficient: the relying party must separately trust the issuer and the source of the delegator's authority; validate the mandate; then apply its own authorization policy. Prompt injection can still manipulate an agent into requesting an action that is technically within its mandate, so runtime risk controls and human intent checks remain necessary.
+
+### Local signed-mandate validation slice
+
+Added `src/mandates.py` with:
+- Canonical JSON serialization and SHA-256 payload digest for deterministic signature input.
+- A pluggable `SignatureVerifier` interface; no production cryptographic algorithm or key is silently assumed.
+- Audience, subject-agent, workload ID, time-window, maximum-lifetime, scope, resource and delegation-depth validation.
+- Parent-child issuer linkage and attenuation checks for scopes, resources, expiry and delegation depth.
+- A `VerifiedMandate` proof object returned only after validation; child validation requires this proof object rather than an arbitrary parent payload.
+- Nonce replay detection through a pluggable `NonceStore`; the included in-memory implementation is single-process test/local only.
+
+Added `tests/test_mandates.py` for signature tampering, wrong audience/identity, time bounds, lifetime, scope/resource escalation, root/child constraints, replay and depth limits. Its digest-only verifier is strictly a test fixture and is NOT a cryptographic signature implementation.
+
+**Not implemented:** production Ed25519/JWS/KMS signing or verification, trusted issuer/key discovery and rotation, atomic distributed nonce storage, authenticated SPIFFE workload attestation, signed evidence of delegator authority, OAuth token exchange/DPoP/CIBA, mandate enforcement after downstream token exchange, production authorization policy, or runtime wiring of the mandate validator. The caller must obtain the parent `VerifiedMandate` from a trusted validator configured with an approved signature verifier and trust policy.
+
 ### Recommended KMH target architecture
 
 1. **Workload identity:** keep a stable logical KMH agent ID, but bind each running workload instance to an attested SPIFFE ID. Obtain short-lived SVIDs through the SPIFFE Workload API; do not store private keys or static bearer credentials in agent configuration. Prefer X.509-SVID plus mTLS for service-to-service calls where supported. Use JWT-SVID only where federation or an L7 boundary requires it, with strict issuer, audience, expiry, signature and key-ID validation.
@@ -66,7 +88,7 @@ NIST's October 27, 2026 *Design Tenets for Agent Identity Management Systems* pr
 | Zero standing privilege | Not implemented | No idle grant; task-scoped JIT issuance |
 | Short-lived authorization | Grant expiry only | Audience-bound ephemeral credential and per-call recheck |
 | Human review | Local approval data object | Out-of-band authenticated, single-use approval |
-| Mandates | Not implemented | Signature verification and constraint enforcement |
+| Mandates | Local validation slice added; no production signature provider or runtime wiring | Trusted issuer/key validation, signed authority evidence, downstream enforcement |
 | Policy/reasoning separation | Local deterministic gate | Prove untrusted model/tool text cannot mutate policy or credentials |
 | Deterministic decision | Local rule checks | Versioned policy, resource/action decision tests |
 | Immutable evidence | In-memory list only | Durable independent tamper-evident audit |
@@ -74,12 +96,12 @@ NIST's October 27, 2026 *Design Tenets for Agent Identity Management Systems* pr
 
 ### Next implementation gates
 
-1. Specify and threat-model the signed mandate schema and trust-root/key-rotation lifecycle.
+1. Specify and threat-model the signed mandate schema and trust-root/key-rotation lifecycle; review the local validator against the IETF November 2026 mandate draft.
 2. Add SPIFFE/SPIRE workload identity adapter behind a provider interface; retain a clearly labelled local test provider for unit tests only.
 3. Implement task-scoped JIT authorization and per-invocation revocation/audience/resource checks.
 4. Integrate a trusted out-of-band human approval provider and action-digest binding.
 5. Implement durable independent audit with integrity verification, retention, and export.
-6. Add tests for signature tampering, wrong issuer/audience, expired/not-yet-valid mandate, replay, delegation-chain tampering, confused deputy, cross-resource substitution, revoked workload, approval-key isolation, audit-store outage/fail-closed behavior, and historical verification after key rotation. The SQLite sink currently has persistence, sequence, append-only trigger, and hash-chain tamper-detection tests.
+6. Add production-crypto conformance tests for signature tampering, unknown/revoked issuer keys, wrong issuer/audience, expired/not-yet-valid mandate, distributed replay, delegation-chain tampering, confused deputy, cross-resource substitution, revoked workload, approval-key isolation, audit-store outage/fail-closed behavior, and historical verification after key rotation. The local mandate tests use a digest-only test verifier and do not prove cryptographic security. The SQLite sink has persistence, sequence, append-only trigger, and hash-chain tamper-detection tests.
 7. Run full CI against the exact current branch head; require security and operations owner review before any production deployment.
 
 ### Research references
