@@ -57,6 +57,10 @@ class RuntimeAgentTrustIntegrationTests(unittest.TestCase):
             "hello", request_id="approval-req-1", human_approval=approval
         )
         self.assertEqual(response, "hello")
+        with self.assertRaises(PermissionError):
+            runtime.execute_detailed(
+                "hello", request_id="approval-req-1", human_approval=approval
+            )
 
     def test_runtime_authorizes_tool_at_execution_boundary(self):
         runtime = OIARuntime(
