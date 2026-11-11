@@ -23,7 +23,7 @@ class AgentTrustRegistryTests(unittest.TestCase):
         ))
         self.registry.delegate(DelegationGrant(
             "worker-read", "planner", "worker",
-            frozenset({"content:read"}), 9_000, "root",
+            frozenset({"content:read", "publish"}), 9_000, "root",
         ))
 
     def request(self, **overrides):
