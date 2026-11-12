@@ -41,10 +41,18 @@ class CcfInclusionReceiptVerifierTests(unittest.TestCase):
     def setUp(self):
         self.statement = b"candidate-signed-statement"
         self.digest = hashlib.sha256(self.statement).digest()
-        self.root = b"merkle-root"
+        self.internal_hash = b"i" * 32
+        self.internal_evidence = "internal-evidence"
+        self.sibling = b"s" * 32
+        self.leaf_hash = hashlib.sha256(
+            self.internal_hash
+            + hashlib.sha256(self.internal_evidence.encode("utf-8")).digest()
+            + self.digest
+        ).digest()
+        self.root = hashlib.sha256(self.leaf_hash + self.sibling).digest()
         self.proofs = {
-            b"proof-1": {"valid": True, "leaf": {"data-hash": self.digest}, "root": self.root},
-            b"proof-2": {"valid": True, "leaf": {"data-hash": self.digest}, "root": self.root},
+            b"proof-1": {1: [self.internal_hash, self.internal_evidence, self.digest], 2: [(False, self.sibling)]},
+            b"proof-2": {1: [self.internal_hash, self.internal_evidence, self.digest], 2: [(False, self.sibling)]},
         }
         self.receipt = {
             "payload": None,
@@ -69,7 +77,7 @@ class CcfInclusionReceiptVerifierTests(unittest.TestCase):
         self.assertEqual(self.cose.calls[0][3], "https://transparency.example")
 
     def test_rejects_proof_for_different_signed_statement(self):
-        bad = {"valid": True, "leaf": {"data-hash": b"x" * 32}, "root": self.root}
+        bad = {1: [self.internal_hash, self.internal_evidence, b"x" * 32], 2: [(False, self.sibling)]}
         verifier = CcfInclusionReceiptVerifier(
             codec=FakeCodec(self.receipt, {b"proof-1": bad, b"proof-2": bad}),
             cose_verifier=self.cose, trusted_key_set={"kid": "k"},
@@ -81,7 +89,8 @@ class CcfInclusionReceiptVerifierTests(unittest.TestCase):
     def test_rejects_proofs_with_different_roots(self):
         inconsistent = dict(self.proofs)
         inconsistent[b"proof-2"] = {
-            "valid": True, "leaf": {"data-hash": self.digest}, "root": b"other-root"
+            1: [self.internal_hash, self.internal_evidence, self.digest],
+            2: [(False, b"d" * 32)],
         }
         verifier = CcfInclusionReceiptVerifier(
             codec=FakeCodec(self.receipt, inconsistent),
@@ -150,8 +159,8 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
         self.newer = hashlib.sha256(self.older + self.sibling).digest()
         self.proofs = {
             b"p1": {
-                "valid": True, "anchor": self.older,
-                "path": [(False, self.sibling)],
+                1: self.older,
+                2: [(False, self.sibling)],
             },
             b"p2": {
                 "valid": True, "anchor": self.older,
@@ -203,7 +212,7 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
 
     def test_rejects_divergent_newer_roots(self):
         proofs = dict(self.proofs)
-        proofs[b"p2"] = dict(proofs[b"p2"], path=[(False, b"d" * 32)])
+        proofs[b"p2"] = dict(proofs[b"p2"], **{2: [(False, b"d" * 32)]})
         verifier = CcfConsistencyReceiptVerifier(
             codec=FakeConsistencyCodec(self.receipt, proofs),
             cose_verifier=self.cose, trusted_key_set={"kid": "k"},
@@ -215,7 +224,7 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
     def test_rejects_invalid_path_and_embedded_payload(self):
         bad_proofs = dict(self.proofs)
         bad_proofs[b"p1"] = dict(
-            bad_proofs[b"p1"], path=[(True, b"s" * 32)]
+            bad_proofs[b"p1"], **{2: [(True, b"s" * 32)]}
         )
         verifier = CcfConsistencyReceiptVerifier(
             codec=FakeConsistencyCodec(self.receipt, bad_proofs),
