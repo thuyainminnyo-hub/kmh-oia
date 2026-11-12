@@ -48,6 +48,21 @@ Added tests/test_scitt_client.py for key discovery, immediate registration, asyn
 
 Agent-specific profiles remain drafts. The SCITT WG list currently includes draft-thaha-scitt-agent-execution-evidence-02, draft-emirdag-scitt-ai-agent-execution-01 and draft-mih-scitt-agent-action-capsule-03. The Action Capsule draft makes an important distinction between an action being permitted and what actually happened, and distinguishes dispatch from observed/bound effect. These are design inputs, not adopted standards. KMH should keep its application-specific Agent Action Evidence schema separate from the base SCRAPI transport layer.
 
+### CCF COSE receipt profile review and verifier boundary (2026-11-12)
+
+The latest Datatracker revision is draft-ietf-scitt-receipts-ccf-profile-06, published 2026-10-22 and still an active Internet-Draft (not an RFC). Its history records the COSE Verifiable Data Structure Algorithms IANA registration as approved on 2026-11-10. The CCF profile defines inclusion and consistency proofs for append-only CCF ledgers. For inclusion verification, the verifier recomputes SHA-256 over the candidate Signed Statement bytes, requires every proof leaf data-hash to equal that locally computed digest, validates the proof schema, computes the Merkle root, and verifies the detached COSE receipt signature over that root using a trusted CCF/Transparency Service key. Multiple proofs in one receipt must agree on the root. Consistency verification additionally requires a previously trusted older root and checks that the proof extends that state.
+
+Added src/receipt_verification.py as a strict orchestration boundary:
+- Recomputes candidate Signed Statement SHA-256 locally (does not trust a digest in the receipt).
+- Requires detached payload and SCITT VDP header/inclusion proof label.
+- Delegates CBOR decoding, CCF proof schema validation, Merkle-root calculation and COSE signature/key/service-identity verification to injected adapters.
+- Requires all inclusion proofs to bind the candidate statement and agree on one root.
+- Returns a VerifiedInclusion result only after the injected cryptographic verifier accepts the receipt.
+
+Added tests/test_receipt_verification.py for valid inclusion binding, wrong statement digest, inconsistent proof roots, invalid COSE/service identity, embedded payload, missing proofs and missing trusted keys. Tests use fake adapters and do NOT prove cryptographic conformance.
+
+Not implemented: actual CBOR/COSE codec, CCF proof schema implementation, Merkle hash algorithm implementation, key discovery-to-trust policy, COSE signature verification, certificate chain/rotation/revocation, consistency proof verifier, checkpoint/epoch trust, multi-TS quorum/policy, live service integration or offline bundle verification. This is a security-critical adapter boundary, not a production verifier. Use official CCF verifier implementations/conformance vectors or a reviewed library before enabling trust decisions.
+
 ## Current limitations — do not overstate readiness
 - Registry and grants are in-memory only; restart loses state.
 - Agent IDs are application identifiers, not cryptographically authenticated workload identities.
