@@ -31,6 +31,23 @@ python -m unittest tests.test_agent_trust -v
 python -m unittest discover -s tests -v
 ```
 
+### SCITT interoperability research and SCRAPI client boundary (2026-11-12)
+
+RFC 9943 (June 2026) is the adopted IETF Standards Track architecture for signed-statement transparency. It defines COSE-based Signed Statements, Transparency Services, Registration Policies and independently verifiable Receipts. It explicitly allows one Signed Statement to be registered with multiple independent Transparency Services; relying parties decide which issuers and services to trust. A Receipt proves registration/inclusion, not the truth of the issuer's claims.
+
+The SCITT Reference APIs draft-ietf-scitt-scrapi-11 (June 26, 2026) was approved by the IESG as Proposed Standard on June 29, 2026 and is in the RFC Editor queue; it is not yet an RFC. Its mandatory client operations are key discovery at /.well-known/scitt-keys, POST /entries for Signed Statement registration, and receipt resolution at the returned Location. Registration can return 201 with an immediate COSE receipt or 202 with a Location for later resolution; receipt resolution can return 200, 204 while pending, or 404. Clients must handle generic HTTP status classes and Concise Problem Details rather than hard-coding only illustrative statuses. Key retention is important: old TS verification keys must remain available for as long as old receipts need verification.
+
+Added src/scitt_client.py as an injectable-transport protocol boundary:
+- SCRAPI key discovery request with application/cbor.
+- Signed Statement registration with application/cose and explicit 201/202 result handling.
+- Receipt resolution with explicit ready/pending/not-found outcomes.
+- HTTPS-only service origin and same-origin Location enforcement to prevent credential or receipt polling redirects to arbitrary hosts.
+- No implicit polling, retry, signing, CBOR decoding, COSE verification or real network transport; these are intentionally separate adapters/gates.
+
+Added tests/test_scitt_client.py for key discovery, immediate registration, asynchronous registration and resolution, not-found handling, cross-origin/downgrade rejection, media-type validation and invalid async bodies.
+
+Agent-specific profiles remain drafts. The SCITT WG list currently includes draft-thaha-scitt-agent-execution-evidence-02, draft-emirdag-scitt-ai-agent-execution-01 and draft-mih-scitt-agent-action-capsule-03. The Action Capsule draft makes an important distinction between an action being permitted and what actually happened, and distinguishes dispatch from observed/bound effect. These are design inputs, not adopted standards. KMH should keep its application-specific Agent Action Evidence schema separate from the base SCRAPI transport layer.
+
 ## Current limitations — do not overstate readiness
 - Registry and grants are in-memory only; restart loses state.
 - Agent IDs are application identifiers, not cryptographically authenticated workload identities.
