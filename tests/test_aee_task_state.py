@@ -174,6 +174,35 @@ class AeeTaskStateTests(unittest.TestCase):
         with self.assertRaises(AeeTaskValidationError):
             validate_aee_receipt_sequence(records)
 
+
+    def test_accepts_interleaved_open_tasks(self):
+        records = self.chain([
+            (0, "task_start", "allow", 0, {}),
+            (1, "task_start", "allow", 1, {}),
+            (2, "inference", "allow", 0, {}),
+            (3, "inference", "allow", 1, {}),
+            (4, "task_end", "allow", 0, {}),
+            (5, "task_end", "allow", 1, {}),
+        ])
+        result = validate_aee_receipt_sequence(records)
+        self.assertEqual(result.task_count, 2)
+
+    def test_rejects_decreasing_timestamp_across_chain(self):
+        first = self.make(0, b"\\x00" * 32, "task_start", "allow", 0)
+        second = self.make(
+            1, first.record_hash, "inference", "allow", 0,
+            ts=first.ts - 1,
+        )
+        with self.assertRaises(AeeTaskValidationError):
+            validate_aee_receipt_sequence([first, second])
+
+    def test_rejects_boolean_timestamp(self):
+        first = self.make(
+            0, b"\\x00" * 32, "task_start", "allow", 0, ts=True,
+        )
+        with self.assertRaises(AeeTaskValidationError):
+            validate_aee_receipt_sequence([first])
+
     def test_rejects_broken_hash_chain(self):
         records = self.chain([
             (0, "task_start", "allow", 0, {}),
