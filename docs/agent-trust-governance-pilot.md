@@ -48,6 +48,12 @@ Added tests/test_scitt_client.py for key discovery, immediate registration, asyn
 
 Agent-specific profiles remain drafts. The SCITT WG list currently includes draft-thaha-scitt-agent-execution-evidence-02, draft-emirdag-scitt-ai-agent-execution-01 and draft-mih-scitt-agent-action-capsule-03. The Action Capsule draft makes an important distinction between an action being permitted and what actually happened, and distinguishes dispatch from observed/bound effect. These are design inputs, not adopted standards. KMH should keep its application-specific Agent Action Evidence schema separate from the base SCRAPI transport layer.
 
+### CI finding and local receipt-chain correction (2026-11-12)
+
+The first CI run for commit c93c9b7 exposed a pre-existing test failure in test_execution_receipt_chain_detects_receipt_tampering: the in-memory chain recomputed the digest from the mutated object and had no separate append-time commitment to compare. The chain now stores an append-time digest snapshot and verify() compares each current receipt against that commitment. This detects ordinary in-process receipt-object mutation, but the snapshot remains process memory and is not an external trust anchor; a privileged process owner can rewrite both.
+
+The failing run executed 641 tests and reported this one failure. The performance-baseline job passed. The fix is committed separately; a fresh CI run for the new head is required before claiming the suite passes.
+
 ### CCF COSE receipt profile review and verifier boundary (2026-11-12)
 
 The latest Datatracker revision is draft-ietf-scitt-receipts-ccf-profile-06, published 2026-10-22 and still an active Internet-Draft (not an RFC). Its history records the COSE Verifiable Data Structure Algorithms IANA registration as approved on 2026-11-10. The CCF profile defines inclusion and consistency proofs for append-only CCF ledgers. For inclusion verification, the verifier recomputes SHA-256 over the candidate Signed Statement bytes, requires every proof leaf data-hash to equal that locally computed digest, validates the proof schema, computes the Merkle root, and verifies the detached COSE receipt signature over that root using a trusted CCF/Transparency Service key. Multiple proofs in one receipt must agree on the root. Consistency verification additionally requires a previously trusted older root and checks that the proof extends that state.
