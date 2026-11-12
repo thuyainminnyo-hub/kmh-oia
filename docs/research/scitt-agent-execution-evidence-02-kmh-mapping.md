@@ -689,3 +689,43 @@ Both adapters must produce the same normalized decision object and feed the same
 - concurrent sibling allocations attempting to overspend a cumulative budget.
 
 No delegation-chain verifier or credential-broker implementation is added by this research update. No CI or interoperability result is claimed.
+
+## 23. Revision-pinned corrections: Agent Delegation Chain -03 and Credential Delegation -02 (2026-11-12)
+
+A direct read of the official -03 and -02 drafts refines Section 22.2/22.3 as follows. Pin these exact revisions in KMH tests; do not reuse -01 vector expectations as -03 conformance.
+
+### 23.1 Agent Delegation Chain -03 exact profile
+
+- `sub` is the invariant accountable Principal at every hop; `client_id` identifies the acting agent at each hop. Every token requires `client_id`, `cnf` and a non-null `aud` under this revision; legacy -01 chains without these are malformed under -03.
+- `par_hash` is BASE64URL(SHA-256(parent JWS Signing Input)), where the signing input is the exact serialized protected-header and payload bytes joined by `.`. It is not a hash of a parsed/re-serialized JSON object.
+- `del_depth` is required on each token; `del_max_depth` is required at the root and cannot be increased by a child. Child depth must follow the chain position and remain within the root maximum.
+- Scope grammar has three byte-classified forms: literal, wildcard and opaque. Literal covers only identical literal; wildcard covers segment-bounded literal/wildcard descendants; opaque covers only byte-identical opaque scope and is never covered by wildcard. Classification is case-sensitive and ordered; invalid wildcard forms are rejected before subsumption.
+- Each child must carry exactly one supported `agent_delegation` authorization detail in the profile's required shape; unsupported/additional detail types are rejected. Constraint subsumption is typed: do not compare or infer across different constraint types. `rank` ordering must remain identical; duplicate constraints with same key and type are malformed.
+- Verification checks each chain independently; authorities from separate chains MUST NOT be combined. The chain binds a token instance, not a stable parent identity: reissued parent token bytes do not satisfy an existing child's `par_hash`.
+- Holder binding is DPoP via `cnf` in every token. The verifier checks signature algorithm against its own configured allowlist and key configuration, not merely the token's `alg` header. Status unknown is a denial when status is present/required by profile.
+- A child attenuation does not revoke its parent. A holder of the parent retains broader authority until expiry/revocation. Use short-lived tokens and status-list policy where immediate parent/subtree invalidation is needed.
+
+### 23.2 Test-vector provenance
+
+The -03 Appendix B publishes a new, separately named vector set. The twenty vector files from -01 are explicitly unchanged and are not -03 conformant because they lack `cnf`, `client_id` and a valid `aud`. KMH must pin and import the -03 vector set separately, verify source checksums, and assert the named expected outcomes (including principal_altered, par_hash_mismatch, not_narrower, signature_invalid and malformed). Do not silently relabel -01 vectors as -03.
+
+### 23.3 Credential Delegation Protocol -02: server-side counterpart
+
+The official -02 draft (published 2026-10-30, expires 2027-05-03) explicitly positions itself as the online/server-side counterpart to the offline-verifiable Agent Delegation Chain. Its Delegation Server stays in the path at each hop, can perform synchronous revocation and maintain a single-writer aggregate budget. For cases where a resource server must verify without the Delegation Server, the draft uses the Agent Delegation Chain format unchanged rather than redefining it.
+
+The -02 draft also clarifies that `client_id` names the acting agent and must agree with `act.sub`; constraints use the shared typed vocabulary and fail-closed parsing; numeric ceilings are distinct from capability constraints and aggregate lifetime/spend totals are debited by the Delegation Server; each hop re-verifies authority and freshness. The online and offline paths are complementary but require a clearly defined issuance/verification profile and consistent status semantics.
+
+### 23.4 Cumulative budget and revocation decision
+
+Offline attenuation proves a signed ceiling is not widened along the chain; it does not, by itself, provide a globally serialized spend counter. If KMH needs a hard aggregate spend or call-count cap across sibling agents, route allocations through a single-writer budget authority (or a rigorously coordinated equivalent) and durably debit at enforcement. Similarly, local offline verification cannot promise instantaneous global revocation without a freshness/online status dependency. State the availability-versus-revocation trade-off explicitly in deployment policy.
+
+### 23.5 Implementation gate
+
+1. Vendor the exact -03 Appendix B vectors and checksums; keep -01 vectors in a separate compatibility suite only.
+2. Implement strict JWS/JCS parsing, duplicate-member rejection, accepted-algorithm allowlist, `par_hash` exact-byte verification, DPoP `cnf` validation and audience check.
+3. Implement typed scope/constraint subsumption, principal invariance, client identity, bounded depth and monotonic expiry.
+4. Test separate chains independently; never aggregate authorities across paths.
+5. Add online Delegation Server integration only after defining consent, status freshness, cascading revocation and single-writer budget ownership.
+6. Report each check independently and fail closed on unknown status, unsupported constraint or malformed chain.
+
+No KMH delegation-chain verifier or online credential broker is implemented by this research update.
