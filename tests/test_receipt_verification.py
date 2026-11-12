@@ -21,7 +21,7 @@ class FakeCodec:
         return self.proofs[proof_bytes]
 
     def validate_inclusion_proof(self, proof):
-        return proof.get("valid", False)
+        return set(proof) == {1, 2}
 
     def compute_inclusion_root(self, proof):
         return proof["root"]
@@ -145,7 +145,7 @@ class FakeConsistencyCodec(FakeCodec):
         return self.consistency_proofs[proof_bytes]
 
     def validate_consistency_proof(self, proof):
-        return proof.get("valid", False)
+        return set(proof) == {1, 2}
 
     def compute_consistency_roots(self, proof):
         return proof["older"], proof["newer"]
