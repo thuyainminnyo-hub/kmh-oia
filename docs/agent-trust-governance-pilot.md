@@ -91,6 +91,12 @@ Extended src/execution_evidence.py with an in-memory ExecutionEvidenceChain. It 
 
 This improves the local evidence prototype but is not a SCITT implementation: no COSE-signed statements, SCITT Registration API, transparency service, inclusion/consistency proofs, epoch statements, offline Bundle verifier, caller/serving-party dual chains, task lifecycle semantics, or remote storage/independent verification. The in-memory chain can be rewritten by the process owner and must not be represented as tamper-proof or independently auditable.
 
+### Persistent serving-party evidence ledger
+
+Added SQLiteServingEvidenceLedger to src/linked_evidence.py. It persists serving admission receipts across process restarts, computes the serving-side request digest, stores the receipt chain in a SQLite transaction, enforces a unique (serving party, caller agent, caller receipt digest) replay key at the database level, and verifies sequence continuity, predecessor links and receipt digests. SQLite append-only update/delete triggers are installed. Added tests for persistence/reopen, replay rejection after restart and append-only triggers.
+
+Security boundary: SQLite transaction/unique constraints provide local atomicity and durable replay protection for this database. They do not provide cross-region/distributed replay protection across separate database instances, independent administration, WORM guarantees against a privileged database owner, signed receipts, remote transparency, or SCITT conformance. The caller evidence itself remains unauthenticated in this prototype. Deploy only behind an authenticated gateway until production cryptographic identity and receipt validation exist.
+
 ### Linked caller and serving-party evidence prototype
 
 Added src/linked_evidence.py and tests/test_linked_evidence.py. The serving-side ledger independently recomputes the request digest, records allow/deny/indeterminate admission outcomes, rejects duplicate caller receipt references within this process, and chains admission receipts. A linking function checks request ID, caller identity, caller receipt digest and request digest across the caller and serving-party records. Tests cover successful linking, request substitution, duplicate-reference replay, identity/request mismatch and recording denied calls.
