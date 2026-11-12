@@ -114,6 +114,16 @@ Corrected implementation:
 
 This corrects a substantive mismatch in the earlier prototype. The codec still must provide strict CBOR decoding, reject duplicate map keys, validate the exact CDDL shape before returning decoded objects, and the COSE adapter must validate protected COSE headers (algorithm and VDS identifier), signature, key binding, service identity and certificate/endorsement policy. Tests still use fake decoding and signature adapters; no interoperability or production security claim is made.
 
+### CCF -06 protected-header and proof-verification hardening (2026-11-12)
+
+The current -06 profile's Figure 10 requires protected COSE header alg (label 1, integer) and vds (label 395, CCF_LEDGER_SHA256 value 2). The proof type is conveyed only by the key inside vdp (label 396): inclusion -1 and/or consistency -2. The -06 Figure 11 permits inclusion-only, consistency-only, or both; when both are present, all proof types must recompute the same detached payload root. Unknown VDP keys or malformed VDP CBOR/schema must be rejected before proof algorithms.
+
+Added a protected-header validation helper to require alg integer and vds=2 in the decoded protected header. The COSE adapter still must cryptographically authenticate the protected header as part of the COSE Sig_structure; this structural check is not a signature check.
+
+The inclusion-only verifier deliberately rejects mixed receipts rather than silently ignoring consistency proofs. The consistency verifier validates optional inclusion proofs too and requires them to recompute the same newer root. Both paths validate the CCF protected VDS identifier. Tests cover invalid VDS identifiers.
+
+Research note: the IETF Datatracker currently shows CCF Profile -06 and records IANA expert review approval on 2026-11-10 for the CCF VDS algorithm registration. The document remains an Internet-Draft, not a published RFC. A Python package named scitt-cose has also appeared as a possible independent implementation/reference, but it is a candidate for code review and differential testing, not an automatically trusted dependency.
+
 ## Current limitations — do not overstate readiness
 - Registry and grants are in-memory only; restart loses state.
 - Agent IDs are application identifiers, not cryptographically authenticated workload identities.
