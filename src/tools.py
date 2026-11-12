@@ -8,6 +8,8 @@ from typing import Protocol
 class ToolRequest:
     tool_name: str
     input_text: str
+    request_id: str = "local-request"
+    resource: str = "local"
 
 
 @dataclass(frozen=True)
