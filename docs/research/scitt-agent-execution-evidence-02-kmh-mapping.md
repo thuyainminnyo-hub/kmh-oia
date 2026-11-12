@@ -908,3 +908,65 @@ No dialog-binding or aggregate-signature implementation, conformance result, or 
 ### 27.8 Correction to the prior exploratory SADP note
 
 SADP -01 is verified by the official Datatracker record as draft-atakora-wimse-sadp-delegation-01. The Section 26 correction is authoritative: it remains an individual Experimental Internet-Draft, not a standard. Do not confuse its scoped encrypted context disclosure with Dialog Binding's cryptographic message/dialog provenance.
+
+## 28. WIMSE Authenticated Provenance -01: per-hop body lineage and aggregate signature boundary (2026-11-12)
+
+### 28.1 Verified mechanism
+
+The current individual Internet-Draft draft-reddy-wimse-aggregate-signatures-01 (2026-09-28) defines two complementary mechanisms for authenticated provenance across workload hops:
+
+1. Each hop signs a received-body digest (`wimse-req-digest`) and the forwarded body digest (`Content-Digest`, already covered by the WIMSE HTTP Signature profile). The initiator uses the reserved input value `origin`. A verifier checks that each hop's output digest equals the next hop's input digest. Mismatch means unauthorized in-transit change; a hop that signs a different output digest records an attributable transformation.
+2. An aggregate signature combines the individual hop contributions. It prevents removal of an unchanged/pass-through hop, which per-hop body-digest continuity alone cannot detect, while keeping signature size approximately constant with chain length. The draft is agnostic to the aggregate signature scheme.
+
+The draft also covers responses with a corresponding `wimse-resp-digest` parameter. The source describes body lineage, not whole-message continuity: Content-Digest covers the body, while method, target URI, query and headers are separately covered by each hop's HTTP signature components. The verifier must not claim that the body-lineage mechanism alone protects the complete HTTP request/response semantics.
+
+### 28.2 Threat coverage and limits
+
+- Per-hop input/output digests detect removal or alteration of a hop that changed the body.
+- The aggregate contribution additionally detects removal of a hop that signed but passed the body through unchanged.
+- A hop may legitimately transform a body if its signed input and output digests record that transformation; policy must separately decide whether the transformation is authorized.
+- The mechanism does not decide whether a workload is authorized to originate a request; authorization is outside this draft's scope.
+- It does not replace Dialog Binding, OAuth transaction-token checks, WIT/WPT validation, or AEE semantic receipts.
+- The proposal is an individual Internet-Draft, not an IETF-endorsed standard. The aggregate algorithm/profile and interoperability need separate evaluation; do not assume production-ready PQC aggregation.
+
+### 28.3 Relationship to Dialog Binding and AEE
+
+Dialog Binding -00 binds the dialog context and initiator to each hop's WIMSE proof and optionally binds the same dialog identifier into the OAuth transaction token. Authenticated Provenance -01 adds received/forwarded body continuity and detects pass-through hop removal. AEE -02 records the execution-level events and admission evidence, including linked evidence across operators. These answer different questions:
+- Dialog Binding: which dialog and initiator does this message belong to?
+- WIMSE Chain Provenance: which workloads handled the body, and where did it change?
+- AEE: what execution decisions, calls, results and admissions were recorded?
+- OAuth/Delegation: what action was authorized?
+
+KMH should preserve references between these records rather than flattening them into one opaque signature or one trace ID.
+
+### 28.4 KMH verification contract
+
+For an HTTP agent hop chain:
+1. Verify each hop's WIT and WIMSE HTTP Signature against the accepted issuer/key policy.
+2. Verify required covered components for method, target, dialog context, transaction token, content digest and relevant identity proof.
+3. Recompute the received and forwarded body digests; check output-to-next-input continuity and the initiator `origin` marker.
+4. Verify the aggregate signature over the complete ordered hop contribution set when the selected profile requires pass-through-hop non-removability.
+5. Verify Dialog-Context initiator against the first hop's authenticated WIT and check transaction-token dialog binding.
+6. Apply authorization and transformation policy separately; cryptographic validity does not grant permission to transform or access the resource.
+7. Emit AEE records referencing verified hop identities, digest transitions, dialog ID, authorization decision and final result.
+
+### 28.5 Negative tests
+
+- Remove a body-transforming interior hop; digest continuity must fail.
+- Remove an unchanged/pass-through hop; aggregate verification must fail.
+- Change a body between hops without a signed transformation; reject.
+- Alter method, target, query, dialog context or transaction token outside covered components; reject according to signature profile.
+- Substitute an aggregate from a different chain or reorder hop contributions; reject.
+- Use an untrusted WIT, wrong key, invalid signature or unsupported aggregate profile; reject.
+- Present a cryptographically valid transformation that violates policy; authorization gate must still reject.
+- Tamper with a signed response or move it to a different request/dialog; response signature and dialog binding must fail.
+
+### 28.6 Implementation priority
+
+1. First implement ordinary per-hop WIMSE HTTP Signature verification and explicit covered-component profiles.
+2. Add received/forwarded body digest lineage and mutation attribution.
+3. Integrate Dialog Binding and transaction-token dialog checks.
+4. Add aggregate-signature support behind a versioned experimental adapter only after algorithm choice, canonical contribution encoding, key lifecycle and test vectors are pinned.
+5. Link the verified provenance result to AEE receipts and cross-operator Linked Bundles.
+
+No WIMSE aggregate-signature implementation, conformance result or production security claim is made by this research update.
