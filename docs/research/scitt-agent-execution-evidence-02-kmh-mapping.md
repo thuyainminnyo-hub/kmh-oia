@@ -463,3 +463,73 @@ The draft explicitly states that nested act claims carry asserted actor history.
 ### 18.5 Standards maturity boundary
 
 AIMS -01 is a WIMSE Working Group Internet-Draft. Evidence Binding -03 is an individual Internet-Draft associated with WIMSE discussion, not a WG-endorsed standard and not an RFC. Keep both behind versioned adapters and pin draft revisions in conformance tests. Avoid describing either as an adopted standard or assuming IANA registrations are already assigned.
+
+## 19. WIMSE Identifier -04, cross-domain mandates and local per-call proof (2026-11-12)
+
+### 19.1 WIMSE Identifier -04: identity syntax is an authorization security boundary
+
+The active WIMSE WG document draft-ietf-wimse-identifier-04 (2026-10-23) defines Workload Identifiers as absolute URIs with a non-empty authority/trust-domain and path. It prohibits query, fragment, userinfo and port components; rejects literal or percent-decoded dot segments; requires URI syntax normalization followed by complete normalized-URI byte comparison; and requires trust-domain validation against configured trust anchors/authorized issuers. A plain identifier string outside a cryptographically validated credential MUST NOT be treated as authenticated.
+
+KMH implementation requirements:
+- Keep an internal immutable logical-agent UUID, but introduce a versioned external WIMSE identifier field.
+- Parse and validate the complete URI before normalization; never authorize by path-only comparison.
+- Maintain an explicit trust-domain / issuer allowlist and bind it to credential verification.
+- Do not equate an external service DNS name or network route with the workload identity.
+- Preserve retired identifiers and their audit references; never silently recycle an identity.
+
+The WIMSE Identifier draft is an active Internet-Draft, not an RFC. Pin -04 in adapter tests.
+
+### 19.2 Cross-domain agent mandates: separate authority-to-delegate from the mandate itself
+
+The November 2026 individual Internet-Draft *Verifiable Mandates for Agents Acting Across Administrative Domains* (draft-hulea-wimse-agent-mandate-01) addresses a gap that ordinary delegation tokens do not solve: proving that the delegator was itself entitled to grant the permissions. It separates:
+1. an Authority Assertion from an authority source, describing what the delegator may delegate for the principal;
+2. a root Mandate Assertion issued on the delegator's instruction and bound to the agent instance key;
+3. optional narrower mandates delegated to downstream agents;
+4. a relying-party validation procedure under an explicit Validation Profile; and
+5. the relying party's separate authorization decision and obligations.
+
+KMH should model a mandate as a signed assertion and never treat possession of a mandate as automatic permission. Verify the chain of authority-to-delegate, agent-key binding, scope limits, expiry and relying-party profile; then independently decide whether the requested resource/action is allowed. Token exchange must preserve the enforceable mandate semantics. This is an individual draft, not an adopted WIMSE standard.
+
+### 19.3 Verifier-side evaluation semantics: standardize the decision, not just the chain
+
+The WIMSE WG documents index lists *Verifier-Side Evaluation Semantics for Delegated Authority Chains* as draft-jackson-wimse-evaluation-05 (2026-10-28). Its core design principles are directly relevant:
+- process every authorization_details entry or refuse; never silently ignore an unsupported permission type;
+- evaluate each delegation path independently and fail closed per path;
+- use an explicit evaluation instant, not the latest evidence timestamp, for expiry;
+- bind approval consumption to the exact frozen call, including principal and authority context;
+- separate issuer keys that raise authority from evaluator keys that lower authority;
+- do not let agents write to the grant store or hold authority-raising keys.
+
+KMH should treat these as candidate requirements for a local verifier contract, but pin and review the exact -05 text and referenced GAL/PTC drafts before claiming conformance. The draft is work in progress and is not an RFC.
+
+### 19.4 Local MCP tool invocation is a separate enforcement boundary
+
+The individual Internet-Draft *Per-Call Proof for Local Tool Invocation by AI Agents* (draft-lee-wimse-local-tool-call-proof-01, 2026-10-12) targets a gap not solved by HTTP workload authentication: local MCP stdio calls to filesystem, shell, database and SaaS tools may never cross an HTTP enforcement point.
+
+Its proposed design places a Call Authority outside the agent process. The authority issues a short-lived, single-use proof bound to the exact tool name, arguments and server via a canonical action digest. The local Tool Server recomputes the digest, asks the Call Authority to verify the proof, and rejects missing/invalid proof or unavailable authority. Verification occurs immediately before execution starts, including when a queued/deferred invocation eventually starts.
+
+KMH architecture implication:
+- Add a Local Tool Enforcement Adapter at the tool-server boundary; do not rely only on OIARuntime preflight authorization.
+- Keep Call Authority signing keys inaccessible to the agent process and tool server; use an isolated process and platform-protected key where feasible.
+- Bind proof to exact tool, canonical arguments, server identity, authenticated process identity, request ID and policy version.
+- Enforce single-use atomically at execution start; queued work must be revalidated against current policy.
+- Fail closed when Call Authority is unavailable for protected tools.
+- Record proof issuance, verification, consumption and final effect as distinct events in AEE evidence.
+
+This draft is an individual Internet-Draft and has open issues around proof profiles, canonical action digest alignment, MCP method coverage and multi-effect tools. Treat it as a design input, not a stable interoperable standard.
+
+### 19.5 Updated KMH trust decision pipeline
+
+The resulting candidate pipeline is:
+1. Authenticate the complete WIMSE workload identifier through a valid credential and trusted issuer.
+2. Validate the Authority Assertion and Mandate Assertion chain under a pinned validation profile.
+3. Evaluate every requested authorization detail and each delegation path at the current evaluation instant.
+4. Freeze the exact action and authority context shown for any required human approval.
+5. Obtain a single-use local Call Proof from an external Call Authority for protected local tool calls.
+6. Revalidate proof and current policy immediately before tool execution; atomically consume the proof.
+7. Record authorization, invocation, actual result/effect and linked caller/serving evidence in AEE.
+8. Independently verify evidence and feed discrepancies into governance/learning; evidence never retroactively grants authority.
+
+### 19.6 Implementation scope decision
+
+Do not implement every draft at once. First add a KMH-local FrozenAction canonical representation and deterministic digest tests; then an atomic single-use CallProofStore and local tool-server verification adapter. In parallel, add strict WIMSE URI parsing/trust-domain tests. Keep cross-domain mandate verification as a separate follow-on because its authority-source trust model and Validation Profile need an explicit deployment decision.
