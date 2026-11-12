@@ -3,6 +3,7 @@ import unittest
 
 from src.receipt_verification import (
     CcfInclusionReceiptVerifier,
+    CcfConsistencyReceiptVerifier,
     ReceiptVerificationError,
 )
 
@@ -123,6 +124,109 @@ class CcfInclusionReceiptVerifierTests(unittest.TestCase):
                 cose_verifier=self.cose, trusted_key_set=None,
                 expected_service_id="https://ts.example",
             )
+
+
+class FakeConsistencyCodec(FakeCodec):
+    def __init__(self, receipt, consistency_proofs, inclusion_proofs=None):
+        super().__init__(receipt, inclusion_proofs or {})
+        self.consistency_proofs = consistency_proofs
+
+    def decode_consistency_proof(self, proof_bytes):
+        return self.consistency_proofs[proof_bytes]
+
+    def validate_consistency_proof(self, proof):
+        return proof.get("valid", False)
+
+    def compute_consistency_roots(self, proof):
+        return proof["older"], proof["newer"]
+
+
+class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
+    def setUp(self):
+        self.older = b"o" * 32
+        self.newer = b"n" * 32
+        self.proofs = {
+            b"p1": {
+                "valid": True, "anchor": b"a" * 32,
+                "path": [(False, b"s" * 32)],
+                "older": self.older, "newer": self.newer,
+            },
+            b"p2": {
+                "valid": True, "anchor": b"b" * 32,
+                "path": [(False, b"t" * 32)],
+                "older": b"z" * 32, "newer": self.newer,
+            },
+        }
+        self.receipt = {
+            "payload": None,
+            "unprotected_header": {396: {-2: [b"p1", b"p2"]}},
+        }
+        self.cose = FakeCoseVerifier()
+        self.verifier = CcfConsistencyReceiptVerifier(
+            codec=FakeConsistencyCodec(self.receipt, self.proofs),
+            cose_verifier=self.cose,
+            trusted_key_set={"kid": "trusted-ts-key"},
+            expected_service_id="https://transparency.example",
+        )
+
+    def test_verifies_extension_from_trusted_old_root(self):
+        result = self.verifier.verify(
+            receipt_bytes=b"consistency-receipt",
+            trusted_older_root=self.older,
+        )
+        self.assertEqual(result.older_root, self.older)
+        self.assertEqual(result.newer_root, self.newer)
+        self.assertEqual(result.proof_count, 2)
+        self.assertEqual(self.cose.calls[0][1], self.newer)
+
+    def test_rejects_untrusted_old_root(self):
+        with self.assertRaises(ReceiptVerificationError):
+            self.verifier.verify(
+                receipt_bytes=b"receipt", trusted_older_root=b"x" * 32
+            )
+
+    def test_rejects_divergent_newer_roots(self):
+        proofs = dict(self.proofs)
+        proofs[b"p2"] = dict(proofs[b"p2"], newer=b"d" * 32)
+        verifier = CcfConsistencyReceiptVerifier(
+            codec=FakeConsistencyCodec(self.receipt, proofs),
+            cose_verifier=self.cose, trusted_key_set={"kid": "k"},
+            expected_service_id="https://transparency.example",
+        )
+        with self.assertRaises(ReceiptVerificationError):
+            verifier.verify(receipt_bytes=b"receipt", trusted_older_root=self.older)
+
+    def test_rejects_invalid_path_and_embedded_payload(self):
+        bad_proofs = dict(self.proofs)
+        bad_proofs[b"p1"] = dict(
+            bad_proofs[b"p1"], path=[(True, b"s" * 32)]
+        )
+        verifier = CcfConsistencyReceiptVerifier(
+            codec=FakeConsistencyCodec(self.receipt, bad_proofs),
+            cose_verifier=self.cose, trusted_key_set={"kid": "k"},
+            expected_service_id="https://transparency.example",
+        )
+        with self.assertRaises(ReceiptVerificationError):
+            verifier.verify(receipt_bytes=b"receipt", trusted_older_root=self.older)
+
+        embedded = dict(self.receipt, payload=b"not-detached")
+        verifier = CcfConsistencyReceiptVerifier(
+            codec=FakeConsistencyCodec(embedded, self.proofs),
+            cose_verifier=self.cose, trusted_key_set={"kid": "k"},
+            expected_service_id="https://transparency.example",
+        )
+        with self.assertRaises(ReceiptVerificationError):
+            verifier.verify(receipt_bytes=b"receipt", trusted_older_root=self.older)
+
+    def test_rejects_invalid_signature(self):
+        verifier = CcfConsistencyReceiptVerifier(
+            codec=FakeConsistencyCodec(self.receipt, self.proofs),
+            cose_verifier=FakeCoseVerifier(False),
+            trusted_key_set={"kid": "k"},
+            expected_service_id="https://transparency.example",
+        )
+        with self.assertRaises(ReceiptVerificationError):
+            verifier.verify(receipt_bytes=b"receipt", trusted_older_root=self.older)
 
 
 if __name__ == "__main__":
