@@ -337,3 +337,43 @@ A subsequent check of the live Datatracker record supersedes the earlier stateme
 Therefore KMH must not treat the CCF Profile -06 IANA registrations as settled. Keep the COSE VDS algorithm and proof-type handling behind a versioned adapter, pin the exact draft and IANA registry snapshot used in tests, and re-check the current IANA review before interoperability claims. This is a standards-status correction, not a change to the local verifier's claimed capabilities.
 
 The branch's latest documentation-only commit is 5c73e83fade203daaac39a12c6d54200a7937df0. The preceding code-bearing commit 193cf8f7dfc8a0033a09689803ccea0f746d01a6 had both KMH OIA Tests and KMH OIA Validation pass. No CI run was returned for the documentation-only head; do not report that head as newly CI-tested.
+
+
+## 16. Appendix A conformance-vector opportunity and IANA status reconciliation (2026-11-12)
+
+### 16.1 AEE Appendix A contains concrete receipt examples
+
+Revision -02 includes worked Execution Receipt examples with explicit record hashes, including:
+- Task start (seq 0, zero predecessor);
+- Model inference (seq 1);
+- Tool call with a confirmation decision (seq 2);
+- subsequent task/tool outcome examples and an admission receipt;
+- example policy/configuration digests and receipt-chain values.
+
+These examples are suitable as a source for a version-pinned fixture set. They should be transcribed exactly from Appendix A, preserving CBOR integer labels, byte strings, timestamps, canonical encoding, and the draft's stated record hashes. A test should independently recompute each canonical receipt hash and compare it to the published vector, then feed the decoded records through the KMH semantic validator. Do not fabricate expected values from the prose excerpt or substitute the current test factory's synthetic hashes.
+
+**Current KMH gap:** the local tests create synthetic record_hash values and the validator trusts supplied hashes. It does not yet parse the Appendix A CBOR examples or recompute canonical-CBOR/JCS record hashes. Therefore current tests are state-machine tests, not AEE Appendix A conformance tests.
+
+### 16.2 Important AEE semantics to preserve in fixture mapping
+
+- Record types are task_start, task_end, inference, tool_call, tool_result, egress and admission.
+- Decision-point values are model, tool, network and ingress.
+- Decisions are allow, block, confirm and record.
+- Every receipt carries policy_pack_digest and config_integrity_digest.
+- A confirm is a tool_call decision; its outcome is a later tool_call carrying confirm_seq and matching parent_seq, target, request_digest and Task.
+- A tool_result cannot precede the allow outcome.
+- A Task cannot close with a pending confirmation; the Evidence Service records block before closure/session-loss completion.
+- The receipt record-hash includes agent_sig when present.
+- Natural-person Principals are represented by a 32-octet peppered digest; the pepper remains with the Issuer.
+
+### 16.3 CCF Profile IANA status — reconcile live history
+
+The CCF Profile -06 landing page and its history view were inconsistent in the retrieved Datatracker snapshots. The revision history explicitly records on 2026-11-10 that the IANA Experts State changed to Expert Reviews OK and that the COSE Verifiable Data Structure Algorithms registration was approved. The landing-page IANA summary snapshot still displayed older "Issues identified" text. For this research record, prefer the dated revision-history event for the 2026-11-10 action, but re-check the live registry and landing-page state before making an external standards claim. The WG/IESG publication status remains Submitted to IESG / Waiting for AD Go-Ahead; the draft is not yet a published RFC.
+
+### 16.4 Latest branch verification checkpoint
+
+The exact documentation head a438e6942ed1d2cccb39c068041c3c0e712c84d2 was checked on 2026-11-12:
+- KMH OIA Tests: completed successfully (run 2136).
+- KMH OIA Validation: completed successfully (run 2051).
+
+This confirms repository CI for that exact head. It does not establish AEE vector conformance, canonical encoding correctness, COSE verification, external SCRAPI interoperability, or production readiness.
