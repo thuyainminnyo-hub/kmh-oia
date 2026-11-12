@@ -175,8 +175,8 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
                 2: [(False, self.sibling)],
             },
             b"p2": {
-                "valid": True, "anchor": self.older,
-                "path": [(False, self.sibling)],
+                1: self.older,
+                2: [(False, self.sibling)],
             },
         }
         self.receipt = {
