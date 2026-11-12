@@ -86,6 +86,20 @@ Added consistency tests for successful old-to-new extension, untrusted old root,
 
 Important profile nuance: a consistency receipt establishes that the previously trusted ledger state is a prefix of the newer state; it does not by itself prove the truth of claims or correct application of registration policy. CCF service identity continuity and successor-network auditing remain separate trust considerations.
 
+### CCF profile -06 re-check and SHA-256 consistency folding (2026-11-12)
+
+Rechecked the October 22, 2026 draft-ietf-scitt-receipts-ccf-profile-06 text. The CCF consistency algorithm starts both roots at the 32-byte anchor; for each [left, sibling] element, if left is true it hashes sibling || older and sibling || newer, otherwise it hashes newer || sibling only. The first path element must be a right sibling (false). Every path item must contain exactly a boolean and a 32-byte digest; anchor is exactly 32 bytes; path must be non-empty. The verifier must compare at least one computed older root with its previously trusted root, require every proof's newer root to match, and verify the detached COSE signature over that common newer root. If inclusion proofs coexist, they must compute the same root.
+
+Refined src/receipt_verification.py:
+- Added compute_ccf_consistency_roots(), implementing the CCF profile's SHA-256 root-folding algorithm directly instead of delegating the security-critical fold to an injected codec.
+- Enforces 32-byte anchor and sibling digests, exact two-item path entries, strict boolean direction flags, non-empty path, and first sibling on the right.
+- The CBOR decoder/schema adapter remains injected; it must reject duplicate map keys, malformed CBOR and invalid proof maps as required by the profile and expose validated anchor/path fields.
+- The verifier still enforces trusted older root, common newer root, cross-check against any inclusion proofs, detached COSE signature and expected service identity.
+
+Added a deterministic SHA-256 folding test with a path containing both right and left siblings. Existing consistency tests now use computed roots rather than synthetic root values.
+
+This narrows the unimplemented cryptographic core, but does not establish conformance: actual CBOR decoding/duplicate-key rejection, exact CDDL schema validation, protected COSE header validation, certificate/key lifecycle and COSE signature verification remain external adapters. Official profile test vectors and an independent CCF receipt verifier comparison are still required before production use.
+
 ## Current limitations — do not overstate readiness
 - Registry and grants are in-memory only; restart loses state.
 - Agent IDs are application identifiers, not cryptographically authenticated workload identities.
