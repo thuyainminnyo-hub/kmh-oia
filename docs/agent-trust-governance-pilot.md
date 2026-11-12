@@ -69,6 +69,23 @@ Added tests/test_receipt_verification.py for valid inclusion binding, wrong stat
 
 Not implemented: actual CBOR/COSE codec, CCF proof schema implementation, Merkle hash algorithm implementation, key discovery-to-trust policy, COSE signature verification, certificate chain/rotation/revocation, consistency proof verifier, checkpoint/epoch trust, multi-TS quorum/policy, live service integration or offline bundle verification. This is a security-critical adapter boundary, not a production verifier. Use official CCF verifier implementations/conformance vectors or a reviewed library before enabling trust decisions.
 
+### CCF consistency receipt verification boundary (2026-11-12)
+
+Reviewed draft-ietf-scitt-receipts-ccf-profile-06 against the Datatracker HTML. The consistency receipt algorithm requires a verifier-held older root (not a root supplied by the receipt), one or more CCF consistency proofs, a detached payload, a common recomputed newer root across every consistency proof, and at least one proof whose recomputed older root equals the previously trusted root. If inclusion proofs are also present, they must recompute the same newer root. Unknown proof types in the VDP map must be rejected because the VDP map is unprotected and extra proof material can be added without invalidating the COSE signature. The draft remains an Internet-Draft, not an RFC.
+
+Added CcfConsistencyReceiptVerifier to src/receipt_verification.py:
+- Requires the previously trusted 32-byte older root as an explicit verifier input.
+- Requires detached receipt payload and VDP consistency-proof label (-2).
+- Rejects unsupported VDP proof labels.
+- Delegates CCF CBOR decoding, schema validation and Merkle folding to injected codec adapters.
+- Requires valid proof path structure, all proofs to agree on the newer root, and at least one computed older root to match the verifier-held trusted root.
+- If inclusion proofs are also present, validates them and requires their computed root to match the common newer root.
+- Verifies the detached COSE signature over the common newer root using the injected trusted-key/service-identity verifier.
+
+Added consistency tests for successful old-to-new extension, untrusted old root, divergent newer roots, invalid path, embedded payload and invalid signature. Tests use fake codec and signature adapters; they do not prove CCF hash folding, CDDL conformance or cryptographic interoperability.
+
+Important profile nuance: a consistency receipt establishes that the previously trusted ledger state is a prefix of the newer state; it does not by itself prove the truth of claims or correct application of registration policy. CCF service identity continuity and successor-network auditing remain separate trust considerations.
+
 ## Current limitations — do not overstate readiness
 - Registry and grants are in-memory only; restart loses state.
 - Agent IDs are application identifiers, not cryptographically authenticated workload identities.
