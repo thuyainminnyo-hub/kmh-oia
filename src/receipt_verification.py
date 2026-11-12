@@ -147,6 +147,36 @@ class VerifiedConsistency:
     inclusion_proof_count: int
 
 
+def compute_ccf_consistency_roots(
+    anchor: bytes, path: list[tuple[bool, bytes]] | tuple[tuple[bool, bytes], ...],
+) -> tuple[bytes, bytes]:
+    """Fold a CCF SHA-256 consistency proof into (older_root, newer_root).
+
+    Implements Figure 9 of draft-ietf-scitt-receipts-ccf-profile-06.
+    Input must already be decoded from the proof's CBOR representation.
+    """
+    if not isinstance(anchor, bytes) or len(anchor) != 32:
+        raise ReceiptVerificationError("consistency anchor must be exactly 32 bytes")
+    if not isinstance(path, (list, tuple)) or not path:
+        raise ReceiptVerificationError("consistency path must be non-empty")
+    older = anchor
+    newer = anchor
+    for sibling in path:
+        if not isinstance(sibling, (list, tuple)) or len(sibling) != 2:
+            raise ReceiptVerificationError("each consistency path element must have two items")
+        left, digest = sibling
+        if type(left) is not bool:
+            raise ReceiptVerificationError("consistency path side flag must be boolean")
+        if not isinstance(digest, bytes) or len(digest) != 32:
+            raise ReceiptVerificationError("consistency sibling digest must be exactly 32 bytes")
+        if left:
+            older = hashlib.sha256(digest + older).digest()
+            newer = hashlib.sha256(digest + newer).digest()
+        else:
+            newer = hashlib.sha256(newer + digest).digest()
+    return older, newer
+
+
 class CcfConsistencyReceiptVerifier:
     """Verify a CCF consistency receipt against a previously trusted root.
 
@@ -234,7 +264,7 @@ class CcfConsistencyReceiptVerifier:
                 raise ReceiptVerificationError("first consistency path sibling must be on the right")
 
             try:
-                computed_older, computed_newer = self.codec.compute_consistency_roots(proof)
+                computed_older, computed_newer = compute_ccf_consistency_roots(anchor, path)
             except Exception as exc:
                 raise ReceiptVerificationError("consistency Merkle root computation failed") from exc
             if (
