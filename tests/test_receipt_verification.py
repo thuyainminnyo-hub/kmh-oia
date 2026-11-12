@@ -212,7 +212,8 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
 
     def test_rejects_divergent_newer_roots(self):
         proofs = dict(self.proofs)
-        proofs[b"p2"] = dict(proofs[b"p2"], **{2: [(False, b"d" * 32)]})
+        proofs[b"p2"] = dict(proofs[b"p2"])
+        proofs[b"p2"][2] = [(False, b"d" * 32)]
         verifier = CcfConsistencyReceiptVerifier(
             codec=FakeConsistencyCodec(self.receipt, proofs),
             cose_verifier=self.cose, trusted_key_set={"kid": "k"},
@@ -223,9 +224,8 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
 
     def test_rejects_invalid_path_and_embedded_payload(self):
         bad_proofs = dict(self.proofs)
-        bad_proofs[b"p1"] = dict(
-            bad_proofs[b"p1"], **{2: [(True, b"s" * 32)]}
-        )
+        bad_proofs[b"p1"] = dict(bad_proofs[b"p1"])
+        bad_proofs[b"p1"][2] = [(True, b"s" * 32)]
         verifier = CcfConsistencyReceiptVerifier(
             codec=FakeConsistencyCodec(self.receipt, bad_proofs),
             cose_verifier=self.cose, trusted_key_set={"kid": "k"},
