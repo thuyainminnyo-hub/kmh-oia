@@ -846,3 +846,65 @@ The WIMSE WG AIMS -01 is a conceptual best-practices document using existing wor
 6. Add session revalidation/deprovisioning tests for credential expiry, revocation, posture change and long-lived sessions.
 
 No SADP, WIMSE delegation, HTTP Signatures or AIMS runtime implementation is added by this research update. No conformance or production security claim is made.
+
+## 27. WIMSE Dialog Binding -00 and authenticated multi-hop provenance (2026-11-12)
+
+### 27.1 Verified individual proposal: Binding Agent Dialogs to WIMSE and OAuth Credentials -00
+
+The official Datatracker entry confirms draft-reddy-wimse-oauth-dialog-binding-00, published 2026-10-30, expires 2027-05-03. It is an individual Internet-Draft with no formal IETF standing. It addresses a concrete gap: current WIMSE HTTP Signatures/WPT do not automatically cover an agent protocol's dialog context, and OAuth transaction tokens do not necessarily record which dialog they authorize.
+
+The proposal binds three independently meaningful values:
+- sender identity: WIMSE proof using the sender's WIT-bound key;
+- authorization: optional OAuth transaction token recording the dialog identifier;
+- dialog provenance: Dialog-Context covered by WIMSE HTTP Signature or WPT.
+
+The protocol uses `Dialog-Context` as a placeholder HTTP field pending definition by the agent communication protocol. It includes a dialog identifier (`dlg`) and initiator workload identifier. The receiver checks that the initiator identifier matches the `sub` in the WIT used to verify the first proof. If transaction tokens are used, the transaction token's dialog context must match the Dialog-Context. A transaction token issued for one dialog must not be accepted in another.
+
+### 27.2 Multi-hop proof chain and aggregate signatures
+
+A single-hop WIMSE proof authenticates only the immediate sender. To establish who initiated the dialog and whether any intermediate hop changed its context, the receiver needs the proofs from the initiator and every forwarding participant. The Dialog Binding draft references draft-reddy-wimse-aggregate-signatures-01, which proposes per-hop received/forwarded digests and an aggregate signature to preserve authenticated provenance with near-constant signature size as the chain grows.
+
+This is not equivalent to a plain trace ID, parent pointer, or unsigned AEE event list. Each hop's cryptographic proof must bind the same dialog context and relevant message components. If earlier proofs are omitted, the receiver can authenticate the last hop but cannot prove the initiator's context remained unchanged.
+
+### 27.3 Important limitations and privacy boundary
+
+- Dialog Binding -00 is an individual proposal and the `Dialog-Context` field name/format is explicitly a placeholder.
+- WPT in this proposal authenticates requests only; it does not authenticate responses. If response integrity matters, use the applicable HTTP Signature response profile.
+- The draft does not add a new replay-protection mechanism; deployments rely on the selected WIMSE proof's replay controls.
+- Transaction tokens are optional. If absent, the proof still binds sender and dialog context, but there is no transaction-token dialog authorization check.
+- At a trust-domain boundary, a participant creates a linked dialog; the original dialog identifier and transaction token do not cross the boundary. Authorization moves through identity chaining.
+- Earlier-hop proofs disclose the workload identities of all participants to the final receiver. This is a provenance benefit and a privacy cost; KMH must define retention and audience policies.
+
+### 27.4 KMH integration contract
+
+Add a `DialogContext` object containing version, dialog_id, initiator_workload_id, trust_domain_id and parent_dialog_ref (the latter only as local metadata unless a future profile standardizes it). For each hop:
+1. Authenticate the sender using WIT/WPT or WIMSE HTTP Signature.
+2. Cover the exact serialized Dialog-Context and required request components with the selected proof.
+3. Verify the transaction token's dialog binding where used.
+4. Append the hop proof and received/forwarded message digests to a bounded provenance chain.
+5. At the receiver, verify every required hop and ensure initiator identity and dialog context are invariant.
+6. Apply trust-domain transition rules by creating a linked dialog and obtaining fresh authorization; do not forward original-domain dialog tokens across the boundary.
+7. Emit AEE events referencing the verified dialog/proof chain, without treating a trace ID alone as cryptographic evidence.
+
+### 27.5 Distinguish dialog provenance from task/context confidentiality
+
+Dialog Binding authenticates which workload sent a message and which dialog it belongs to; it does not encrypt or minimize the semantic context visible to participants. SADP is a separate experimental proposal for scoped context disclosure. KMH must keep message provenance, authorization, and data minimization as distinct controls.
+
+### 27.6 Revision/status reconciliation
+
+The live WIMSE Datatracker documents index checked 2026-11-12 lists AIMS -01, Workload Credentials -03, WPT -02, Identifier -04, Mutual TLS -03 and Architecture -08 as active WG drafts. HTTP Signatures -08 is shown as submitted to IESG for Proposed Standard publication, while Workload Identity Practices -08 is in IETF Last Call ending 2026-11-13. These are not yet published RFCs based on the retrieved index. Pin revisions and re-check status before external standards claims.
+
+### 27.7 Implementation priority
+
+1. Define a KMH-local versioned DialogContext schema and deterministic serialization.
+2. Bind DialogContext + transaction token + request body digest in HTTP signatures for HTTP agent hops.
+3. For WPT-only request profiles, explicitly document lack of authenticated response proof.
+4. Add multi-hop proof retention and bounded chain verification; evaluate aggregate-signature interoperability separately.
+5. Add cross-dialog token replay tests, altered-context tests, omitted-hop tests, wrong-initiator tests and trust-domain boundary tests.
+6. Define privacy controls for forwarding hop identities and dialog linkage metadata.
+
+No dialog-binding or aggregate-signature implementation, conformance result, or production security claim is made by this research update.
+
+### 27.8 Correction to the prior exploratory SADP note
+
+SADP -01 is verified by the official Datatracker record as draft-atakora-wimse-sadp-delegation-01. The Section 26 correction is authoritative: it remains an individual Experimental Internet-Draft, not a standard. Do not confuse its scoped encrypted context disclosure with Dialog Binding's cryptographic message/dialog provenance.
