@@ -264,6 +264,8 @@ class CcfConsistencyReceiptVerifier:
             raise ReceiptVerificationError("invalid VDP header value")
         if not set(vdp).issubset({INCLUSION_PROOF_LABEL, CONSISTENCY_PROOF_LABEL}):
             raise ReceiptVerificationError("unsupported proof type in VDP map")
+        if INCLUSION_PROOF_LABEL not in vdp and CONSISTENCY_PROOF_LABEL not in vdp:
+            raise ReceiptVerificationError("VDP map must contain at least one supported proof type")
         proof_blobs = vdp.get(CONSISTENCY_PROOF_LABEL)
         if not isinstance(proof_blobs, (list, tuple)) or not proof_blobs:
             raise ReceiptVerificationError("receipt must contain consistency proofs")
