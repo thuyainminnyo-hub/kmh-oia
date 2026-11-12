@@ -1,0 +1,289 @@
+openapi: 3.1.0
+info:
+  title: ATELIER 360 Controlled Fashion Pilot API
+  version: 0.1.0
+  description: >
+    Specification only. Controlled autonomy; all consequential mutations require
+    human approval. No production deployment is implied.
+servers:
+  - url: https://sandbox.example.invalid/api/v1
+    description: Placeholder sandbox host; replace only during approved deployment.
+security:
+  - bearerAuth: []
+paths:
+  /agents:
+    get:
+      summary: List registered agents
+      operationId: listAgents
+      responses:
+        "200":
+          description: Agent registry
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Agent'}
+    post:
+      summary: Register an agent identity (administrative human only)
+      operationId: registerAgent
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AgentCreate'}
+      responses:
+        "201": {description: Registered identity}
+        "403": {$ref: '#/components/responses/Forbidden'}
+  /models:
+    post:
+      summary: Create a draft product model
+      operationId: createModel
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ModelCreate'}
+      responses:
+        "201": {description: Draft model created}
+        "403": {$ref: '#/components/responses/Forbidden'}
+  /models/{modelId}/proposals:
+    post:
+      summary: Submit a design/pattern/BOM proposal
+      operationId: submitProposal
+      parameters:
+        - {$ref: '#/components/parameters/ModelId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+        - {$ref: '#/components/parameters/IfMatch'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProposalCreate'}
+      responses:
+        "202": {description: Proposal queued for human approval; not executed}
+        "403": {$ref: '#/components/responses/Forbidden'}
+        "409": {$ref: '#/components/responses/Conflict'}
+  /approvals/{approvalId}/decision:
+    post:
+      summary: Approve or reject a proposal (authorized human only)
+      operationId: decideApproval
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {$ref: '#/components/parameters/IfMatch'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, rationale]
+              properties:
+                decision: {type: string, enum: [approve, reject]}
+                rationale: {type: string, minLength: 5, maxLength: 2000}
+      responses:
+        "200": {description: Decision recorded}
+        "403": {$ref: '#/components/responses/Forbidden'}
+        "409": {$ref: '#/components/responses/Conflict'}
+  /batches:
+    post:
+      summary: Prepare a batch (does not release production)
+      operationId: prepareBatch
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BatchCreate'}
+      responses:
+        "201": {description: Draft batch created}
+        "422": {description: Invalid references or quantity}
+  /batches/{batchId}/production-release:
+    post:
+      summary: Request production release; requires single-use human approval
+      operationId: requestProductionRelease
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+        - {$ref: '#/components/parameters/IfMatch'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approvalId, expectedBatchVersion]
+              properties:
+                approvalId: {type: string, format: uuid}
+                expectedBatchVersion: {type: string}
+      responses:
+        "202": {description: Request accepted for authorization check}
+        "403": {$ref: '#/components/responses/Forbidden'}
+        "409": {$ref: '#/components/responses/Conflict'}
+  /items/{itemId}/inspections:
+    post:
+      summary: Record inspection evidence; pass requires evidence
+      operationId: recordInspection
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/InspectionCreate'}
+      responses:
+        "201": {description: Inspection recorded}
+        "422": {description: PASS without evidence rejected}
+  /items/{itemId}/passport:
+    get:
+      summary: Read authorized passport record
+      operationId: getPassport
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: Passport record}
+        "404": {description: Not found}
+    post:
+      summary: Create/update DPP draft; publishing is a separate approved action
+      operationId: upsertPassportDraft
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PassportDraft'}
+      responses:
+        "202": {description: Draft saved for review}
+  /events:
+    get:
+      summary: Query authorized event ledger
+      operationId: listEvents
+      parameters:
+        - name: subjectId
+          in: query
+          schema: {type: string, format: uuid}
+        - name: correlationId
+          in: query
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: Authorized event records}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 16, maxLength: 128}
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema: {type: string}
+    ModelId:
+      name: modelId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    Forbidden:
+      description: Policy or permission denied
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Conflict:
+      description: Stale version, duplicate idempotency key or approval mismatch
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+  schemas:
+    Agent:
+      type: object
+      required: [agentId, agentCode, status, autonomy]
+      properties:
+        agentId: {type: string, format: uuid}
+        agentCode: {type: string}
+        status: {type: string, enum: [active, suspended, revoked]}
+        autonomy: {type: string, const: controlled}
+        allowedTools: {type: array, items: {type: string}}
+    AgentCreate:
+      type: object
+      required: [agentCode, displayName, purpose, promptVersion]
+      properties:
+        agentCode: {type: string}
+        displayName: {type: string}
+        purpose: {type: string}
+        promptVersion: {type: string}
+        allowedTools: {type: array, items: {type: string}}
+        autonomy: {type: string, const: controlled}
+    ModelCreate:
+      type: object
+      required: [modelCode, brandCode, productName, designVersion]
+      properties:
+        modelCode: {type: string}
+        brandCode: {type: string, const: NAYRA_MAISON}
+        productName: {type: string}
+        designVersion: {type: string}
+        description: {type: [string, 'null']}
+    ProposalCreate:
+      type: object
+      required: [proposalType, expectedVersion, payload, rationale]
+      properties:
+        proposalType: {type: string, enum: [design, pattern, bom, quantity_change, production_release, dpp_publish]}
+        expectedVersion: {type: string}
+        payload: {type: object}
+        rationale: {type: string}
+    BatchCreate:
+      type: object
+      required: [batchCode, modelId, designVersionId, patternVersionId, bomId, plannedQuantity]
+      properties:
+        batchCode: {type: string}
+        modelId: {type: string, format: uuid}
+        designVersionId: {type: string, format: uuid}
+        patternVersionId: {type: string, format: uuid}
+        bomId: {type: string, format: uuid}
+        plannedQuantity: {type: integer, minimum: 1}
+    InspectionCreate:
+      type: object
+      required: [checklistVersion, disposition, findings]
+      properties:
+        checklistVersion: {type: string}
+        disposition: {type: string, enum: [pending, pass, fail, rework, hold]}
+        findings: {type: array, items: {type: object}}
+        evidenceId: {type: [string, 'null'], format: uuid}
+    PassportDraft:
+      type: object
+      required: [schemaVersion, payload]
+      properties:
+        schemaVersion: {type: string}
+        payload: {type: object}
+    Error:
+      type: object
+      required: [code, message, correlationId]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        correlationId: {type: string, format: uuid}
