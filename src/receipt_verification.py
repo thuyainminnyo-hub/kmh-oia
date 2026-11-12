@@ -195,6 +195,8 @@ class CcfConsistencyReceiptVerifier:
         vdp = unprotected[VDP_LABEL]
         if not isinstance(vdp, Mapping):
             raise ReceiptVerificationError("invalid VDP header value")
+        if not set(vdp).issubset({INCLUSION_PROOF_LABEL, CONSISTENCY_PROOF_LABEL}):
+            raise ReceiptVerificationError("unsupported proof type in VDP map")
         proof_blobs = vdp.get(CONSISTENCY_PROOF_LABEL)
         if not isinstance(proof_blobs, (list, tuple)) or not proof_blobs:
             raise ReceiptVerificationError("receipt must contain consistency proofs")
