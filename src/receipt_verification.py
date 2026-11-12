@@ -15,6 +15,22 @@ INCLUSION_PROOF_LABEL = -1
 CONSISTENCY_PROOF_LABEL = -2
 
 
+def _validate_ccf_protected_header(receipt: Mapping[str, Any]) -> None:
+    """Validate the decoded protected-header structure required by CCF -06.
+
+    This is a structural check only. The injected COSE verifier MUST also
+    authenticate the protected header as part of the COSE Sig_structure.
+    """
+    protected = receipt.get("protected_header")
+    if not isinstance(protected, Mapping):
+        raise ReceiptVerificationError("missing or invalid COSE protected header")
+    algorithm = protected.get(1)
+    if type(algorithm) is not int:
+        raise ReceiptVerificationError("COSE alg protected header must be an integer")
+    if type(protected.get(395)) is not int or protected.get(395) != 2:
+        raise ReceiptVerificationError("CCF vds protected header must be CCF_LEDGER_SHA256 (2)")
+
+
 class ReceiptVerificationError(ValueError):
     pass
 
