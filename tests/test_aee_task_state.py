@@ -13,20 +13,21 @@ class AeeTaskStateTests(unittest.TestCase):
     principal = "principal:demo"
 
     def make(self, seq, prev, record_type, decision, task_seq, **kwargs):
-        return AeeExecutionReceipt(
-            seq=seq,
-            prev_hash=prev,
-            record_hash=bytes([seq + 1]) * 32,
-            record_type=record_type,
-            decision=decision,
-            policy_pack_digest=self.policy,
-            config_integrity_digest=self.config,
-            agent_id="spiffe://example.test/agent/runtime-1",
-            principal=self.principal,
-            task_seq=task_seq,
-            ts=1_790_000_000_000 + seq,
-            **kwargs,
-        )
+        values = {
+            "seq": seq,
+            "prev_hash": prev,
+            "record_hash": bytes([seq + 1]) * 32,
+            "record_type": record_type,
+            "decision": decision,
+            "policy_pack_digest": self.policy,
+            "config_integrity_digest": self.config,
+            "agent_id": "spiffe://example.test/agent/runtime-1",
+            "principal": self.principal,
+            "task_seq": task_seq,
+            "ts": 1_790_000_000_000 + seq,
+        }
+        values.update(kwargs)
+        return AeeExecutionReceipt(**values)
 
     def chain(self, specifications):
         records = []
