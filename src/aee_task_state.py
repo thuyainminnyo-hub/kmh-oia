@@ -152,6 +152,7 @@ def validate_aee_receipt_sequence(
             if receipt.decision not in {"allow", "block"}:
                 raise AeeTaskValidationError("admission decision must be allow or block")
             previous_hash = receipt.record_hash
+            previous_ts = receipt.ts
             parent_types[receipt.seq] = receipt
             continue
 
