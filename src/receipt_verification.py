@@ -119,6 +119,7 @@ class CcfInclusionReceiptVerifier:
 
         if not isinstance(receipt, Mapping):
             raise ReceiptVerificationError("decoded receipt must be a map")
+        _validate_ccf_protected_header(receipt)
         if receipt.get("payload") is not None:
             raise ReceiptVerificationError("inclusion receipt must use a detached payload")
         unprotected = receipt.get("unprotected_header")
@@ -252,6 +253,7 @@ class CcfConsistencyReceiptVerifier:
             raise ReceiptVerificationError("receipt decoding failed") from exc
         if not isinstance(receipt, Mapping):
             raise ReceiptVerificationError("decoded receipt must be a map")
+        _validate_ccf_protected_header(receipt)
         if receipt.get("payload") is not None:
             raise ReceiptVerificationError("consistency receipt must use a detached payload")
 
