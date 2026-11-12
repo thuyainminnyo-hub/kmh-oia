@@ -1309,3 +1309,69 @@ The IETF announcement retrieved on 2026-11-12 announces `draft-thaha-wimse-agent
 7. Pin Evidence Binding -02 until primary-source revision history confirms a newer revision.
 
 No runtime implementation, conformance test, drift detector, receipt writer or production security claim is made by this documentation correction.
+
+## 37. AEE -02 deeper verification: receipt authorship, credential-scoped chain continuity and Principal attribution (2026-11-12)
+
+### 37.1 Primary-source pin and standards status
+
+The IETF Datatracker confirms `draft-thaha-scitt-agent-execution-evidence-02`, published November 2026, last updated 2026-11-01, expires 2027-05-05, and remains an active individual Internet-Draft with no formal standing in the IETF standards process. Pin the exact -02 text and CDDL for implementation; do not describe it as an adopted SCITT WG standard or published RFC.
+
+### 37.2 Mandatory policy and configuration commitments per receipt
+
+Every AEE Execution Receipt MUST carry both `policy_pack_digest` and `config_integrity_digest` for the versions in force at the Decision Point. A Bundle must therefore include the relevant Policy Pack lineage and every referenced Configuration Integrity Statement. Verification checks that each Policy Pack lineage reaches an accepted root with strictly increasing layers, and that each Configuration Integrity Statement was registered in the transparency service before the receipt (or containing epoch) that references it. A valid hash alone is insufficient: registration precedence and accepted policy lineage are part of verification.
+
+### 37.3 Credential-scoped Evidence Chain and runtime identity migration
+
+An Evidence Chain is scoped to one Agent Credential Statement or Serving Party Credential Statement, not to a hostname or a single runtime identity. Receipts in the same chain may carry different `agent_id` runtime identities as an agent moves between environments, provided each identity is listed in the governing credential's `runtime_identities` with a validity window containing the receipt timestamp. The chain, not the runtime identifier, is the continuity unit. KMH must explicitly model credential rotation/migration and must not splice receipts from unrelated credential statements into one chain without a defined migration proof/profile.
+
+### 37.4 Agent signature vs Harness-authored receipt
+
+The optional `agent_sig` is a COSE_Sign1 with detached payload over the canonical receipt map excluding the `agent_sig` member, signed by the credential's agent key. When present, it MUST be verified. It distinguishes a receipt the agent itself authorized from one recorded unilaterally by the Harness. Absence of `agent_sig` must not be silently described as agent-endorsed evidence. KMH result vocabulary should distinguish `harness_recorded` from `agent_signed` and `agent_signature_verified`.
+
+### 37.5 Evidence Service session binding
+
+The Evidence Service MUST authenticate each Decision Point submitting receipts. Binding a session only to a network address provides little protection because addresses can be shared or change. The draft recommends binding the session to possession of the agent key, for example per-request proof-of-possession (RFC 9449) or certificate-bound session (RFC 8705). KMH should require cryptographic session binding for high-assurance receipt submission and test captured-session replay without the corresponding key.
+
+### 37.6 Principal attribution and auditor replay
+
+The `principal` in a receipt is asserted by the Evidence Service after it validates the Principal token; the receipt does not itself carry proof of that token validation. The Evidence Service SHOULD retain, outside the receipt, a digest of each token as presented and of the key set used to validate it, allowing an Auditor to repeat validation. Token lifetime is evaluated at validation time, not receipt-production time, because a Task can outlive the token that opened it. Any clock-skew allowance must be bounded and stated in the Policy Pack or published Evidence Service configuration. KMH must distinguish `principal_asserted_by_evidence_service` from independently revalidated Principal attribution.
+
+### 37.7 Request/response octet boundary and Harness delivery
+
+AEE request/response digests commit to the octets as seen at the Decision Point. The response digest covers bytes received before the Harness alters, truncates or withholds them from the agent. If delivery transformation matters, KMH must separately record and bind the delivered digest and transformation decision; a receipt over received bytes alone does not prove what the model actually saw. Malformed/error responses are still receipted, with digest of received bytes or absent when no bytes arrived.
+
+### 37.8 Sub-agent identity and delegation
+
+A Sub-agent declared under a parent Agent Credential is not automatically an independent Logical Agent. Its `subagent_ref` and function must match the parent's credential declaration; any sub-agent signature uses its declared subagent key when present. If a component needs independent identity, registration and authority, it must be registered as a separate Logical Agent and receive explicit delegation. `delegated_from` on task_start links the delegated Task to the parent Task within the same chain; it is not itself an authorization grant.
+
+### 37.9 KMH verification state additions
+
+Add explicit states:
+- `policy_pack_lineage_verified`
+- `config_statement_registered_before_receipt`
+- `runtime_identity_valid_at_receipt_time`
+- `credential_scoped_chain_verified`
+- `receipt_harness_recorded` / `receipt_agent_signed`
+- `agent_signature_verified`
+- `decision_point_session_bound`
+- `principal_assertion_verified` / `principal_revalidation_pending`
+- `response_received_digest_verified`
+- `harness_delivery_digest_verified`
+- `subagent_credential_scope_verified`
+
+Missing optional signatures, absent response bytes, or unverified principal assertions must remain explicit states, not be collapsed into `trusted=true`.
+
+### 37.10 Negative tests and pilot acceptance
+
+1. Receipt references an unregistered or later-registered CIS; reject.
+2. Policy lineage omits parent, has non-increasing layer or terminates at unaccepted root; reject.
+3. Runtime identity not listed or validity window excludes receipt timestamp; reject.
+4. Receipts from two unrelated credential statements are spliced; reject.
+5. Present invalid `agent_sig`; reject. Missing optional `agent_sig` is labelled harness-recorded, not agent-endorsed.
+6. Replay Evidence Service session from a different key; reject.
+7. Principal token digest/key set cannot be revalidated; mark attribution unverified or reject under high-risk policy.
+8. Harness changes/truncates response after digest; received and delivered digests must expose the difference.
+9. Sub-agent ref/function does not match parent credential; reject.
+10. Delegated task has no valid parent task reference or tries to treat `delegated_from` as authority; reject.
+
+No runtime implementation, test pass, conformance result or production security claim is made by this research update.
