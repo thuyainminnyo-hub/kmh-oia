@@ -1094,3 +1094,68 @@ The runtime should emit distinct records for credential authentication, evidence
 7. Add in-toto predicate integration and offline Bundle verification.
 
 No AEE claim, admission engine, credential binding, caller-reference or SCITT implementation is added by this research update. No interoperability, conformance or production security claim is made.
+
+## 31. Evidence Binding -03 revision review: key-binding strength, freshness and admission semantics (2026-11-12)
+
+### 31.1 Revision pin and standards status
+
+Pin `draft-thaha-wimse-agent-evidence-binding-03` (November 2026, expires 2027-05-05) for this review. It is an individual Informational Internet-Draft, not an adopted WIMSE WG standard or published RFC. Its IANA claim and HTTP-field registrations are requests, not completed registrations. The proposal is a companion to AIMS and the AEE profile; it does not modify AIMS.
+
+### 31.2 Important distinction: evidence pointer vs credential-key binding
+
+The required `aee_evidence` members (`evidence_service`, `policy_pack_digest`, `logical_agent_id`) provide evidence-service and policy correlation. They do not, by themselves, cryptographically prove that the token's key is the registered key of that logical agent. The optional `agent_credential_digest` enables the stronger credential-key-bound result only when the verifier fetches/verifies the referenced Agent Credential Statement and compares the represented public key to the token's `cnf` key. Compare mathematical public-key values, not serialized JWK/COSE_Key bytes. If this optional binding is absent, KMH must label the result `identity_policy_correlated`, not `credential_key_bound`.
+
+### 31.3 Evidence discovery is not evidence verification
+
+`evidence_service` is an issuer identifier, not necessarily a retrievable URL. `transparency_service`, when included, identifies a service base but not a particular Bundle or evidence period. KMH needs trusted out-of-band discovery/configuration or a defined retrieval profile. A token claim naming an Evidence Service does not prove that the service is honest, that a receipt exists, or that the evidence is valid. Verify the signed statements, issuer, policy digest, registration/assurance chain and transparency inclusion independently.
+
+### 31.4 Per-call admission is pre-execution; linked evidence is post-hoc
+
+For every call, the Serving Party validates token and request proof-of-possession, resolves applicable Agent Registration and Assurance Statements, checks status freshness and accepted issuer/assessor/scheme, evaluates the Principal and current outermost actor against operation policy, recomputes `call_digest` from the received request, enforces caller-reference uniqueness, and emits an admission receipt whether allowed or refused. Only after admission may it execute. Later Linked Verification checks that caller and serving receipts refer to the same call and host. Post-hoc evidence linkage cannot substitute for pre-execution authorization.
+
+### 31.5 Assurance freshness and high-risk operations
+
+The draft permits token-carried assurance level/status as a signed cache only subject to its `status_checked_at` freshness rule. Where policy requires tighter freshness, the Serving Party resolves the status list directly; high-risk operations SHOULD check the status list directly. A Bundle snapshot is historical evidence of the status at its snapshot time, not proof of current non-revocation. KMH must configure operation-specific maximum status age and fail closed when the required freshness cannot be established.
+
+### 31.6 Actor chain semantics
+
+The prior actors in an OAuth `act` chain are attribution only and MUST NOT be used as admission authority. Access-control inputs are the token's top-level claims and current outermost actor. A complete-looking actor chain does not prove that every hop held authority or narrowed it. Verify delegation independently under the pinned delegation profile.
+
+### 31.7 Call digest and gateway limitation
+
+The Serving Party must recompute the call digest over the received request and compare it with the caller's reference; never trust caller-supplied digest. Linked verification checks the serving host and transaction/call reference. The draft identifies a limitation behind shared gateway hosts: if multiple backends share one host, the request-target digest and gateway routing are needed to distinguish them, and a Bundle containing only one admission may not expose wrong-backend admission. KMH must bind the intended backend/service identity in the request profile and record gateway routing/backend identity in serving evidence; do not claim host-only binding distinguishes services behind a shared gateway.
+
+### 31.8 Privacy and correlation
+
+The persistent `logical_agent_id` intentionally enables cross-runtime correlation. `AEE-Caller-Ref` reveals caller Evidence Service and transaction metadata to the serving party. Include these only for intended recipients, use audience-limited evidence distribution, minimize natural-person identifiers, and apply retention controls. Do not expose transparency-service identity if operational privacy policy treats it as sensitive; distribute it out of band instead.
+
+### 31.9 KMH result-state vocabulary
+
+Replace a single `trusted=true` boolean with explicit states:
+- `token_authenticated`
+- `proof_of_possession_valid`
+- `evidence_service_discovered`
+- `evidence_signature_verified`
+- `credential_key_bound` / `identity_policy_correlated`
+- `registration_valid`
+- `assurance_status_fresh`
+- `delegation_authorized`
+- `call_digest_matched`
+- `caller_reference_unique`
+- `admission_allowed` / `admission_denied`
+- `execution_completed` / `execution_failed`
+- `caller_serving_link_verified`
+
+Each state records source, profile/revision, timestamp, policy version and failure reason. Missing evidence is `not_established`, never silently converted to success.
+
+### 31.10 Implementation gate
+
+1. Pin and test the -03 claim schema and exact AEE -02 dependencies.
+2. Implement evidence-service discovery separately from signature/statement verification.
+3. Require credential-key binding for high-risk operations where policy demands it; otherwise preserve the weaker correlation label.
+4. Implement operation-specific assurance freshness and direct status checks for high-risk calls.
+5. Recompute request digest and bind intended backend identity; add shared-gateway routing tests.
+6. Enforce pre-execution admission and emit allow/deny admission receipts.
+7. Verify linked caller/serving evidence after execution without treating it as retroactive permission.
+
+No runtime implementation, interoperability test, conformance result or production security claim is made by this documentation update.
