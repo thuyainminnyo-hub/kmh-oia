@@ -1017,3 +1017,80 @@ The current Datatracker page confirms AEE -02 is an active individual Internet-D
 7. Independent policy checks for transformation permission, task correctness and context-taint effects.
 
 No aggregate-signature, WIMSE chain, Dialog Binding or AEE cryptographic conformance implementation is claimed by this documentation update.
+
+## 30. WIMSE Agent Evidence Binding -03: credential-to-evidence binding and per-call admission (2026-11-12)
+
+### 30.1 Verified proposal and status
+
+The official Datatracker entry confirms draft-thaha-wimse-agent-evidence-binding-03, last updated 2026-11-01, as an active individual Internet-Draft, intended Informational, expiring 2027-05-05. It is not an adopted WIMSE WG standard or published RFC. It is a companion proposal to AIMS and maps AIMS minimum audit fields to the SCITT Agent Execution Evidence (AEE) profile.
+
+The draft proposes one `aee_evidence` claim in a WIT or another agent token, an in-toto predicate for Execution Receipts alongside an agent audit record, and an `AEE-Caller-Ref` HTTP field linking each serving call to caller-side evidence. It also defines a per-call Serving Party admission procedure.
+
+### 30.2 Credential claim binds agent, policy and evidence discovery
+
+The `aee_evidence` object requires:
+- `evidence_service`: issuer identifier for the Evidence Service;
+- `policy_pack_digest`: digest of the Policy Pack governing the agent;
+- `logical_agent_id`: persistent agent identifier across runtime environments.
+
+Optional members include `transparency_service`, `agent_credential_digest`, `assurance_statement_digest`, `assurance_level` and `assurance_status`. Where `agent_credential_digest` is present, the public key in the Agent Credential Statement must represent the same cryptographic key as the token's `cnf` key; compare represented public keys, not serialized JWK/COSE_Key bytes. Without this optional digest, the claim provides identity/policy correlation but not the stronger credential-key-bound result.
+
+The Evidence Service URI is an identifier and not necessarily a fetchable endpoint. Discovery/retrieval may require deployment configuration or another protocol. Do not assume the claim alone retrieves the evidence.
+
+### 30.3 Per-call admission is distinct from post-hoc evidence verification
+
+The Serving Party makes a decision on every call before acting. It must:
+1. Validate the token and request proof-of-possession.
+2. Determine applicable Agent Registration and Assurance Statements and check status freshness under local policy.
+3. Validate accepted registration authority, assessor/scheme, assurance level and status.
+4. Check the Principal and current actor against the operation policy; prior actors in an actor chain are attribution only and must not be used as admission authority.
+5. If `AEE-Caller-Ref` is present, recompute `call_digest` from the request received; never trust the caller-supplied digest. Reject mismatch or missing linkage when policy requires it.
+6. Apply operation-specific authorization and only then execute.
+
+High-risk operations should check the status list directly when required freshness cannot be established from a signed cached status. An absent revocation entry in a Bundle snapshot proves only the state represented by that snapshot, not current non-revocation. Evidence validation after execution does not replace pre-execution admission.
+
+### 30.4 Actor Chain is attribution, not authority
+
+The draft explicitly warns that prior actors in the `act` chain are informational history. The access-control inputs are the token's top-level claims and current actor. An actor chain is not proof that every hop possessed or attenuated authority. KMH must verify delegated authority independently using the selected delegation profile; never infer permission from a recorded actor chain.
+
+### 30.5 Privacy and identity-linkability
+
+`logical_agent_id` intentionally links one agent across runtime platforms. `AEE-Caller-Ref` exposes the caller's Evidence Service and transaction reference to the Serving Party; actor-chain data reveals participating operators. Natural-person Principals are represented as peppered digests in the referenced AEE profile, not cleartext. KMH needs audience-limited disclosure, retention controls and a documented correlation policy. Do not place raw personal identifiers in evidence claims or public transparency metadata.
+
+### 30.6 KMH integration contract
+
+Add separate interfaces:
+- `AgentEvidenceClaimVerifier`: validates claim syntax, issuer, policy digest and logical identity.
+- `AgentCredentialBindingVerifier`: verifies optional credential statement digest and public-key equality with `cnf`.
+- `AssuranceStatusResolver`: resolves statement and checks status freshness/revocation policy.
+- `PerCallAdmissionEngine`: combines identity, current actor, Principal, assurance, requested operation and current policy.
+- `CallerEvidenceLinkVerifier`: recomputes call digest at the serving endpoint and verifies AEE-Caller-Ref linkage.
+- `LinkedEvidenceVerifier`: validates post-hoc cross-operator evidence bundle and caller/serving receipt linkage.
+
+The runtime should emit distinct records for credential authentication, evidence discovery, assurance status, admission decision, caller digest computation, execution result and linked verification. Do not collapse them into one `trusted=true` flag.
+
+### 30.7 Negative tests
+
+- `aee_evidence` issuer mismatch or unknown Evidence Service;
+- wrong policy pack digest or logical agent ID;
+- credential statement key differs from WIT `cnf` key;
+- stale or revoked assurance status;
+- high-risk call uses stale cached status when direct status check is required;
+- caller supplies a false `call_digest` or wrong transaction reference;
+- AEE-Caller-Ref omitted where policy requires it;
+- actor-chain prior agent is mistakenly treated as authority;
+- revoked Principal delegation or wrong current actor;
+- Bundle snapshot is incorrectly treated as proof of current non-revocation;
+- cross-operator receipt references a different call or serving host.
+
+### 30.8 Implementation priority
+
+1. Implement per-call admission and local operation policy first.
+2. Add `aee_evidence` parsing and evidence/policy discovery configuration.
+3. Bind credential statement public key to WIT `cnf` where required.
+4. Implement freshness-aware assurance status resolution.
+5. Add server-computed call digest and AEE-Caller-Ref linkage.
+6. Produce and verify caller/serving linked evidence receipts.
+7. Add in-toto predicate integration and offline Bundle verification.
+
+No AEE claim, admission engine, credential binding, caller-reference or SCITT implementation is added by this research update. No interoperability, conformance or production security claim is made.
