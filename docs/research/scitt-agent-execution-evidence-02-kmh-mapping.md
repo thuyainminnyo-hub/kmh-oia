@@ -186,3 +186,30 @@ This is the authors' implementation-status disclosure, not an independent intero
 4. Follow with configuration manifest/drift enforcement, then registration/credential/assurance lifecycle and offline Bundle.
 5. Maintain a compatibility matrix against the exact -02 revision and record deviations. Do not claim AEE conformance or production readiness until real COSE/CBOR, SCITT registration, official vectors and independent interoperability checks pass.
 
+
+
+## 11. AEE-1 local task/decision-point validator implementation
+
+Added `src/aee_task_state.py` and `tests/test_aee_task_state.py` as a deliberately local, decoded-object state-machine slice. It is **not** an AEE wire-format encoder, CBOR/JCS canonical hash implementation, COSE signer/verifier, SCITT client, or profile-conformance claim.
+
+The validator currently checks:
+- Sequence starts at 0 and increments by exactly one; supplied predecessor hash matches the prior supplied 32-byte record hash.
+- Every receipt has 32-byte policy-pack and configuration-integrity digests, runtime agent ID, principal, timestamp and task reference.
+- Admission records are outside Tasks, use their own sequence as task_seq, and carry allow/block only.
+- task_start opens an allowed Task; task_end closes only an open Task.
+- Non-admission receipts belong to an open Task and preserve the Task's Principal.
+- Parent sequence is earlier and present; tool_call references inference, tool_result references tool_call, egress references tool_call or inference.
+- A tool_result cannot reference a confirm-pending or blocked tool_call; it must reference an allow outcome.
+- Confirmation is restricted to tool_call; an outcome must be exactly one allow/block tool_call matching the earlier confirmation's parent, target, request digest and Task.
+- A Task cannot close while a confirmation remains pending.
+- Egress records require an egress_host.
+
+Tests cover valid tool flow, confirmation/outcome/result ordering, pending confirmation at task close, mismatched confirmation request, wrong parent type, Principal substitution, admission-to-task linkage, and broken predecessor linkage.
+
+### Deliberate limitations and follow-up
+
+- record_hash is supplied to this validator; it does not recompute canonical CBOR/JCS receipt hashes. That must be done by a separately reviewed canonical encoder and signed-statement implementation.
+- No full AEE CDDL validation, COSE per-call agent_sig verification, runtime credential validity-window checking, delegated task policy ancestry, sub-agent credential binding, config-drift verification, admission-basis/status freshness, actor-chain verification, SCITT registration, epoch root or Bundle validation is implemented here.
+- The model/tool harness integration points are not wired by this module. A receipt sequence supplied by a caller is not proof that all real model/tool/network calls were captured. Completeness requires instrumentation at every model, tool, network and ingress decision point and negative tests for bypasses.
+- The module should remain an internal state-machine primitive until official AEE Appendix A vectors and independent implementation comparisons are available.
+
