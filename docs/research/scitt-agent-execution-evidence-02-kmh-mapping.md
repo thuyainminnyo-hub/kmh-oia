@@ -1375,3 +1375,45 @@ Missing optional signatures, absent response bytes, or unverified principal asse
 10. Delegated task has no valid parent task reference or tries to treat `delegated_from` as authority; reject.
 
 No runtime implementation, test pass, conformance result or production security claim is made by this research update.
+
+## 38. AEE -02 primary-source validation: mandatory digests, runtime identity continuity and transparency ordering (2026-11-12)
+
+### 38.1 Mandatory digest commitments
+
+The exact -02 CDDL and verification procedure confirm that every Execution Receipt MUST include both `policy_pack_digest` and `config_integrity_digest`, even when the receipt is an admission, task boundary, model, tool, network or ingress decision record. A Bundle containing a receipt must provide the policy/configuration statements needed to establish the rules and configuration in force. Do not treat these as optional convenience metadata.
+
+### 38.2 Configuration statement canonicalization
+
+The Configuration Integrity Statement has `aee-type=3`, runtime `agent_id`, ordered `entries`, `config_digest`, normalization profile (1 or 2), and issuance time. Entries are ordered by name in octet order and duplicate names are forbidden. `config_digest` is computed over the canonical CBOR encoding of the entries array alone, or JCS encoding in JSON form. Each entry commits to a digest of normalized content and a config class. The statement itself is registered by the Evidence Service.
+
+### 38.3 Transparency ordering is a security property
+
+For an individually registered Execution Receipt, the Policy Pack Statement and Configuration Integrity Statement it references must already be registered; the Configuration Integrity Statement registration must precede the receipt registration. For receipts included in an Execution Epoch, the Transparency Service cannot inspect all hidden receipt contents; the Relying Party must perform the policy/configuration reference and precedence checks using the Bundle and VDS inclusion evidence. KMH must distinguish `statement_registered` from `statement_registered_before_receipt`.
+
+### 38.4 Policy Pack lineage
+
+A Policy Pack with a parent must reference an already registered parent whose layer is strictly lower. The chain must not self-reference directly or through ancestors. Offline verification must walk each distinct `policy_pack_digest` to a registered accepted root, require every parent statement, strictly increasing layers and termination. A relying party should reject a policy digest change within one Task. Digest equality alone does not prove that the policy root is trusted or that the policy is sufficiently restrictive.
+
+### 38.5 Runtime identity and chain continuity
+
+`agent_id` in each receipt is the runtime identity at that Decision Point. It must be listed in the governing Agent Credential Statement's `runtime_identities`, with a validity interval containing the receipt timestamp. Multiple runtime IDs may appear in one credential-scoped chain as an agent moves environments; continuity is provided by the credential-scoped Evidence Chain, not by requiring a constant runtime ID. Serving Party receipts use the service identity or one of its valid runtime identities. KMH must validate time windows and must not merge unrelated credential-scoped chains.
+
+### 38.6 Per-call signature authorship semantics
+
+When `agent_sig` is present it is a detached-payload COSE_Sign1 over the canonical receipt map without the `agent_sig` member, signed with the credential's agent key; it must be verified. This distinguishes an agent-authorized receipt from one recorded unilaterally by the Harness. The Evidence Service must authenticate each Decision Point submitting receipts. For high-assurance use, bind the session to cryptographic proof of possession (e.g. per-request proof or certificate-bound session), not merely an IP address.
+
+### 38.7 Principal attribution boundary
+
+The Evidence Service validates the Principal token and asserts the Principal in the receipt. The receipt does not itself contain proof of token validation. The Evidence Service should retain a protected digest of the presented token and the verification key set so an Auditor can repeat validation. Token lifetime is assessed at validation time, not receipt production time, because a Task can outlive its initiating token. Bounded clock skew must be stated in the Policy Pack or published Evidence Service configuration.
+
+### 38.8 Runtime and delivery boundaries
+
+Request/response digests commit to octets as seen at the Decision Point. A response digest is over bytes received before the Harness modifies, truncates or withholds the response. If the actual bytes delivered to the model matter, record a separate delivered digest and transformation event. A receipt does not prove an external side effect occurred; reconcile with the external service's own transaction evidence.
+
+### 38.9 KMH state model and tests
+
+Add/require the following explicit states: `policy_pack_registered`, `config_statement_registered`, `config_precedence_verified`, `policy_lineage_verified`, `runtime_identity_valid_at_timestamp`, `credential_chain_continuity_verified`, `receipt_authorship_harness_only|agent_signed`, `agent_signature_verified`, `evidence_session_pop_verified`, `principal_token_revalidation_available`, `received_response_digest_verified`, and `delivered_response_digest_verified`.
+
+Negative tests: missing mandatory policy/config digest; duplicate or unsorted config entry; incorrect canonical encoding; CIS registered after receipt; policy parent layer not lower; untrusted policy root; policy change within Task; runtime ID outside validity window; unrelated credential chain splice; invalid agent signature; session replay without key; Principal token/key-set audit mismatch; and Harness response transformation not represented by a delivered digest.
+
+No runtime implementation, conformance result, successful interoperability test or production security claim is made by this research update.
