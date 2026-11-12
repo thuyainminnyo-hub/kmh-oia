@@ -153,6 +153,26 @@ class AeeTaskStateTests(unittest.TestCase):
         self.assertEqual(result.admission_count, 1)
         self.assertEqual(result.task_count, 1)
 
+
+    def test_rejects_confirm_decision_outside_tool_call(self):
+        records = self.chain([
+            (0, "task_start", "allow", 0, {}),
+            (1, "inference", "confirm", 0, {}),
+        ])
+        with self.assertRaises(AeeTaskValidationError):
+            validate_aee_receipt_sequence(records)
+
+    def test_egress_requires_lowercase_a_label_without_port(self):
+        records = self.chain([
+            (0, "task_start", "allow", 0, {}),
+            (1, "inference", "allow", 0, {}),
+            (2, "egress", "allow", 0, {
+                "parent_seq": 1, "egress_host": "Example.com",
+            }),
+        ])
+        with self.assertRaises(AeeTaskValidationError):
+            validate_aee_receipt_sequence(records)
+
     def test_rejects_broken_hash_chain(self):
         records = self.chain([
             (0, "task_start", "allow", 0, {}),
