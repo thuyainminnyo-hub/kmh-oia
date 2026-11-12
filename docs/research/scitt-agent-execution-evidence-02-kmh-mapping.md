@@ -108,3 +108,81 @@ The draft's model/tool "doors" are important: an evidence design that records on
 ## 8. Decision
 
 Adopt AEE -02 as a **research-alignment target only**. Do not claim AEE conformance. The next implementation priority is AEE-1 decision-point completeness, followed by configuration/policy commitments and a versioned offline Bundle. Keep CCF cryptographic verification as a separate independently validated dependency.
+
+
+## 9. Revision -02 deeper review: requirements that materially affect KMH
+
+Checked against the Datatracker -02 text on 2026-11-12. The draft is dated November 2026, last updated 2026-11-01, and expires 2027-05-05. It remains an **active individual Internet-Draft**: it is not endorsed by the IETF and has no formal standing in the IETF standards process. Its intended status field is not a standards approval.
+
+### 9.1 The two decision doors
+
+The draft's core evidence model is explicit: consequential agent behavior passes through either a model-inference call or a tool call. Evidence must be emitted at both decision doors, not only at the final tool-execution layer. A model-only record without tool outcome evidence, or a tool-only record that omits model decision points, is incomplete against the profile.
+
+KMH action: inventory every model provider/harness adapter and every tool/egress adapter; identify bypass routes; fail closed where a consequential call can proceed without its evidence decision point.
+
+### 9.2 Eleven Signed Statement types
+
+The -02 draft defines these eleven types: Agent Registration, Model Provider, Agent Credential, Serving Party Credential, Policy Pack, Configuration Integrity, Configuration Drift, Execution Receipt, Execution Epoch, Assurance, and Revocation.
+
+Important semantic separation:
+- Agent Registration is the long-lived logical identity and capability declaration.
+- Agent Credential is the operational/runtime identity, keys, harness, model binding and sub-agent declaration for a period.
+- Serving Party Credential identifies a receiving service.
+- Model Provider Statement identifies a dated model version and provider-published evaluation/safeguard commitments.
+- Policy Pack and Configuration Integrity are separate immutable commitments.
+- Configuration Drift links a previously registered configuration digest to a new registered digest.
+- Assurance is a scoped assessment, not an identity credential.
+- Revocation/status statements express lifecycle state; they must be evaluated under the designated authority and freshness policy.
+
+Do not collapse these into one KMH Agent record or one mutable profile object.
+
+### 9.3 Assurance and independent supervision
+
+The draft describes risk-based operational assurance and supervised status. At assurance levels 3 and 4, the assessor must be a third party organizationally independent of the Responsible Entity and operator. Where a Supervisory Authority is designated for a scheme, that authority—not the assessor—controls transitions such as RESTRICTED, SUSPENDED, restore VALID, and withdrawal. Deviations requiring immediate suspension must be reported and acted on under the scheme.
+
+KMH action: keep assurance as a separate evidence and governance domain. Do not label KMH's own internal QA as independent third-party assurance. Do not claim accreditation; the draft explicitly does not define a universal accreditation scheme or risk classification.
+
+### 9.4 Runtime identity, sub-agents and chain continuity
+
+The draft distinguishes logical agent identity from runtime identities. Runtime identities have validity windows and are bound through Agent Credential Statements. Sub-agents are declared under the parent's credential and act under the parent's logical identity; they do not gain an unrelated logical identity merely because they have a separate runtime process. Credential rotation and revocation must preserve verifiable historical continuity.
+
+KMH action: connect the current ExecutionIdentity and mandate context to a versioned credential statement model, but keep the local account/instance/environment/session key distinct from a standards-profile Runtime Identity. Add validity-window checks at receipt timestamp and parent/sub-agent linkage tests.
+
+### 9.5 Configuration integrity, drift and policy binding
+
+Every Execution Receipt carries both policy_pack_digest and config_integrity_digest. The configuration statement commits to ordered configuration entries with mandatory Unicode normalization. The draft specifically treats prompts, instruction files, skills, hooks, tool manifests and memory as behavior-shaping inputs. Configuration drift requires the old and new configuration statements to be registered, and the harness must detect mismatch before allowing further calls.
+
+KMH action: build a manifest from actual loaded inputs, not a manually maintained descriptive list. Normalize and hash at load time, re-check during execution, and emit a drift event before further tool/model calls. Do not include raw secrets or private prompt contents in public receipts; use content digests and controlled evidence retention.
+
+### 9.6 Task and confirmation semantics
+
+Tasks are delimited by task_start and task_end receipts. A confirmation request is not an authorization outcome: a tool call without its resolving confirmation outcome is incomplete. A tool_result must not precede an allow outcome. A task must not end with a pending confirmation; if the session closes with one pending, the Evidence Service records block first.
+
+KMH action: implement a deterministic task state machine and negative tests for missing/duplicate confirmation, wrong parent sequence, wrong task, tool result before allow, and task close with pending confirmation.
+
+### 9.7 Request binding and privacy
+
+The draft adds call_digest and egress_host/hosts bindings for linked admission and outbound tool/egress records. Its text warns that low-entropy request digests can be guessed by an observer. It also constrains free-text target and egress_host fields and prohibits embedding query/user/argument/parameter values in them. Natural-person Principals are represented using a peppered digest, with the pepper retained by the issuer.
+
+KMH action: do not expose raw request digests for low-entropy sensitive values without a documented privacy analysis. Keep the pepper outside the agent process. Use constrained host/path-template metadata and never put user arguments or payment amounts into public identifiers or free-text evidence fields.
+
+### 9.8 Execution Epoch and offline Bundle
+
+The draft's Bundle is CBOR and includes the required Transparent Statements, an ordered receipt-chain segment, optional inclusion paths for receipts in epochs, and status-list token snapshots. A Linked Bundle is an ordered sequence of Bundles for each Evidence Chain in a cross-operator Call Chain. Offline verification must check registration and credential relationships, policy/configuration references, epoch continuity, status snapshots, and linked caller/serving-party evidence.
+
+KMH action: do not treat a JSON export or local SQLite dump as an AEE Bundle. Implement a versioned CBOR Bundle adapter only after statement schemas and registration policy are stable. Add deterministic offline verification and explicit status freshness reporting.
+
+### 9.9 The draft's own implementation-status statement
+
+The draft's authors report a prototype with harness-side model/tool decision points, hash-chained signed records, Tasks, refusals, separate approvals, and an offline verifier. They explicitly list as not implemented in that prototype COSE wrapping, epochs, Bundles, SCITT registration, per-call agent signatures, validity-window checks, Assurance checks, Principal peppering, and several -02 additions including registration/model-provider/serving-party statements, sub-agent records, memory digests, supervisory status, admission receipts and linked verification.
+
+This is the authors' implementation-status disclosure, not an independent interoperability report. It is useful evidence that the profile is still maturing and that KMH should target the published -02 text carefully rather than assume a complete production reference implementation exists.
+
+## 10. Updated KMH decision
+
+1. Keep CCF receipt verification and AEE execution-evidence semantics as separate layers.
+2. Next code increment should be a **KMH AEE Task/Decision-Point State Machine**, not a premature COSE Bundle implementation.
+3. Add typed model/tool/confirmation/task events, sequence and parent linkage, policy/config digests, and fail-closed ordering.
+4. Follow with configuration manifest/drift enforcement, then registration/credential/assurance lifecycle and offline Bundle.
+5. Maintain a compatibility matrix against the exact -02 revision and record deviations. Do not claim AEE conformance or production readiness until real COSE/CBOR, SCITT registration, official vectors and independent interoperability checks pass.
+
