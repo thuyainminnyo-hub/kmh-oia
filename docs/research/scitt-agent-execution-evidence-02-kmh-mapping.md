@@ -427,3 +427,39 @@ The fixture was committed at code commit 3e6544ffdc8efbcb1c98a4914be94ad13efb1ee
 4. Parse and verify COSE_Sign1 protected headers, Sig_structure and Ed25519 signatures using the test keys only.
 5. Add tamper tests: changed payload byte, changed protected header, wrong key, wrong agent identity, wrong predecessor hash, altered request digest, and invalid confirmation linkage.
 6. Add a distinct WIMSE evidence-binding admission adapter and tests for missing/incorrect Evidence Service, stale assurance, policy mismatch and caller-reference linkage.
+
+## 18. WIMSE AIMS -01 and Evidence Binding -03 precise integration contract (2026-11-12)
+
+### 18.1 WIMSE AIMS -01 is now the current WG draft
+
+The IETF Datatracker lists draft-ietf-wimse-aims-01, published 2026-11-02, as an active WIMSE Working Group Internet-Draft with intended status Informational and expiry 2027-05-06. It is a conceptual Agent Identity Management System, not a product or a finalized protocol. Its functions include identifiers, credentials, credential provisioning, authentication, authorization, observability/remediation, policy, and compliance.
+
+KMH should map these as interfaces/capabilities rather than duplicate a parallel identity protocol. The existing KMH Registry and Trust Governance remain the local control plane; standards adapters should consume established workload identity, OAuth and SPIFFE mechanisms where appropriate.
+
+### 18.2 Evidence Binding -03 claim fields: distinguish required from optional
+
+The current -03 draft's aee_evidence object has these fields:
+- REQUIRED: evidence_service (CBOR key 1), policy_pack_digest (2), logical_agent_id (5).
+- OPTIONAL: transparency_service (3), agent_credential_digest (4), assurance_statement_digest (6), assurance_level (7), assurance_status (8), registration_digest (9), and status_checked_at (10).
+
+The optional assurance_level and assurance_status are a paired signed cache; they are not authoritative on their own. The freshness rule concerns the age of status_checked_at, not the token's remaining lifetime. High-risk operations SHOULD check the status list directly. If agent_credential_digest is present, the represented public key in the Agent Credential Statement MUST equal the token's cnf key; without this binding the claim supplies identity/policy correlation, not credential-key-bound evidence. The claim names the expected Evidence Service; it does not identify a particular Bundle or provide a retrieval protocol.
+
+### 18.3 Serving Party admission contract
+
+Before acting on each call, the Serving Party must:
+1. Validate the token and request proof-of-possession under the applicable profiles.
+2. Resolve the applicable Assurance and Registration Statements and enforce policy freshness.
+3. Verify accepted issuer/authority, validity, assurance level and permitted status.
+4. Evaluate the Principal and current actor against operation policy. Prior Actor Chain entries are attribution/history only and MUST NOT be used as admission authority inputs.
+
+For AEE-Caller-Ref, the Serving Party recomputes call_digest over the request it actually received; it never trusts the caller-provided digest. It refuses a mismatch, refuses a missing digest when linking is required, and MUST refuse a caller reference it has already admitted. The per-call reference must not be put in a reusable token that can be presented on multiple calls. The Serving Party records its own computed call_digest in its admission receipt.
+
+The -03 changes section notes a nuanced replay limitation: behind a shared gateway host, a wrong-backend admission can still pass when only that admission is in the Linked Bundle. KMH should therefore bind backend/service identity and request-target routing context into its local admission policy and tests; caller-reference uniqueness alone is not a complete cross-backend replay defense.
+
+### 18.4 Actor Chain is attribution, not delegated authority
+
+The draft explicitly states that nested act claims carry asserted actor history. Prior actors are informational only for admission. They do not prove that each hop possessed authority or narrowed it. If KMH needs authority attenuation across multiple agents, it must verify per-hop signed delegation evidence or linked receipts; do not infer authority from the Actor Chain.
+
+### 18.5 Standards maturity boundary
+
+AIMS -01 is a WIMSE Working Group Internet-Draft. Evidence Binding -03 is an individual Internet-Draft associated with WIMSE discussion, not a WG-endorsed standard and not an RFC. Keep both behind versioned adapters and pin draft revisions in conformance tests. Avoid describing either as an adopted standard or assuming IANA registrations are already assigned.
