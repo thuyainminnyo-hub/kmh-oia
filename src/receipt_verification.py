@@ -30,7 +30,6 @@ class CcfProofCodec(Protocol):
     def decode_receipt(self, receipt_bytes: bytes) -> Mapping[str, Any]: ...
     def decode_inclusion_proof(self, proof_bytes: bytes) -> Mapping[str, Any]: ...
     def validate_inclusion_proof(self, proof: Mapping[str, Any]) -> bool: ...
-    def compute_inclusion_root(self, proof: Mapping[str, Any]) -> bytes: ...
     def decode_consistency_proof(self, proof_bytes: bytes) -> Mapping[str, Any]: ...
     def validate_consistency_proof(self, proof: Mapping[str, Any]) -> bool: ...
 
@@ -142,7 +141,7 @@ class CcfInclusionReceiptVerifier:
                 proof = self.codec.decode_inclusion_proof(proof_blob)
             except Exception as exc:
                 raise ReceiptVerificationError("inclusion proof decoding failed") from exc
-            if not isinstance(proof, Mapping) or not self.codec.validate_inclusion_proof(proof):
+            if not isinstance(proof, Mapping) or set(proof) != {1, 2} or not self.codec.validate_inclusion_proof(proof):
                 raise ReceiptVerificationError("CCF inclusion proof schema validation failed")
             if data_hash_from_proof(proof) != statement_digest:
                 raise ReceiptVerificationError("CCF leaf data-hash does not bind candidate Signed Statement")
@@ -278,7 +277,7 @@ class CcfConsistencyReceiptVerifier:
                 proof = self.codec.decode_consistency_proof(proof_blob)
             except Exception as exc:
                 raise ReceiptVerificationError("consistency proof decoding failed") from exc
-            if not isinstance(proof, Mapping) or not self.codec.validate_consistency_proof(proof):
+            if not isinstance(proof, Mapping) or set(proof) != {1, 2} or not self.codec.validate_consistency_proof(proof):
                 raise ReceiptVerificationError("CCF consistency proof schema validation failed")
 
             anchor = proof.get(1)
@@ -331,7 +330,7 @@ class CcfConsistencyReceiptVerifier:
                 proof = self.codec.decode_inclusion_proof(proof_blob)
             except Exception as exc:
                 raise ReceiptVerificationError("inclusion proof decoding failed") from exc
-            if not isinstance(proof, Mapping) or not self.codec.validate_inclusion_proof(proof):
+            if not isinstance(proof, Mapping) or set(proof) != {1, 2} or not self.codec.validate_inclusion_proof(proof):
                 raise ReceiptVerificationError("CCF inclusion proof schema validation failed")
             try:
                 inclusion_root = compute_ccf_inclusion_root(proof)
