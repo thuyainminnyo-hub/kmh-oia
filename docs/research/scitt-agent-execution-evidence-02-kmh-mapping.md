@@ -970,3 +970,50 @@ For an HTTP agent hop chain:
 5. Link the verified provenance result to AEE receipts and cross-operator Linked Bundles.
 
 No WIMSE aggregate-signature implementation, conformance result or production security claim is made by this research update.
+
+## 29. Revision-pinned WIMSE Chain Provenance -01 and AEE -02 verification notes (2026-11-12)
+
+### 29.1 Authenticated Provenance -01: exact wire-level model
+
+The Datatracker confirms draft-reddy-wimse-aggregate-signatures-01, published 2026-09-28, expires 2027-04-01, as an active individual Internet-Draft. The -01 wire model is more specific than a generic aggregate proof:
+- Every hop has a WIMSE HTTP Message Signature input tagged `wimse-delegation-chain`.
+- Every hop's WIT is carried in the `Workload-Identity-Tokens` Structured Field Dictionary under the same label as that hop's `Signature-Input`; the hop signs the matching dictionary member. A hop must preserve all prior entries and add a unique label for its own WIT.
+- In aggregate mode, the message carries `Signature-Aggregate`; the ordinary `Signature` field MUST NOT be present. The verifier reconstructs every signature base from the retained `Signature-Input` entries and the corresponding WIT public keys, then verifies the aggregate against the complete ordered set of key/message pairs.
+- Each hop signs a `wimse-req-digest` containing the Content-Digest value it received (or the reserved `origin` marker for the initiator), while `Content-Digest` describes the body it forwarded. The next hop's received digest must match the prior hop's forwarded digest. Responses have the analogous `wimse-resp-digest` lineage.
+
+This authenticates hop participation and body lineage. Method, target URI, query and other HTTP components still depend on the selected WIMSE HTTP Signature covered-component profile. It is not a blanket signature over arbitrary application semantics.
+
+### 29.2 Security property is attribution, not correctness or authorization
+
+A signed hop can deliberately or incorrectly transform the body and still produce a cryptographically valid record of that transformation. The verifier can attribute the transformation to that hop; a separate authorization/policy decision must determine whether it was permitted or semantically correct. The draft expressly leaves authorization out of scope. AEE likewise records execution evidence but does not itself define universal risk classifications or grant authority.
+
+### 29.3 Aggregate-signature deployment gate
+
+The -01 draft is algorithm-agnostic and does not establish a selected production aggregate scheme. Do not implement a custom aggregate primitive. First implement and test individual WIMSE HTTP signatures plus body digest lineage. Add aggregate mode only after selecting an interoperable scheme/profile, pinning key and signer-set encoding, obtaining test vectors, and validating rogue-key/rogue-signer protections and failure behavior. Until then, retain individual hop proofs as the verifiable baseline.
+
+### 29.4 AEE -02 remains an individual SCITT profile draft
+
+The current Datatracker page confirms AEE -02 is an active individual Internet-Draft published November 2026, intended Standards Track, expiring 2027-05-05. It profiles SCITT Signed Statements, hash-chained execution receipts, admission records, cross-operator linked evidence, Registration Policy, offline verification and Bundle requirements. It does not define accreditation, a universal risk taxonomy, an agent identifier scheme or a policy language. KMH must keep these decisions in explicit local governance profiles.
+
+### 29.5 Cross-layer verification matrix
+
+| Layer | What cryptography/evidence establishes | What remains a separate decision |
+|---|---|---|
+| WIT/WPT | Workload identity and key possession | Authorization for the action |
+| WIMSE HTTP Signature | Covered HTTP components from one sender | Semantic correctness of content |
+| WIMSE Chain Provenance | Participating hops and body transformation lineage | Whether each transformation was allowed |
+| Dialog Binding | Message belongs to a dialog and initiator context | Whether the task itself is permitted |
+| SADP | Capability chain and encrypted scoped context release (experimental) | Compliance after plaintext is disclosed; revocation limitations |
+| AEE/SCITT | Recorded execution/admission evidence and transparency verification | Universal risk rating or authority grant |
+
+### 29.6 KMH implementation order refined
+
+1. WIT validation and per-hop WIMSE HTTP Signature verification.
+2. Exact covered-component profile and request/response Content-Digest lineage.
+3. Dialog-context and transaction-token binding.
+4. AEE receipt creation for each authorization, transformation, tool call, result and admission.
+5. Offline Bundle verification and cross-operator evidence linkage.
+6. Experimental aggregate signature adapter only after scheme/profile and vectors are pinned.
+7. Independent policy checks for transformation permission, task correctness and context-taint effects.
+
+No aggregate-signature, WIMSE chain, Dialog Binding or AEE cryptographic conformance implementation is claimed by this documentation update.
