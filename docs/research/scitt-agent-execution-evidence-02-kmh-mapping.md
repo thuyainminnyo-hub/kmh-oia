@@ -377,3 +377,53 @@ The exact documentation head a438e6942ed1d2cccb39c068041c3c0e712c84d2 was checke
 - KMH OIA Validation: completed successfully (run 2051).
 
 This confirms repository CI for that exact head. It does not establish AEE vector conformance, canonical encoding correctness, COSE verification, external SCRAPI interoperability, or production readiness.
+
+## 17. WIMSE companion research and first Appendix A semantic fixture (2026-11-12)
+
+### 17.1 Companion draft discovered: Evidence Binding for AI Agent Credentials
+
+The same authors' repository contains a WIMSE companion Internet-Draft, revision -03: *Evidence Binding for AI Agent Credentials*. It is an Informational WIMSE working-group document, not an adopted RFC. It deliberately narrows scope to:
+- an aee_evidence claim binding a workload credential to the logical agent, expected Evidence Service and governing policy, with optional Assurance Statement;
+- an in-toto predicate carrying Execution Receipts alongside an agent audit record;
+- per-call admission-time assurance checking by a Serving Party;
+- an AEE-Caller-Ref HTTP field linking the call to caller-side evidence;
+- Principal and Actor Chain propagation across hops.
+
+This is a useful companion to AEE: AEE describes the evidence records and transparency profile; WIMSE Evidence Binding describes how workload identity credentials tell a relying party where the evidence is expected and how a serving service links an inbound call to the caller's evidence.
+
+**KMH implication:** do not put evidence discovery only in a local agent registry. Add a separate, versioned workload-credential evidence-binding adapter that validates the authenticated workload identity, expected Evidence Service, policy reference and optional assurance reference before admission. Keep this as an adapter boundary until WIMSE AIMS and Evidence Binding stabilize.
+
+### 17.2 Adjacent drafts worth tracking
+
+The companion repository also references:
+- WIMSE AI Identity Management System (AIMS), for identity lifecycle and minimum agent audit requirements;
+- an audit record format for AI Agent Authorization Decisions, for richer decision context;
+- Authorization Evidence Chains, for composing heterogeneous authorization evidence;
+- OAuth identity/authorization chaining and transaction tokens, for Actor Chain and cross-hop transaction binding.
+
+These are separate work items and must not be represented as adopted standards merely because a companion draft references them.
+
+### 17.3 Appendix A execution-receipt semantic fixture added
+
+Added a test named test_accepts_aee_02_appendix_a_execution_receipt_semantics to tests/test_aee_task_state.py. It transcribes the published Appendix A execution-receipt example's:
+- four supplied record hashes and predecessor sequence;
+- task_start and model inference records;
+- tool_call confirmation and matching allow outcome;
+- policy/configuration digests, principal digest representation, request digest, target, timestamps and parent/confirmation references.
+
+This fixture exercises the existing decoded-object state machine against published values instead of only synthetic sequential hashes.
+
+**Strict limitation:** this is a semantic fixture using the Appendix A values, not full Appendix A cryptographic conformance. The test currently supplies the published record hashes to the validator; it does not parse the COSE files, encode canonical CBOR, independently recompute the four receipt hashes, or verify the per-call Ed25519 COSE signature. The public author repository's vectors/make_vectors.py and vectors/vectors.txt are valuable reproducible reference material; pin the exact source commit and generated vector checksums before importing binary fixtures into KMH.
+
+### 17.4 Current verification boundary
+
+The fixture was committed at code commit 3e6544ffdc8efbcb1c98a4914be94ad13efb1ee2. No workflow run had been returned for this exact commit at the time of this update. Do not report the new test as passing until CI completes on this head. The preceding documentation head 6c03f67dfbe70b8985c01c9f3857af31109ae9f6 had no workflow run returned either; the last verified head remains the earlier code-bearing commit a438e6942ed1d2cccb39c068041c3c0e712c84d2, whose two repository workflows passed.
+
+### 17.5 Recommended next gate
+
+1. Pin the AEE author repository commit and checksum vectors/vectors.txt and the relevant COSE files.
+2. Add a canonical CBOR implementation with strict duplicate-map-key and canonical-encoding checks.
+3. Recompute Appendix A record hashes and compare byte-for-byte with the published values.
+4. Parse and verify COSE_Sign1 protected headers, Sig_structure and Ed25519 signatures using the test keys only.
+5. Add tamper tests: changed payload byte, changed protected header, wrong key, wrong agent identity, wrong predecessor hash, altered request digest, and invalid confirmation linkage.
+6. Add a distinct WIMSE evidence-binding admission adapter and tests for missing/incorrect Evidence Service, stale assurance, policy mismatch and caller-reference linkage.
