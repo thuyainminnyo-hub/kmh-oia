@@ -126,6 +126,17 @@ class CcfInclusionReceiptVerifierTests(unittest.TestCase):
         with self.assertRaises(ReceiptVerificationError):
             verifier.verify(signed_statement=self.statement, receipt_bytes=b"receipt")
 
+
+    def test_rejects_wrong_or_missing_protected_vds_header(self):
+        wrong = dict(self.receipt)
+        wrong["protected_header"] = {1: -8, 395: 1}
+        verifier = CcfInclusionReceiptVerifier(
+            codec=FakeCodec(wrong, self.proofs), cose_verifier=self.cose,
+            trusted_key_set={"kid": "k"}, expected_service_id="https://ts.example",
+        )
+        with self.assertRaises(ReceiptVerificationError):
+            verifier.verify(signed_statement=self.statement, receipt_bytes=b"receipt")
+
     def test_requires_candidate_statement_and_trusted_key_set(self):
         with self.assertRaises(ReceiptVerificationError):
             self.verifier.verify(signed_statement=b"", receipt_bytes=b"receipt")
@@ -195,6 +206,18 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
         ).digest()
         self.assertEqual(older, expected_older)
         self.assertEqual(newer, expected_newer)
+
+
+    def test_rejects_wrong_protected_vds_header(self):
+        wrong = dict(self.receipt)
+        wrong["protected_header"] = {1: -8, 395: 1}
+        verifier = CcfConsistencyReceiptVerifier(
+            codec=FakeConsistencyCodec(wrong, self.proofs),
+            cose_verifier=self.cose, trusted_key_set={"kid": "k"},
+            expected_service_id="https://transparency.example",
+        )
+        with self.assertRaises(ReceiptVerificationError):
+            verifier.verify(receipt_bytes=b"receipt", trusted_older_root=self.older)
 
     def test_verifies_extension_from_trusted_old_root(self):
         result = self.verifier.verify(
