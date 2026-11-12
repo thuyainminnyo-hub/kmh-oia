@@ -120,6 +120,8 @@ def validate_aee_receipt_sequence(
             raise AeeTaskValidationError("unsupported record_type")
         if receipt.decision not in DECISIONS:
             raise AeeTaskValidationError("unsupported decision")
+        if receipt.decision == "confirm" and receipt.record_type != "tool_call":
+            raise AeeTaskValidationError("confirm decision is only valid on tool_call")
         _digest_or_none(receipt.policy_pack_digest, "policy_pack_digest", required=True)
         _digest_or_none(receipt.config_integrity_digest, "config_integrity_digest", required=True)
         _digest_or_none(receipt.request_digest, "request_digest")
@@ -245,8 +247,18 @@ def validate_aee_receipt_sequence(
             raise AeeTaskValidationError("confirm_seq is only valid on a tool_call outcome")
 
         if receipt.record_type == "egress":
-            if not isinstance(receipt.egress_host, str) or not receipt.egress_host.strip():
-                raise AeeTaskValidationError("egress receipt requires egress_host")
+            host = receipt.egress_host
+            if not isinstance(host, str) or not host or not host.isascii():
+                raise AeeTaskValidationError("egress receipt requires an ASCII A-label egress_host")
+            if host != host.lower() or ":" in host or len(host) > 253:
+                raise AeeTaskValidationError("egress_host must be lowercase and must not include a port")
+            labels = host.split(".")
+            if any(
+                not label or len(label) > 63 or label.startswith("-") or label.endswith("-")
+                or not all(ch.isalnum() or ch == "-" for ch in label)
+                for label in labels
+            ):
+                raise AeeTaskValidationError("egress_host is not a valid lowercase DNS A-label")
 
         parent_types[receipt.seq] = receipt
         previous_hash = receipt.record_hash
