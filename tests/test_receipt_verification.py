@@ -55,6 +55,7 @@ class CcfInclusionReceiptVerifierTests(unittest.TestCase):
             b"proof-2": {1: [self.internal_hash, self.internal_evidence, self.digest], 2: [(False, self.sibling)]},
         }
         self.receipt = {
+            "protected_header": {1: -8, 395: 2},
             "payload": None,
             "unprotected_header": {396: {-1: [b"proof-1", b"proof-2"]}},
         }
@@ -168,6 +169,7 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
             },
         }
         self.receipt = {
+            "protected_header": {1: -8, 395: 2},
             "payload": None,
             "unprotected_header": {396: {-2: [b"p1", b"p2"]}},
         }
