@@ -219,8 +219,18 @@ class CcfConsistencyReceiptVerifier:
                 raise ReceiptVerificationError("consistency proof anchor must be exactly 32 bytes")
             if not isinstance(path, (list, tuple)) or not path:
                 raise ReceiptVerificationError("consistency proof path must be non-empty")
+            if not isinstance(anchor, bytes) or len(anchor) != 32:
+                raise ReceiptVerificationError("consistency proof anchor must be exactly 32 bytes")
+            for sibling in path:
+                if not isinstance(sibling, (list, tuple)) or len(sibling) != 2:
+                    raise ReceiptVerificationError("each consistency path element must be a two-item array")
+                side, digest = sibling
+                if type(side) is not bool:
+                    raise ReceiptVerificationError("consistency path side flag must be boolean")
+                if not isinstance(digest, bytes) or len(digest) != 32:
+                    raise ReceiptVerificationError("consistency path sibling digest must be exactly 32 bytes")
             first = path[0]
-            if not isinstance(first, (list, tuple)) or len(first) != 2 or first[0] is not False:
+            if first[0] is not False:
                 raise ReceiptVerificationError("first consistency path sibling must be on the right")
 
             try:
