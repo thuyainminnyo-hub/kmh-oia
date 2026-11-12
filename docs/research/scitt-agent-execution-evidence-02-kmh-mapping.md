@@ -798,3 +798,51 @@ As of the 2026-11-12 check, Workload Identity Practices -08 is in IETF Last Call
 ### Research integrity note: SADP claim from prior exploratory note
 
 The previously mentioned “SADP Delegation Draft -01” and its claimed privacy-preserving scoped-context-disclosure protocol could not be independently verified in the official IETF Datatracker results checked for this update. Treat that earlier mention as unverified and do not base KMH architecture or implementation decisions on it unless an authoritative draft URL and content are produced. The verified WIMSE credential and proof documents above are the supported basis for this update.
+
+## 26. Verified SADP -01 discovery, WIMSE HTTP Signatures -08 and AIMS lifecycle (2026-11-12)
+
+### 26.1 Correction: SADP is verified; prior Section 24 research-integrity note is superseded
+
+The official IETF Datatracker entry confirms draft-atakora-wimse-sadp-delegation-01, titled *Capability-Bound Delegation Chains with Scoped Context Disclosure for AI Agents*, published 2026-09-21, intended status Experimental, expires 2027-03-24. It is an individual Internet-Draft and explicitly has no formal standing in the IETF standards process. The earlier Section 24 statement that SADP could not be independently verified is superseded by this direct authoritative lookup.
+
+The draft's problem framing is useful: delegation systems commonly constrain what an agent may do but do not necessarily constrain what task/context information the delegatee can see. SADP proposes to bind these two boundaries together:
+- signed capability grants and nested delegation chains;
+- strict attenuation (issuer continuity, action equality, resource subtree narrowing, non-increasing expiry, depth decrement and caveat accumulation);
+- parent_grant_hash over canonical JSON of the complete parent grant including signature;
+- encrypted task capsules and encrypted context objects;
+- release of context content keys only to a principal whose valid capability chain authorizes the resource or an ancestor;
+- scoped context disclosure, so a delegatee can receive a subset of task context without receiving the parent object key;
+- hash-linked audit records and receiver-side verification before payload plaintext is released.
+
+The draft itself notes that in its v0.2 capsule profile grants/audit metadata are authenticated outer fields and may be visible to brokers that store complete capsules. A future private-delegation-evidence profile is only anticipated, not specified as current behavior.
+
+### 26.2 SADP limitations that KMH must preserve
+
+This is a prototype proposal, not an established interoperable standard. The current draft states that it has no capability revocation; expiry is the lifetime bound, recommended to be short (minutes to hours). It also acknowledges that caveats such as delete_after_result and no_external_network are behavioral obligations: cryptography makes them attributable but cannot force a malicious holder to comply after plaintext is released. Key resolution and trusted-issuer configuration remain critical trust dependencies. A compromised holder key can exercise and further delegate its grant until expiry, subject to depth/caveat constraints.
+
+KMH must not describe SADP as providing instantaneous revocation, full metadata privacy, or guaranteed deletion. Use short expiries, auditable issuer-key resolution, endpoint-side enforcement, and explicit status/revocation controls if adopted.
+
+### 26.3 Relationship to WIMSE Agent Delegation Chain -03
+
+SADP explicitly says it is intended to be reconcilable with draft-asor-wimse-agent-delegation-chain. The WIMSE chain focuses on authority attenuation; SADP adds encrypted task carriage, context-key release and scoped information access. They are not interchangeable formats. A future KMH adapter must define an explicit mapping between the authority constraints, principal/holder identities, chain parent commitments, expiry, caveats and resource identifiers; never treat a WIMSE `par_hash` as interchangeable with SADP `parent_grant_hash` because the covered byte structures differ.
+
+### 26.4 WIMSE HTTP Signatures -08 is further along the publication path
+
+The WIMSE WG documents index lists draft-ietf-wimse-http-signature-08, dated 2026-10-20, as submitted to IESG for publication as a Proposed Standard (publication requested 2026-10-20). It is not yet a published RFC. It is a stronger candidate for production request-integrity profiles than an individual draft proposal, subject to final IESG/RFC Editor outcome and exact implementation profile.
+
+KMH should review its HTTP Message Signatures coverage and compare it with FrozenAction binding. Use the signature to authenticate covered HTTP components and use a separate deterministic action digest where local MCP invocation or application-level tool semantics need binding. Do not assume an HTTP signature covers an omitted body or every semantic effect unless the selected profile explicitly covers those components.
+
+### 26.5 AIMS -01 lifecycle and session-boundary implication
+
+The WIMSE WG AIMS -01 is a conceptual best-practices document using existing workload identity and OAuth standards rather than defining a new protocol. Its newer explanatory material highlights posture changes after credential issuance, deprovisioning, and sessions that may outlive the credentials that opened them. KMH must therefore treat credential expiry/revocation as a runtime session event: re-check at renewal/expiry boundaries and terminate or narrow long-lived sessions on deprovisioning, revocation or risk signals. Provision-time posture is not a perpetual authorization grant.
+
+### 26.6 KMH implementation decision
+
+1. Keep WIMSE Agent Delegation Chain -03 as the candidate authority attenuation adapter.
+2. Keep SADP -01 as a separate experimental encrypted-context/scoped-disclosure adapter; do not merge its format into WIMSE tokens.
+3. Prototype resource-key release only at a trusted endpoint that can validate the full chain and resource hierarchy before releasing a content key.
+4. Add explicit caveat enforcement hooks and state which caveats are enforceable versus merely attributable.
+5. Review HTTP Signatures -08 for HTTP request integrity; retain FrozenAction digest for local MCP and semantic action binding.
+6. Add session revalidation/deprovisioning tests for credential expiry, revocation, posture change and long-lived sessions.
+
+No SADP, WIMSE delegation, HTTP Signatures or AIMS runtime implementation is added by this research update. No conformance or production security claim is made.
