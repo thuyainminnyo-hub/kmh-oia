@@ -1,4 +1,5 @@
 import unittest
+import sqlite3
 import tempfile
 from pathlib import Path
 
@@ -84,7 +85,7 @@ class LinkedEvidenceTests(unittest.TestCase):
                 caller=self.caller, actual_request=self.request,
                 decision="deny", reason_code="policy-denied", occurred_at_epoch=100,
             )
-            with self.assertRaises(Exception):
+            with self.assertRaises(sqlite3.IntegrityError):
                 ledger._db.execute(
                     "UPDATE serving_receipts SET decision='allow' WHERE sequence=1"
                 )
