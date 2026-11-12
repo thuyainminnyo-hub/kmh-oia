@@ -43,6 +43,44 @@ class VerifiedInclusion:
     proof_count: int
 
 
+def data_hash_from_proof(proof: Mapping[str, Any]) -> bytes:
+    leaf = proof.get(1)
+    if not isinstance(leaf, (list, tuple)) or len(leaf) != 3:
+        raise ReceiptVerificationError("CCF leaf must contain three fields")
+    data_hash = leaf[2]
+    if not isinstance(data_hash, bytes) or len(data_hash) != 32:
+        raise ReceiptVerificationError("CCF data hash must be 32 bytes")
+    return data_hash
+
+
+def compute_ccf_inclusion_root(proof: Mapping[str, Any]) -> bytes:
+    """Compute the CCF Ledger SHA-256 inclusion root from a decoded CDDL map."""
+    leaf = proof.get(1)
+    path = proof.get(2)
+    if not isinstance(leaf, (list, tuple)) or len(leaf) != 3:
+        raise ReceiptVerificationError("CCF leaf must contain three fields")
+    internal_hash, internal_evidence, data_hash = leaf
+    if not isinstance(internal_hash, bytes) or len(internal_hash) != 32:
+        raise ReceiptVerificationError("CCF internal transaction hash must be 32 bytes")
+    if not isinstance(internal_evidence, str) or not (1 <= len(internal_evidence.encode("utf-8")) <= 1024):
+        raise ReceiptVerificationError("CCF internal evidence must be 1..1024 UTF-8 bytes")
+    if not isinstance(data_hash, bytes) or len(data_hash) != 32:
+        raise ReceiptVerificationError("CCF data hash must be 32 bytes")
+    if not isinstance(path, (list, tuple)) or not path:
+        raise ReceiptVerificationError("CCF inclusion path must be non-empty")
+    h = hashlib.sha256(
+        internal_hash + hashlib.sha256(internal_evidence.encode("utf-8")).digest() + data_hash
+    ).digest()
+    for sibling in path:
+        if not isinstance(sibling, (list, tuple)) or len(sibling) != 2:
+            raise ReceiptVerificationError("CCF inclusion path elements must have two items")
+        left, digest = sibling
+        if type(left) is not bool or not isinstance(digest, bytes) or len(digest) != 32:
+            raise ReceiptVerificationError("CCF inclusion path requires boolean and 32-byte digest")
+        h = hashlib.sha256(digest + h).digest() if left else hashlib.sha256(h + digest).digest()
+    return h
+
+
 class CcfInclusionReceiptVerifier:
     """Validate detached COSE signature and CCF inclusion proof binding."""
 
@@ -105,30 +143,12 @@ class CcfInclusionReceiptVerifier:
                 raise ReceiptVerificationError("inclusion proof decoding failed") from exc
             if not isinstance(proof, Mapping) or not self.codec.validate_inclusion_proof(proof):
                 raise ReceiptVerificationError("CCF inclusion proof schema validation failed")
-            leaf = proof.get(1)
-            path = proof.get(2)
-            if not isinstance(leaf, (list, tuple)) or len(leaf) != 3:
-                raise ReceiptVerificationError("CCF leaf must contain internal hash, internal evidence and data hash")
-            internal_hash, internal_evidence, data_hash = leaf
-            if not isinstance(internal_hash, bytes) or len(internal_hash) != 32:
-                raise ReceiptVerificationError("CCF leaf internal transaction hash must be 32 bytes")
-            if not isinstance(internal_evidence, str) or not (1 <= len(internal_evidence.encode("utf-8")) <= 1024):
-                raise ReceiptVerificationError("CCF leaf internal evidence must be 1..1024 UTF-8 bytes")
-            if not isinstance(data_hash, bytes) or len(data_hash) != 32 or data_hash != statement_digest:
+            if data_hash_from_proof(proof) != statement_digest:
                 raise ReceiptVerificationError("CCF leaf data-hash does not bind candidate Signed Statement")
-            if not isinstance(path, (list, tuple)) or not path:
-                raise ReceiptVerificationError("CCF inclusion path must be non-empty")
-            h = hashlib.sha256(
-                internal_hash + hashlib.sha256(internal_evidence.encode("utf-8")).digest() + data_hash
-            ).digest()
-            for sibling in path:
-                if not isinstance(sibling, (list, tuple)) or len(sibling) != 2:
-                    raise ReceiptVerificationError("CCF inclusion path elements must have two items")
-                left, digest = sibling
-                if type(left) is not bool or not isinstance(digest, bytes) or len(digest) != 32:
-                    raise ReceiptVerificationError("CCF inclusion path requires boolean and 32-byte digest")
-                h = hashlib.sha256(digest + h).digest() if left else hashlib.sha256(h + digest).digest()
-            root = h
+            try:
+                root = compute_ccf_inclusion_root(proof)
+            except Exception as exc:
+                raise ReceiptVerificationError("CCF inclusion Merkle root computation failed") from exc
             if common_root is not None and root != common_root:
                 raise ReceiptVerificationError("inclusion proofs disagree on Merkle root")
             common_root = root
@@ -312,7 +332,7 @@ class CcfConsistencyReceiptVerifier:
             if not isinstance(proof, Mapping) or not self.codec.validate_inclusion_proof(proof):
                 raise ReceiptVerificationError("CCF inclusion proof schema validation failed")
             try:
-                inclusion_root = self.codec.compute_inclusion_root(proof)
+                inclusion_root = compute_ccf_inclusion_root(proof)
             except Exception as exc:
                 raise ReceiptVerificationError("inclusion Merkle root computation failed") from exc
             if inclusion_root != common_newer_root:
