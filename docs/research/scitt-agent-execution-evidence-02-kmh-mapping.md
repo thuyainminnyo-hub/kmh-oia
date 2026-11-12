@@ -582,3 +582,52 @@ Prioritize a small local prototype, not a broad standards implementation:
 6. Emit AEE records for issuance, verification, consumption, execution result and rejection.
 
 No code implementation or CI pass is claimed by this research update.
+
+## 21. Context Taint Attestation (CTA) -00 research and KMH integration decision (2026-11-12)
+
+### 21.1 Draft status and scope
+
+The WIMSE/OAuth-related individual Internet-Draft draft-durga-wimse-ctx-isolation-00, published 2026-10-29, proposes a cryptographic Context Taint Attestation for MCP/A2A tool invocations. It is explicitly an individual Internet-Draft with no formal IETF standing. It proposes an Agent-Ctx-Isolation HTTP header or MCP _meta.ctxIsolation object, serialized as RFC 8785 JCS or RFC 8949 Deterministic CBOR and signed with Ed25519/COSE_Sign1. It requests new media type, header and taint-level registrations; these are requests in a draft, not assigned registry entries.
+
+The example envelope includes invocation_id, parent_trace_ref, system_prompt_digest, data_plane_merkle_root, taint_lattice_level, tool_effect_class, step_up_receipt_hash, iat, exp and signature metadata. Its core policy is monotonic taint within a context session and fail-closed rejection of state-mutating/privileged actions from mixed or untrusted context unless an independent, valid step-up approval is attached.
+
+### 21.2 KMH threat model and coverage limitation
+
+CTA is relevant to indirect prompt injection and confused-deputy risk, but a valid signature proves only that the signer attested to the supplied fields. It does not prove that every item that influenced model output was captured. A data-plane Merkle root is meaningful only if KMH can establish a complete context-ingestion boundary, canonical chunk representation, ordering, source provenance, tool-output capture, truncation behavior and reset semantics.
+
+KMH must distinguish:
+- complete context capture independently demonstrated by runtime architecture and tests; versus
+- runtime-reported provenance with known blind spots.
+
+Do not claim full context attestation if hidden/system context, model-internal state, cached retrieval or tool output can influence the action without being captured. Taint should remain monotonic for a context/session after untrusted ingestion. A reset must create a new isolated context with explicit provenance, not simply append a prompt instruction saying to ignore prior content.
+
+### 21.3 Effect-based policy
+
+Classify actions separately: read-only, reversible write, irreversible/state-mutating, and privileged actuation. For sensitive effects, mixed/untrusted context cannot authorize the action. Require a separate policy or human step-up decision bound to the exact FrozenAction digest, principal, target tool/server, effect class, policy version and invocation ID. An approval for one action must not be reusable for another action or request.
+
+### 21.4 Proposed KMH integration contract
+
+Add a versioned ContextProvenance record to the local runtime, with source ID, content digest, canonical chunk digest, ingestion time, trust label and parent trace. The runtime emits a CTA only from this controlled record stream. The Local Tool Enforcement Adapter independently verifies:
+1. CTA signature, key status, algorithm and validity window;
+2. invocation ID and parent trace linkage;
+3. recomputed FrozenAction digest and tool/server binding;
+4. taint level and action effect class;
+5. step-up receipt signature, freshness, single-use status and exact action binding;
+6. current policy version and revocation state.
+
+The tool server, not the LLM or caller, enforces the result immediately before execution. Failed or unavailable verification means no protected side effect. Emit AEE evidence for context ingestion, CTA creation, step-up decision, tool-proof verification, execution and final effect.
+
+### 21.5 Interoperability and standards boundary
+
+The CTA proposal references RFC 8785 JCS, RFC 8949 Deterministic CBOR and RFC 8032 Ed25519, but its wire profile and new headers are still draft proposals. KMH should not invent or register a competing public format. Prototype behind a private versioned adapter, keep exact profile version in test vectors, and re-evaluate if the draft changes. Do not advertise CTA interoperability or IETF conformance.
+
+### 21.6 Implementation priority
+
+1. Define a controlled ContextProvenance event schema and test source coverage.
+2. Add monotonic taint-state transitions and explicit isolated-context reset semantics.
+3. Extend FrozenAction to bind invocation ID, exact tool/server, effect class and policy version.
+4. Bind independent step-up approval to the exact FrozenAction digest and atomically consume it.
+5. Add CTA signing/verification as a private adapter only after key isolation and canonicalization tests.
+6. Add adversarial tests for omitted tool output, reordered chunks, replayed approval, stale CTA, wrong tool/server, context reset abuse and missing provenance.
+
+No CTA code implementation, conformance result or production security claim is made by this research update.
