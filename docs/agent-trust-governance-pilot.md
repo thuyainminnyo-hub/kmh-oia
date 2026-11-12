@@ -124,6 +124,12 @@ The inclusion-only verifier deliberately rejects mixed receipts rather than sile
 
 Research note: the IETF Datatracker currently shows CCF Profile -06 and records IANA expert review approval on 2026-11-10 for the CCF VDS algorithm registration. The document remains an Internet-Draft, not a published RFC. A Python package named scitt-cose has also appeared as a possible independent implementation/reference, but it is a candidate for code review and differential testing, not an automatically trusted dependency.
 
+### CCF -06 single-leaf inclusion edge case (2026-11-12)
+
+A profile review identified an important boundary case: an inclusion proof path can be empty when the ledger tree contains a single transaction. In that case, the leaf hash is already the Merkle root. Updated compute_ccf_inclusion_root() to accept an empty path array while still requiring the path field to be an array and validating every sibling when present. Added a unit test asserting the empty-path root equals the CCF leaf hash.
+
+The current draft remains an active Internet-Draft (revision -06, published 2026-10-22; expires 2027-04-25), not a published RFC. Datatracker history records the CCF VDS algorithm registration expert review as approved on 2026-11-10; the SCITT group page still lists the profile as Waiting for AD Go-Ahead. SCRAPI-11 remains in the RFC Editor queue awaiting first editor. These status fields should be refreshed before any external standards-status claim.
+
 ## Current limitations — do not overstate readiness
 - Registry and grants are in-memory only; restart loses state.
 - Agent IDs are application identifiers, not cryptographically authenticated workload identities.
