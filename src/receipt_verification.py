@@ -27,6 +27,13 @@ class CoseVerifier(Protocol):
 
 
 class CcfProofCodec(Protocol):
+    """Strict adapter contract.
+
+    Implementations MUST reject malformed CBOR and duplicate map keys before
+    returning decoded maps, and MUST validate the complete CCF CDDL schema.
+    Python Mapping validation alone cannot detect duplicate keys discarded by
+    a permissive decoder.
+    """
     def decode_receipt(self, receipt_bytes: bytes) -> Mapping[str, Any]: ...
     def decode_inclusion_proof(self, proof_bytes: bytes) -> Mapping[str, Any]: ...
     def validate_inclusion_proof(self, proof: Mapping[str, Any]) -> bool: ...
@@ -240,6 +247,7 @@ class CcfConsistencyReceiptVerifier:
 
     def verify(
         self, *, receipt_bytes: bytes, trusted_older_root: bytes,
+        signed_statement: bytes | None = None,
     ) -> VerifiedConsistency:
         if not isinstance(receipt_bytes, bytes) or not receipt_bytes:
             raise ReceiptVerificationError("COSE consistency receipt must be non-empty bytes")
@@ -325,6 +333,15 @@ class CcfConsistencyReceiptVerifier:
         inclusion_blobs = vdp.get(INCLUSION_PROOF_LABEL, ())
         if not isinstance(inclusion_blobs, (list, tuple)):
             raise ReceiptVerificationError("inclusion proofs must be an array")
+        if INCLUSION_PROOF_LABEL in vdp and not inclusion_blobs:
+            raise ReceiptVerificationError("inclusion proof array must be non-empty")
+        if inclusion_blobs and (
+            not isinstance(signed_statement, bytes) or not signed_statement
+        ):
+            raise ReceiptVerificationError(
+                "candidate Signed Statement is required when inclusion proofs are present"
+            )
+        statement_digest = hashlib.sha256(signed_statement).digest() if inclusion_blobs else None
         for proof_blob in inclusion_blobs:
             if not isinstance(proof_blob, bytes) or not proof_blob:
                 raise ReceiptVerificationError("inclusion proof entry must be encoded bytes")
@@ -334,6 +351,8 @@ class CcfConsistencyReceiptVerifier:
                 raise ReceiptVerificationError("inclusion proof decoding failed") from exc
             if not isinstance(proof, Mapping) or set(proof) != {1, 2} or not self.codec.validate_inclusion_proof(proof):
                 raise ReceiptVerificationError("CCF inclusion proof schema validation failed")
+            if data_hash_from_proof(proof) != statement_digest:
+                raise ReceiptVerificationError("CCF inclusion data-hash does not bind candidate Signed Statement")
             try:
                 inclusion_root = compute_ccf_inclusion_root(proof)
             except Exception as exc:
