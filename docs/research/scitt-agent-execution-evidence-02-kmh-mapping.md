@@ -1215,3 +1215,59 @@ The Evidence Service issues Execution Receipts and Execution Epoch Statements an
 - receipt claims an external side effect that independent system evidence contradicts.
 
 No AEE runtime, receipt writer, epoch service, SCITT registration, Bundle verifier or cross-operator integration is implemented by this documentation update. No conformance or production-readiness claim is made.
+
+## 34. AEE -02 newly material controls: configuration integrity, human confirmation and memory boundaries (2026-11-12)
+
+### 34.1 Primary-source status and scope
+
+The IETF Datatracker record checked 2026-11-12 identifies `draft-thaha-scitt-agent-execution-evidence-02`, last updated 2026-11-01, as an active individual Internet-Draft with no formal standing in the IETF standards process. Its November 2026 text expands the profile beyond basic call receipts and linked caller/serving records. This section pins -02; do not assume later revisions preserve the same schema or semantics.
+
+### 34.2 Configuration Integrity Statement (CIS)
+
+AEE -02 defines a Configuration Integrity Statement committing to digests of static agent inputs including system prompts, instruction files, skills, hooks, tool manifests and memory/configuration inputs. It requires mandatory Unicode normalization before digesting textual configuration, and each Execution Receipt references the configuration in force. The profile requires a Decision Point to block a tool absent from the tool manifest committed by the active configuration.
+
+KMH implication: the `FrozenAction` policy check must also verify the active configuration/tool-manifest digest. A tool being registered in code is not sufficient if the current approved manifest does not authorize it. Implement a canonical configuration manifest with explicit file identities, content digests, normalization profile, version, issuer and effective interval. Reject unlisted tools and configuration drift until an authorized re-approval occurs.
+
+### 34.3 Unicode and invisible instruction-injection surface
+
+The draft specifies NFC normalization and treatment of selected invisible/bidirectional code points before digesting textual inputs, including U+200B/U+200C/U+200D, U+2060, U+FEFF, Unicode tag characters U+E0000–U+E007F and bidirectional controls. KMH must vendor the exact -02 normalization profile and test it byte-for-byte; do not improvise a generic “strip invisible characters” function. Preserve original source bytes as protected evidence where required, while calculating the policy digest from the specified normalized representation. Any change to the normalization profile must create a new versioned digest domain.
+
+### 34.4 Human/operator confirmation as a two-record state transition
+
+AEE -02 defines a `confirm` outcome for tool calls requiring Principal/operator approval. The confirmation request and its resolution are distinct receipts. The outcome must refer to the earlier confirmation and match its parent inference, target, request digest and Task. Exactly one outcome is permitted; `allow` is recorded only after confirmation is granted. Refused, missing-at-deadline, unobtainable or operator-halted confirmation resolves to `block`. A Task must not end with unresolved confirmation; if the session closes, the Evidence Service records block before closing the Task. A tool result cannot precede an allow outcome.
+
+KMH implication: implement confirmation as a durable state machine, not a UI boolean. The irreversible tool executor must require a persisted `allow` outcome bound to the exact frozen action digest and Task. Timeout, cancellation, disconnect and operator halt all fail closed and create a denial/block receipt.
+
+### 34.5 Memory boundary and Task lifecycle
+
+AEE -02 defines `memory_digest` at `task_start` and `task_end`, with canonical serialization defined and named by the Harness configuration. This makes cross-task memory changes visible without blocking every call. It does not prove that memory contents are truthful or safe; it commits to a representation. KMH should hash a defined memory snapshot/version at task boundaries, keep raw memory protected, and separately classify provenance/trust of memory entries. Do not put raw memory or secrets in receipts.
+
+### 34.6 Receipt content and decision-point semantics
+
+Execution Receipt request/response digests commit to the octets as seen at the Decision Point. They need not parse the content. Even malformed/error responses must be recorded with the digest of bytes received, or absent if none were received. `response_digest` records what the Decision Point received before the Harness alters, truncates or withholds it; the receipt alone does not prove what the agent was ultimately shown. KMH should separately record any transformation/delivery step and bind the delivered digest where that distinction matters.
+
+### 34.7 Sub-agent identity boundary
+
+The draft distinguishes a Sub-agent declared as part of the parent's capability from an independently registered Logical Agent. A Sub-agent has no Logical Agent identity of its own and acts under its parent's identity; its `subagent_ref` and function must match the governing Agent Credential Statement. KMH must not silently treat a configured sub-agent as an independently trusted principal. If it needs independent identity/authority, register it as a separate logical agent and establish explicit delegation.
+
+### 34.8 Evidence omission and external side-effect limitation
+
+A hash chain cannot record a call for which the Harness emitted no receipt. The draft identifies independent Harness attestation, Serving Party admission receipts and reconciliation of egress receipts against network telemetry as mitigations. A receipt also cannot independently prove that an external side effect actually occurred; corroborate high-impact effects with the external system's own transaction/audit evidence. KMH must state these limits and avoid claims of complete capture based solely on an internal chain.
+
+### 34.9 Privacy and low-entropy digest leakage
+
+A digest of a low-entropy value such as a payment amount on a known endpoint may be guessed and checked by a party holding the receipt. Keep sensitive call details out of public statements, use protected retrieval and audience-limited evidence, and prefer epoch-root registration where the profile recommends reducing individual receipt/digest exposure. Do not treat hashing as anonymization.
+
+### 34.10 Updated KMH implementation gates
+
+1. Implement a versioned Configuration Integrity Statement and canonical tool manifest.
+2. Implement exact Unicode normalization/digest test vectors from AEE -02.
+3. Make FrozenAction admission require the active approved configuration digest and tool-manifest membership.
+4. Implement durable confirmation request/outcome receipts; only explicit allow permits execution.
+5. Add task-start/task-end memory digests with a documented canonical snapshot format.
+6. Record raw request/response octet digests and separately bind any Harness transformation/delivery.
+7. Distinguish declared sub-agents from independently registered agents.
+8. Add independent Harness/egress and external-side-effect corroboration for high-risk tools.
+9. Add privacy tests for low-entropy digest guessing and public transparency leakage.
+
+No CIS, Unicode normalization verifier, confirmation state machine, memory snapshot hashing, or receipt runtime is implemented by this research update. No conformance or production security claim is made.
