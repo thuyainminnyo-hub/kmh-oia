@@ -533,3 +533,52 @@ The resulting candidate pipeline is:
 ### 19.6 Implementation scope decision
 
 Do not implement every draft at once. First add a KMH-local FrozenAction canonical representation and deterministic digest tests; then an atomic single-use CallProofStore and local tool-server verification adapter. In parallel, add strict WIMSE URI parsing/trust-domain tests. Keep cross-domain mandate verification as a separate follow-on because its authority-source trust model and Validation Profile need an explicit deployment decision.
+
+## 20. Context-taint isolation research and Local Call Proof hardening (2026-11-12)
+
+### 20.1 New proposal: Cryptographic Separation of Untrusted Context and Control-Plane Tool Calls
+
+The WIMSE documents index lists draft-durga-wimse-ctx-isolation-00 (2026-10-29), an individual Internet-Draft proposing a Context Taint Attestation (CTA) for MCP/A2A tool invocations. It proposes a taint lattice, a context Merkle root, a signed attestation bound to each invocation, and independent step-up approval for state-mutating or privileged actions when untrusted data has entered the active context.
+
+This is directly relevant to KMH's prompt-injection/confused-deputy threat model, but the draft is an individual proposal and is not IETF-endorsed. Treat it as a threat-model and prototype input, not an established protocol or a proof that a model's hidden internal context has been completely measured.
+
+Important design caveat for KMH: a signed CTA proves that a trusted runtime attested to the fields it supplied; it does not by itself prove that the Merkle root covers every item actually influencing model output. KMH must define a complete, auditable context-ingestion boundary, canonical chunk representation, provenance labels, ordering, tool-output capture and reset semantics. If that coverage cannot be established, label the result as runtime-reported context provenance, not complete context attestation.
+
+Suggested KMH policy:
+- Taint is monotonic within a context/session once untrusted external content is ingested; reset requires an explicit isolated context boundary, not merely a prompt instruction.
+- Separate read-only, reversible writes, irreversible/state-mutating actions and privileged actuation into effect classes.
+- Untrusted or mixed context may request a sensitive action, but cannot authorize it. Require a separate policy decision or human approval bound to the exact frozen action.
+- Bind CTA to the exact Action Digest and AEE receipt sequence; do not accept an unattached generic approval receipt.
+- Emit an auditable rejection when the context provenance is missing, incomplete, stale or unverifiable.
+
+### 20.2 Local Call Proof draft: verified implementation details and threat boundary
+
+The current draft-lee-wimse-local-tool-call-proof-01 specifies Action Digest as BASE64URL(SHA-256(JCS({method, name, arguments}))), where absent arguments become an empty object and the transmitted JSON values are used without semantic normalization. The Call Authority runs outside the Agent process, identifies the caller from platform peer credentials or workload identity (never from an identity field asserted in the request body), evaluates signed/versioned policy, and issues a short-lived proof. The Tool Server computes the digest from the invocation as received and asks the Call Authority to verify it immediately before execution; a successful verification consumes the proof. Missing proof, mismatch, expiry, replay or unreachable Call Authority must not result in execution. The draft says a proof SHOULD have a validity window of 30 seconds or less.
+
+The draft explicitly excludes a malicious/compromised Tool Server, compromise of Call Authority or policy signing key, and prevention of prompt injection itself. It also requires Agent, Tool Server and Call Authority to be in separate isolation boundaries to protect reusable secrets; otherwise the protection against credential theft is weakened.
+
+KMH implementation refinements:
+- Use RFC 8785 JCS exactly as specified for the JSON Action Digest profile; do not silently substitute CBOR or custom JSON normalization.
+- Include method, exact tool name and exact arguments; bind the server identity in the proof/verification context as required by the profile, not only in a display label.
+- Derive caller identity from OS peer credentials or an independently validated workload identity, never from caller-supplied JSON.
+- Use an atomic consume operation (transaction/compare-and-swap) so concurrent duplicate verifications cannot both succeed.
+- Verify at execution start, not enqueue time; reverify after retries or deferred scheduling.
+- Pin a signed policy version and fail closed if policy is absent, invalid or rolled back.
+- Separate Agent, Tool Server and Call Authority OS users/containers/process boundaries; keep Call Authority keys non-exportable where platform support permits.
+- Record per-check states (passed, failed, not established), not only a single rejection reason.
+
+### 20.3 WIMSE ecosystem update
+
+The live WIMSE documents index currently lists AIMS -01, Identifier -04, Mutual TLS -03, Workload Credentials -03, Workload Proof Token -02 and multiple agent-specific individual drafts. It reports Workload Identity Practices -08 in IETF Last Call ending 2026-11-13, and HTTP Signatures -08 submitted to IESG for publication as Proposed Standard. These maturity states differ: the latter are further along than individual proposals but should still not be called published RFCs unless the RFC Editor confirms publication.
+
+### 20.4 Next implementation gate
+
+Prioritize a small local prototype, not a broad standards implementation:
+1. Define FrozenAction schema and RFC 8785 JCS digest fixture tests.
+2. Build a Call Authority process with OS-derived caller identity and signed, monotonic policy version.
+3. Implement atomic single-use proof consumption and tests for race/replay/expiry/mismatch.
+4. Put the Tool Server in a separate OS/container boundary and verify immediately before execution.
+5. Add an effect-class + context-taint policy hook; require out-of-band approval for sensitive actions when provenance is untrusted or incomplete.
+6. Emit AEE records for issuance, verification, consumption, execution result and rejection.
+
+No code implementation or CI pass is claimed by this research update.
