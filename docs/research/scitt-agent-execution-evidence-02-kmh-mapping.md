@@ -1271,3 +1271,41 @@ A digest of a low-entropy value such as a payment amount on a known endpoint may
 9. Add privacy tests for low-entropy digest guessing and public transparency leakage.
 
 No CIS, Unicode normalization verifier, confirmation state machine, memory snapshot hashing, or receipt runtime is implemented by this research update. No conformance or production security claim is made.
+
+## 36. AEE -02 correction and exact Configuration Integrity semantics (2026-11-12)
+
+### 36.1 Correction to Section 34
+
+The primary AEE -02 text distinguishes static behavior-shaping configuration from runtime-written memory. The Configuration Integrity Statement commits to inputs other than the model and policy, and its defined `config-class` values are `system_prompt`, `instruction_file`, `skill`, `hook`, `mcp_config`, `tool_manifest` and `tool_description`. Runtime-written memory is explicitly NOT configuration; it changes within/between Tasks and is committed at Task boundaries through `memory_digest`. Operator-authored seed memory files MAY be treated as `instruction_file` entries. Therefore Section 34's generic phrase “Memory / Configuration Inputs” must not be read as placing all runtime memory in the CIS. The exact model and policy digests are separate AEE commitments, not CIS entries.
+
+### 36.2 Exact canonicalization and digest contract
+
+The `config_digest` is calculated over the canonical CBOR encoding of the ordered `entries` array, or JCS canonical JSON encoding for the JSON form; it is not an arbitrary hash of a concatenated directory or filesystem tree. Entries are ordered by name in octet order. Textual valid UTF-8 content is normalized to Unicode NFC before the selected normalization profile is applied and the resulting UTF-8 octets are digested. Non-UTF-8 content is digested as raw octets. Normalization is for digesting only; the statement does not assert that the Harness also strips characters from the content presented to the model.
+
+### 36.3 Exact normalization profiles
+
+The defined special code points are U+200B, U+200C, U+200D, U+2060, U+FEFF, U+E0000–U+E007F, U+202A–U+202E and U+2066–U+2069. Profile 1 removes them before digesting. Profile 2 rejects the input and issues no statement until corrected. Profile 2 is RECOMMENDED for `system_prompt`, `instruction_file`, `skill` and `tool_description`; do not generalize this recommendation to every binary or configuration class. Preserve source bytes under protected evidence policy if forensic review requires them.
+
+### 36.4 Configuration drift lifecycle
+
+A Configuration Drift Statement records previous and new config digests plus added/modified/removed entries. Drift is an ordinary event; relying-party policy determines its significance. The Harness MUST compute and compare digests at load time and SHOULD re-check them at a bounded interval during a run. A mismatch MUST produce a Drift Statement and a new Configuration Integrity Statement before any further receipt. The relying party SHOULD reject a policy-pack digest change within a Task. A tool absent from the active committed tool manifest MUST be blocked.
+
+### 36.5 Execution Receipt schema precision
+
+The -02 Execution Receipt includes sequence number, previous receipt hash, record type, decision, policy digest, configuration integrity digest, runtime agent identity, Principal, task sequence, optional request/response digests, timestamp, optional per-call agent signature, target, egress host, decision point, confirmation reference, caller identity/reference, admission basis, actor chain, principal link, transaction, task-boundary memory digest, sub-agent reference, delegation reference and call digest. The exact optionality and allowed placement of each field must follow the pinned CDDL; KMH must not invent a superset schema and label it AEE-conformant.
+
+### 36.6 Important additional correction: Evidence Binding revision
+
+The IETF announcement retrieved on 2026-11-12 announces `draft-thaha-wimse-agent-evidence-binding-02` dated 2026-11-01, not -03. The prior sections' claim that -03 was the current published revision is unverified and must be treated as incorrect pending a primary Datatracker record for -03. Pin -02 for this review and inspect the Datatracker revision history before asserting any later version. This announcement describes the claim, in-toto predicate, per-call assurance admission and caller evidence HTTP field as a companion to AIMS; it does not change AIMS.
+
+### 36.7 KMH implementation gates corrected
+
+1. Separate model digest, policy-pack digest, CIS config digest and task-boundary memory digest.
+2. Use exact config classes and canonical entries-array encoding; pin CBOR/JCS profile.
+3. Implement exact NFC + profile 1/2 rules and test vectors; do not mutate model-visible content merely because digest normalization is applied.
+4. Add load-time digest verification and bounded periodic re-check; on drift, issue Drift + new CIS before any further receipt.
+5. Enforce active tool-manifest membership at the Decision Point.
+6. Validate Execution Receipt fields and optionality against the exact AEE -02 CDDL.
+7. Pin Evidence Binding -02 until primary-source revision history confirms a newer revision.
+
+No runtime implementation, conformance test, drift detector, receipt writer or production security claim is made by this documentation correction.
