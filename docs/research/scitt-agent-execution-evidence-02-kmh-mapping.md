@@ -274,3 +274,53 @@ Following the -02 Task semantics review, the local decoded-receipt validator now
 - rejects boolean timestamps (Python bool is an int subclass and must not pass timestamp validation).
 
 New tests cover two interleaved Tasks, decreasing timestamps, and boolean timestamps. This remains a local semantics check: it does not implement delegated Task delegated_from relationships or registered Policy Pack ancestry, and does not prove Decision Point capture completeness.
+
+
+## 14. SCRAPI interoperability follow-up — status and KMH adapter review (2026-11-12)
+
+### 14.1 Standards status rechecked
+
+- AEE -02 remains an active **individual** Internet-Draft, published November 2026, expires 2027-05-05, and explicitly has no formal standing in the IETF standards process.
+- CCF Profile -06 remains an active SCITT WG Internet-Draft. Datatracker history records IANA expert review as OK and approval of the COSE VDS algorithm registration on 2026-11-10. The WG page still reports "Waiting for AD Go-Ahead" and "Submitted to IESG for Publication"; it is not yet a published RFC.
+- SCRAPI -11 is further along: the WG page reports IESG RFC Editor Queue, and the RFC Editor state is Awaiting First Editor / In Progress. It is still not a published RFC as of this check.
+
+### 14.2 SCRAPI requirements that affect the KMH client boundary
+
+SCRAPI -11 defines the interoperable HTTP API surface for:
+- GET /.well-known/scitt-keys returning a COSE Key Set as application/cbor;
+- POST /entries for Signed Statement registration, with immediate 201 receipt or asynchronous 202 registration and a Location resource;
+- GET receipt resolution, with 200 receipt, 204 still pending, and 404 not found.
+
+Operational requirements worth preserving in KMH:
+- clients must handle unknown HTTP status codes by generic class semantics and inspect Concise Problem Details when present, rather than assuming a closed status-code set;
+- respect Retry-After as a minimum delay when supplied;
+- otherwise use exponential backoff with jitter, cap retries and avoid synchronized polling;
+- do not poll aggressively; rate limiting and DoS controls are required;
+- retain old Transparency Service public verification keys for as long as receipts may need verification, or provide an alternative archival mechanism;
+- cache headers are hints and do not limit how long a relying party must retain keys needed for its receipts.
+
+### 14.3 Existing KMH code review
+
+The feature branch contains two overlapping transport-injected SCRAPI adapters:
+- src/scitt_client.py
+- src/scitt_registration.py
+
+Both implement key discovery, registration and receipt resolution, but their response models and validation differ. scitt_registration.py preserves Retry-After on pending responses; scitt_client.py currently drops it. Neither performs automatic retries, which is a safe default until a caller-owned bounded polling policy is defined. Neither performs CBOR decoding, COSE signature verification, or network I/O without an injected transport.
+
+**Recommendation:** consolidate around one canonical adapter and one shared response/error model before wiring a production transport. Preserve the no-implicit-retry default, but expose Retry-After, classify 429/5xx and malformed Problem Details, and provide a caller-driven bounded retry policy with jitter. Add tests for 201/202/200/204/404/429/5xx, missing or malformed Location, cross-origin Location, wrong media types, malformed error bodies, Retry-After propagation, key rotation and retired-key retention. Do not let an adapter's successful HTTP response imply a cryptographically valid receipt.
+
+### 14.4 Current CI verification checkpoint
+
+On 2026-11-12, branch head 193cf8f7dfc8a0033a09689803ccea0f746d01a6 was checked:
+- KMH OIA Tests: completed successfully (run 2134).
+- KMH OIA Validation: completed successfully (run 2049).
+
+This CI result covers the current branch head at that time. The open PR remains a draft; successful CI does not constitute production deployment, external interoperability, security review, or AEE conformance.
+
+### 14.5 Next engineering increment
+
+1. Consolidate the two SCRAPI client adapters and define one typed registration/receipt state model.
+2. Propagate Retry-After and structured error details without automatic unbounded polling.
+3. Implement a bounded caller-controlled retry helper with exponential backoff + jitter and testable clock/random injection.
+4. Add verification-key archival/rotation policy and explicit trust-anchor configuration.
+5. Keep receipt cryptographic verification independent from HTTP protocol success.
