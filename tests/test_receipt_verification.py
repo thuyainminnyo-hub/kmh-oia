@@ -5,6 +5,7 @@ from src.receipt_verification import (
     CcfInclusionReceiptVerifier,
     CcfConsistencyReceiptVerifier,
     compute_ccf_consistency_roots,
+    compute_ccf_inclusion_root,
     ReceiptVerificationError,
 )
 
@@ -278,6 +279,16 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
         with self.assertRaises(ReceiptVerificationError):
             verifier.verify(receipt_bytes=b"receipt", trusted_older_root=self.older)
 
+
+
+class CcfSingleLeafInclusionTests(unittest.TestCase):
+    def test_empty_path_returns_leaf_hash_as_root(self):
+        leaf = [b"i" * 32, "single-leaf", b"d" * 32]
+        proof = {1: leaf, 2: []}
+        expected = hashlib.sha256(
+            leaf[0] + hashlib.sha256(leaf[1].encode("utf-8")).digest() + leaf[2]
+        ).digest()
+        self.assertEqual(compute_ccf_inclusion_root(proof), expected)
 
 if __name__ == "__main__":
     unittest.main()
