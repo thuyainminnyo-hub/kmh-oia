@@ -213,3 +213,54 @@ Tests cover valid tool flow, confirmation/outcome/result ordering, pending confi
 - The model/tool harness integration points are not wired by this module. A receipt sequence supplied by a caller is not proof that all real model/tool/network calls were captured. Completeness requires instrumentation at every model, tool, network and ingress decision point and negative tests for bypasses.
 - The module should remain an internal state-machine primitive until official AEE Appendix A vectors and independent implementation comparisons are available.
 
+
+
+## 12. Follow-up standards review — 2026-11-12
+
+### 12.1 Decision Point coverage is explicitly three-sided
+
+The current -02 text defines Decision Points as the combination of policy decision, enforcement and evidence recording. It identifies:
+- Harness model door: every inference.
+- Harness tool door: every tool invocation, its result and resulting egress.
+- Serving Party ingress door: every received call.
+
+This sharpens the KMH instrumentation requirement: model/tool interception alone is insufficient for cross-operator trust. A receiving service must independently emit admission evidence for each received call. The caller's chain explains why it made the call; the serving party's chain explains what it admitted and why. Linked verification compares both chains to detect omission.
+
+**KMH gap:** the local validator accepts admission records and can bind a task_start to an earlier allowed admission, but it does not instrument an actual inbound serving endpoint or prove that every received call creates exactly one admission receipt.
+
+### 12.2 Task interleaving and delegated Tasks
+
+The -02 Evidence Chain semantics permit receipts from different Tasks to interleave. Each receipt still names an earlier allowed task_start whose Task remains open; each Task has at most one task_end; and each receipt's Principal must match its own task_start Principal.
+
+A delegated Task has additional constraints:
+- task_start identifies an earlier task_start of a still-open parent Task;
+- it carries the same Principal as the parent Task;
+- its policy_pack_digest equals the parent's digest or identifies a registered descendant Policy Pack whose parent chain includes the parent's pack;
+- the profile notes that effective-scope no-wider-than-parent cannot yet be checked mechanically.
+
+**KMH gap:** the current local validator can represent multiple open Tasks and enforce per-task Principal continuity, but it does not yet model delegated_from or validate Policy Pack ancestry. It also does not compare effective delegated scope. Do not imply delegated-task conformance.
+
+**Next implementation:** add an explicit delegated-task relation and a trusted Policy Pack ancestry resolver. Reject unknown, cyclic, unregistered or non-descendant policy lineage. Keep semantic strictness and scope attenuation as separately reviewed policy assertions; a digest relationship alone does not prove that a child policy is stricter.
+
+### 12.3 Hash-chain semantics and privacy
+
+The draft requires record-hash over canonical CBOR (or JCS for JSON), sequence 0 with a 32-byte zero predecessor, and exact sequence increments. It warns that low-entropy request digests can be guessed and recommends limiting digest exposure through epoch-root registration and retention controls. It also notes that a response digest commits to what the Decision Point received, not necessarily what the agent was ultimately given if the harness transforms or withholds it.
+
+**KMH gap:** the current validator checks supplied digest sizes and predecessor linkage, but does not recompute canonical record hashes or prove the receipt corresponds to the content delivered to the model/tool. Keep those as separate cryptographic and harness-integrity gates.
+
+### 12.4 Standards maturity — checked 2026-11-12
+
+- **AEE -02:** active individual Internet-Draft, last updated 2026-11-01, expires 2027-05-05. Datatracker explicitly states it is not IETF-endorsed and has no formal standing in the IETF standards process.
+- **CCF Profile -06:** active SCITT WG Internet-Draft, last updated 2026-10-22, with WG state "Submitted to IESG for Publication" and IESG state "Waiting for AD Go-Ahead". It is not yet a published RFC. The draft specifies CCF COSE receipt inclusion and consistency proofs, and requires all proofs in the receipt to recompute the same newer root.
+- **SCRAPI -11:** active SCITT WG Internet-Draft with IESG approval as Proposed Standard recorded in the June 2026 protocol-action announcement. The current draft record still shows the Internet-Draft document and an expiry of 2026-12-28; do not call it a published RFC unless the RFC Editor record confirms publication.
+
+### 12.5 Updated engineering sequence
+
+1. Complete the current decoded-receipt validator and retain its explicit non-cryptographic boundary.
+2. Add tests for interleaved Tasks and then delegated Task semantics with trusted Policy Pack ancestry.
+3. Instrument all three Decision Point domains: model, tool/egress and serving ingress.
+4. Add canonical CBOR/JCS record-hash recomputation and exact -02 CDDL validation; reject duplicate CBOR map keys and non-canonical encodings as required by the selected profile.
+5. Add serving-party admission receipts and linked cross-operator verification.
+6. Build epoch and offline Bundle support only after statement schemas, registration policy, credential/status validation and cryptographic adapters are stable.
+
+No AEE conformance, production readiness or complete call-capture coverage is claimed by this follow-up.
