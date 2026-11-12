@@ -1159,3 +1159,59 @@ Each state records source, profile/revision, timestamp, policy version and failu
 7. Verify linked caller/serving evidence after execution without treating it as retroactive permission.
 
 No runtime implementation, interoperability test, conformance result or production security claim is made by this documentation update.
+
+## 33. AEE -02 deeper review: Evidence Chain, Decision Points, Epoch roots and offline Bundles (2026-11-12)
+
+### 33.1 Revision pin and status
+
+Pin `draft-thaha-scitt-agent-execution-evidence-02` (November 2026; expires 2027-05-05) for this review. It is an active individual Internet-Draft, intended Standards Track, and is not a published RFC or an adopted SCITT WG standard. The underlying SCITT architecture is RFC 9943; the agent-specific profile remains a proposal.
+
+### 33.2 Evidence Chain scope
+
+AEE defines an Evidence Chain as an ordered sequence of Execution Receipts, each carrying the hash of its predecessor, scoped to one Agent Credential or Serving Party Credential Statement. This means KMH must not assume one global chain for all agents or all services. Maintain independent chains for each scoped credential identity and link chains for a cross-agent Call Chain using Caller References. Credential rotation or a new Serving Party credential requires an explicit chain-continuity/migration policy; do not silently splice unrelated chains.
+
+### 33.3 Decision Points and receipt semantics
+
+An Execution Receipt is produced at a Decision Point in the Harness or Serving Party. KMH should model at least distinct decision points for model call, tool call, delegation, authorization/admission, and execution outcome where the profile requires them. The Serving Party's `admission` receipt records the pre-execution decision for a received call; the caller-side receipt records the caller's corresponding action. A denied request must still produce a denial/admission receipt so the audit chain records the attempted operation and reason. A receipt records what the decision point asserted; it does not independently prove the underlying tool performed the claimed external side effect.
+
+### 33.4 Epoch-root registration and transparency
+
+AEE allows receipts to be registered individually or through an Execution Epoch Statement containing an epoch root. This creates a trade-off: individual registration provides tighter publication latency and per-receipt inclusion, while epoch batching reduces registration overhead but delays transparency until the epoch is closed and registered. KMH must define maximum epoch duration, maximum receipt count/size, closure triggers, crash recovery, duplicate handling, and the behavior when the Evidence Service or Transparency Service is unavailable. High-risk actions may require immediate individual registration or a synchronous inclusion policy; batching must never be described as immediate public transparency.
+
+### 33.5 Bundle and offline verification boundary
+
+AEE Bundle is a self-contained set of Transparent Statements and Execution Receipts sufficient to verify a segment of an Evidence Chain offline. Offline verification proves the integrity and relationships represented in that Bundle and the relevant transparency artifacts; it cannot prove that the Bundle contains the latest status or that no later revocation/assurance change exists. Every offline report must expose the Bundle's evidence period, status observation times, trust anchors, policy versions and freshness limitations. For current high-risk admission, use online status resolution under local policy rather than relying only on an old Bundle.
+
+### 33.6 Cross-operator linking
+
+Caller References link the evidence chains of parties in one Call Chain. Linked Verification must check that both sides refer to the same call, digest, transaction and serving endpoint, and must distinguish correlation from material matching. A matching reference alone does not prove that the requested external effect occurred; compare the serving receipt, execution result, and where needed independent external-system evidence. For shared gateways, bind the intended backend identity and routing decision as specified in Section 31.7.
+
+### 33.7 Evidence service trust and failure policy
+
+The Evidence Service issues Execution Receipts and Execution Epoch Statements and registers them with a Transparency Service. Treat it as a security-critical issuer. Define key custody/rotation, service identity, signing policy, protected persistence, append-only sequencing, recovery and incident response. A failed Evidence Service must not silently turn an otherwise denied action into an allowed one. Define per-operation policy: fail closed for high-risk operations when required pre-execution evidence cannot be durably committed; lower-risk operations may use a bounded local durable queue only if policy explicitly permits and receipts are later reconciled without rewriting history.
+
+### 33.8 KMH implementation sequence
+
+1. Implement a deterministic receipt schema and hash-chain verifier for one credential-scoped chain.
+2. Add explicit Decision Point types and allow/deny admission receipts.
+3. Persist receipts durably before irreversible high-risk effects, with idempotency and crash-recovery tests.
+4. Add individual SCITT registration first; introduce epoch batching only after proving crash-safe epoch closure and documented publication latency.
+5. Implement Bundle export/import and offline verification with explicit freshness output.
+6. Add Caller Reference linking across two operators and test mismatch, replay, wrong endpoint and omitted-receipt cases.
+7. Add Evidence Service key rotation, compromise response, transparency outage and recovery drills.
+
+### 33.9 Required negative tests
+
+- Receipt predecessor hash changed or chain reordered;
+- receipt inserted into a chain for the wrong credential;
+- duplicate sequence or receipt identifier;
+- denied call omitted from evidence;
+- crash between receipt persistence, side effect and SCITT registration;
+- epoch closed twice, omitted receipt or wrong epoch root;
+- stale Bundle misreported as current status;
+- caller and serving receipts refer to different body, amount, transaction or backend;
+- Evidence Service signing key compromised or rotated without trust update;
+- transparency service unavailable during a high-risk call;
+- receipt claims an external side effect that independent system evidence contradicts.
+
+No AEE runtime, receipt writer, epoch service, SCITT registration, Bundle verifier or cross-operator integration is implemented by this documentation update. No conformance or production-readiness claim is made.
