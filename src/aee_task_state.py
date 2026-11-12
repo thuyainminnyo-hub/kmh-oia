@@ -103,6 +103,7 @@ def validate_aee_receipt_sequence(
     parent_types: dict[int, AeeExecutionReceipt] = {}
     tool_results: set[int] = set()
     previous_hash = ZERO_HASH
+    previous_ts = -1
     task_count = 0
     admission_count = 0
     tool_result_count = 0
@@ -130,8 +131,10 @@ def validate_aee_receipt_sequence(
             raise AeeTaskValidationError("agent_id is required")
         if not isinstance(receipt.principal, (str, bytes)) or not receipt.principal:
             raise AeeTaskValidationError("principal is required")
-        if not isinstance(receipt.ts, int) or receipt.ts < 0:
+        if not isinstance(receipt.ts, int) or isinstance(receipt.ts, bool) or receipt.ts < 0:
             raise AeeTaskValidationError("ts must be a non-negative millisecond timestamp")
+        if receipt.ts < previous_ts:
+            raise AeeTaskValidationError("ts must be non-decreasing across the evidence chain")
         if not isinstance(receipt.task_seq, int) or receipt.task_seq < 0:
             raise AeeTaskValidationError("task_seq must be a non-negative integer")
 
@@ -262,6 +265,7 @@ def validate_aee_receipt_sequence(
 
         parent_types[receipt.seq] = receipt
         previous_hash = receipt.record_hash
+        previous_ts = receipt.ts
 
     return AeeTaskValidationResult(
         receipt_count=len(items),
