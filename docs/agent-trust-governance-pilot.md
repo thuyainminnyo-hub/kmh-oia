@@ -100,6 +100,20 @@ Added a deterministic SHA-256 folding test with a path containing both right and
 
 This narrows the unimplemented cryptographic core, but does not establish conformance: actual CBOR decoding/duplicate-key rejection, exact CDDL schema validation, protected COSE header validation, certificate/key lifecycle and COSE signature verification remain external adapters. Official profile test vectors and an independent CCF receipt verifier comparison are still required before production use.
 
+### CCF -06 conformance correction: proof CBOR structure and inclusion leaf hashing (2026-11-12)
+
+A deeper reread of the current -06 Datatracker text found that the previous local adapter contract was not aligned with the CDDL wire model. CCF proof objects are CBOR maps with integer labels, not string-keyed dictionaries. Consistency proofs use key 1 for anchor and key 2 for path. Inclusion proofs use key 1 for the leaf and key 2 for the path; the leaf is a three-item array [internal-transaction-hash, internal-evidence, data-hash]. The CCF leaf hash is SHA256(internal-transaction-hash || SHA256(UTF8(internal-evidence)) || data-hash), then each path sibling is folded according to its left/right bit. The candidate Signed Statement digest must match the leaf's third item. The first consistency path sibling MUST be right (false), as explicitly required by Figure 9.
+
+Corrected implementation:
+- Added compute_ccf_inclusion_root() to implement CCF leaf and path hashing directly.
+- Inclusion verifier now reads integer CDDL keys, validates all three leaf fields, recomputes the candidate statement digest, checks it against leaf data-hash, and computes the Merkle root itself.
+- Consistency verifier now reads integer keys 1/2 and enforces the mandatory first-right-sibling rule.
+- Inclusion verifier rejects mixed or unknown VDP proof types so it cannot silently ignore a consistency proof; callers must use the consistency verifier for mixed receipts.
+- Mixed-proof consistency validation now recomputes inclusion roots using the same local CCF inclusion algorithm.
+- Tests were migrated to the actual integer-key CDDL map and CCF leaf-array representation.
+
+This corrects a substantive mismatch in the earlier prototype. The codec still must provide strict CBOR decoding, reject duplicate map keys, validate the exact CDDL shape before returning decoded objects, and the COSE adapter must validate protected COSE headers (algorithm and VDS identifier), signature, key binding, service identity and certificate/endorsement policy. Tests still use fake decoding and signature adapters; no interoperability or production security claim is made.
+
 ## Current limitations — do not overstate readiness
 - Registry and grants are in-memory only; restart loses state.
 - Agent IDs are application identifiers, not cryptographically authenticated workload identities.
