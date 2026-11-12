@@ -89,6 +89,8 @@ class CcfInclusionReceiptVerifier:
         vdp = unprotected[VDP_LABEL]
         if not isinstance(vdp, Mapping):
             raise ReceiptVerificationError("invalid VDP header value")
+        if set(vdp) != {INCLUSION_PROOF_LABEL}:
+            raise ReceiptVerificationError("this verifier accepts inclusion-only receipts; mixed or unknown proof types require consistency verification")
         proof_blobs = vdp.get(INCLUSION_PROOF_LABEL)
         if not isinstance(proof_blobs, (list, tuple)) or not proof_blobs:
             raise ReceiptVerificationError("receipt must contain inclusion proofs")
@@ -242,8 +244,8 @@ class CcfConsistencyReceiptVerifier:
             if not isinstance(proof, Mapping) or not self.codec.validate_consistency_proof(proof):
                 raise ReceiptVerificationError("CCF consistency proof schema validation failed")
 
-            anchor = proof.get("anchor")
-            path = proof.get("path")
+            anchor = proof.get(1)
+            path = proof.get(2)
             if not isinstance(anchor, bytes) or len(anchor) != 32:
                 raise ReceiptVerificationError("consistency proof anchor must be exactly 32 bytes")
             if not isinstance(path, (list, tuple)) or not path:
@@ -259,8 +261,6 @@ class CcfConsistencyReceiptVerifier:
                 if not isinstance(digest, bytes) or len(digest) != 32:
                     raise ReceiptVerificationError("consistency path sibling digest must be exactly 32 bytes")
             first = path[0]
-            if first[0] is not False:
-                raise ReceiptVerificationError("first consistency path sibling must be on the right")
 
             try:
                 computed_older, computed_newer = compute_ccf_consistency_roots(anchor, path)
