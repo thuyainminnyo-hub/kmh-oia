@@ -729,3 +729,45 @@ Offline attenuation proves a signed ceiling is not widened along the chain; it d
 6. Report each check independently and fail closed on unknown status, unsupported constraint or malformed chain.
 
 No KMH delegation-chain verifier or online credential broker is implemented by this research update.
+
+## 24. WIMSE Workload Credentials -03 and Workload Proof Token -02: credential/proof separation (2026-11-12)
+
+### 24.1 Workload credentials define two distinct credential forms
+
+The active WIMSE WG draft draft-ietf-wimse-workload-creds-03 (published 2026-10-30; intended Standards Track; expires 2027-05-03) defines:
+- Workload Identity Token (WIT): JWT credential for application-layer workload identity, binding a public key to a workload identity.
+- Workload Identity Certificate (WIC): X.509 credential primarily intended for transport-layer authentication using mTLS.
+
+The credential format is separate from proof of possession and authorization. A WIT is not a bearer token: the workload must prove possession of the corresponding private key using a separately specified binding such as WPT or HTTP Message Signatures. WIC is used by the mTLS profile. The credential draft explicitly warns that verifiers must not infer hardware-backed or non-exportable key protection merely from WIT/WIC presence; stronger key-protection claims require deployment-specific evidence/profile requirements.
+
+### 24.2 Workload Proof Token -02 binds a proof to context, but is not full request integrity
+
+The active WIMSE WG draft draft-ietf-wimse-wpt-02 (published 2026-08-27; intended Standards Track; expires 2027-02-28) defines a signed JWT proof of possession for the private key bound to a WIT. It includes request/context binding claims such as audience (`aud`), WIT hash (`wth`), unique proof ID (`jti`) and optional hashes for accompanying transaction or other identity/authorization tokens (`tth`, `oth`).
+
+Verifier checks include valid signature under the WIT-bound key, expected audience, unexpired `exp`, matching `wth`, and replay handling for `jti`; unknown token types listed in `oth` cause rejection. Raw WPT values must not be logged by default. TLS with server authentication is required unless another secure channel is provided.
+
+**Critical boundary:** the draft warns that WPT does not protect major portions of the HTTP request and response and does not protect against an actively malicious middlebox. KMH must not treat WPT as a body-integrity signature, full HTTP message signature, or a substitute for request-body/action digest binding. For sensitive calls, combine WPT authentication with a separate integrity profile (e.g. HTTP Message Signatures or the KMH FrozenAction digest) that covers the method, target and exact body/action semantics, plus server-side replay protection.
+
+### 24.3 KMH credential verification pipeline
+
+1. Validate the WIT JWT or WIC certificate chain, issuer/trust domain, workload identifier and validity under the selected WIMSE profile.
+2. For WIT application-layer use, verify a fresh WPT or other accepted proof of possession against the credential-bound public key; never accept WIT as a standalone bearer token.
+3. Validate WPT `aud`, `exp`, `wth`, `jti` replay status and any `tth`/`oth` token bindings; reject unrecognized bound token types.
+4. For mTLS, validate WIC and bind the authenticated TLS peer to the expected workload identity.
+5. Independently evaluate authorization, delegated authority, request/action integrity, context taint and effect class.
+6. Record identity authentication, proof validation, authorization decision, action execution and result as distinct evidence events.
+
+### 24.4 Key management and privacy requirements
+
+- Keep private keys outside LLM context, prompts, tool arguments and ordinary logs.
+- Bind each key to the correct workload identifier; rotate/reissue under explicit lifecycle policy.
+- Treat compromise/disclosure of a private key as invalidating the credential's security assumptions.
+- Do not claim TPM/HSM/non-exportable protection unless measured or independently evidenced by the deployment.
+- Do not persist raw WPTs in ordinary logs; log identifiers and verification outcomes instead.
+- Assess whether workload identifiers, target URIs or claims reveal personal information; minimize and protect logs.
+
+### 24.5 KMH implementation gate
+
+Add separate adapters/interfaces for `WitCredentialVerifier`, `WicMtlsVerifier`, `WptProofVerifier` and `HttpRequestIntegrityVerifier`. Add negative tests for WIT presented without proof, wrong WIT hash, wrong audience, expired proof, duplicate `jti`, wrong bound token hash, unknown `oth` token type, wrong TLS peer identity, compromised/revoked key, and request body changed after WPT verification. Pin draft revisions and keep these adapters versioned because the documents remain Internet-Drafts, not published RFCs.
+
+No WIT/WIC/WPT code implementation, conformance result or production security claim is made by this research update.
