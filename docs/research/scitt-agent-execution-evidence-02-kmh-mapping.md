@@ -631,3 +631,61 @@ The CTA proposal references RFC 8785 JCS, RFC 8949 Deterministic CBOR and RFC 80
 6. Add adversarial tests for omitted tool output, reordered chunks, replayed approval, stale CTA, wrong tool/server, context reset abuse and missing provenance.
 
 No CTA code implementation, conformance result or production security claim is made by this research update.
+
+## 22. WIMSE delegation convergence review — current -03/-02 revisions (2026-11-12)
+
+### 22.1 Workload Identity Practices -08 is in IETF Last Call
+
+The WIMSE documents index currently lists draft-ietf-wimse-workload-identity-practices-08 as an active IESG Internet-Draft in IETF Last Call ending 2026-11-13, with intended publication as Informational. This is materially more mature than the individual agent-specific proposals, but it remains a draft and is not yet an RFC. Recheck the Last Call outcome and any revised version before treating it as stable deployment guidance.
+
+### 22.2 Agent Delegation Chain -03: exact offline attenuation contract
+
+The latest listed revision is draft-asor-wimse-agent-delegation-chain-03 (2026-10-27), not the earlier -00/-01 text. It proposes an offline-verifiable OAuth JWT chain with:
+- one invariant accountable Principal in `sub` across all hops;
+- each acting agent identified in `client_id`;
+- holder binding through `cnf` and DPoP;
+- `del_depth`, root `del_max_depth`, and monotonic expiry;
+- `par_hash` committing to the exact parent JWS Signing Input to prevent chain splicing;
+- exactly one `authorization_details` object of type `agent_delegation`; unsupported or additional detail types are rejected rather than ignored;
+- deterministic authority subsumption for scopes and typed constraints, with child authority no wider than parent;
+- bounded chain depth and explicit validation at the enforcement point.
+
+The verifier checks signatures/accepted algorithms, parent linkage, chain shape and Principal invariance, authority attenuation, time bounds and status according to the pinned profile. The draft is an individual Internet-Draft and not IETF-endorsed or an RFC.
+
+**Critical cumulative-budget caveat:** a `max_subtree` ceiling carried in a chain is only a signed limit. Offline verification alone does not reserve or debit a shared aggregate budget. Safe aggregate spend requires coordinated allocation (e.g. a single-writer allocator splitting disjoint child budgets) and durable local debit at enforcement points. Do not claim a global budget guarantee from token attenuation alone.
+
+### 22.3 Credential Delegation Protocol -02: complementary online control plane
+
+The individual draft-sweeney-wimse-credential-delegation-02 (2026-10-30) profiles existing OAuth 2.0 Token Exchange, DPoP, Rich Authorization Requests and OpenID Connect CIBA for AI agents operating across providers. It proposes ephemeral agent keys, capability-shaped delegated tokens, token wrapping so the agent does not receive underlying OAuth credentials, consent-gated asynchronous delegation, cascading revocation and tamper-evident audit chains. It explicitly defines composition of existing mechanisms rather than a new OAuth grant or token format.
+
+This is complementary to Agent Delegation Chain -03, not a substitute:
+- use an online Delegation Server / credential broker when consent, current status and cascading revocation are required;
+- use offline chain verification at an enforcement point when deterministic attenuation must be checked without contacting the authorization server;
+- a deployment may combine both, but must define how the online-issued child authority maps to the offline chain and how revocation/status freshness is handled.
+
+The draft is an individual Internet-Draft, not an adopted WIMSE WG standard or RFC. Its protocol and security review are not complete merely because it composes existing RFCs.
+
+### 22.4 KMH architecture decision: dual-path delegation, one authorization contract
+
+KMH should avoid choosing a single draft as the universal delegation design. Introduce a common internal `DelegationDecision` contract with explicit fields: principal, acting workload identity, target resource, action/scopes, constraints, parent reference, expiry, proof-of-possession key, status freshness, policy version and verification profile.
+
+Provide two adapters:
+1. `OnlineDelegationAdapter`: consent, token wrapping, exchange and cascading revocation; status must be checked under an explicit freshness policy.
+2. `OfflineAttenuationVerifier`: verify each signed hop, exact parent commitment, invariant principal, acting-agent identity, scope/constraint subsumption, bounded depth, expiry and holder proof.
+
+Both adapters must produce the same normalized decision object and feed the same enforcement policy. Unknown authorization detail types, missing required claims, stale/unavailable status where status is required, unsupported constraints or incomplete chain must fail closed. The resource server makes the final action decision; possession of a valid chain or token is not by itself permission to perform every operation.
+
+### 22.5 Tests required before integration
+
+- parent JWS byte mutation and child `par_hash` mismatch;
+- Principal changes at any hop;
+- missing/incorrect `client_id`, `cnf`, `aud`, `del_depth` or root `del_max_depth`;
+- child scope widening, constraint weakening, expiry extension and excessive depth;
+- unknown/additional `authorization_details` entries;
+- expired, revoked, unavailable or stale status;
+- DPoP key mismatch and replay;
+- token exchange preserving the enforceable scope/constraints;
+- parent token remains broader after child attenuation (ensure no false assumption that attenuation revokes parent);
+- concurrent sibling allocations attempting to overspend a cumulative budget.
+
+No delegation-chain verifier or credential-broker implementation is added by this research update. No CI or interoperability result is claimed.
