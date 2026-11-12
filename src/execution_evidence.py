@@ -187,6 +187,8 @@ class ExecutionEvidenceChain:
 
     def __init__(self) -> None:
         self._receipts: list[ExecutionReceipt] = []
+        # Independent in-process commitment snapshot; not an external trust anchor.
+        self._committed_digests: list[str] = []
 
     @property
     def receipts(self) -> tuple[ExecutionReceipt, ...]:
@@ -204,6 +206,7 @@ class ExecutionEvidenceChain:
             raise ValueError("caller-supplied previous receipt hash is not trusted")
         chained = replace(receipt, previous_receipt_hash=expected_previous)
         self._receipts.append(chained)
+        self._committed_digests.append(chained.receipt_digest)
         return chained
 
     def verify(self) -> bool:
@@ -212,6 +215,8 @@ class ExecutionEvidenceChain:
             if receipt.sequence != expected_sequence:
                 return False
             if receipt.previous_receipt_hash != previous:
+                return False
+            if receipt.receipt_digest != self._committed_digests[expected_sequence - 1]:
                 return False
             previous = receipt.receipt_digest
         return True
