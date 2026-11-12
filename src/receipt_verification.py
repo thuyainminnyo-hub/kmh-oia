@@ -88,8 +88,10 @@ def compute_ccf_inclusion_root(proof: Mapping[str, Any]) -> bytes:
         raise ReceiptVerificationError("CCF internal evidence must be 1..1024 UTF-8 bytes")
     if not isinstance(data_hash, bytes) or len(data_hash) != 32:
         raise ReceiptVerificationError("CCF data hash must be 32 bytes")
-    if not isinstance(path, (list, tuple)) or not path:
-        raise ReceiptVerificationError("CCF inclusion path must be non-empty")
+    # CCF permits an empty inclusion path for a one-transaction tree:
+    # in that case the leaf hash is already the Merkle root.
+    if not isinstance(path, (list, tuple)):
+        raise ReceiptVerificationError("CCF inclusion path must be an array")
     h = hashlib.sha256(
         internal_hash + hashlib.sha256(internal_evidence.encode("utf-8")).digest() + data_hash
     ).digest()
