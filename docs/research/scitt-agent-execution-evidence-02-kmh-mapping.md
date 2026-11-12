@@ -324,3 +324,16 @@ This CI result covers the current branch head at that time. The open PR remains 
 3. Implement a bounded caller-controlled retry helper with exponential backoff + jitter and testable clock/random injection.
 4. Add verification-key archival/rotation policy and explicit trust-anchor configuration.
 5. Keep receipt cryptographic verification independent from HTTP protocol success.
+
+
+## 15. Standards-status correction — CCF Profile -06 (2026-11-12)
+
+A subsequent check of the live Datatracker record supersedes the earlier statement in Section 14.1 that IANA expert review was OK and the VDS algorithm registration had been approved. The current -06 page shows:
+- IANA review state: Version Changed — Review Needed.
+- IANA expert review state: Issues identified.
+- The expert comment requests proof-type registrations, including an inclusion proof and potentially a consistency proof, and a table entry explaining which proofs VDS algorithm 2 produces.
+- WG state remains Submitted to IESG for Publication; IESG state remains Waiting for AD Go-Ahead.
+
+Therefore KMH must not treat the CCF Profile -06 IANA registrations as settled. Keep the COSE VDS algorithm and proof-type handling behind a versioned adapter, pin the exact draft and IANA registry snapshot used in tests, and re-check the current IANA review before interoperability claims. This is a standards-status correction, not a change to the local verifier's claimed capabilities.
+
+The branch's latest documentation-only commit is 5c73e83fade203daaac39a12c6d54200a7937df0. The preceding code-bearing commit 193cf8f7dfc8a0033a09689803ccea0f746d01a6 had both KMH OIA Tests and KMH OIA Validation pass. No CI run was returned for the documentation-only head; do not report that head as newly CI-tested.
