@@ -203,6 +203,80 @@ class AeeTaskStateTests(unittest.TestCase):
         with self.assertRaises(AeeTaskValidationError):
             validate_aee_receipt_sequence([first])
 
+
+    def test_accepts_aee_02_appendix_a_execution_receipt_semantics(self):
+        # Values below are transcribed from the published AEE -02 Appendix A
+        # execution-receipt examples. This validates semantics and supplied
+        # chain linkage only; it does NOT recompute canonical CBOR hashes or
+        # verify the embedded COSE agent signature.
+        policy = bytes.fromhex(
+            "563a0a3a0c09b773b7f07dd66931dc56605cb0e56d53d1da9cdefe6ae4c56f4d"
+        )
+        config = bytes.fromhex(
+            "654e7b4e605a07c8657d5f2c01360d2367022d18a2ee2dfce1a6489e1c6b6781"
+        )
+        principal = (
+            "natural-person:sha256:"
+            "355acb442721073848a4b78577b31cd2958587696cf8378ab050011c8a042638"
+        )
+        request = bytes.fromhex(
+            "989a658a232f0329b3372261bdd4d3bec9e31d57094015433bf54fbd2aeca8f5"
+        )
+        hashes = [
+            "1942de9ac9bd019506aa5e551ede9ae92676942d4278816ab458a9deb16548c0",
+            "3d3b1f63cb07c710049eed093e439600464a47a36b37175372e1fc734f6d39a9",
+            "7df8cc808530b8a02e78f723ddcda32645e14c66dd61b8525279fa94118f9ec9",
+            "6724c98d2b78fe984db24ce2d8cb63cc214171928ec4f9ebb09770e3d9196fa7",
+        ]
+        hashes = [bytes.fromhex(value) for value in hashes]
+        zero = b"\\x00" * 32
+        base = {
+            "policy_pack_digest": policy,
+            "config_integrity_digest": config,
+            "agent_id": "wimse://agents.example.com/agent/billing-assistant",
+            "principal": principal,
+        }
+        records = [
+            AeeExecutionReceipt(
+                seq=0, prev_hash=zero, record_hash=hashes[0],
+                record_type="task_start", decision="allow",
+                task_seq=0, ts=1_790_001_000_000, **base,
+            ),
+            AeeExecutionReceipt(
+                seq=1, prev_hash=hashes[0], record_hash=hashes[1],
+                record_type="inference", decision="allow",
+                task_seq=0, ts=1_790_001_000_120,
+                decision_point="model", request_digest=bytes.fromhex(
+                    "b1d21340b999c928ffd214aa36db4be63eedce244aa382e47e4d579ed576bc40"
+                ),
+                response_digest=bytes.fromhex(
+                    "022531c9882a5426d13f9af059c17d2f60d0df585b3fe3ae0f016a8a5f5562ca"
+                ),
+                target="example-model-2026-06", **base,
+            ),
+            AeeExecutionReceipt(
+                seq=2, prev_hash=hashes[1], record_hash=hashes[2],
+                record_type="tool_call", decision="confirm",
+                task_seq=0, ts=1_790_001_000_350,
+                parent_seq=1, decision_point="tool",
+                target="send_invoice", request_digest=request,
+                egress_host="api.customer.example", **base,
+            ),
+            AeeExecutionReceipt(
+                seq=3, prev_hash=hashes[2], record_hash=hashes[3],
+                record_type="tool_call", decision="allow",
+                task_seq=0, ts=1_790_001_009_000,
+                parent_seq=1, decision_point="tool",
+                target="send_invoice", request_digest=request,
+                egress_host="api.customer.example", confirm_seq=2, **base,
+            ),
+        ]
+        result = validate_aee_receipt_sequence(records)
+        self.assertEqual(result.receipt_count, 4)
+        self.assertEqual(result.task_count, 1)
+        self.assertEqual(result.confirmed_call_count, 1)
+        self.assertEqual(result.final_record_hash, hashes[3])
+
     def test_rejects_broken_hash_chain(self):
         records = self.chain([
             (0, "task_start", "allow", 0, {}),
