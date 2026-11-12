@@ -771,3 +771,30 @@ Verifier checks include valid signature under the WIT-bound key, expected audien
 Add separate adapters/interfaces for `WitCredentialVerifier`, `WicMtlsVerifier`, `WptProofVerifier` and `HttpRequestIntegrityVerifier`. Add negative tests for WIT presented without proof, wrong WIT hash, wrong audience, expired proof, duplicate `jti`, wrong bound token hash, unknown `oth` token type, wrong TLS peer identity, compromised/revoked key, and request body changed after WPT verification. Pin draft revisions and keep these adapters versioned because the documents remain Internet-Drafts, not published RFCs.
 
 No WIT/WIC/WPT code implementation, conformance result or production security claim is made by this research update.
+
+## 25. WIMSE Workload Identity Practices -08: platform credential threat controls (2026-11-12)
+
+The WIMSE WG Workload Identity Practices -08 is in IETF Last Call ending 2026-11-13, intended Informational RFC. It remains an Internet-Draft, not a published RFC. The draft covers Kubernetes service-account tokens, SPIFFE SVIDs, cloud instance metadata and CI/CD workload identity patterns.
+
+KMH deployment controls derived from the draft:
+- Issue separate credentials with distinct audiences for each target/resource and trust boundary; never reuse a Kubernetes API token for external federation or a different resource.
+- Prefer short credential lifetimes and bind invalidation to workload instance lifecycle; where immediate invalidation is unavailable, define status-query or short-lifetime compensating controls.
+- Prefer proof-of-possession over bearer credentials where supported.
+- Restrict credential-file access with OS identity and filesystem controls; prefer memory-backed mounts where suitable, and account for backups/snapshots.
+- Avoid environment variables for long-lived or sensitive credentials because they may leak through diagnostics, monitoring, process inspection or logs.
+- Treat local metadata/workload APIs as sensitive credential boundaries; prevent untrusted input from influencing their URL, path or request parameters, and defend against SSRF and unintended command execution.
+- Identify workloads using process-scoped/environment context where possible; IP-only or host-global identity is a weaker boundary.
+- Protect shared local credential APIs with per-caller quotas/rate limits to prevent one workload denying credentials to others.
+- Validate token type and audience according to policy; do not accept a credential merely because its signature is valid.
+
+### KMH deployment profile
+
+For the first production pilot, define per-service audience identifiers, credential TTL limits, instance termination invalidation behavior, credential storage location, OS-level access policy, metadata API egress restrictions, SSRF tests and proof-of-possession requirements. Document exceptions where platform capabilities prevent a control and add compensating measures. Treat the WIMSE practices document as deployment guidance, not a protocol specification or proof that the platform enforces these controls.
+
+### Standards status correction
+
+As of the 2026-11-12 check, Workload Identity Practices -08 is in IETF Last Call ending 2026-11-13, with IANA Review Needed and external review requests outstanding. Do not state that Last Call has completed or that publication is approved.
+
+### Research integrity note: SADP claim from prior exploratory note
+
+The previously mentioned “SADP Delegation Draft -01” and its claimed privacy-preserving scoped-context-disclosure protocol could not be independently verified in the official IETF Datatracker results checked for this update. Treat that earlier mention as unverified and do not base KMH architecture or implementation decisions on it unless an authoritative draft URL and content are produced. The verified WIMSE credential and proof documents above are the supported basis for this update.
