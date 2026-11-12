@@ -264,3 +264,13 @@ The draft requires record-hash over canonical CBOR (or JCS for JSON), sequence 0
 6. Build epoch and offline Bundle support only after statement schemas, registration policy, credential/status validation and cryptographic adapters are stable.
 
 No AEE conformance, production readiness or complete call-capture coverage is claimed by this follow-up.
+
+
+## 13. AEE validator increment — interleaving and timestamp ordering
+
+Following the -02 Task semantics review, the local decoded-receipt validator now:
+- permits multiple open Tasks whose receipts interleave in one Evidence Chain, while retaining per-receipt Task membership and per-Task Principal continuity;
+- enforces non-decreasing receipt timestamps across the chain, including Admission Receipts;
+- rejects boolean timestamps (Python bool is an int subclass and must not pass timestamp validation).
+
+New tests cover two interleaved Tasks, decreasing timestamps, and boolean timestamps. This remains a local semantics check: it does not implement delegated Task delegated_from relationships or registered Policy Pack ancestry, and does not prove Decision Point capture completeness.
