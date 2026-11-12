@@ -4,6 +4,7 @@ import unittest
 from src.receipt_verification import (
     CcfInclusionReceiptVerifier,
     CcfConsistencyReceiptVerifier,
+    compute_ccf_consistency_roots,
     ReceiptVerificationError,
 )
 
@@ -145,16 +146,16 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
     def setUp(self):
         self.older = b"o" * 32
         self.newer = b"n" * 32
+        self.sibling = b"s" * 32
+        self.newer = hashlib.sha256(self.older + self.sibling).digest()
         self.proofs = {
             b"p1": {
-                "valid": True, "anchor": b"a" * 32,
-                "path": [(False, b"s" * 32)],
-                "older": self.older, "newer": self.newer,
+                "valid": True, "anchor": self.older,
+                "path": [(False, self.sibling)],
             },
             b"p2": {
-                "valid": True, "anchor": b"b" * 32,
-                "path": [(False, b"t" * 32)],
-                "older": b"z" * 32, "newer": self.newer,
+                "valid": True, "anchor": self.older,
+                "path": [(False, self.sibling)],
             },
         }
         self.receipt = {
@@ -168,6 +169,21 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
             trusted_key_set={"kid": "trusted-ts-key"},
             expected_service_id="https://transparency.example",
         )
+
+
+    def test_ccf_consistency_merkle_folding_matches_sha256_definition(self):
+        anchor = b"a" * 32
+        left = b"l" * 32
+        right = b"r" * 32
+        older, newer = compute_ccf_consistency_roots(
+            anchor, [(False, right), (True, left)]
+        )
+        expected_older = hashlib.sha256(left + anchor).digest()
+        expected_newer = hashlib.sha256(
+            left + hashlib.sha256(anchor + right).digest()
+        ).digest()
+        self.assertEqual(older, expected_older)
+        self.assertEqual(newer, expected_newer)
 
     def test_verifies_extension_from_trusted_old_root(self):
         result = self.verifier.verify(
@@ -187,7 +203,7 @@ class CcfConsistencyReceiptVerifierTests(unittest.TestCase):
 
     def test_rejects_divergent_newer_roots(self):
         proofs = dict(self.proofs)
-        proofs[b"p2"] = dict(proofs[b"p2"], newer=b"d" * 32)
+        proofs[b"p2"] = dict(proofs[b"p2"], path=[(False, b"d" * 32)])
         verifier = CcfConsistencyReceiptVerifier(
             codec=FakeConsistencyCodec(self.receipt, proofs),
             cose_verifier=self.cose, trusted_key_set={"kid": "k"},
