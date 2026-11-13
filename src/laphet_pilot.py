@@ -22,6 +22,10 @@ _PRIVATE_EVIDENCE_TYPES = {
     "community_review_record", "cultural_review_record", "scientific_review_record",
     "expert_review_record", "qa_report", "approval_record", "community_approval"
 }
+_CONTRIBUTOR_EVIDENCE_TYPES = {
+    "community_interview", "oral_history", "photograph", "audio", "video",
+    "recipe_record", "producer_record"
+}
 _SCIENTIFIC_CLAIMS = {"MICROBIOLOGY", "NUTRITION", "FOOD_SAFETY"}
 _REVIEW_EVIDENCE_TYPES = {
     "cultural": {"community_review_record", "cultural_review_record"},
@@ -206,7 +210,8 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
             continue
         if claim.get("public") is not True:
             continue
-        if claim.get("status") not in _ALLOWED_CLAIM_STATES:
+        claim_status = claim.get("status")
+        if not isinstance(claim_status, str) or claim_status not in _ALLOWED_CLAIM_STATES:
             errors.append(f"{label}.status must be a supported, corroborated, or community-confirmed state")
         if not isinstance(claim.get("text"), str) or not claim.get("text", "").strip():
             errors.append(f"{label}.text is required")
@@ -226,7 +231,7 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
                 errors.append(f"{label}: internal or contributor evidence cannot be used as public claim evidence: {evidence_id}")
             if evidence.get("publication_permission") is not True:
                 errors.append(f"{label} uses evidence without publication permission: {evidence_id}")
-            if evidence.get("evidence_type") in _PRIVATE_EVIDENCE_TYPES:
+            if isinstance(evidence_type, str) and evidence_type in _CONTRIBUTOR_EVIDENCE_TYPES:
                 permission_ref = evidence.get("permission_evidence_id")
                 if permission_ref not in consent_refs:
                     errors.append(f"{label} uses contributor/media evidence without matching consent evidence: {evidence_id}")
@@ -237,9 +242,6 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
             errors.append(f"{label}: scientific claims require a PASS scientific review")
         if category == "FOOD_SAFETY":
             food_safety_claim_present = True
-            safety = record.get("food_safety")
-            if not isinstance(safety, Mapping) or safety.get("status") != "PASS":
-                errors.append(f"{label}: food-safety claims require a PASS batch-specific safety assessment")
             lab_evidence = [
                 evidence_by_id[evidence_id]
                 for evidence_id in refs
