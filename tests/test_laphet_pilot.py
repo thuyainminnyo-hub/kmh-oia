@@ -206,5 +206,51 @@ class LaphetPublicationGateTests(unittest.TestCase):
         self.assertTrue(any("channels must be within" in error for error in result["errors"]))
 
 
+    def test_scientific_review_is_mandatory_even_without_scientific_public_claim(self):
+        record = ready_record()
+        record["reviews"]["scientific"]["status"] = "NOT_STARTED"
+        result = assess_publication_readiness(record)
+        self.assertFalse(result["eligible"])
+        self.assertTrue(any("reviews.scientific.status" in error for error in result["errors"]))
+
+    def test_unverified_community_authority_blocks_publication(self):
+        record = ready_record()
+        record["community"]["authority_status"] = "NOT_ASSESSED"
+        result = assess_publication_readiness(record)
+        self.assertFalse(result["eligible"])
+        self.assertTrue(any("authority_status must be VERIFIED" in error for error in result["errors"]))
+
+    def test_consent_reference_must_be_a_consent_record(self):
+        record = ready_record()
+        record["evidence"][0]["evidence_type"] = "public_research"
+        result = assess_publication_readiness(record)
+        self.assertFalse(result["eligible"])
+        self.assertTrue(any("consent evidence has the wrong type" in error for error in result["errors"]))
+
+    def test_multilingual_publication_requires_translation_scope(self):
+        record = ready_record()
+        record["consent"]["scopes"]["translation"] = False
+        result = assess_publication_readiness(record)
+        self.assertFalse(result["eligible"])
+        self.assertTrue(any("translation consent" in error for error in result["errors"]))
+
+    def test_publication_channel_must_be_within_consent_scope(self):
+        record = ready_record()
+        record["publication"]["channels"] = ["Unapproved external platform"]
+        result = assess_publication_readiness(record)
+        self.assertFalse(result["eligible"])
+        self.assertTrue(any("channels must be within" in error for error in result["errors"]))
+
+    def test_internal_approval_record_cannot_be_public_claim_evidence(self):
+        record = ready_record()
+        approval = next(item for item in record["evidence"] if item["id"] == "APPROVAL-001")
+        approval["access_classification"] = "PUBLIC"
+        approval["publication_permission"] = True
+        record["claims"][0]["evidence_ids"] = ["APPROVAL-001"]
+        result = assess_publication_readiness(record)
+        self.assertFalse(result["eligible"])
+        self.assertTrue(any("internal or contributor evidence cannot be used as public claim evidence" in error for error in result["errors"]))
+
+
 if __name__ == "__main__":
     unittest.main()
