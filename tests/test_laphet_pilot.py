@@ -252,5 +252,26 @@ class LaphetPublicationGateTests(unittest.TestCase):
         self.assertTrue(any("internal or contributor evidence cannot be used as public claim evidence" in error for error in result["errors"]))
 
 
+    def test_malformed_access_classification_does_not_crash(self):
+        record = ready_record()
+        record["evidence"][0]["access_classification"] = {"unexpected": "object"}
+        result = assess_publication_readiness(record)
+        self.assertFalse(result["eligible"])
+        self.assertTrue(any("invalid access_classification" in error for error in result["errors"]))
+
+    def test_malformed_claim_category_does_not_crash(self):
+        record = ready_record()
+        record["claims"][0]["category"] = ["not", "a", "string"]
+        result = assess_publication_readiness(record)
+        self.assertFalse(result["eligible"])
+        self.assertTrue(any("category must be a string" in error for error in result["errors"]))
+
+    def test_malformed_attribution_mode_does_not_crash(self):
+        record = ready_record()
+        record["attribution_mode"] = {"unexpected": "object"}
+        result = assess_publication_readiness(record)
+        self.assertFalse(result["eligible"])
+        self.assertTrue(any("attribution_mode must be NAMED" in error for error in result["errors"]))
+
 if __name__ == "__main__":
     unittest.main()

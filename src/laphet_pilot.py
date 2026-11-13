@@ -62,7 +62,8 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
         if evidence_id in evidence_by_id:
             errors.append(f"duplicate evidence id: {evidence_id}")
         evidence_by_id[evidence_id] = item
-        if item.get("access_classification") not in _ALLOWED_RECORD_ACCESS:
+        evidence_access = item.get("access_classification")
+        if not isinstance(evidence_access, str) or evidence_access not in _ALLOWED_RECORD_ACCESS:
             errors.append(f"evidence {evidence_id} has an invalid access_classification")
 
     def require_existing_refs(refs: Any, label: str) -> list[str]:
@@ -107,9 +108,10 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
         if scopes.get(scope) is not True:
             errors.append(f"consent scope {scope} must be explicitly true")
 
-    if record.get("attribution_mode") == "NAMED" and scopes.get("attribution") is not True:
+    attribution_mode = record.get("attribution_mode")
+    if attribution_mode == "NAMED" and scopes.get("attribution") is not True:
         errors.append("named attribution requires explicit attribution consent")
-    if record.get("attribution_mode") not in {"NAMED", "COMMUNITY_ONLY", "ANONYMOUS"}:
+    if not isinstance(attribution_mode, str) or attribution_mode not in {"NAMED", "COMMUNITY_ONLY", "ANONYMOUS"}:
         errors.append("attribution_mode must be NAMED, COMMUNITY_ONLY, or ANONYMOUS")
 
     consent_refs = require_existing_refs(consent.get("evidence_ids"), "consent.evidence_ids")
@@ -138,7 +140,8 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
         )
         expected_types = _REVIEW_EVIDENCE_TYPES[review_name]
         for evidence_id in review_refs:
-            if evidence_by_id[evidence_id].get("evidence_type") not in expected_types:
+            evidence_type = evidence_by_id[evidence_id].get("evidence_type")
+            if not isinstance(evidence_type, str) or evidence_type not in expected_types:
                 errors.append(f"reviews.{review_name} evidence has the wrong type: {evidence_id}")
 
     publication_review = reviews.get("community_publication")
@@ -161,7 +164,11 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
         errors.append("publication.channels must contain at least one non-empty value")
     else:
         allowed_channels = consent.get("allowed_channels")
-        if not isinstance(allowed_channels, list) or not set(channels).issubset(set(allowed_channels)):
+        if (
+            not isinstance(allowed_channels, list)
+            or any(not isinstance(value, str) or not value.strip() for value in allowed_channels)
+            or not set(channels).issubset(set(allowed_channels))
+        ):
             errors.append("publication.channels must be within the channels explicitly allowed by consent")
 
     languages = publication.get("languages")
@@ -169,7 +176,11 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
         errors.append("publication.languages must contain at least one non-empty value")
     else:
         allowed_languages = consent.get("allowed_languages")
-        if not isinstance(allowed_languages, list) or not set(languages).issubset(set(allowed_languages)):
+        if (
+            not isinstance(allowed_languages, list)
+            or any(not isinstance(value, str) or not value.strip() for value in allowed_languages)
+            or not set(languages).issubset(set(allowed_languages))
+        ):
             errors.append("publication.languages must be within the languages explicitly allowed by consent")
         if len(set(languages)) > 1 and scopes.get("translation") is not True:
             errors.append("multilingual publication requires explicit translation consent")
@@ -178,7 +189,8 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
         publication.get("approval_evidence_ids"), "publication.approval_evidence_ids"
     )
     for evidence_id in publication_refs:
-        if evidence_by_id[evidence_id].get("evidence_type") not in {"approval_record", "community_approval"}:
+        evidence_type = evidence_by_id[evidence_id].get("evidence_type")
+        if not isinstance(evidence_type, str) or evidence_type not in {"approval_record", "community_approval"}:
             errors.append(f"publication approval reference is not an approval record: {evidence_id}")
 
     claims = record.get("claims")
@@ -199,6 +211,9 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(claim.get("text"), str) or not claim.get("text", "").strip():
             errors.append(f"{label}.text is required")
         category = claim.get("category")
+        if not isinstance(category, str):
+            errors.append(f"{label}.category must be a string")
+            continue
         if category == "HEALTH":
             errors.append(f"{label}: health/medical claims are outside this pilot's publication scope")
         refs = require_existing_refs(claim.get("evidence_ids"), f"{label}.evidence_ids")
@@ -206,7 +221,8 @@ def assess_publication_readiness(record: Mapping[str, Any]) -> dict[str, Any]:
             evidence = evidence_by_id[evidence_id]
             if evidence.get("access_classification") != "PUBLIC":
                 errors.append(f"{label} uses non-public evidence {evidence_id}")
-            if evidence.get("evidence_type") in _PRIVATE_EVIDENCE_TYPES:
+            evidence_type = evidence.get("evidence_type")
+            if isinstance(evidence_type, str) and evidence_type in _PRIVATE_EVIDENCE_TYPES:
                 errors.append(f"{label}: internal or contributor evidence cannot be used as public claim evidence: {evidence_id}")
             if evidence.get("publication_permission") is not True:
                 errors.append(f"{label} uses evidence without publication permission: {evidence_id}")
