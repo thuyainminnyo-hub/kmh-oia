@@ -1,6 +1,6 @@
 # KMH Laphet Scientific + Cultural Pilot
 
-- Pilot ID: \`KMH-LAPHET-001\`
+- Pilot ID: **KMH-LAPHET-001**
 - Pilot type: Scientific + Cultural End-to-End
 - Owner decision: Laphet selected as first pilot; no new architecture domains during this pilot.
 - Current status: **HOLD — Gate 0 not passed**
@@ -34,8 +34,8 @@ This is a government-reported submission status, not UNESCO inscription and not 
 
 - Existing repository trace and evidence concepts: use; do not create a parallel event platform.
 - Existing authorization/security boundaries: preserve; do not add unrestricted tool execution.
-- Existing test command: \`python -m unittest discover -s tests -v\`.
-- Pilot-specific code in \`src/laphet_pilot.py\` is a fail-closed publication gate validator only. It does not collect, store, publish, or certify any data.
+- Existing test command: `python -m unittest discover -s tests -v`.
+- Pilot-specific code in `src/laphet_pilot.py` is a fail-closed publication gate validator only. It does not collect, store, publish, or certify any data.
 
 ## Gate sequence
 
@@ -65,15 +65,9 @@ New sampling requires permissions, an approved protocol, suitable chain of custo
 
 ## Publication rule
 
-Only publish a version that has:
-- active and scope-matched consent;
-- public access classification for the record and every public claim;
-- evidence and publication permission for every public claim/media item;
-- cultural review and independent QA PASS;
-- explicit community approval of the exact artifact hash, languages and channels;
-- a correction, withdrawal and takedown route.
+Only publish a version that has active and scope-matched consent; public access classification and publication permission for every public claim/media item; cultural, scientific and independent QA PASS; explicit community approval of the exact artifact hash, languages and channels; and a correction/withdrawal/takedown route.
 
-The validator rejects unsupported/disputed claims, missing approvals, private evidence used in public claims, unapproved attribution, unmatched artifact hashes, and unsubstantiated health or food-safety claims.
+The validator rejects unsupported/disputed claims, missing approvals, private evidence used in public claims, unapproved attribution, unmatched artifact hashes, unapproved channels/languages, and unsubstantiated health or food-safety claims.
 
 ## Status at bootstrap
 

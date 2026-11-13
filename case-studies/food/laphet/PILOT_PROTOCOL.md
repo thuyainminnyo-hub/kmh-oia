@@ -77,7 +77,8 @@ AI-generated or illustrative images must never be passed off as documentary evid
 - restricted evidence used to support public claims;
 - media permission absent;
 - safety or health claims without qualified evidence;
-- independent QA not passed;
-- community approval missing or artifact hash mismatch.
+- scientific review or independent QA not passed;
+- community approval missing or artifact hash mismatch;
+- channel/language is outside the consent scope.
 
 Any such condition results in HOLD, not an inferred PASS.
