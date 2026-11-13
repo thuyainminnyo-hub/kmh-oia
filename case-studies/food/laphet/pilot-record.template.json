@@ -1,0 +1,64 @@
+{
+  "record_id": "KMH-LAPHET-001",
+  "record_version": "0.1.0",
+  "record_status": "HOLD",
+  "access_classification": "RESTRICTED",
+  "attribution_mode": "COMMUNITY_ONLY",
+  "community": {
+    "community_reference": null,
+    "display_name": null,
+    "authority_status": "NOT_ASSESSED",
+    "authority_evidence_ids": []
+  },
+  "consent": {
+    "status": "NOT_OBTAINED",
+    "scopes": {
+      "documentation": false,
+      "attribution": false,
+      "audio_video": false,
+      "research_access": false,
+      "public_publication": false,
+      "translation": false,
+      "commercial_reuse": false
+    },
+    "allowed_channels": [],
+    "allowed_languages": [],
+    "evidence_ids": []
+  },
+  "evidence": [],
+  "claims": [],
+  "reviews": {
+    "cultural": {
+      "status": "NOT_STARTED",
+      "reviewer_ref": null,
+      "evidence_ids": []
+    },
+    "scientific": {
+      "status": "NOT_STARTED",
+      "reviewer_ref": null,
+      "evidence_ids": []
+    },
+    "independent_qa": {
+      "status": "NOT_STARTED",
+      "reviewer_ref": null,
+      "evidence_ids": []
+    },
+    "community_publication": {
+      "status": "NOT_STARTED",
+      "reviewer_ref": null,
+      "evidence_ids": [],
+      "artifact_sha256": null
+    }
+  },
+  "food_safety": {
+    "status": "NOT_ASSESSED",
+    "evidence_ids": []
+  },
+  "publication": {
+    "status": "NOT_APPROVED",
+    "artifact_sha256": null,
+    "channels": [],
+    "languages": [],
+    "approval_evidence_ids": []
+  }
+}
