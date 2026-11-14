@@ -15,6 +15,8 @@ Each registered agent has:
 - lifecycle status: ACTIVE, SUSPENDED, DEPRECATED, or REVOKED
 - optional description
 
+The strict JSON Schema is maintained at `schemas/agent-record.schema.json`.
+
 ## Lifecycle
 
 - ACTIVE → SUSPENDED, DEPRECATED, REVOKED
@@ -24,11 +26,11 @@ Each registered agent has:
 
 Revocation is terminal. Records are not silently deleted.
 
-## Security boundary
+## Security boundary — critical
 
-This module is only a metadata registry. It does not authenticate agents, issue credentials, authorize tool calls, or make an agent trusted. Every invocation must continue through the existing runtime security and autonomy policies. Capability metadata must not be treated as an executable grant.
+This module is only a metadata registry. It does not authenticate agents, issue credentials, authorize tool calls, or make an agent trusted. Declared capabilities are descriptive metadata, not permission grants. Every invocation must continue through the runtime security and autonomy policies.
 
-The next increment must bind registry identity to execution context and enforce capability checks at the governed-tool boundary, with negative tests for unknown, suspended, deprecated, and revoked agents.
+The next increment must bind a verified execution identity to a task-scoped grant and enforce capability checks at the governed-tool boundary. Deny by default, check each request, log allow and deny decisions, and require human approval for consequential external actions.
 
 ## Current limitations
 
