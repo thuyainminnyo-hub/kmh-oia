@@ -166,6 +166,8 @@ jobs:
         run: |
           node --check tool/apply-firebase-options.mjs
           node --test test/apply_firebase_options.test.mjs
+          node --check tool/verify-firebase-config.mjs
+          node --test test/verify_firebase_config.test.mjs
       - name: Apply generated FlutterFire options when available
         working-directory: education-business-os/mobile
         run: |
