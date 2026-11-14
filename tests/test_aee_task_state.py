@@ -188,7 +188,7 @@ class AeeTaskStateTests(unittest.TestCase):
         self.assertEqual(result.task_count, 2)
 
     def test_rejects_decreasing_timestamp_across_chain(self):
-        first = self.make(0, b"\\x00" * 32, "task_start", "allow", 0)
+        first = self.make(0, b"\x00" * 32, "task_start", "allow", 0)
         second = self.make(
             1, first.record_hash, "inference", "allow", 0,
             ts=first.ts - 1,
@@ -198,7 +198,7 @@ class AeeTaskStateTests(unittest.TestCase):
 
     def test_rejects_boolean_timestamp(self):
         first = self.make(
-            0, b"\\x00" * 32, "task_start", "allow", 0, ts=True,
+            0, b"\x00" * 32, "task_start", "allow", 0, ts=True,
         )
         with self.assertRaises(AeeTaskValidationError):
             validate_aee_receipt_sequence([first])
@@ -229,7 +229,7 @@ class AeeTaskStateTests(unittest.TestCase):
             "6724c98d2b78fe984db24ce2d8cb63cc214171928ec4f9ebb09770e3d9196fa7",
         ]
         hashes = [bytes.fromhex(value) for value in hashes]
-        zero = b"\\x00" * 32
+        zero = b"\x00" * 32
         base = {
             "policy_pack_digest": policy,
             "config_integrity_digest": config,
@@ -288,6 +288,13 @@ class AeeTaskStateTests(unittest.TestCase):
         with self.assertRaises(AeeTaskValidationError):
             validate_aee_receipt_sequence([records[0], broken])
 
+
+    def test_rejects_nonzero_genesis_hash(self):
+        first = self.make(
+            0, b"x" * 32, "task_start", "allow", 0,
+        )
+        with self.assertRaises(AeeTaskValidationError):
+            validate_aee_receipt_sequence([first])
 
 if __name__ == "__main__":
     unittest.main()
