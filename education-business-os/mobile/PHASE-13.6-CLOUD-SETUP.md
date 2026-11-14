@@ -82,6 +82,8 @@ The helper does nothing and reports `PENDING` when generated options are absent.
 ```bash
 node --check tool/apply-firebase-options.mjs
 node --test test/apply_firebase_options.test.mjs
+node --check tool/verify-firebase-config.mjs
+node --test test/verify_firebase_config.test.mjs
 node tool/verify-android-package.mjs
 node tool/verify-firebase-config.mjs
 flutter pub get
