@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kmh.example/schemas/agent-record.schema.json",
+  "$id": "urn:kmh:aion:schemas:agent-record",
   "title": "KMH AION OS Agent Record",
   "type": "object",
   "additionalProperties": false,
