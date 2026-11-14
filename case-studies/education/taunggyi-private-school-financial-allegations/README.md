@@ -186,6 +186,8 @@ The article attributes the following claims to affected people:
 
 The MMK 3,250-lakh figure is only the arithmetic sum of four claims quoted by the article. It is not an audited total, not necessarily exhaustive, and may not equal outstanding loss. No original agreements, bank transfers, receipts, repayment records or claimant-level duplicate checks were available.
 
+**Source-dependence limitation:** the four amounts exactly repeat the amounts in the Democratic Press article supplied in the conversation. The People Voice follow-up is a second publication event, but the matching figures must not be counted as two independent confirmations because the reports may rely on overlapping claimants or the same underlying source network. Preserve two publication records and a possibly shared claim/source cluster until separate first-hand claimant evidence is obtained.
+
 The article also says the school began operating in 2026 and had not yet reached one year; the exact opening date remains unverified.
 
 ### 2. Distinguish separate salary/collateral allegations
