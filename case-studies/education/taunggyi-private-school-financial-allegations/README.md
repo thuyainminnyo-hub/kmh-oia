@@ -210,25 +210,22 @@ This is an archived third-party snapshot of public posts, not an MOE authorizati
 
 ### 4. Regulatory source correction — international-curriculum directive
 
-MOE's guideline page lists Notification 18/2023, Notification 16/2023, registration-form distribution, Notifications 1/2024 and 2/2024, and a separate International School instructions link:
-- https://moe.gov.mm/my/node/5310
-- https://www.moe.gov.mm/my/node/4536
-
-DFDL reports three directives issued on 2023-11-07 for higher education, national-curriculum basic schools and international-curriculum schools:
-- https://www.dfdl.com/insights/legal-and-tax-updates/myanmar-new-directives-on-registration-of-private-educational-institutions/
-
-The MOE's own directives page lists three separate instruction titles, including the instruction for private schools teaching the international curriculum:
+MOE's own Supervisory Board directives page lists three distinct instruction titles, including the instruction for private schools teaching the international curriculum:
 - MOE Supervisory Board directives: https://moe.gov.mm/my/node/4526
 - MOE International School instructions: https://www.moe.gov.mm/my/node/4536
 
 DFDL reports that three directives were issued on 2023-11-07 for higher education, national-curriculum basic schools and international-curriculum schools:
 - https://www.dfdl.com/insights/legal-and-tax-updates/myanmar-new-directives-on-registration-of-private-educational-institutions/
 
-**Important source conflict:** the VDB-Loi November 2023 digest lists Directives 16/2023, 17/2023 and 18/2023, but its narrative sequence (higher education, national-curriculum basic schools, international-curriculum schools) conflicts with the primary MOE PDFs: Notification 16/2023 is higher education, while Notification 18/2023 is national-curriculum basic education. Do not use the VDB sequence to override the signed MOE instruments. A 2025 Myanmar Academy of Arts and Science journal bibliography identifies Notification 17/2023 as the international-curriculum directive, which is consistent with the MOE PDFs and separate MOE International School instructions page:
+**Important source conflict:** the VDB-Loi November 2023 digest lists Directives 16/2023, 17/2023 and 18/2023, but its narrative sequence (higher education, national-curriculum basic schools, international-curriculum schools) conflicts with the primary MOE PDFs: Notification 16/2023 is higher education, while Notification 18/2023 is national-curriculum basic education:
+- https://www.vdb-loi.com/law_digest/law-digest-november-2023/
+- Notification 16/2023: https://www.moe.gov.mm/sites/default/files/announcement/2024/1.16_2023.pdf
+- Notification 18/2023: https://www.moe.gov.mm/sites/default/files/announcement/2024/18_2023.pdf
+
+A 2025 Myanmar Academy of Arts and Science journal bibliography identifies Notification 17/2023 as the international-curriculum directive, which is consistent with the MOE PDFs and separate MOE International School instructions page:
 - https://maas.edu.mm/Research/Admin/pdf/26.%20Dr.Thida%20Tun%20%28347-356%29.pdf
 
-**Updated classification:** the existence and category of a separate international-curriculum instruction are confirmed by MOE; mapping it to No. 17/2023 is **Supported — primary instrument pending** because the signed MOE instrument bearing No. 17/2023 was not retrieved in this pass. Notification 18/2023 remains directly verified as the national-curriculum basic education directive.
-
+**Updated classification:** MOE confirms that a separate international-curriculum instruction exists. Mapping it to No. 17/2023 is **Supported — primary instrument pending** because the signed MOE instrument bearing No. 17/2023 was not retrieved in this pass. Do not rely on the conflicting VDB narrative sequence to override the MOE primary documents. Notification 18/2023 remains directly verified as the national-curriculum basic education directive.
 ### 5. Claim-level evidence matrix update
 
 | Item | Classification | Required evidence |
