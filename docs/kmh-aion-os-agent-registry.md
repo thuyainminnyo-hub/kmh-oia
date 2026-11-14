@@ -44,7 +44,7 @@ The next increment must bind a verified execution identity to a task-scoped gran
 
 Run:
 ```bash
-python -m unittest tests.test_agent_registry -v
+python -m unittest discover -s tests -p 'test_agent_registry.py' -v
 python -m unittest discover -s tests -v
 ```
 
