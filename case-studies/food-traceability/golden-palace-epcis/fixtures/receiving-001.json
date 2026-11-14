@@ -1,0 +1,14 @@
+{
+  "fixture_id": "gp-syn-receiving-001",
+  "synthetic": true,
+  "source_system": "golden-palace-synthetic",
+  "event_id": "gp-event-receiving-001",
+  "event_type": "receiving",
+  "event_time": "2026-11-14T09:00:00Z",
+  "timezone_offset": "+06:30",
+  "product_lot_id": "LOCAL-LOT-RICE-001",
+  "quantity": 25,
+  "uom": "KGM",
+  "location_id": "LOCAL-LOC-GP-KITCHEN",
+  "supplier_id": "LOCAL-PARTY-SUPPLIER-001"
+}
