@@ -64,7 +64,7 @@ def receipts():
         12: [-16, TOOL_INPUT], 17: "api.customer.example",
         19: 2, 23: [AGENT],
         24: bytes.fromhex("1c8ec66d31e2260b8ebe9e7c602773d0b7b8803689e8a935c3d7d22002cd813d"),
-        25: "txn-0001", 29: CALL_DIGEST,
+        25: "txn-0001", 29: [-16, CALL_DIGEST],
     }
     expected = (
         h0,
