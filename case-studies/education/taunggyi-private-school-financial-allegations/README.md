@@ -161,3 +161,111 @@ This is a research/design record only. No PostgreSQL schema, API, transaction re
 ## 12. Next action
 
 Capture a source snapshot bundle first, then implement the source/evidence registry and claim/transaction ledger in a separate reviewed branch. Do not import claimant personal data or assert guilt.
+
+
+## Research continuation — Phase 41 (2026-11-13)
+
+**Status:** New secondary-source follow-up found. No primary financial, police or court evidence added.
+
+### 1. Follow-up report — The People Voice, 2026-11-12
+
+Source: https://mm.thepeoplevoicepaoh.com/news/20118/
+
+The article attributes the following claims to affected people:
+
+| Reported claim | Amount / detail | Classification |
+|---|---:|---|
+| Outside shareholder contribution | MMK 1,250 lakhs | Media-reported allegation |
+| Parent/shareholder contribution | MMK 850 lakhs | Media-reported allegation |
+| Another parent contribution | MMK 500 lakhs | Media-reported allegation |
+| Education employee's acquaintance / parent contact | MMK 650 lakhs | Media-reported allegation |
+| Arithmetic subtotal of the four claims | MMK 3,250 lakhs (MMK 325,000,000) | Arithmetic only; not verified loss |
+| Share contribution offer to another parent | MMK 300 lakhs; reportedly declined | Reported solicitation, not a loss |
+| Teacher-salary funding request | MMK 30 lakhs reportedly requested from a parent before Thadingyut | Reported request; disbursement not established |
+| Principal's reported position | Academic work might continue; financial matters would not be taken on | Second-hand report, not a formal undertaking |
+
+The MMK 3,250-lakh figure is only the arithmetic sum of four claims quoted by the article. It is not an audited total, not necessarily exhaustive, and may not equal outstanding loss. No original agreements, bank transfers, receipts, repayment records or claimant-level duplicate checks were available.
+
+The article also says the school began operating in 2026 and had not yet reached one year; the exact opening date remains unverified.
+
+### 2. Distinguish separate salary/collateral allegations
+
+The Democratic Press report supplied in the conversation (2026-11-10) described a teacher who allegedly lent MMK 2 lakhs and a separate gold-necklace collateral dispute. The People Voice follow-up (2026-11-12) separately describes a request to borrow MMK 30 lakhs from a parent for teacher salaries.
+
+Do not merge these into one transaction or treat them as a contradiction without claimant identity, dates and original records. Record separate claim IDs and distinguish requested, agreed, disbursed, collateral pledged, repaid and outstanding amounts. The gold-necklace claim remains unverified.
+
+### 3. Related entity — Maths World Olympiad Centre
+
+The People Voice report also says the founder operated a Maths World International Olympiad Mathematics Centre and reports that it is currently closed.
+
+A third-party directory reproducing older public-facing posts contains:
+- 2026-09-14: award/certificate collection notice showing No. 146, Khwa Nyo Street, Pyidawthar Ward, Taunggyi.
+- 2026-07-19: second-campus opening notice for Room 2, Building 11, Shwe Taung Kyar Lane 5, Shan Kwin Ward, Taunggyi; classes were stated to begin 2026-08-08.
+
+Source: https://www.schoolandcollegelistings.com/MM/Taunggyi/140372492486398/Maths-World-Olympiad-Centre
+
+This is an archived third-party snapshot of public posts, not an MOE authorization or current-operating-status record. The school registry address (ပ/၃၁၀၊ နီလာလမ်း) differs from the centre's listed addresses. Keep separate institution and campus records and record only a source-linked, unverified reported association. Do not infer a common licence or legal ownership.
+
+### 4. Regulatory source correction — international-curriculum directive
+
+MOE's guideline page lists Notification 18/2023, Notification 16/2023, registration-form distribution, Notifications 1/2024 and 2/2024, and a separate International School instructions link:
+- https://moe.gov.mm/my/node/5310
+- https://www.moe.gov.mm/my/node/4536
+
+DFDL reports three directives issued on 2023-11-07 for higher education, national-curriculum basic schools and international-curriculum schools:
+- https://www.dfdl.com/insights/legal-and-tax-updates/myanmar-new-directives-on-registration-of-private-educational-institutions/
+
+A VDB-Loi regional legal digest identifies the instruments as Directives 16/2023, 17/2023 and 18/2023 in that order:
+- https://media.vdb-loi.com/wp-content/uploads/2024/01/November-2023-VDB-Loi-Regional-Legal-Developments-Digest.pdf
+
+**Updated classification:** It is strongly supported by secondary legal summaries that 17/2023 is the international-curriculum directive, but the exact signed MOE instrument/number was not retrievable in this research pass. Keep it **Supported — primary instrument pending**, not fully primary-source verified. Notification 18/2023 remains the relevant starting point for the listed national-curriculum basic education school.
+
+### 5. Claim-level evidence matrix update
+
+| Item | Classification | Required evidence |
+|---|---|---|
+| Four amounts in People Voice report | Supported as published claimant allegations | Claimant-authorized agreements, transfers, receipts and repayments |
+| MMK 3,250-lakh subtotal | Arithmetic over four reported claims only | Reconciled ledger; never call verified total loss |
+| MMK 300-lakh share offer reportedly declined | Reported solicitation; not a loss | Original message/call record or claimant statement |
+| MMK 30-lakh salary-funding request | Reported request; payment not established | Evidence showing whether funds were disbursed |
+| MMK 2-lakh loan and gold collateral | Supplied media allegation; unverified | Separate claimant statement and transaction/collateral evidence |
+| Principal's reported position | Second-hand report | Direct written statement or authorized meeting record |
+| Maths World Centre and old addresses | Archived third-party public-post snapshot | Official entity/authorization and campus records |
+| Maths World Centre closure | Media-reported | On-site or competent-authority confirmation |
+| Police complaint / arrest / court outcome | Unknown | Official police or court reference |
+
+### 6. Proposed KMH NEXUS V41 design — not implemented
+
+Add a **Related Institution & Campus Registry** and a **Claim Lifecycle Ledger**.
+
+Suggested related-entity design:
+- Institution: Htoo Yadanar Aung private basic school.
+- Related institution: Maths World Olympiad Centre.
+- Relationship assertion: reported founder/operator association; not verified legal ownership.
+- Campus: one row per address, with valid-from, valid-to, source and status.
+- Never infer common licence, legal entity or ownership from similar branding, a media article or a shared named founder.
+
+Suggested claim lifecycle:
+- Solicited → Agreed → Disbursed → Partially Repaid / Repaid → Disputed / Reviewed.
+- Collateral: Offered → Pledged → Released / Disputed.
+
+Only evidence-backed disbursements enter the cash-loss ledger. Declined offers and unfulfilled requests are excluded from financial-loss calculations.
+
+### 7. New QA acceptance tests
+
+- [ ] Four reported claims remain separate, source-linked records.
+- [ ] MMK 3,250 lakhs is labelled an unverified reported subtotal, not total loss.
+- [ ] Declined MMK 300-lakh offer is excluded from loss calculations.
+- [ ] MMK 30-lakh request is not treated as disbursed without proof.
+- [ ] MMK 2-lakh loan and gold collateral are separate events.
+- [ ] School and Olympiad centre have separate institution/campus records.
+- [ ] Archived campus posts do not establish current status or licence.
+- [ ] Reported founder association is not converted into verified legal ownership.
+- [ ] Notification 17/2023 remains Supported / primary instrument pending.
+- [ ] Police and court status remain Unknown absent official references.
+
+### 8. Implementation gate
+
+This phase adds research and schema design only. No case-specific database, API, claim ingestion, financial reconciliation, campus verification or runtime QA has been executed. Case-module implementation remains **NOT STARTED / NOT VERIFIED**.
+
+Next action: preserve the two follow-up articles and the archived Maths World listing with retrieval dates and hashes; collect claimant-authorized evidence under pseudonymous IDs; then implement the claim lifecycle ledger in a reviewed branch.
