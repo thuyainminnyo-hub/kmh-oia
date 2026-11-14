@@ -5,10 +5,9 @@
  * Never print Firebase API key values.
  */
 import { readFileSync, existsSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
-const mobileDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const mobileDir = process.cwd();
 const expectedProjectId = "aptivern-education-os";
 const expectedProjectNumber = "1068042057781";
 const optionsPath = resolve(mobileDir, "lib/firebase_options.dart");
