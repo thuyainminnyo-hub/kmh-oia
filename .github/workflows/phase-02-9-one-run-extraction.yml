@@ -171,6 +171,7 @@ jobs:
           VENV_DIR="$WORK_ROOT/venv"
           HOME_DIR="$WORK_ROOT/home"
           TMP_DIR="$WORK_ROOT/tmp"
+          export SOURCE_DIR
           printf 'WORK_ROOT=%s\nSOURCE_DIR=%s\nSCAN_ROOT=%s\nOUTPUT_ROOT=%s\nEVIDENCE_ROOT=%s\nVENV_DIR=%s\nHOME_DIR=%s\nTMP_DIR=%s\n' \
             "$WORK_ROOT" "$SOURCE_DIR" "$SCAN_ROOT" "$OUTPUT_ROOT" "$EVIDENCE_ROOT" "$VENV_DIR" "$HOME_DIR" "$TMP_DIR" >> "$GITHUB_ENV"
           mkdir -p "$WORK_ROOT" "$SCAN_ROOT" "$OUTPUT_ROOT" "$EVIDENCE_ROOT" "$HOME_DIR" "$TMP_DIR"
