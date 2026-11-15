@@ -229,7 +229,7 @@ class AeeTaskStateTests(unittest.TestCase):
             "6724c98d2b78fe984db24ce2d8cb63cc214171928ec4f9ebb09770e3d9196fa7",
         ]
         hashes = [bytes.fromhex(value) for value in hashes]
-        zero = b"\x00" * 32
+        zero = bytes(32)
         base = {
             "policy_pack_digest": policy,
             "config_integrity_digest": config,
