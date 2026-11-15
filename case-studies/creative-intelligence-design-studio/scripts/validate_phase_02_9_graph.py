@@ -680,7 +680,7 @@ def main() -> int:
         summary = {"schema_version": "1.0.0", "phase": "02.9", "status": "FAIL", "errors": [str(exc)]}
     args.summary_out.parent.mkdir(parents=True, exist_ok=True)
     args.summary_out.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"Phase 02.7 compatibility matrix: {summary.get('status')}")
+    print(f"Phase 02.9 compatibility matrix: {summary.get('status')}")
     print(f"Raw nodes/edges: {summary.get('raw_graph', {}).get('node_count', 0)}/{summary.get('raw_graph', {}).get('edge_count', 0)}")
     print(f"Cross-file edges: {summary.get('raw_graph', {}).get('cross_file_edge_count', 0)}")
     print(f"Coverage matrix: {sum(1 for item in summary.get('coverage_matrix', []) if item.get('status') == 'PASS')}/{len(summary.get('coverage_matrix', []))}")
