@@ -265,7 +265,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py \
+          python case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_9_graph.py \
             --graph "$EVIDENCE_ROOT/graph.json" \
             --scan-root "$SCAN_ROOT" \
             --baseline "$BASELINE_PATH" \
