@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0.0",
+  "approval_id": "KMH-CREATIVE-GRAPHIFY-PHASE-02-9-2026-11-15-RUN-02",
+  "phase": "02.9",
+  "status": "approved_single_disposable_run",
+  "approval_source": "Owner authorization in ChatGPT conversation dated 2026-11-15, including explicit approval of PR #195 Frozen 8-file Manifest as the RUN-02 extraction scope.",
+  "launch_branch": "run/phase-02-9-graphify-v0.9.100-one-run-20261115",
+  "branch_base_sha": "a64e8b64300328fb423e4d1b8e6317659fb41eb9",
+  "max_runs": 1,
+  "rerun_allowed": false,
+  "source": {
+    "repository": "Graphify-Labs/graphify",
+    "tag": "v0.9.100",
+    "version": "0.9.100",
+    "commit": "f5155badddaa3286c78a51653791131e9e2e4d29",
+    "package": "graphifyy",
+    "uv_version": "0.13.6",
+    "uv_lock_blob": "1fd2344a28be6b14c4f6f41c4901c70cadc2be0e",
+    "ast_cache_schema": 33
+  },
+  "target": {
+    "repository": "thuyainminnyo-hub/kmh-oia",
+    "manifest_contract": "case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-baseline.json",
+    "manifest_tree_sha": "294aa7faa262eabf2584dd578971374490df4b61",
+    "fixture_commit": "768b18c889c5bb088bfe459c67c668f56968c081",
+    "scan_root": "graphify-phase-02-8.3-sandbox",
+    "source_files": [
+      "src/integration.py",
+      "src/phase_02_8_3/__init__.py",
+      "src/phase_02_8_3/pkg_alpha/__init__.py",
+      "src/phase_02_8_3/pkg_alpha/service.py",
+      "src/phase_02_8_3/pkg_alpha/types.py",
+      "src/phase_02_8_3/pkg_beta/__init__.py",
+      "src/phase_02_8_3/pkg_beta/service.py",
+      "src/phase_02_8_3/pkg_beta/types.py"
+    ],
+    "python_file_count": 8,
+    "scan_file_count": 9,
+    "expected_relationships": 10,
+    "symlinks_allowed": false
+  },
+  "execution": {
+    "python_version": "3.12",
+    "runner": "ubuntu-24.04",
+    "install_cli_allowed": true,
+    "code_only_extraction_allowed": true,
+    "model_credentials_present": false,
+    "semantic_backend": "none",
+    "assistant_skill_install_allowed": false,
+    "git_hook_install_allowed": false,
+    "mcp_server_setup_allowed": false,
+    "model_backed_semantic_extraction_allowed": false,
+    "global_graph_merge_allowed": false,
+    "oia_runtime_integration_allowed": false,
+    "production_deployment_allowed": false,
+    "rerun_allowed": false
+  },
+  "governance": {
+    "raw_graph_immutable": true,
+    "candidate_edges": "EXTRACTED only",
+    "inferred_ambiguous": "review only / never automatically promoted",
+    "existing_phase_02_5_graph_immutable": true,
+    "global_merge": false,
+    "production_promotion": false,
+    "owner_review_after_extraction_required": true
+  }
+}
