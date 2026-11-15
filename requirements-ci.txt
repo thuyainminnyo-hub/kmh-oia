@@ -1,0 +1,3 @@
+# CI-only dependencies for Prompt Library schema validation.
+# Keep direct dependencies exactly pinned; review and update deliberately.
+jsonschema==4.26.0

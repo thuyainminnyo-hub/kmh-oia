@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate KMH Prompt Library records against the repository JSON Schema.
 
-Install dependency: python -m pip install jsonschema
+Install CI dependency: python -m pip install --requirement requirements-ci.txt
 Usage:
   python scripts/validate_prompt_record.py path/to/record.json
 Exit 0 only when the record is schema-valid; this does not test prompt behavior,
@@ -14,7 +14,7 @@ from pathlib import Path
 try:
     from jsonschema import Draft202012Validator, FormatChecker
 except ImportError:
-    print("Missing dependency: install jsonschema (python -m pip install jsonschema)", file=sys.stderr)
+    print("Missing dependency: install CI dependencies (python -m pip install --requirement requirements-ci.txt)", file=sys.stderr)
     raise SystemExit(2)
 
 ROOT = Path(__file__).resolve().parents[1]
