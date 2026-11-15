@@ -1,0 +1,288 @@
+name: KMH Graphify Phase 02.9 Frozen Manifest One-Run Extraction
+
+on:
+  push:
+    branches:
+      - "run/phase-02-9-graphify-v0.9.100-one-run-20261115"
+    paths:
+      - "case-studies/creative-intelligence-design-studio/contracts/phase-02-9-launch-trigger.json"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kmh-graphify-phase-02-9-one-run
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    name: One-run Graphify v0.9.100 extraction against frozen 8-file manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      APPROVAL_PATH: case-studies/creative-intelligence-design-studio/contracts/phase-02-9-extraction-approval.json
+      TRIGGER_PATH: case-studies/creative-intelligence-design-studio/contracts/phase-02-9-launch-trigger.json
+      BASELINE_PATH: case-studies/creative-intelligence-design-studio/contracts/phase-02-8.3-runtime-baseline.json
+      SNAPSHOT_PATH: case-studies/creative-intelligence-design-studio/graphify-phase-02-8.3-sandbox
+      GRAPHIFY_TAG: v0.9.100
+      GRAPHIFY_COMMIT: f5155badddaa3286c78a51653791131e9e2e4d29
+      UV_LOCK_BLOB: 1fd2344a28be6b14c4f6f41c4901c70cadc2be0e
+      MANIFEST_TREE_SHA: 294aa7faa262eabf2584dd578971374490df4b61
+      FIXTURE_COMMIT: 768b18c889c5bb088bfe459c67c668f56968c081
+
+    steps:
+      - name: Checkout approved commit without persisting credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: "0.13.6"
+
+      - name: Enforce fresh owner approval, exact manifest and one-run boundary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "run/phase-02-9-graphify-v0.9.100-one-run-20261115"
+          test "$GITHUB_RUN_ATTEMPT" = "1"
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          approval = json.loads(Path(os.environ["APPROVAL_PATH"]).read_text(encoding="utf-8"))
+          trigger = json.loads(Path(os.environ["TRIGGER_PATH"]).read_text(encoding="utf-8"))
+          baseline = json.loads(Path(os.environ["BASELINE_PATH"]).read_text(encoding="utf-8"))
+          expected_sources = [
+              "src/integration.py",
+              "src/phase_02_8_3/__init__.py",
+              "src/phase_02_8_3/pkg_alpha/__init__.py",
+              "src/phase_02_8_3/pkg_alpha/service.py",
+              "src/phase_02_8_3/pkg_alpha/types.py",
+              "src/phase_02_8_3/pkg_beta/__init__.py",
+              "src/phase_02_8_3/pkg_beta/service.py",
+              "src/phase_02_8_3/pkg_beta/types.py",
+          ]
+          approval_id = "KMH-CREATIVE-GRAPHIFY-PHASE-02-9-2026-11-15-RUN-02"
+          assert approval["status"] == "approved_single_disposable_run"
+          assert approval["approval_id"] == approval_id == trigger["approval_id"]
+          assert approval["max_runs"] == 1 and approval["rerun_allowed"] is False
+          assert approval["launch_branch"] == os.environ["GITHUB_REF_NAME"]
+          assert approval["branch_base_sha"] == "a64e8b64300328fb423e4d1b8e6317659fb41eb9"
+          assert trigger["launch_once"] is True
+          assert trigger["base_commit_sha"] == os.environ["EVENT_BEFORE"]
+          assert trigger["base_commit_sha"] == subprocess.check_output(
+              ["git", "rev-parse", "HEAD^"], text=True
+          ).strip()
+          assert trigger["manifest_tree_sha"] == os.environ["MANIFEST_TREE_SHA"]
+          assert approval["target"]["manifest_tree_sha"] == os.environ["MANIFEST_TREE_SHA"]
+          assert approval["target"]["fixture_commit"] == os.environ["FIXTURE_COMMIT"]
+          assert approval["target"]["source_files"] == expected_sources == baseline["scan_snapshot"]["source_files"]
+          assert approval["target"]["python_file_count"] == 8
+          assert approval["target"]["scan_file_count"] == 9
+          assert approval["target"]["expected_relationships"] == 10
+          assert baseline["scan_snapshot"]["git_tree_sha"] == os.environ["MANIFEST_TREE_SHA"]
+          assert baseline["scan_snapshot"]["fixture_commit"] == os.environ["FIXTURE_COMMIT"]
+          assert baseline["upstream"]["version"] == "0.9.100"
+          assert baseline["upstream"]["source_commit"] == os.environ["GRAPHIFY_COMMIT"]
+          assert baseline["upstream"]["uv_version"] == "0.13.6"
+          assert baseline["upstream"]["uv_lock_blob"] == os.environ["UV_LOCK_BLOB"]
+          assert approval["execution"]["model_credentials_present"] is False
+          assert approval["execution"]["semantic_backend"] == "none"
+          assert approval["execution"]["code_only_extraction_allowed"] is True
+          for key in (
+              "assistant_skill_install_allowed", "git_hook_install_allowed",
+              "mcp_server_setup_allowed", "model_backed_semantic_extraction_allowed",
+              "global_graph_merge_allowed", "oia_runtime_integration_allowed",
+              "production_deployment_allowed", "rerun_allowed",
+          ):
+              assert approval["execution"][key] is False, key
+
+          snapshot = os.environ["SNAPSHOT_PATH"]
+          actual_tree = subprocess.check_output(
+              ["git", "rev-parse", f"HEAD:{snapshot}"], text=True
+          ).strip()
+          fixture_tree = subprocess.check_output(
+              ["git", "rev-parse", f'{os.environ["FIXTURE_COMMIT"]}:{snapshot}'], text=True
+          ).strip()
+          assert actual_tree == fixture_tree == os.environ["MANIFEST_TREE_SHA"]
+          for item in baseline["scan_snapshot"]["files"]:
+              blob = subprocess.check_output(
+                  ["git", "rev-parse", f'HEAD:{snapshot}/{item["path"]}'], text=True
+              ).strip()
+              assert blob == item["git_blob_sha"], (item["path"], blob)
+          print("PASS: owner approval, trigger-parent binding, exact 8+1 manifest and source blobs")
+          PY
+
+          python - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          api = os.environ["GITHUB_API_URL"].rstrip("/")
+          repo = os.environ["GITHUB_REPOSITORY"]
+          workflow = urllib.parse.quote("phase-02-9-one-run-extraction.yml", safe="")
+          branch = urllib.parse.quote(os.environ["GITHUB_REF_NAME"], safe="")
+          url = f"{api}/repos/{repo}/actions/workflows/{workflow}/runs?branch={branch}&per_page=100"
+          request = urllib.request.Request(
+              url,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              payload = json.load(response)
+          current = os.environ["GITHUB_RUN_ID"]
+          prior = [run for run in payload.get("workflow_runs", []) if str(run.get("id")) != current]
+          if prior:
+              raise SystemExit(f"FAIL: prior run exists on one-run branch: {[r.get('id') for r in prior]}")
+          print("PASS: no prior workflow run exists for the dedicated one-run branch")
+          PY
+
+      - name: Verify exact source checkout and frozen uv lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORK_ROOT="$RUNNER_TEMP/kmh-graphify-phase-02-9"
+          SOURCE_DIR="$WORK_ROOT/graphify-source"
+          SCAN_ROOT="$WORK_ROOT/scan"
+          OUTPUT_ROOT="$WORK_ROOT/output"
+          EVIDENCE_ROOT="$WORK_ROOT/evidence"
+          VENV_DIR="$WORK_ROOT/venv"
+          HOME_DIR="$WORK_ROOT/home"
+          TMP_DIR="$WORK_ROOT/tmp"
+          printf 'WORK_ROOT=%s\nSOURCE_DIR=%s\nSCAN_ROOT=%s\nOUTPUT_ROOT=%s\nEVIDENCE_ROOT=%s\nVENV_DIR=%s\nHOME_DIR=%s\nTMP_DIR=%s\n' \
+            "$WORK_ROOT" "$SOURCE_DIR" "$SCAN_ROOT" "$OUTPUT_ROOT" "$EVIDENCE_ROOT" "$VENV_DIR" "$HOME_DIR" "$TMP_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$WORK_ROOT" "$SCAN_ROOT" "$OUTPUT_ROOT" "$EVIDENCE_ROOT" "$HOME_DIR" "$TMP_DIR"
+          git clone --filter=blob:none --depth 1 --branch "$GRAPHIFY_TAG" https://github.com/Graphify-Labs/graphify.git "$SOURCE_DIR"
+          test "$(git -C "$SOURCE_DIR" rev-parse HEAD)" = "$GRAPHIFY_COMMIT"
+          test "$(git -C "$SOURCE_DIR" rev-parse "$GRAPHIFY_TAG:uv.lock")" = "$UV_LOCK_BLOB"
+          python --version > "$EVIDENCE_ROOT/python-version.txt"
+          uv --version > "$EVIDENCE_ROOT/uv-version.txt"
+          printf '%s\n' "$GRAPHIFY_COMMIT" > "$EVIDENCE_ROOT/graphify-source-commit.txt"
+          printf '%s\n' "$UV_LOCK_BLOB" > "$EVIDENCE_ROOT/graphify-uv-lock-blob.txt"
+
+      - name: Copy exactly the approved 8 Python files and graphifyignore
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          baseline = json.loads(Path(os.environ["BASELINE_PATH"]).read_text(encoding="utf-8"))
+          approval = json.loads(Path(os.environ["APPROVAL_PATH"]).read_text(encoding="utf-8"))
+          source_root = Path(os.environ["GITHUB_WORKSPACE"]) / os.environ["SNAPSHOT_PATH"]
+          scan_root = Path(os.environ["SCAN_ROOT"])
+          expected = sorted([".graphifyignore", *approval["target"]["source_files"]])
+          observed = sorted(
+              item.relative_to(source_root).as_posix()
+              for item in source_root.rglob("*")
+              if item.is_file() or item.is_symlink()
+          )
+          if observed != expected:
+              raise SystemExit(f"snapshot file set mismatch: expected={expected}, observed={observed}")
+          if any(item.is_symlink() for item in source_root.rglob("*")):
+              raise SystemExit("symlink detected in frozen source snapshot")
+          for item in expected:
+              src, dst = source_root / item, scan_root / item
+              if not src.is_file() or src.is_symlink():
+                  raise SystemExit(f"missing/unsafe approved source: {item}")
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dst)
+          observed_scan = sorted(
+              item.relative_to(scan_root).as_posix()
+              for item in scan_root.rglob("*") if item.is_file() or item.is_symlink()
+          )
+          if observed_scan != expected or any(item.is_symlink() for item in scan_root.rglob("*")):
+              raise SystemExit("isolated scan snapshot does not match exact approved file set")
+          for item in scan_root.rglob("*"):
+              if item.is_file():
+                  item.chmod(0o444)
+          PY
+          (cd "$SCAN_ROOT" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$EVIDENCE_ROOT/scan-source-manifest.sha256"
+          find "$SCAN_ROOT" -type f -printf '%P\n' | sort > "$EVIDENCE_ROOT/scan-source-files.txt"
+
+      - name: Install frozen Graphify runtime in RUNNER_TEMP only
+        shell: bash
+        run: |
+          set -euo pipefail
+          export UV_PROJECT_ENVIRONMENT="$VENV_DIR"
+          cd "$SOURCE_DIR"
+          uv sync --frozen --no-dev --python 3.12
+          "$VENV_DIR/bin/graphify" --help > "$EVIDENCE_ROOT/graphify-cli-help.txt"
+          "$VENV_DIR/bin/python" - <<'PY'
+          import importlib.metadata
+          import os
+          from pathlib import Path
+          version = importlib.metadata.version("graphifyy")
+          assert version == "0.9.100", version
+          Path(os.environ["EVIDENCE_ROOT"], "graphify-version.txt").write_text(version + "\n")
+          print("Installed Graphify:", version)
+          PY
+
+      - name: Run one local code-only AST extraction
+        shell: bash
+        run: |
+          set -euo pipefail
+          env -i PATH="$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin" \
+            HOME="$HOME_DIR" TMPDIR="$TMP_DIR" LANG="C.UTF-8" \
+            "$VENV_DIR/bin/graphify" extract "$SCAN_ROOT" \
+            --force --code-only --no-dedup --no-cluster --out "$OUTPUT_ROOT"
+          test -s "$OUTPUT_ROOT/graphify-out/graph.json"
+          cp -- "$OUTPUT_ROOT/graphify-out/graph.json" "$EVIDENCE_ROOT/graph.json"
+
+      - name: Validate raw graph and create extracted-only candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python case-studies/creative-intelligence-design-studio/scripts/validate_phase_02_7_graph.py \
+            --graph "$EVIDENCE_ROOT/graph.json" \
+            --scan-root "$SCAN_ROOT" \
+            --baseline "$BASELINE_PATH" \
+            --candidate-out "$EVIDENCE_ROOT/extracted-only-candidate-graph.json" \
+            --summary-out "$EVIDENCE_ROOT/phase-02-9-validation-summary.json"
+
+      - name: Record immutable evidence hashes
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "$EVIDENCE_ROOT" ]; then
+            find "$EVIDENCE_ROOT" -type f ! -name evidence-sha256.txt -print0 | sort -z | xargs -0 -r sha256sum > "$EVIDENCE_ROOT/evidence-sha256.txt"
+          fi
+
+      - name: Upload raw graph and sanitized QA evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: kmh-graphify-phase-02-9-one-run-${{ github.run_id }}
+          path: ${{ runner.temp }}/kmh-graphify-phase-02-9/evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Destroy external ephemeral workspace
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/kmh-graphify-phase-02-9"
