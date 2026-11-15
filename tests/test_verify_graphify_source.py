@@ -46,7 +46,11 @@ class GraphifySourceVerificationTests(unittest.TestCase):
                 expected_lock_blob=self.lock_blob, expected_schema=33, expected_tag="v0.9.100")
 
     def test_tag_must_point_to_exact_commit(self):
-        subprocess.run(["git", "-C", str(self.root), "tag", "-f", "v0.9.100", self.commit], check=True)
+        alternate = subprocess.check_output(
+            ["git", "-C", str(self.root), "commit-tree", self._git("rev-parse", "HEAD^{tree}"), "-p", self.commit, "-m", "alternate tag target"],
+            text=True,
+        ).strip()
+        subprocess.run(["git", "-C", str(self.root), "tag", "-f", "v0.9.100", alternate], check=True)
         with self.assertRaisesRegex(VerificationError, "tag target mismatch"):
             self._verify()
 
