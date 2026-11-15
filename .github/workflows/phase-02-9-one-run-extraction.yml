@@ -175,9 +175,10 @@ jobs:
           test "$(git -C "$SOURCE_DIR" rev-parse HEAD)" = "$GRAPHIFY_COMMIT"
           test "$(git -C "$SOURCE_DIR" rev-parse "$GRAPHIFY_TAG:uv.lock")" = "$UV_LOCK_BLOB"
           python - <<'PY'
+          import os
           import re
           from pathlib import Path
-          source = Path("$SOURCE_DIR") / "graphify/cache.py"
+          source = Path(os.environ["SOURCE_DIR"]) / "graphify/cache.py"
           text = source.read_text(encoding="utf-8")
           match = re.search(r"^_AST_CACHE_SCHEMA = (\\d+)", text, re.MULTILINE)
           assert match and int(match.group(1)) == 33, "AST cache schema mismatch"
