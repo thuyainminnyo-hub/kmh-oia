@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "trigger_id": "KMH-CREATIVE-GRAPHIFY-PHASE-02-9-2026-11-15-RUN-02-TRIGGER",
+  "approval_id": "KMH-CREATIVE-GRAPHIFY-PHASE-02-9-2026-11-15-RUN-02",
+  "launch_once": true,
+  "base_commit_sha": "ddd303b1ae5c2e666d0f160d34ff33113a3be464",
+  "manifest_tree_sha": "294aa7faa262eabf2584dd578971374490df4b61",
+  "fixture_commit": "768b18c889c5bb088bfe459c67c668f56968c081",
+  "source_file_count": 8,
+  "total_scan_file_count": 9,
+  "expected_relationships": 10
+}
