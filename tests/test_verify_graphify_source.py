@@ -73,16 +73,19 @@ class GraphifySourceVerificationTests(unittest.TestCase):
 
     def test_package_version_mismatch_fails(self):
         (self.root / "pyproject.toml").write_text('[project]\nname = "graphifyy"\nversion = "0.9.101"\n', encoding="utf-8")
+        self._commit_mutation_and_repin_fixture()
         with self.assertRaisesRegex(VerificationError, "package version mismatch"):
             self._verify()
 
     def test_missing_schema_fails_closed(self):
         (self.root / "graphify" / "cache.py").write_text("OTHER_CONSTANT = 33\n", encoding="utf-8")
+        self._commit_mutation_and_repin_fixture()
         with self.assertRaisesRegex(VerificationError, "exactly one literal"):
             self._verify()
 
     def test_duplicate_schema_assignment_fails_closed(self):
         (self.root / "graphify" / "cache.py").write_text("_AST_CACHE_SCHEMA = 33\n_AST_CACHE_SCHEMA = 33\n", encoding="utf-8")
+        self._commit_mutation_and_repin_fixture()
         with self.assertRaisesRegex(VerificationError, "exactly one literal"):
             self._verify()
 
