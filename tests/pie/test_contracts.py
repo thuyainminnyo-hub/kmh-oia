@@ -281,3 +281,73 @@ class PIEValidatorHardeningTests(unittest.TestCase):
                                     test_refs={"TEST-1": "ok"},
                                     evidence_refs={"EVD-1": " "},
                                     qa_refs={"QA-1": "ok"})
+
+
+class PIECustomContainerBoundaryTests(unittest.TestCase):
+    """VH-16..VH-20: custom container failures are normalized safely."""
+
+    def test_vh16_sequence_iteration_failure_becomes_contract_error(self):
+        from collections.abc import Sequence
+
+        class ExplodingSequence(Sequence):
+            def __len__(self):
+                return 2
+
+            def __getitem__(self, index):
+                if index == 0:
+                    return requirement()
+                raise RuntimeError("sequence iteration failed")
+
+        with self.assertRaisesRegex(ContractError, "could not be iterated safely"):
+            validate_project_bundle(brief(), ExplodingSequence(), [criterion()])
+
+    def test_vh17_mapping_items_failure_becomes_contract_error(self):
+        class ExplodingItems(dict):
+            def items(self):
+                raise RuntimeError("mapping items failed")
+
+        with self.assertRaisesRegex(ContractError, "could not be iterated safely"):
+            validate_project_bundle(
+                brief(), [requirement()], [criterion()],
+                test_refs=ExplodingItems({"TEST-1": "ok"}),
+            )
+
+    def test_vh18_mapping_iteration_failure_midway_becomes_contract_error(self):
+        class MidwayItemsFailure(dict):
+            def items(self):
+                yield ("EVD-1", "ok")
+                raise RuntimeError("mapping iteration failed midway")
+
+        with self.assertRaisesRegex(ContractError, "could not be iterated safely"):
+            validate_project_bundle(
+                brief(), [requirement()], [criterion()],
+                evidence_refs=MidwayItemsFailure({"EVD-1": "ok"}),
+            )
+
+    def test_vh19_existing_contract_error_is_preserved(self):
+        from collections.abc import Sequence
+
+        class ContractErrorSequence(Sequence):
+            def __len__(self):
+                return 1
+
+            def __getitem__(self, index):
+                raise ContractError("intentional contract boundary error")
+
+        with self.assertRaisesRegex(ContractError, "intentional contract boundary error"):
+            validate_project_bundle(brief(), ContractErrorSequence(), [criterion()])
+
+    def test_vh20_builtin_containers_keep_existing_behavior(self):
+        result = validate_project_bundle(
+            brief(),
+            (requirement(),),
+            (criterion(),),
+            test_refs={"TEST-1": "REQ-001"},
+            evidence_refs={"EVD-1": "TEST-1"},
+            qa_refs={"QA-1": "EVD-1"},
+        )
+        self.assertTrue(result["valid"])
+        self.assertEqual(
+            result["downstream_reference_counts"],
+            {"TEST": 1, "EVD": 1, "QA": 1},
+        )
