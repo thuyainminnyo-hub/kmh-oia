@@ -47,9 +47,25 @@ _PAC_ID = re.compile(r"^PAC-PRJ-[0-9]{3}-[0-9]{3}$")
 _SHA256 = re.compile(r"^[a-f0-9]{64}$")
 
 
-def _required_text(name: str, value: str) -> None:
+def _required_text(name: str, value: Any) -> None:
     if not isinstance(value, str) or not value.strip():
         raise ContractError(f"{name} must be a non-empty string")
+
+
+def _identifier(name: str, value: Any, pattern: re.Pattern[str], expected: str) -> None:
+    if not isinstance(value, str) or not pattern.fullmatch(value):
+        raise ContractError(f"{name} must match {expected}")
+
+
+def _immutable_text_tuple(name: str, value: Any, *, required: bool) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        raise ContractError(f"{name} must be a list or tuple of strings")
+    normalized = tuple(value)
+    if required and not normalized:
+        raise ContractError(f"{name} must contain at least one item")
+    if any(not isinstance(item, str) or not item.strip() for item in normalized):
+        raise ContractError(f"{name} items must be non-empty strings")
+    return normalized
 
 
 def _canonical_hash(payload: dict[str, Any]) -> str:
@@ -73,16 +89,16 @@ class ProjectBrief:
     content_hash: str = ""
 
     def __post_init__(self) -> None:
-        if not _PROJECT_ID.fullmatch(self.project_id):
-            raise ContractError("project_id must match PRJ-NNN")
+        _identifier("project_id", self.project_id, _PROJECT_ID, "PRJ-NNN")
         if not isinstance(self.brief_version, int) or isinstance(self.brief_version, bool) or self.brief_version < 1:
             raise ContractError("brief_version must be a positive integer")
         for name in ("project_name", "objective", "requested_environment", "created_by"):
             _required_text(name, getattr(self, name))
-        if not self.scope or any(not isinstance(item, str) or not item.strip() for item in self.scope):
-            raise ContractError("scope must contain non-empty items")
-        if any(not isinstance(item, str) or not item.strip() for item in self.non_goals):
-            raise ContractError("non_goals items must be non-empty strings")
+
+        # Frozen dataclasses are shallow: normalize caller-owned collections before hashing.
+        object.__setattr__(self, "scope", _immutable_text_tuple("scope", self.scope, required=True))
+        object.__setattr__(self, "non_goals", _immutable_text_tuple("non_goals", self.non_goals, required=False))
+
         if not isinstance(self.effective_environment, Environment):
             raise ContractError("effective_environment must be a supported synthetic environment")
         if not isinstance(self.status, ProjectStatus):
@@ -91,6 +107,9 @@ class ProjectBrief:
             raise ContractError("APPROVED or ACTIVE briefs require an approval_ref")
         if self.approval_ref is not None:
             _required_text("approval_ref", self.approval_ref)
+        if not isinstance(self.content_hash, str):
+            raise ContractError("content_hash must be a string")
+
         expected = _canonical_hash(self.hash_payload())
         if self.content_hash and not _SHA256.fullmatch(self.content_hash):
             raise ContractError("content_hash must be a lowercase SHA-256 digest")
@@ -127,10 +146,8 @@ class Requirement:
     status: str = "DRAFT"
 
     def __post_init__(self) -> None:
-        if not _REQUIREMENT_ID.fullmatch(self.requirement_id):
-            raise ContractError("requirement_id must match REQ-NNN")
-        if not _PROJECT_ID.fullmatch(self.project_id):
-            raise ContractError("project_id must match PRJ-NNN")
+        _identifier("requirement_id", self.requirement_id, _REQUIREMENT_ID, "REQ-NNN")
+        _identifier("project_id", self.project_id, _PROJECT_ID, "PRJ-NNN")
         for name in ("description", "source_ref", "status"):
             _required_text(name, getattr(self, name))
         if not isinstance(self.requirement_type, RequirementType):
@@ -152,14 +169,14 @@ class AcceptanceCriterion:
     version: int = 1
 
     def __post_init__(self) -> None:
-        if not _PAC_ID.fullmatch(self.acceptance_id):
-            raise ContractError("acceptance_id must match PAC-PRJ-NNN-NNN")
-        if not _PROJECT_ID.fullmatch(self.project_id):
-            raise ContractError("project_id must match PRJ-NNN")
+        _identifier("acceptance_id", self.acceptance_id, _PAC_ID, "PAC-PRJ-NNN-NNN")
+        _identifier("project_id", self.project_id, _PROJECT_ID, "PRJ-NNN")
         if not self.acceptance_id.startswith(f"PAC-{self.project_id}-"):
             raise ContractError("acceptance_id project segment must match project_id")
-        if not self.requirement_ids or any(not _REQUIREMENT_ID.fullmatch(x) for x in self.requirement_ids):
-            raise ContractError("requirement_ids must contain one or more REQ-NNN identifiers")
+        normalized_ids = _immutable_text_tuple("requirement_ids", self.requirement_ids, required=True)
+        for requirement_id in normalized_ids:
+            _identifier("requirement_id", requirement_id, _REQUIREMENT_ID, "REQ-NNN")
+        object.__setattr__(self, "requirement_ids", normalized_ids)
         for name in ("acceptance_rule", "criticality", "verification_method"):
             _required_text(name, getattr(self, name))
         if not isinstance(self.version, int) or isinstance(self.version, bool) or self.version < 1:
