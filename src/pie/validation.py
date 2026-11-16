@@ -1,4 +1,4 @@
-""""Deterministic cross-record validation for synthetic PIE project bundles."""
+"""Deterministic cross-record validation for synthetic PIE project bundles."""
 
 from __future__ import annotations
 
