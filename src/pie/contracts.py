@@ -41,8 +41,7 @@ class RequirementPriority(str, Enum):
     P2 = "P2"
 
 
-_ID = re.compile(r"^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$")
-_PROJECT_ID = re.compile(r"^PRJ-[0-9]{3,}$")
+_PROJECT_ID = re.compile(r"^PRJ-[0-9]{3}$")
 _REQUIREMENT_ID = re.compile(r"^REQ-[0-9]{3,}$")
 _PAC_ID = re.compile(r"^PAC-PRJ-[0-9]{3}-[0-9]{3}$")
 _SHA256 = re.compile(r"^[a-f0-9]{64}$")
@@ -75,8 +74,8 @@ class ProjectBrief:
 
     def __post_init__(self) -> None:
         if not _PROJECT_ID.fullmatch(self.project_id):
-            raise ContractError("project_id must match PRJ-NNN (at least three digits)")
-        if not isinstance(self.brief_version, int) or self.brief_version < 1:
+            raise ContractError("project_id must match PRJ-NNN")
+        if not isinstance(self.brief_version, int) or isinstance(self.brief_version, bool) or self.brief_version < 1:
             raise ContractError("brief_version must be a positive integer")
         for name in ("project_name", "objective", "requested_environment", "created_by"):
             _required_text(name, getattr(self, name))
@@ -86,6 +85,8 @@ class ProjectBrief:
             raise ContractError("non_goals items must be non-empty strings")
         if not isinstance(self.effective_environment, Environment):
             raise ContractError("effective_environment must be a supported synthetic environment")
+        if not isinstance(self.status, ProjectStatus):
+            raise ContractError("status must be a supported ProjectStatus")
         if self.status in (ProjectStatus.APPROVED, ProjectStatus.ACTIVE) and not self.approval_ref:
             raise ContractError("APPROVED or ACTIVE briefs require an approval_ref")
         if self.approval_ref is not None:
@@ -136,7 +137,7 @@ class Requirement:
             raise ContractError("requirement_type is invalid")
         if not isinstance(self.priority, RequirementPriority):
             raise ContractError("priority is invalid")
-        if not isinstance(self.version, int) or self.version < 1:
+        if not isinstance(self.version, int) or isinstance(self.version, bool) or self.version < 1:
             raise ContractError("version must be a positive integer")
 
 
@@ -155,9 +156,11 @@ class AcceptanceCriterion:
             raise ContractError("acceptance_id must match PAC-PRJ-NNN-NNN")
         if not _PROJECT_ID.fullmatch(self.project_id):
             raise ContractError("project_id must match PRJ-NNN")
+        if not self.acceptance_id.startswith(f"PAC-{self.project_id}-"):
+            raise ContractError("acceptance_id project segment must match project_id")
         if not self.requirement_ids or any(not _REQUIREMENT_ID.fullmatch(x) for x in self.requirement_ids):
             raise ContractError("requirement_ids must contain one or more REQ-NNN identifiers")
         for name in ("acceptance_rule", "criticality", "verification_method"):
             _required_text(name, getattr(self, name))
-        if not isinstance(self.version, int) or self.version < 1:
+        if not isinstance(self.version, int) or isinstance(self.version, bool) or self.version < 1:
             raise ContractError("version must be a positive integer")

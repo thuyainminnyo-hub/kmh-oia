@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from .contracts import AcceptanceCriterion, ContractError, ProjectBrief, Requirement
+from .contracts import AcceptanceCriterion, ContractError, ProjectBrief, ProjectStatus, Requirement
 from .validation import validate_project_bundle
 
 
 class ProjectRegistry:
     def __init__(self) -> None:
         self._briefs: dict[str, ProjectBrief] = {}
+        self._brief_versions: dict[str, dict[int, ProjectBrief]] = {}
         self._requirements: dict[str, dict[str, Requirement]] = {}
         self._criteria: dict[str, dict[str, AcceptanceCriterion]] = {}
 
@@ -16,12 +17,20 @@ class ProjectRegistry:
         existing = self._briefs.get(brief.project_id)
         if existing is not None:
             if brief.brief_version <= existing.brief_version:
-                raise ContractError("brief versions must increase; existing records are not overwritten")
-            if brief.status.value in ("APPROVED", "ACTIVE") and brief.approval_ref != existing.approval_ref:
-                raise ContractError("a changed brief requires a new approval reference")
+                raise ContractError("brief versions must increase; prior versions are retained")
+            if brief.status in (ProjectStatus.APPROVED, ProjectStatus.ACTIVE):
+                if brief.approval_ref == existing.approval_ref:
+                    raise ContractError("a changed brief version requires a new approval reference")
+        self._brief_versions.setdefault(brief.project_id, {})[brief.brief_version] = brief
         self._briefs[brief.project_id] = brief
         self._requirements.setdefault(brief.project_id, {})
         self._criteria.setdefault(brief.project_id, {})
+
+    def get_brief_version(self, project_id: str, version: int) -> ProjectBrief:
+        try:
+            return self._brief_versions[project_id][version]
+        except KeyError as exc:
+            raise ContractError(f"unknown project brief version: {project_id} v{version}") from exc
 
     def add_requirement(self, requirement: Requirement) -> None:
         if requirement.project_id not in self._briefs:

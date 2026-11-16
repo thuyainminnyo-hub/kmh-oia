@@ -41,6 +41,10 @@ class PIEContractTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             brief(effective_environment="production")
 
+    def test_invalid_project_status_is_rejected(self):
+        with self.assertRaises(ContractError):
+            brief(status="APPROVED")
+
     def test_approved_brief_requires_approval_reference(self):
         with self.assertRaises(ContractError):
             brief(status=ProjectStatus.APPROVED)
@@ -48,6 +52,10 @@ class PIEContractTests(unittest.TestCase):
     def test_pac_namespace_is_enforced(self):
         with self.assertRaises(ContractError):
             criterion(pac_id="AC-01")
+
+    def test_pac_project_segment_must_match_project_id(self):
+        with self.assertRaises(ContractError):
+            criterion(pac_id="PAC-PRJ-002-001")
 
     def test_valid_project_requirement_pac_chain(self):
         result = validate_project_bundle(brief(), [requirement()], [criterion()])
@@ -92,6 +100,22 @@ class PIERegistryTests(unittest.TestCase):
         registry.add_requirement(requirement())
         registry.add_acceptance_criterion(criterion())
         self.assertTrue(registry.validate("PRJ-001")["valid"])
+
+    def test_registry_retains_prior_brief_versions(self):
+        registry = ProjectRegistry()
+        first = brief()
+        registry.register(first)
+        second = brief(brief_version=2, project_name="Synthetic demo v2")
+        registry.register(second)
+        self.assertEqual(registry.get_brief_version("PRJ-001", 1), first)
+        self.assertEqual(registry.get_brief_version("PRJ-001", 2), second)
+
+    def test_approved_new_version_requires_distinct_approval_reference(self):
+        registry = ProjectRegistry()
+        registry.register(brief(status=ProjectStatus.APPROVED, approval_ref="approval-1"))
+        with self.assertRaises(ContractError):
+            registry.register(brief(brief_version=2, status=ProjectStatus.APPROVED, approval_ref="approval-1"))
+        registry.register(brief(brief_version=2, status=ProjectStatus.APPROVED, approval_ref="approval-2"))
 
 
 if __name__ == "__main__":
