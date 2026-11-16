@@ -211,3 +211,73 @@ class PIEIntegrityRemediationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PIEValidatorHardeningTests(unittest.TestCase):
+    """VH-01..VH-15: malformed bundle inputs fail at the validator boundary."""
+
+    def test_vh01_none_brief_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(None, [requirement()], [criterion()])
+
+    def test_vh02_wrong_brief_type_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle("not-a-brief", [requirement()], [criterion()])
+
+    def test_vh03_none_requirements_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), None, [criterion()])
+
+    def test_vh04_string_requirements_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), "REQ-001", [criterion()])
+
+    def test_vh05_non_sequence_requirements_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), 123, [criterion()])
+
+    def test_vh06_wrong_requirement_record_type_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), [object()], [criterion()])
+
+    def test_vh07_none_acceptance_criteria_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), [requirement()], None)
+
+    def test_vh08_string_acceptance_criteria_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), [requirement()], "PAC-PRJ-001-001")
+
+    def test_vh09_wrong_acceptance_record_type_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), [requirement()], [object()])
+
+    def test_vh10_duplicate_requirement_id_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), [requirement(), requirement()], [criterion()])
+
+    def test_vh11_duplicate_acceptance_id_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), [requirement()],
+                                    [criterion(), criterion()])
+
+    def test_vh12_test_refs_must_be_mapping_or_none(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), [requirement()], [criterion()], test_refs=[])
+
+    def test_vh13_evidence_refs_require_nonempty_string_targets(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), [requirement()], [criterion()],
+                                    evidence_refs={"EVD-1": 7})
+
+    def test_vh14_qa_refs_require_nonempty_string_keys(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), [requirement()], [criterion()],
+                                    qa_refs={1: "QA-1"})
+
+    def test_vh15_invalid_nested_reference_mapping_is_rejected(self):
+        with self.assertRaises(ContractError):
+            validate_project_bundle(brief(), [requirement()], [criterion()],
+                                    test_refs={"TEST-1": "ok"},
+                                    evidence_refs={"EVD-1": " "},
+                                    qa_refs={"QA-1": "ok"})
