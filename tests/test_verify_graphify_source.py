@@ -30,6 +30,13 @@ class GraphifySourceVerificationTests(unittest.TestCase):
         self._git("tag", "-a", "-f", "v0.9.100", "-m", "synthetic release")
         self.lock_blob = self._git("rev-parse", "v0.9.100:uv.lock")
 
+    def _commit_mutation_and_repin_fixture(self):
+        subprocess.run(["git", "-C", str(self.root), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(self.root), "commit", "-qm", "synthetic mutation fixture"], check=True)
+        self.commit = self._git("rev-parse", "HEAD")
+        subprocess.run(["git", "-C", str(self.root), "tag", "-f", "-a", "v0.9.100", "-m", "synthetic mutated release"], check=True)
+        self.lock_blob = self._git("rev-parse", "v0.9.100:uv.lock")
+
     def _verify(self):
         return verify_source(self.root, expected_version="0.9.100", expected_commit=self.commit,
             expected_lock_blob=self.lock_blob, expected_schema=33, expected_tag="v0.9.100")
