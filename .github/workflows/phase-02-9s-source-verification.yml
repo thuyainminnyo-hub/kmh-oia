@@ -1,0 +1,59 @@
+name: Phase 02.9S Source Verification Gate Tests
+
+on:
+  pull_request:
+    paths:
+      - "scripts/verify_graphify_source.py"
+      - "tests/test_verify_graphify_source.py"
+      - ".github/workflows/phase-02-9s-source-verification.yml"
+  push:
+    branches:
+      - "phase-02-9s-source-verification"
+    paths:
+      - "scripts/verify_graphify_source.py"
+      - "tests/test_verify_graphify_source.py"
+      - ".github/workflows/phase-02-9s-source-verification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-verification-unit-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+      - name: Run source-verifier regression tests (synthetic Git repositories only)
+        run: python -m unittest discover -s tests -p 'test_verify_graphify_source.py' -v
+
+  independent-pinned-upstream-source-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout verifier
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+      - name: Fetch exact upstream release source (no package installation)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --depth 1 --branch v0.9.100 https://github.com/Graphify-Labs/graphify.git "$RUNNER_TEMP/graphify-source"
+          python scripts/verify_graphify_source.py \
+            --source-root "$RUNNER_TEMP/graphify-source" \
+            --version 0.9.100 \
+            --commit f5155badddaa3286c78a51653791131e9e2e4d29 \
+            --uv-lock-blob 1fd2344a28be6b14c4f6f41c4901c70cadc2be0e \
+            --ast-cache-schema 33 \
+            --tag v0.9.100
