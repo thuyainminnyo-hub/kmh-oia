@@ -12,15 +12,25 @@ class ProjectRegistry:
         self._brief_versions: dict[str, dict[int, ProjectBrief]] = {}
         self._requirements: dict[str, dict[str, Requirement]] = {}
         self._criteria: dict[str, dict[str, AcceptanceCriterion]] = {}
+        # This binds each approval reference to one immutable project/version/content tuple.
+        # It is a synthetic integrity guard, not authenticated or cryptographic approval.
+        self._approval_bindings: dict[str, tuple[str, int, str]] = {}
 
     def register(self, brief: ProjectBrief) -> None:
+        if not isinstance(brief, ProjectBrief):
+            raise ContractError("brief must be a ProjectBrief")
         existing = self._briefs.get(brief.project_id)
-        if existing is not None:
-            if brief.brief_version <= existing.brief_version:
-                raise ContractError("brief versions must increase; prior versions are retained")
-            if brief.status in (ProjectStatus.APPROVED, ProjectStatus.ACTIVE):
-                if brief.approval_ref == existing.approval_ref:
-                    raise ContractError("a changed brief version requires a new approval reference")
+        if existing is not None and brief.brief_version <= existing.brief_version:
+            raise ContractError("brief versions must increase; prior versions are retained")
+
+        if brief.status in (ProjectStatus.APPROVED, ProjectStatus.ACTIVE):
+            # ProjectBrief enforces non-empty approval_ref for these statuses.
+            approval_ref = brief.approval_ref
+            if approval_ref in self._approval_bindings:
+                raise ContractError("approval references are immutable and cannot be reused")
+            binding = (brief.project_id, brief.brief_version, brief.content_hash)
+            self._approval_bindings[approval_ref] = binding
+
         self._brief_versions.setdefault(brief.project_id, {})[brief.brief_version] = brief
         self._briefs[brief.project_id] = brief
         self._requirements.setdefault(brief.project_id, {})
