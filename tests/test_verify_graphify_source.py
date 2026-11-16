@@ -40,6 +40,11 @@ class GraphifySourceVerificationTests(unittest.TestCase):
         self.assertFalse(result["graphify_install_performed"])
         self.assertFalse(result["graphify_extraction_performed"])
 
+    def test_dirty_worktree_fails_closed(self):
+        (self.root / "graphify" / "cache.py").write_text("_AST_CACHE_SCHEMA = 34\\n", encoding="utf-8")
+        with self.assertRaisesRegex(VerificationError, "source checkout is not clean"):
+            self._verify()
+
     def test_wrong_commit_fails(self):
         with self.assertRaisesRegex(VerificationError, "source commit mismatch"):
             verify_source(self.root, expected_version="0.9.100", expected_commit="0" * 40,
