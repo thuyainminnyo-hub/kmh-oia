@@ -51,8 +51,15 @@ def read_assignment(path: Path, name: str) -> object:
 def verify_source(root: Path, *, expected_version: str, expected_commit: str,
                   expected_lock_blob: str, expected_schema: int, expected_tag: str) -> dict[str, object]:
     root = root.resolve()
-    if not (root / ".git").exists():
-        raise VerificationError("source root is not a Git checkout")
+    try:
+        git_root = Path(git(root, "rev-parse", "--show-toplevel")).resolve()
+    except VerificationError as exc:
+        raise VerificationError("source root is not a Git checkout") from exc
+    if git_root != root:
+        raise VerificationError(f"source root must be the Git checkout root: expected {git_root}, got {root}")
+    dirty = git(root, "status", "--porcelain", "--untracked-files=all")
+    if dirty:
+        raise VerificationError(f"source checkout is not clean: {dirty.splitlines()[0]}")
     actual_commit = git(root, "rev-parse", "HEAD")
     if actual_commit != expected_commit:
         raise VerificationError(f"source commit mismatch: expected {expected_commit}, got {actual_commit}")
