@@ -1,4 +1,4 @@
-"""Deterministic cross-record validation for synthetic PIE project bundles."""
+""""Deterministic cross-record validation for synthetic PIE project bundles."""
 
 from __future__ import annotations
 
@@ -30,15 +30,22 @@ def _unique(
         raise ContractError("record type must be a valid type")
 
     result: dict[str, Any] = {}
-    for record in records:
-        if not isinstance(record, record_type):
-            raise ContractError(f"{label} records must contain {record_type.__name__} instances")
-        key = getattr(record, attr, None)
-        if not isinstance(key, str) or not key.strip():
-            raise ContractError(f"{label} identifiers must be non-empty strings")
-        if key in result:
-            raise ContractError(f"duplicate {label}: {key}")
-        result[key] = record
+    try:
+        for record in records:
+            if not isinstance(record, record_type):
+                raise ContractError(
+                    f"{label} records must contain {record_type.__name__} instances"
+                )
+            key = getattr(record, attr, None)
+            if not isinstance(key, str) or not key.strip():
+                raise ContractError(f"{label} identifiers must be non-empty strings")
+            if key in result:
+                raise ContractError(f"duplicate {label}: {key}")
+            result[key] = record
+    except ContractError:
+        raise
+    except Exception as exc:
+        raise ContractError(f"{label} records could not be iterated safely") from exc
     return result
 
 
@@ -50,17 +57,22 @@ def _validate_reference_mapping(label: str, refs: Mapping[str, str] | None) -> i
         raise ContractError(f"{label} references must be a mapping or None")
 
     count = 0
-    for ref_id, target in refs.items():
-        if (
-            not isinstance(ref_id, str)
-            or not ref_id.strip()
-            or not isinstance(target, str)
-            or not target.strip()
-        ):
-            raise ContractError(
-                f"{label} references must have non-empty string identifiers and targets"
-            )
-        count += 1
+    try:
+        for ref_id, target in refs.items():
+            if (
+                not isinstance(ref_id, str)
+                or not ref_id.strip()
+                or not isinstance(target, str)
+                or not target.strip()
+            ):
+                raise ContractError(
+                    f"{label} references must have non-empty string identifiers and targets"
+                )
+            count += 1
+    except ContractError:
+        raise
+    except Exception as exc:
+        raise ContractError(f"{label} references could not be iterated safely") from exc
     return count
 
 
