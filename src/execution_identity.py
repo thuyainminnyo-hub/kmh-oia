@@ -1,39 +1,40 @@
-"""Identity model for multi-account, multi-instance OIA execution."""
+"""Canonical identity model for multi-account, multi-instance OIA execution."""
+from __future__ import annotations
+import hashlib,json
 from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ExecutionIdentity:
-    account_id: str
-    instance_id: str
-    environment_id: str
-    session_id: str
-
+    account_id:str
+    instance_id:str
+    environment_id:str
+    session_id:str
     def __post_init__(self):
-        for value, name in ((self.account_id, "account_id"), (self.instance_id, "instance_id"), (self.environment_id, "environment_id"), (self.session_id, "session_id")):
-            if not value or not value.strip():
+        for name in ("account_id","instance_id","environment_id","session_id"):
+            value=getattr(self,name)
+            if not isinstance(value,str) or not value.strip():
                 raise ValueError(f"{name} is required")
-
+    def _components(self)->dict[str,str]:
+        return {name:getattr(self,name).strip() for name in ("account_id","instance_id","environment_id","session_id")}
     @property
-    def key(self) -> str:
-        return ":".join((self.account_id.strip(), self.instance_id.strip(), self.environment_id.strip(), self.session_id.strip()))
-
-    def provenance(self) -> dict[str, str]:
-        return {
-            "account_id": self.account_id.strip(),
-            "instance_id": self.instance_id.strip(),
-            "environment_id": self.environment_id.strip(),
-            "session_id": self.session_id.strip(),
-            "identity_key": self.key,
-        }
+    def key(self)->str:
+        canonical=json.dumps(self._components(),sort_keys=True,separators=(",",":"))
+        return "sha256:"+hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    def provenance(self)->dict[str,str]:
+        return {**self._components(),"identity_key":self.key}
 
 @dataclass(frozen=True)
 class ExecutionIdentityContext:
-    identity: ExecutionIdentity
-    command_id: str
-    execution_id: str
-
+    identity:ExecutionIdentity
+    command_id:str
+    execution_id:str
+    job_id:str|None=None
     def __post_init__(self):
-        if not self.command_id.strip():
-            raise ValueError("command_id is required")
-        if not self.execution_id.strip():
-            raise ValueError("execution_id is required")
+        if not isinstance(self.identity,ExecutionIdentity):
+            raise TypeError("identity must be an ExecutionIdentity")
+        for name in ("command_id","execution_id"):
+            value=getattr(self,name)
+            if not isinstance(value,str) or not value.strip():
+                raise ValueError(f"{name} is required")
+        if self.job_id is not None and (not isinstance(self.job_id,str) or not self.job_id.strip()):
+            raise ValueError("job_id must be None or a non-empty string")
