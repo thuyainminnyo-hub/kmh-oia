@@ -36,12 +36,17 @@ not supported. It does not fall back to a potentially overwriting copy operation
 - Concurrent writers deduplicate by digest; metadata identity remains unique.
 - Symlinked storage entries are rejected; source-file descriptor metadata is
   compared before and after ingest to detect observed mutation.
+- Trusted metadata reads are capped at 16 KiB before JSON parsing to bound
+  metadata-driven memory consumption.
 
 ## Security boundary
 
 This is a local storage primitive, not a complete production artifact service.
 It is not encrypted, remotely replicated, signed, or protected from a privileged
-host administrator. Directory fsync is used on POSIX; Windows directory fsync
+host administrator. The snapshot root and its parent directories must be
+writable only by the trusted service identity; this implementation does not
+provide protection against a hostile process with write access to the store.
+Directory fsync is used on POSIX; Windows directory fsync
 is skipped and no-follow guarantees depend on platform support. Filesystem
 symlink protections, durability, and hard-link semantics must be validated on
 the actual deployment filesystem before production use.
