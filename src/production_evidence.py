@@ -48,4 +48,4 @@ class ProductionEvidence:
                    context.command_id, context.identity.key, snapshot.verification_version, "pending")
 
     def to_json(self) -> str:
-        return json.dumps(asdict(self), sort_keys=True, indent=2) + "\\n"
+        return json.dumps(asdict(self), sort_keys=True, indent=2) + "\n"
