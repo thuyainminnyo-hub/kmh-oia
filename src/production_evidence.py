@@ -20,7 +20,7 @@ class ProductionEvidence:
         if isinstance(self.output_size_bytes,bool) or not isinstance(self.output_size_bytes,int) or self.output_size_bytes<=0: raise ValueError("output_size_bytes must be a positive integer")
         if isinstance(self.elapsed_ms,bool) or not isinstance(self.elapsed_ms,int) or self.elapsed_ms<0: raise ValueError("elapsed_ms must be a non-negative integer")
         if self.provider_execution_id is not None and (not isinstance(self.provider_execution_id,str) or not self.provider_execution_id.strip()): raise ValueError("provider_execution_id must be None or a non-empty string")
-        if self.qa_decision not in {"pending","approved","rejected"}: raise ValueError("qa_decision must be pending, approved, or rejected")
+        if self.qa_decision != "pending": raise ValueError("evidence admission must remain pending; record QA decisions through the audit sink")
         if self.artifact_id != f"job-{self.job_id}": raise ValueError("artifact_id does not match evidence job_id")
         expected_snapshot_reference = f"sha256/{self.output_sha256[:2]}/{self.output_sha256[2:4]}/{self.output_sha256}"
         if self.snapshot_reference != expected_snapshot_reference: raise ValueError("snapshot_reference does not match evidence digest")
