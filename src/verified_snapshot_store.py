@@ -26,6 +26,7 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ARTIFACT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _VERIFICATION_VERSION = "cas-v1"
 _CHUNK_SIZE = 1024 * 1024
+_MAX_METADATA_BYTES = 16 * 1024
 
 
 @dataclass(frozen=True)
@@ -233,8 +234,10 @@ class VerifiedArtifactStore:
             temp.unlink(missing_ok=True)
 
     @staticmethod
-    def _read_regular_file(path: Path) -> bytes:
+    def _read_regular_file(path: Path, *, max_bytes: int | None = None) -> bytes:
         """Read a regular file without following a final-component symlink."""
+        if max_bytes is not None and (isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0):
+            raise ValueError("max_bytes must be a positive integer")
         try:
             if stat.S_ISLNK(path.lstat().st_mode):
                 raise ValueError("refusing symlink in trusted snapshot storage")
@@ -254,6 +257,8 @@ class VerifiedArtifactStore:
                     chunk = stream.read(_CHUNK_SIZE)
                     if not chunk:
                         break
+                    if max_bytes is not None and sum(map(len, chunks)) + len(chunk) > max_bytes:
+                        raise ValueError("trusted snapshot metadata exceeds size limit")
                     chunks.append(chunk)
             return b"".join(chunks)
         finally:
@@ -294,7 +299,7 @@ class VerifiedArtifactStore:
             raise TypeError("reference must be a VerifiedSnapshot")
         metadata_path = self._metadata_path(reference.artifact_id)
         try:
-            metadata_bytes = self._read_regular_file(metadata_path)
+            metadata_bytes = self._read_regular_file(metadata_path, max_bytes=_MAX_METADATA_BYTES)
             stored = self._reference_from_dict(json.loads(metadata_bytes.decode("utf-8")))
         except FileNotFoundError as exc:
             raise ValueError("snapshot metadata is missing") from exc
