@@ -1,6 +1,6 @@
 # P0-C — Verified Snapshot Storage
 
-Status: IMPLEMENTED ON FEATURE BRANCH; exact-head GitHub CI verified on commit `424cd2a6d29fb30fbd0a725e6d84c55dc6154ac4` (594 repository tests passed; Tests and Validation workflows passed).
+Status: IMPLEMENTED ON FEATURE BRANCH; earlier exact-head CI passed on `1d1134cf9d54aa3587f63356282f82cbf89c79ca` (596 repository tests). Additional trusted-read hardening and parent-symlink regression tests are committed after that revision and require fresh exact-head CI.
 
 ## Scope
 
@@ -19,8 +19,7 @@ separate from byte identity (`sha256`).
 5. Publish the digest-addressed blob with an atomic hard link that does not
    overwrite an existing blob. If the digest already exists, re-read and verify it.
 6. Atomically publish the artifact metadata record, then fsync its directory.
-7. Reject symlinked blob and metadata entries on trusted reads; blob verification
-   streams data in bounded chunks rather than loading the entire file into memory.
+7. Open trusted metadata and blob reads by traversing from the storage-root directory descriptor; reject symlinks in every intermediate directory component and the final file. Blob verification streams data in bounded chunks rather than loading the entire file into memory.
 
 The implementation deliberately fails closed if atomic hard-link publication is
 not supported. It does not fall back to a potentially overwriting copy operation.
@@ -34,7 +33,7 @@ not supported. It does not fall back to a potentially overwriting copy operation
 - `recover()` trusts only metadata records whose referenced blobs pass digest
   and size verification. Orphan blobs and staging files are not admitted.
 - Concurrent writers deduplicate by digest; metadata identity remains unique.
-- Symlinked source-file and intermediate-directory components are rejected during descriptor-relative traversal; storage entries are also rejected on trusted reads.
+- Symlinked source-file and intermediate-directory components are rejected during descriptor-relative ingestion; trusted reads also reject symlinks in metadata/blob parent directories and final entries.
 - Source-file descriptor metadata is compared before and after ingest to detect observed mutation.
 - Source ingestion fails closed on platforms without the required `O_NOFOLLOW`, `O_DIRECTORY`, and descriptor-relative `open` support.
 - Trusted metadata reads are capped at 16 KiB before JSON parsing to bound
@@ -60,5 +59,6 @@ python -m unittest discover -s tests -v
 
 Tests cover content identity, concurrent deduplication, path escape, empty/missing
 inputs, duplicate artifact IDs, corrupted blobs, metadata substitution, symlink
-rejection, and recovery. Tests are not considered passed until executed on the
-exact feature-branch revision and CI reports success.
+rejection at source and trusted-read parent/final components, and recovery. The
+latest trusted-read hardening commit requires exact-head CI before it is considered
+verified.
