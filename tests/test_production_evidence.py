@@ -12,7 +12,7 @@ class ProductionEvidenceTests(unittest.TestCase):
         outputs=root/"outputs"; outputs.mkdir(exist_ok=True)
         source=outputs/"artifact.bin"; source.write_bytes(payload)
         store=VerifiedArtifactStore(root/"store")
-        snapshot=store.put_verified(source,allowed_root=outputs,artifact_id="evidence-test")
+        snapshot=store.put_verified(source,allowed_root=outputs,artifact_id="job-job-1")
         return ProductionEvidence.from_snapshot(job_id="job-1",adapter_name="fake",output_path=str(source),
             snapshot=snapshot,elapsed_ms=125,provider_execution_id="provider-123",
             context=ExecutionIdentityContext(ExecutionIdentity("a","i","prod","s"),"cmd-1","exec-1"))
