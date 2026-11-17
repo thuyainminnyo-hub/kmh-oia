@@ -325,7 +325,7 @@ class VerifiedArtifactStore:
             return ()
         for metadata_path in sorted(self.metadata_root.glob("*.json")):
             try:
-                metadata_bytes = self._read_regular_file(metadata_path)
+                metadata_bytes = self._read_regular_file(metadata_path, max_bytes=_MAX_METADATA_BYTES)
                 reference = self._reference_from_dict(json.loads(metadata_bytes.decode("utf-8")))
                 if metadata_path.stem != reference.artifact_id:
                     continue
