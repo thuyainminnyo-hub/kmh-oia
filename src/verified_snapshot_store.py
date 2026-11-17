@@ -261,24 +261,45 @@ class VerifiedArtifactStore:
         finally:
             temp.unlink(missing_ok=True)
 
-    @staticmethod
-    def _read_regular_file(path: Path, *, max_bytes: int | None = None) -> bytes:
-        """Read a regular file without following a final-component symlink."""
-        if max_bytes is not None and (isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0):
-            raise ValueError("max_bytes must be a positive integer")
+    def _open_trusted_regular_file(self, path: Path) -> int:
+        """Open a file beneath the trusted root without following any path symlink."""
         try:
-            if stat.S_ISLNK(path.lstat().st_mode):
-                raise ValueError("refusing symlink in trusted snapshot storage")
-            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-            fd = os.open(path, flags)
-        except FileNotFoundError:
-            raise
-        except OSError as exc:
-            raise ValueError("unable to safely open trusted snapshot file") from exc
+            relative = path.relative_to(self.root)
+        except ValueError as exc:
+            raise ValueError("trusted snapshot path escapes storage root") from exc
+        if not relative.parts or any(part in ("", ".", "..") for part in relative.parts):
+            raise ValueError("invalid trusted snapshot path")
+        nofollow = getattr(os, "O_NOFOLLOW", 0)
+        directory_flag = getattr(os, "O_DIRECTORY", 0)
+        if not nofollow or not directory_flag or os.open not in getattr(os, "supports_dir_fd", set()):
+            raise RuntimeError("secure descriptor-relative storage reads are unsupported on this platform")
+        root_fd = os.open(self.root, os.O_RDONLY | directory_flag | nofollow)
+        parent_fds = []
         try:
+            parent_fd = root_fd
+            for component in relative.parts[:-1]:
+                next_fd = os.open(component, os.O_RDONLY | directory_flag | nofollow, dir_fd=parent_fd)
+                parent_fds.append(next_fd)
+                parent_fd = next_fd
+            fd = os.open(relative.parts[-1], os.O_RDONLY | nofollow, dir_fd=parent_fd)
             info = os.fstat(fd)
             if not stat.S_ISREG(info.st_mode):
+                os.close(fd)
                 raise ValueError("trusted snapshot entry is not a regular file")
+            return fd
+        except OSError as exc:
+            raise ValueError("unable to safely open trusted snapshot path; symlink or missing component") from exc
+        finally:
+            for parent_fd in reversed(parent_fds):
+                os.close(parent_fd)
+            os.close(root_fd)
+
+    def _read_regular_file(self, path: Path, *, max_bytes: int | None = None) -> bytes:
+        """Read a regular file without following symlinks in any path component."""
+        if max_bytes is not None and (isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0):
+            raise ValueError("max_bytes must be a positive integer")
+        fd = self._open_trusted_regular_file(path)
+        try:
             chunks = []
             total = 0
             with os.fdopen(fd, "rb", closefd=False) as stream:
@@ -295,23 +316,14 @@ class VerifiedArtifactStore:
         finally:
             os.close(fd)
 
-    @staticmethod
-    def _verify_blob(path: Path, expected_digest: str, expected_size: int) -> None:
+    def _verify_blob(self, path: Path, expected_digest: str, expected_size: int) -> None:
         try:
-            if stat.S_ISLNK(path.lstat().st_mode):
-                raise ValueError("refusing symlink in trusted snapshot storage")
-            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-            fd = os.open(path, flags)
+            fd = self._open_trusted_regular_file(path)
         except FileNotFoundError as exc:
             raise ValueError("snapshot blob is missing") from exc
-        except OSError as exc:
-            raise ValueError("unable to safely open snapshot blob") from exc
         digest = hashlib.sha256()
         size = 0
         try:
-            info = os.fstat(fd)
-            if not stat.S_ISREG(info.st_mode):
-                raise ValueError("snapshot blob is not a regular file")
             with os.fdopen(fd, "rb", closefd=False) as stream:
                 while True:
                     chunk = stream.read(_CHUNK_SIZE)
