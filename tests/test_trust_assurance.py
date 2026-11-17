@@ -96,15 +96,16 @@ class ReviewerTrustTests(unittest.TestCase):
             def record_qa_decision(self, **kwargs):
                 principal = kwargs["reviewer_authority"].verify(
                     kwargs["reviewer_token"], required_role=kwargs["required_role"],
-                    replay_store=kwargs["reviewer_replay_store"],
+                    replay_store=kwargs["reviewer_replay_store"], now=kwargs.get("now"),
                 )
                 return {"reviewer_id": principal.subject}
 
-        token = self.authority.issue(subject="verified-reviewer", roles=["qa_approver"], now=100)
+        current = int(time.time())
+        token = self.authority.issue(subject="verified-reviewer", roles=["qa_approver"], now=current)
         result = record_authenticated_qa_decision(
             audit_sink=Sink(), authority=self.authority, replay_store=self.replay,
             reviewer_token=token, job_id="job-1", output_sha256="a" * 64,
-            decision="approved", now=101,
+            decision="approved", now=current,
         )
         self.assertEqual(result["reviewer_id"], "verified-reviewer")
 
