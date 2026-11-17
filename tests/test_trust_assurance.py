@@ -146,12 +146,12 @@ class AuditCheckpointTests(unittest.TestCase):
         self.assertFalse(self.authority.verify(rewritten, self.store))
 
     def test_truncated_chain_is_detected(self):
-        events = [{"event_hash": "1" * 64}, {"event_hash": "2" * 64}]
+        events = make_events([{"n": 1}, {"n": 2}])
         self.authority.create(events, self.store, now=200)
         self.assertFalse(self.authority.verify(events[:1], self.store))
 
     def test_empty_chain_cannot_be_checkpointed(self):
-        with self.assertRaisesRegex(ValueError, "empty"):
+        with self.assertRaisesRegex(ValueError, "invalid or unverified"):
             self.authority.create([], self.store, now=200)
 
     def test_checkpoint_sequence_advances_when_audit_event_count_advances(self):
@@ -161,7 +161,7 @@ class AuditCheckpointTests(unittest.TestCase):
         self.assertEqual((second.sequence, second.event_count), (2, 2))
 
     def test_checkpoint_rejects_no_new_audit_events(self):
-        events = [{"event_hash": "1" * 64}]
+        events = make_events([{"n": 1}])
         self.authority.create(events, self.store, now=200)
         with self.assertRaisesRegex(ValueError, "event count"):
             self.authority.create(events, self.store, now=201)
