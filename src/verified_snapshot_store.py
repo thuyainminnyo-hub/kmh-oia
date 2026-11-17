@@ -63,6 +63,9 @@ class VerifiedArtifactStore:
         self.metadata_root = self.root / "artifacts"
         self.blob_root.mkdir(parents=True, exist_ok=True)
         self.metadata_root.mkdir(parents=True, exist_ok=True)
+        self._fsync_directory_chain(self.metadata_root, self.root)
+        if self.root.parent.exists():
+            self._fsync_directory(self.root.parent)
 
     @staticmethod
     def _fsync_directory(path: Path) -> None:
@@ -75,6 +78,19 @@ class VerifiedArtifactStore:
             os.fsync(fd)
         finally:
             os.close(fd)
+
+    @classmethod
+    def _fsync_directory_chain(cls, path: Path, stop_at: Path) -> None:
+        """Fsync a directory and each ancestor through stop_at, inclusive."""
+        current = path
+        stop = stop_at.resolve()
+        if current.resolve() != stop and stop not in current.resolve().parents:
+            raise ValueError("directory fsync boundary is not an ancestor")
+        while True:
+            cls._fsync_directory(current)
+            if current.resolve() == stop:
+                break
+            current = current.parent
 
     def _blob_path(self, digest: str) -> Path:
         if not isinstance(digest, str) or not _SHA256_RE.fullmatch(digest):
@@ -140,6 +156,7 @@ class VerifiedArtifactStore:
             # Stage on the destination filesystem so hard-link publication is atomic.
             staging_dir = self.root / ".staging"
             staging_dir.mkdir(parents=True, exist_ok=True)
+            self._fsync_directory(self.root)
             temp_fd, temp_name = tempfile.mkstemp(prefix="snapshot-", dir=staging_dir)
             temp_path = Path(temp_name)
             digest = hashlib.sha256()
@@ -179,7 +196,7 @@ class VerifiedArtifactStore:
             try:
                 # link() is atomic and fails if the immutable digest path exists.
                 os.link(temp_path, blob_path)
-                self._fsync_directory(blob_path.parent)
+                self._fsync_directory_chain(blob_path.parent, self.root)
             except FileExistsError:
                 self._verify_blob(blob_path, sha256, size)
             except OSError as exc:
@@ -187,7 +204,6 @@ class VerifiedArtifactStore:
 
             metadata = json.dumps(asdict(reference), sort_keys=True, separators=(",", ":")) + "\n"
             self._publish_metadata(metadata_path, metadata)
-            self._fsync_directory(self.metadata_root)
             return reference
         finally:
             os.close(source_fd)
@@ -210,7 +226,7 @@ class VerifiedArtifactStore:
                 os.fsync(stream.fileno())
             # Metadata is unique by artifact_id; never overwrite a prior identity.
             os.link(temp, path)
-            self._fsync_directory(self.metadata_root)
+            self._fsync_directory_chain(self.metadata_root, self.root)
         except FileExistsError:
             raise FileExistsError(f"artifact_id already exists: {path.stem}")
         finally:
