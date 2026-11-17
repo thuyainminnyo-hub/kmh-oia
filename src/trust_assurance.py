@@ -234,8 +234,9 @@ class AuditCheckpointAuthority:
 
     def verify(self, events: list[dict], store: IndependentCheckpointStore) -> bool:
         checkpoint = store.latest()
-        if (checkpoint is None or len(events) != checkpoint.event_count
-                or not _verify_audit_events(events)):
+        if checkpoint is None or not _verify_audit_events(events):
+            return False
+        if len(events) != checkpoint.event_count:
             return False
         if events[-1].get("event_hash") != checkpoint.head_hash or checkpoint.key_id != self.key_id:
             return False
