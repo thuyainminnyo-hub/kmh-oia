@@ -57,14 +57,26 @@ class JsonlProductionAuditSink:
             storage_key=evidence.snapshot_reference,
             verification_version=evidence.verification_version,
         )
-        # Never audit a manifest merely because its fields are self-consistent:
-        # verify its metadata and blob against the trusted snapshot store first.
-        snapshot_store.verify(reference)
         fields = ("adapter_name","output_path","output_sha256","output_size_bytes","elapsed_ms",
                   "provider_execution_id","snapshot_reference","artifact_id","execution_id",
                   "command_id","identity_key","verification_version","qa_decision")
-        return self._append(event_type="evidence_created", job_id=evidence.job_id,
-                            payload={name:getattr(evidence,name) for name in fields})
+        payload = {name:getattr(evidence,name) for name in fields}
+        # Snapshot verification and artifact-id uniqueness are one serialized
+        # admission transaction. Replays are idempotent; conflicting provenance
+        # for the same immutable artifact identity fails closed.
+        with self._exclusive_lock():
+            snapshot_store.verify(reference)
+            existing = [
+                event for event in self._verify_chain_unlocked()
+                if event.get("event_type") == "evidence_created"
+                and event.get("payload", {}).get("artifact_id") == evidence.artifact_id
+            ]
+            if existing:
+                prior = existing[-1]
+                if prior.get("job_id") == evidence.job_id and prior.get("payload") == payload:
+                    return prior
+                raise ValueError("evidence artifact_id is already recorded with different provenance")
+            return self._append_unlocked(event_type="evidence_created", job_id=evidence.job_id, payload=payload)
 
     def record_qa_decision(self, *, job_id: str, output_sha256: str,
                            decision: Literal["approved","rejected"], reviewer_id: str) -> dict:
