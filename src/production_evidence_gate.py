@@ -12,7 +12,11 @@ def create_verified_evidence(*, job_id: str, adapter_name: str, output_path: str
     if not isinstance(execution_context, ExecutionIdentityContext):
         raise ValueError("execution identity context is required for evidence")
     snapshot = snapshot_store.put_verified(output_path, allowed_root=allowed_output_root, artifact_id=f"job-{job_id}")
-    snapshot_store.verify(snapshot)
+    if snapshot.artifact_id != f"job-{job_id}":
+        raise ValueError("snapshot artifact does not belong to this production job")
+    snapshot_payload = snapshot_store.get_verified(snapshot)
+    if len(snapshot_payload) != snapshot.size_bytes:
+        raise ValueError("retrieved snapshot size does not match evidence")
     evidence = ProductionEvidence.from_snapshot(job_id=job_id, adapter_name=adapter_name,
         output_path=str(Path(output_path).resolve()), snapshot=snapshot, elapsed_ms=elapsed_ms,
         provider_execution_id=provider_execution_id, context=execution_context)
