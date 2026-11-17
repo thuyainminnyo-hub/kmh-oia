@@ -15,5 +15,5 @@ def create_verified_evidence(*,job_id:str,adapter_name:str,output_path:str,allow
     if len(snapshot_payload)!=snapshot.size_bytes: raise ValueError("retrieved snapshot size does not match evidence")
     evidence=ProductionEvidence.from_snapshot(job_id=job_id,adapter_name=adapter_name,output_path=str(Path(output_path).resolve()),
         snapshot=snapshot,elapsed_ms=elapsed_ms,provider_execution_id=provider_execution_id,context=execution_context)
-    if audit_sink is not None: audit_sink.record_evidence(evidence)
+    if audit_sink is not None: audit_sink.record_evidence(evidence,snapshot_store=snapshot_store)
     return evidence
