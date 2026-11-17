@@ -29,6 +29,16 @@ class JsonlProductionAuditSinkTests(unittest.TestCase):
   events=self.sink.verify_chain(); self.assertEqual(len(events),2); self.assertEqual(events[0]["event_type"],"evidence_created")
   self.assertEqual(events[1]["event_type"],"qa_decision_recorded"); self.assertEqual(second["previous_hash"],first["event_hash"])
   self.assertEqual(events[0]["payload"]["snapshot_reference"],self.evidence.snapshot_reference)
+ def test_evidence_admission_is_idempotent_for_exact_retry(self):
+  first=self.sink.record_evidence(self.evidence,snapshot_store=self.store)
+  retry=self.sink.record_evidence(self.evidence,snapshot_store=self.store)
+  self.assertEqual(first["event_hash"],retry["event_hash"])
+  self.assertEqual(len(self.sink.verify_chain()),1)
+ def test_evidence_admission_rejects_conflicting_provenance_for_artifact(self):
+  self.sink.record_evidence(self.evidence,snapshot_store=self.store)
+  conflicting=replace(self.evidence,execution_id="different-execution")
+  with self.assertRaisesRegex(ValueError,"different provenance"):
+   self.sink.record_evidence(conflicting,snapshot_store=self.store)
  def test_rejects_manifest_without_matching_verified_snapshot(self):
   forged=replace(self.evidence,output_sha256="0"*64,snapshot_reference="sha256/00/00/"+"0"*64)
   with self.assertRaisesRegex(ValueError,"snapshot"):
