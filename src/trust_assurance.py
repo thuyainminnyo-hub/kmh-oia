@@ -146,23 +146,24 @@ class IndependentCheckpointStore:
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.path) as db:
             db.execute("""CREATE TABLE IF NOT EXISTS audit_checkpoints (
-                sequence INTEGER PRIMARY KEY, head_hash TEXT NOT NULL,
+                sequence INTEGER PRIMARY KEY, event_count INTEGER NOT NULL, head_hash TEXT NOT NULL,
                 created_at INTEGER NOT NULL, key_id TEXT NOT NULL,
                 signature TEXT NOT NULL)""")
 
     def append(self, checkpoint: AuditCheckpoint) -> None:
         with sqlite3.connect(self.path, timeout=10, isolation_level="IMMEDIATE") as db:
-            latest = db.execute("SELECT MAX(sequence) FROM audit_checkpoints").fetchone()[0]
-            expected = 1 if latest is None else latest + 1
-            if checkpoint.sequence != expected:
-                raise ValueError("checkpoint sequence is not the next expected sequence")
-            db.execute("INSERT INTO audit_checkpoints VALUES (?, ?, ?, ?, ?)",
-                       (checkpoint.sequence, checkpoint.head_hash, checkpoint.created_at,
-                        checkpoint.key_id, checkpoint.signature))
+            latest = db.execute("SELECT sequence, event_count FROM audit_checkpoints ORDER BY sequence DESC LIMIT 1").fetchone()
+            expected = 1 if latest is None else latest[0] + 1
+            prior_event_count = 0 if latest is None else latest[1]
+            if checkpoint.sequence != expected or checkpoint.event_count <= prior_event_count:
+                raise ValueError("checkpoint sequence or event count is not advancing")
+            db.execute("INSERT INTO audit_checkpoints VALUES (?, ?, ?, ?, ?, ?)",
+                       (checkpoint.sequence, checkpoint.event_count, checkpoint.head_hash,
+                        checkpoint.created_at, checkpoint.key_id, checkpoint.signature))
 
     def latest(self) -> AuditCheckpoint | None:
         with sqlite3.connect(self.path) as db:
-            row = db.execute("""SELECT sequence, head_hash, created_at, key_id, signature
+            row = db.execute("""SELECT sequence, event_count, head_hash, created_at, key_id, signature
                                 FROM audit_checkpoints ORDER BY sequence DESC LIMIT 1""").fetchone()
         return AuditCheckpoint(*row) if row else None
 
@@ -188,11 +189,10 @@ class AuditCheckpointAuthority:
                *, now: int | None = None) -> AuditCheckpoint:
         if not events:
             raise ValueError("cannot checkpoint an empty audit chain")
-        sequence = len(events)
         previous = store.latest()
-        expected = 1 if previous is None else previous.sequence + 1
-        if sequence != expected:
-            raise ValueError("audit event count does not match next checkpoint sequence")
+        sequence = 1 if previous is None else previous.sequence + 1
+        if previous is not None and len(events) <= previous.event_count:
+            raise ValueError("audit event count must advance beyond the prior checkpoint")
         head = events[-1].get("event_hash")
         if not isinstance(head, str) or len(head) != 64:
             raise ValueError("audit chain head is invalid")
