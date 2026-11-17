@@ -27,7 +27,7 @@ class JsonlProductionAuditSink:
                 import msvcrt
                 lock_stream.seek(0, os.SEEK_END)
                 if lock_stream.tell() == 0:
-                    lock_stream.write(b"\\0")
+                    lock_stream.write(b"\0")
                     lock_stream.flush()
                 lock_stream.seek(0)
                 msvcrt.locking(lock_stream.fileno(), msvcrt.LK_LOCK, 1)
@@ -101,7 +101,7 @@ class JsonlProductionAuditSink:
         canonical=json.dumps(event,sort_keys=True,separators=(",",":"))
         event["event_hash"]=hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         # A single encoded write while holding the lock prevents interleaved JSONL records.
-        line = json.dumps(event,sort_keys=True)+"\\n"
+        line = json.dumps(event,sort_keys=True)+"\n"
         with self.path.open("a",encoding="utf-8") as stream:
             stream.write(line)
             stream.flush()
