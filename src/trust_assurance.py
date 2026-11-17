@@ -42,7 +42,10 @@ def _verify_audit_events(events: list[dict]) -> bool:
         if event.get("previous_hash") != expected_previous:
             return False
         unhashed = {key: value for key, value in event.items() if key != "event_hash"}
-        canonical = json.dumps(unhashed, sort_keys=True, separators=(",", ":"))
+        try:
+            canonical = json.dumps(unhashed, sort_keys=True, separators=(",", ":"))
+        except (TypeError, ValueError):
+            return False
         calculated = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         if not hmac.compare_digest(recorded, calculated):
             return False
@@ -210,6 +213,8 @@ class AuditCheckpointAuthority:
 
     def create(self, events: list[dict], store: IndependentCheckpointStore,
                *, now: int | None = None) -> AuditCheckpoint:
+        if not events:
+            raise ValueError("cannot checkpoint an empty audit chain")
         if not _verify_audit_events(events):
             raise ValueError("cannot checkpoint an invalid or unverified audit chain")
         previous = store.latest()
