@@ -37,6 +37,12 @@ class JsonlProductionAuditSink:
             raise ValueError("QA decision requires a prior evidence event matching job_id and output_sha256")
         evidence_event = matching_evidence[-1]
         evidence_payload = evidence_event["payload"]
+        if any(
+            event.get("event_type") == "qa_decision_recorded"
+            and event.get("payload", {}).get("evidence_event_hash") == evidence_event["event_hash"]
+            for event in self.verify_chain()
+        ):
+            raise ValueError("a QA decision is already recorded for this evidence event")
         return self._append(event_type="qa_decision_recorded",job_id=job_id,
                             payload={
                                 "output_sha256":output_sha256,
