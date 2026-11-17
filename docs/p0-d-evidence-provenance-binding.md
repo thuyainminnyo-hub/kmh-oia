@@ -15,6 +15,8 @@ This is a stacked feature branch based on `feature/p0-c-verified-snapshot-storag
 - Audit events include the complete provenance binding and remain hash chained.
 - QA decisions require a prior evidence event matching both job ID and digest; the QA event links to the evidence event hash, snapshot reference, execution ID, and identity key. A second/conflicting QA decision for the same evidence event is rejected.
 - Evidence manifests themselves remain `pending`; QA decisions are separate append-only audit events, not mutable evidence-manifest status. Evidence integrity is not semantic quality approval.
+- Audit admission re-verifies the referenced snapshot against the trusted snapshot store; self-consistent manifest fields alone are insufficient.
+- Audit appends and QA duplicate-check/append transactions use an OS-level file lock, flush and fsync each event, and have thread/process concurrency regression tests.
 - QA remains `pending`; evidence integrity is not a semantic quality approval.
 
 ## Failure behavior
@@ -28,5 +30,6 @@ Focused adversarial coverage includes delimiter collision, missing identity cont
 - The execution identity context is supplied by the job creator; this change binds and preserves it but does not authenticate the caller or independently attest identity.
 - Provider IDs are only as trustworthy as the adapter boundary.
 - The audit hash chain detects modification only when its expected head is retained independently; it is not a signed remote audit service.
+- File-lock guarantees depend on the operating system and filesystem; network filesystems and multi-host deployments require a transactional shared datastore or distributed lock service.
 - No live ComfyUI execution or production workload is claimed.
 - Independent review and exact-head CI are required before any merge decision. Production remains HOLD.
