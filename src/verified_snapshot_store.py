@@ -130,11 +130,15 @@ class VerifiedArtifactStore:
         candidate = Path(source_path).expanduser()
         if not candidate.is_absolute():
             candidate = allowed / candidate
+        # Normalize lexical traversal without resolving symlinks. Resolving here
+        # would erase evidence that a path component was a symlink before open.
+        candidate = Path(os.path.abspath(candidate))
         try:
-            resolved = candidate.resolve(strict=True)
-            resolved.relative_to(allowed)
-        except (FileNotFoundError, OSError, RuntimeError, ValueError) as exc:
+            relative_source = candidate.relative_to(allowed)
+        except ValueError as exc:
             raise ValueError("source path is missing, unresolvable, or outside allowed_root") from exc
+        if not relative_source.parts or any(part in ("", ".", "..") for part in relative_source.parts):
+            raise ValueError("source path must identify a file inside allowed_root")
 
         if artifact_id is None:
             artifact_id = uuid.uuid4().hex
@@ -142,11 +146,35 @@ class VerifiedArtifactStore:
         if metadata_path.exists():
             raise FileExistsError(f"artifact_id already exists: {artifact_id}")
 
-        # Resolve first, then refuse a symlink at the resolved final component.
-        # The opened descriptor is checked again to ensure it is a regular file.
+        # Traverse from an opened trust-root descriptor. Every intermediate
+        # directory and the final file are opened relative to the prior fd with
+        # O_NOFOLLOW, so a symlink swap cannot redirect a later path lookup.
         nofollow = getattr(os, "O_NOFOLLOW", 0)
-        flags = os.O_RDONLY | nofollow
-        source_fd = os.open(resolved, flags)
+        directory_flag = getattr(os, "O_DIRECTORY", 0)
+        if not nofollow or not directory_flag or os.open not in getattr(os, "supports_dir_fd", set()):
+            raise RuntimeError("secure descriptor-relative source opening is unsupported on this platform")
+        root_fd = os.open(allowed, os.O_RDONLY | directory_flag | nofollow)
+        source_fd = -1
+        try:
+            parent_fd = root_fd
+            opened_parent_fds = []
+            for component in relative_source.parts[:-1]:
+                next_fd = os.open(component, os.O_RDONLY | directory_flag | nofollow, dir_fd=parent_fd)
+                opened_parent_fds.append(next_fd)
+                parent_fd = next_fd
+            source_fd = os.open(relative_source.parts[-1], os.O_RDONLY | nofollow, dir_fd=parent_fd)
+        except OSError as exc:
+            os.close(root_fd)
+            for opened_fd in locals().get("opened_parent_fds", []):
+                os.close(opened_fd)
+            raise ValueError("source path contains a symlink, is missing, or cannot be safely opened") from exc
+        finally:
+            # Parent descriptors are retained through source open only; source_fd
+            # refers to the already-opened inode and is independent thereafter.
+            pass
+        for opened_fd in opened_parent_fds:
+            os.close(opened_fd)
+        os.close(root_fd)
         temp_path: Path | None = None
         try:
             source_stat = os.fstat(source_fd)
