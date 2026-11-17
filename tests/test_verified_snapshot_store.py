@@ -63,6 +63,22 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside allowed_root"):
             self.store.put_verified(outside, allowed_root=self.allowed)
 
+    def test_rejects_symlinked_source_file(self):
+        source = self.write_source(payload=b"outside")
+        link = self.allowed / "source-link.bin"
+        link.symlink_to(source)
+        with self.assertRaisesRegex(ValueError, "symlink|safely opened"):
+            self.store.put_verified(link, allowed_root=self.allowed, artifact_id="source-link")
+
+    def test_rejects_symlinked_intermediate_source_directory(self):
+        outside = self.base / "outside"
+        outside.mkdir()
+        (outside / "payload.bin").write_bytes(b"outside")
+        link = self.allowed / "linked-directory"
+        link.symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "symlink|safely opened"):
+            self.store.put_verified(link / "payload.bin", allowed_root=self.allowed, artifact_id="directory-link")
+
     def test_rejects_missing_source(self):
         with self.assertRaises(ValueError):
             self.store.put_verified(self.allowed / "missing.bin", allowed_root=self.allowed)
