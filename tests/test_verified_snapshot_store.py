@@ -132,6 +132,14 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "symlink|safely open"):
             self.store.verify(reference)
 
+    def test_rejects_oversized_metadata_before_json_parse(self):
+        source = self.write_source(payload=b"metadata-limit")
+        reference = self.store.put_verified(source, allowed_root=self.allowed, artifact_id="metadata-limit")
+        metadata = self.store.metadata_root / "metadata-limit.json"
+        metadata.write_bytes(b" " * (16 * 1024 + 1))
+        with self.assertRaisesRegex(ValueError, "exceeds size limit"):
+            self.store.verify(reference)
+
     def test_rejects_metadata_substitution(self):
         source = self.write_source()
         reference = self.store.put_verified(source, allowed_root=self.allowed, artifact_id="asset-meta")
