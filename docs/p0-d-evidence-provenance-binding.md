@@ -11,6 +11,7 @@ This is a stacked feature branch based on `feature/p0-c-verified-snapshot-storag
 - ProductionJob carries an ExecutionIdentityContext (identity, command ID, execution ID, originating job ID). The job validates that the context job ID matches its own ID; evidence creation rejects missing or cross-job contexts.
 - Provider attribution comes only from AdapterResult / ProductionJob. A legacy caller-supplied provider ID is accepted only when exactly equal to the adapter-reported value; it cannot fill or override attribution.
 - Snapshot ingestion uses P0-C VerifiedArtifactStore. The evidence manifest records snapshot storage key, artifact ID, digest, size, verification version, execution ID, command ID, and canonical identity key.
+- The evidence output path is recorded using the same lexical absolute-path interpretation passed to snapshot admission; symlinks are not resolved after ingestion to avoid recording a different target path than the admitted source path.
 - Artifact ID is deterministically bound to the job ID (`job-<job_id>`); the manifest constructor rejects a snapshot reference belonging to a different job.
 - Audit events include the complete provenance binding and remain hash chained.
 - QA decisions require a prior evidence event matching both job ID and digest; the QA event links to the evidence event hash, snapshot reference, execution ID, and identity key. A second/conflicting QA decision for the same evidence event is rejected.
@@ -23,7 +24,7 @@ This is a stacked feature branch based on `feature/p0-c-verified-snapshot-storag
 Missing execution context, provider-ID substitution, invalid/out-of-root artifacts, snapshot write/verification errors, or audit failures fail closed: no evidence result is returned and the job is marked failed by the pipeline.
 
 ## Tests
-Focused adversarial coverage includes delimiter collision, missing identity context, adapter provider-ID substitution, missing provider attribution, job-scoped snapshot references, snapshot corruption, cross-artifact reference substitution, audit provenance fields, and pending-only QA.
+Focused adversarial coverage includes delimiter collision, missing identity context, adapter provider-ID substitution, missing provider attribution, job-scoped snapshot references, snapshot corruption, cross-artifact reference substitution, audit provenance fields, relative-path normalization, symlink rejection, and pending-only QA.
 
 ## Limitations / review points
 - The snapshot store is local and single-host; P0-C explicitly does not provide encryption, remote replication, or protection against privileged host administrators.
