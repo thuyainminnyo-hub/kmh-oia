@@ -1,4 +1,5 @@
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import unittest
 from pathlib import Path
@@ -38,6 +39,23 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
         self.assertNotEqual(first.artifact_id, second.artifact_id)
         self.assertEqual(first.sha256, second.sha256)
         self.assertEqual(first.storage_key, second.storage_key)
+
+    def test_concurrent_ingestion_deduplicates_same_content(self):
+        source = self.write_source(payload=b"same-content" * 1024)
+
+        def ingest(index):
+            return self.store.put_verified(
+                source,
+                allowed_root=self.allowed,
+                artifact_id=f"parallel-{index}",
+            )
+
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            references = list(pool.map(ingest, range(6)))
+
+        self.assertEqual(len({item.sha256 for item in references}), 1)
+        self.assertEqual(len({item.storage_key for item in references}), 1)
+        self.assertEqual(len(self.store.recover()), 6)
 
     def test_rejects_source_outside_allowed_root(self):
         outside = self.base / "outside.bin"
