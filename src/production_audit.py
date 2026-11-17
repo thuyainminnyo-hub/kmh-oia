@@ -27,8 +27,26 @@ class JsonlProductionAuditSink:
             raise ValueError("output_sha256 must be a lowercase SHA-256 digest")
         if decision not in {"approved","rejected"}: raise ValueError("QA decision must be approved or rejected")
         if not isinstance(reviewer_id,str) or not reviewer_id.strip(): raise ValueError("reviewer_id must be a non-empty string")
+        matching_evidence = [
+            event for event in self.verify_chain()
+            if event.get("event_type") == "evidence_created"
+            and event.get("job_id") == job_id
+            and event.get("payload", {}).get("output_sha256") == output_sha256
+        ]
+        if not matching_evidence:
+            raise ValueError("QA decision requires a prior evidence event matching job_id and output_sha256")
+        evidence_event = matching_evidence[-1]
+        evidence_payload = evidence_event["payload"]
         return self._append(event_type="qa_decision_recorded",job_id=job_id,
-                            payload={"output_sha256":output_sha256,"decision":decision,"reviewer_id":reviewer_id})
+                            payload={
+                                "output_sha256":output_sha256,
+                                "decision":decision,
+                                "reviewer_id":reviewer_id,
+                                "evidence_event_hash":evidence_event["event_hash"],
+                                "snapshot_reference":evidence_payload["snapshot_reference"],
+                                "execution_id":evidence_payload["execution_id"],
+                                "identity_key":evidence_payload["identity_key"],
+                            })
 
     def _append(self, *, event_type: AuditEventType, job_id: str, payload: dict) -> dict:
         previous_hash = "0"*64
