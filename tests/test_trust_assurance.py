@@ -151,7 +151,7 @@ class AuditCheckpointTests(unittest.TestCase):
         self.assertFalse(self.authority.verify(events[:1], self.store))
 
     def test_empty_chain_cannot_be_checkpointed(self):
-        with self.assertRaisesRegex(ValueError, "invalid or unverified"):
+        with self.assertRaisesRegex(ValueError, "empty"):
             self.authority.create([], self.store, now=200)
 
     def test_checkpoint_sequence_advances_when_audit_event_count_advances(self):
@@ -193,7 +193,7 @@ class AuditCheckpointTests(unittest.TestCase):
         self.assertFalse(self.authority.verify(make_events([{"n": 1}]), self.store))
 
     def test_checkpoint_signature_tampering_is_detected(self):
-        events = [{"event_hash": "1" * 64}]
+        events = make_events([{"n": 1}])
         self.authority.create(events, self.store, now=200)
         with __import__("sqlite3").connect(self.store.path) as db:
             db.execute("UPDATE audit_checkpoints SET signature = ?", ("0" * 64,))
