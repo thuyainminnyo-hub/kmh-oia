@@ -252,12 +252,14 @@ class VerifiedArtifactStore:
             if not stat.S_ISREG(info.st_mode):
                 raise ValueError("trusted snapshot entry is not a regular file")
             chunks = []
+            total = 0
             with os.fdopen(fd, "rb", closefd=False) as stream:
                 while True:
                     chunk = stream.read(_CHUNK_SIZE)
                     if not chunk:
                         break
-                    if max_bytes is not None and sum(map(len, chunks)) + len(chunk) > max_bytes:
+                    total += len(chunk)
+                    if max_bytes is not None and total > max_bytes:
                         raise ValueError("trusted snapshot metadata exceeds size limit")
                     chunks.append(chunk)
             return b"".join(chunks)
