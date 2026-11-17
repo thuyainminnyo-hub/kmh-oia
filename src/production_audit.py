@@ -79,6 +79,26 @@ class JsonlProductionAuditSink:
             return self._append_unlocked(event_type="evidence_created", job_id=evidence.job_id, payload=payload)
 
     def record_qa_decision(self, *, job_id: str, output_sha256: str,
+                           decision: Literal["approved","rejected"],
+                           reviewer_token: str, reviewer_authority,
+                           reviewer_replay_store) -> dict:
+        """Authenticate a one-time reviewer assertion before recording a QA decision."""
+        from src.trust_assurance import ReviewerReplayStore, ReviewerTokenAuthority
+
+        if not isinstance(reviewer_authority, ReviewerTokenAuthority):
+            raise TypeError("reviewer_authority must be a ReviewerTokenAuthority")
+        if not isinstance(reviewer_replay_store, ReviewerReplayStore):
+            raise TypeError("reviewer_replay_store must be a ReviewerReplayStore")
+        principal = reviewer_authority.verify(
+            reviewer_token, required_role="qa_approver",
+            replay_store=reviewer_replay_store,
+        )
+        return self._record_qa_decision(
+            job_id=job_id, output_sha256=output_sha256, decision=decision,
+            reviewer_id=principal.subject,
+        )
+
+    def _record_qa_decision(self, *, job_id: str, output_sha256: str,
                            decision: Literal["approved","rejected"], reviewer_id: str) -> dict:
         if not isinstance(job_id,str) or not job_id.strip(): raise ValueError("job_id must be a non-empty string")
         if not isinstance(output_sha256,str) or len(output_sha256)!=64 or any(c not in "0123456789abcdef" for c in output_sha256):
