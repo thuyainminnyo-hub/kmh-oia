@@ -155,6 +155,11 @@ class VerifiedArtifactStore:
                         size += len(chunk)
                     if size <= 0:
                         raise ValueError("artifact must not be empty")
+                    source_after = os.fstat(source_fd)
+                    stable_fields_before = (source_stat.st_dev, source_stat.st_ino, source_stat.st_size, source_stat.st_mtime_ns, source_stat.st_ctime_ns)
+                    stable_fields_after = (source_after.st_dev, source_after.st_ino, source_after.st_size, source_after.st_mtime_ns, source_after.st_ctime_ns)
+                    if stable_fields_before != stable_fields_after:
+                        raise ValueError("source file changed during snapshot ingestion")
                     target.flush()
                     os.fsync(target.fileno())
             finally:
