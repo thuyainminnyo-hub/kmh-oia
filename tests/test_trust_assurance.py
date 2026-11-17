@@ -93,7 +93,11 @@ class ReviewerTrustTests(unittest.TestCase):
     def test_authenticated_qa_decision_uses_verified_subject_not_caller_claim(self):
         class Sink:
             def record_qa_decision(self, **kwargs):
-                return kwargs
+                principal = kwargs["reviewer_authority"].verify(
+                    kwargs["reviewer_token"], required_role=kwargs["required_role"],
+                    replay_store=kwargs["reviewer_replay_store"],
+                )
+                return {"reviewer_id": principal.subject}
 
         token = self.authority.issue(subject="verified-reviewer", roles=["qa_approver"], now=100)
         result = record_authenticated_qa_decision(
@@ -105,10 +109,14 @@ class ReviewerTrustTests(unittest.TestCase):
 
     def test_authenticated_qa_decision_rejects_forged_reviewer_before_sink(self):
         class Sink:
-            called = False
+            appended = False
             def record_qa_decision(self, **kwargs):
-                self.called = True
-                return kwargs
+                principal = kwargs["reviewer_authority"].verify(
+                    kwargs["reviewer_token"], required_role=kwargs["required_role"],
+                    replay_store=kwargs["reviewer_replay_store"],
+                )
+                self.appended = True
+                return {"reviewer_id": principal.subject}
 
         sink = Sink()
         with self.assertRaisesRegex(ValueError, "invalid reviewer assertion"):
@@ -117,7 +125,7 @@ class ReviewerTrustTests(unittest.TestCase):
                 reviewer_token="forged", job_id="job-1", output_sha256="a" * 64,
                 decision="approved", now=101,
             )
-        self.assertFalse(sink.called)
+        self.assertFalse(sink.appended)
 
     def test_weak_keys_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "32 bytes"):
