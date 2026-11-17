@@ -140,6 +140,13 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exceeds size limit"):
             self.store.verify(reference)
 
+    def test_recovery_ignores_oversized_metadata(self):
+        source = self.write_source(payload=b"recovery-limit")
+        reference = self.store.put_verified(source, allowed_root=self.allowed, artifact_id="recovery-limit")
+        metadata = self.store.metadata_root / "recovery-limit.json"
+        metadata.write_bytes(b" " * (16 * 1024 + 1))
+        self.assertEqual(self.store.recover(), ())
+
     def test_rejects_metadata_substitution(self):
         source = self.write_source()
         reference = self.store.put_verified(source, allowed_root=self.allowed, artifact_id="asset-meta")
