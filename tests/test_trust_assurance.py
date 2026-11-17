@@ -1,6 +1,22 @@
+import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
+
+
+def make_events(payloads):
+    events = []
+    previous = "0" * 64
+    for index, payload in enumerate(payloads):
+        event = {"event_type": "test", "job_id": f"job-{index}", "payload": payload,
+                 "previous_hash": previous}
+        canonical = json.dumps(event, sort_keys=True, separators=(",", ":"))
+        event["event_hash"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        previous = event["event_hash"]
+        events.append(event)
+    return events
+
 
 from src.trust_assurance import (
     AuditCheckpointAuthority,
@@ -117,16 +133,16 @@ class AuditCheckpointTests(unittest.TestCase):
         self.authority = AuditCheckpointAuthority(key_id="audit-key-v1", key=b"a" * 32)
 
     def test_checkpoint_round_trip_and_independent_head_verification(self):
-        events = [{"event_hash": "1" * 64}, {"event_hash": "2" * 64}]
+        events = make_events([{"n": 1}, {"n": 2}])
         checkpoint = self.authority.create(events, self.store, now=200)
         self.assertEqual(checkpoint.sequence, 1)
         self.assertEqual(checkpoint.event_count, 2)
         self.assertTrue(self.authority.verify(events, self.store))
 
     def test_rewritten_chain_head_is_detected(self):
-        events = [{"event_hash": "1" * 64}]
+        events = make_events([{"n": 1}])
         self.authority.create(events, self.store, now=200)
-        rewritten = [{"event_hash": "f" * 64}]
+        rewritten = make_events([{"n": "rewritten"}])
         self.assertFalse(self.authority.verify(rewritten, self.store))
 
     def test_truncated_chain_is_detected(self):
@@ -139,8 +155,8 @@ class AuditCheckpointTests(unittest.TestCase):
             self.authority.create([], self.store, now=200)
 
     def test_checkpoint_sequence_advances_when_audit_event_count_advances(self):
-        first = self.authority.create([{"event_hash": "1" * 64}], self.store, now=200)
-        second = self.authority.create([{"event_hash": "2" * 64}, {"event_hash": "3" * 64}], self.store, now=201)
+        first = self.authority.create(make_events([{"n": 1}]), self.store, now=200)
+        second = self.authority.create(make_events([{"n": 1}, {"n": 2}]), self.store, now=201)
         self.assertEqual((first.sequence, first.event_count), (1, 1))
         self.assertEqual((second.sequence, second.event_count), (2, 2))
 
@@ -150,8 +166,31 @@ class AuditCheckpointTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "event count"):
             self.authority.create(events, self.store, now=201)
 
+
+    def test_checkpoint_rejects_event_with_forged_hash(self):
+        events = make_events([{"n": 1}, {"n": 2}])
+        events[0]["payload"] = {"n": "tampered"}
+        with self.assertRaisesRegex(ValueError, "invalid or unverified"):
+            self.authority.create(events, self.store, now=200)
+
+    def test_checkpoint_rejects_broken_previous_hash_link(self):
+        events = make_events([{"n": 1}, {"n": 2}])
+        events[1]["previous_hash"] = "f" * 64
+        canonical = json.dumps({k: v for k, v in events[1].items() if k != "event_hash"},
+                               sort_keys=True, separators=(",", ":"))
+        events[1]["event_hash"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        with self.assertRaisesRegex(ValueError, "invalid or unverified"):
+            self.authority.create(events, self.store, now=200)
+
+    def test_verify_rejects_tampered_middle_event_even_if_final_head_is_unchanged(self):
+        events = make_events([{"n": 1}, {"n": 2}, {"n": 3}])
+        self.authority.create(events, self.store, now=200)
+        altered = [dict(event) for event in events]
+        altered[0]["payload"] = {"n": "altered"}
+        self.assertFalse(self.authority.verify(altered, self.store))
+
     def test_missing_checkpoint_fails_closed(self):
-        self.assertFalse(self.authority.verify([{"event_hash": "1" * 64}], self.store))
+        self.assertFalse(self.authority.verify(make_events([{"n": 1}]), self.store))
 
     def test_checkpoint_signature_tampering_is_detected(self):
         events = [{"event_hash": "1" * 64}]
