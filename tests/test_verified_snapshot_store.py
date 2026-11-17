@@ -148,6 +148,33 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "symlink|safely open"):
             self.store.verify(reference)
 
+    def test_rejects_symlinked_metadata_parent_directory(self):
+        source = self.write_source(payload=b"parent-metadata")
+        reference = self.store.put_verified(source, allowed_root=self.allowed, artifact_id="parent-meta")
+        metadata_root = self.store.metadata_root
+        moved = self.base / "artifacts-original"
+        metadata_root.rename(moved)
+        outside = self.base / "outside-artifacts"
+        outside.mkdir()
+        (outside / "parent-meta.json").write_bytes((moved / "parent-meta.json").read_bytes())
+        metadata_root.symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "symlink|safely open"):
+            self.store.verify(reference)
+
+    def test_rejects_symlinked_blob_parent_directory(self):
+        source = self.write_source(payload=b"parent-blob")
+        reference = self.store.put_verified(source, allowed_root=self.allowed, artifact_id="parent-blob")
+        digest = reference.sha256
+        first_parent = self.store.blob_root / digest[:2]
+        moved = self.base / "blob-parent-original"
+        first_parent.rename(moved)
+        outside = self.base / "outside-blob-parent"
+        (outside / digest[2:4]).mkdir(parents=True)
+        (outside / digest[2:4] / digest).write_bytes((moved / digest[2:4] / digest).read_bytes())
+        first_parent.symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "symlink|safely open"):
+            self.store.verify(reference)
+
     def test_rejects_oversized_metadata_before_json_parse(self):
         source = self.write_source(payload=b"metadata-limit")
         reference = self.store.put_verified(source, allowed_root=self.allowed, artifact_id="metadata-limit")
