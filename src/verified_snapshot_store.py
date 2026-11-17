@@ -259,13 +259,33 @@ class VerifiedArtifactStore:
         finally:
             os.close(fd)
 
-    @classmethod
-    def _verify_blob(cls, path: Path, expected_digest: str, expected_size: int) -> None:
+    @staticmethod
+    def _verify_blob(path: Path, expected_digest: str, expected_size: int) -> None:
         try:
-            payload = cls._read_regular_file(path)
+            if stat.S_ISLNK(path.lstat().st_mode):
+                raise ValueError("refusing symlink in trusted snapshot storage")
+            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(path, flags)
         except FileNotFoundError as exc:
             raise ValueError("snapshot blob is missing") from exc
-        if len(payload) != expected_size or hashlib.sha256(payload).hexdigest() != expected_digest:
+        except OSError as exc:
+            raise ValueError("unable to safely open snapshot blob") from exc
+        digest = hashlib.sha256()
+        size = 0
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode):
+                raise ValueError("snapshot blob is not a regular file")
+            with os.fdopen(fd, "rb", closefd=False) as stream:
+                while True:
+                    chunk = stream.read(_CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    digest.update(chunk)
+                    size += len(chunk)
+        finally:
+            os.close(fd)
+        if size != expected_size or digest.hexdigest() != expected_digest:
             raise ValueError("existing snapshot blob failed integrity verification")
 
     def verify(self, reference: VerifiedSnapshot) -> VerifiedSnapshot:
