@@ -21,6 +21,11 @@ class ProductionEvidence:
         if isinstance(self.elapsed_ms,bool) or not isinstance(self.elapsed_ms,int) or self.elapsed_ms<0: raise ValueError("elapsed_ms must be a non-negative integer")
         if self.provider_execution_id is not None and (not isinstance(self.provider_execution_id,str) or not self.provider_execution_id.strip()): raise ValueError("provider_execution_id must be None or a non-empty string")
         if self.qa_decision not in {"pending","approved","rejected"}: raise ValueError("qa_decision must be pending, approved, or rejected")
+        if self.artifact_id != f"job-{self.job_id}": raise ValueError("artifact_id does not match evidence job_id")
+        expected_snapshot_reference = f"sha256/{self.output_sha256[:2]}/{self.output_sha256[2:4]}/{self.output_sha256}"
+        if self.snapshot_reference != expected_snapshot_reference: raise ValueError("snapshot_reference does not match evidence digest")
+        if len(self.identity_key) != 71 or not self.identity_key.startswith("sha256:") or any(c not in "0123456789abcdef" for c in self.identity_key[7:]):
+            raise ValueError("identity_key must be a SHA-256 execution identity key")
     @classmethod
     def from_snapshot(cls,*,job_id:str,adapter_name:str,output_path:str,snapshot:VerifiedSnapshot,elapsed_ms:int,
                       provider_execution_id:str|None,context:ExecutionIdentityContext)->"ProductionEvidence":
