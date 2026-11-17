@@ -233,16 +233,39 @@ class VerifiedArtifactStore:
             temp.unlink(missing_ok=True)
 
     @staticmethod
-    def _verify_blob(path: Path, expected_digest: str, expected_size: int) -> None:
-        if not path.is_file():
-            raise ValueError("snapshot blob is missing or not a regular file")
-        digest = hashlib.sha256()
-        size = 0
-        with path.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(_CHUNK_SIZE), b""):
-                digest.update(chunk)
-                size += len(chunk)
-        if size != expected_size or digest.hexdigest() != expected_digest:
+    def _read_regular_file(path: Path) -> bytes:
+        """Read a regular file without following a final-component symlink."""
+        try:
+            if stat.S_ISLNK(path.lstat().st_mode):
+                raise ValueError("refusing symlink in trusted snapshot storage")
+            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(path, flags)
+        except FileNotFoundError:
+            raise
+        except OSError as exc:
+            raise ValueError("unable to safely open trusted snapshot file") from exc
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode):
+                raise ValueError("trusted snapshot entry is not a regular file")
+            chunks = []
+            with os.fdopen(fd, "rb", closefd=False) as stream:
+                while True:
+                    chunk = stream.read(_CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+            return b"".join(chunks)
+        finally:
+            os.close(fd)
+
+    @classmethod
+    def _verify_blob(cls, path: Path, expected_digest: str, expected_size: int) -> None:
+        try:
+            payload = cls._read_regular_file(path)
+        except FileNotFoundError as exc:
+            raise ValueError("snapshot blob is missing") from exc
+        if len(payload) != expected_size or hashlib.sha256(payload).hexdigest() != expected_digest:
             raise ValueError("existing snapshot blob failed integrity verification")
 
     def verify(self, reference: VerifiedSnapshot) -> VerifiedSnapshot:
@@ -251,7 +274,8 @@ class VerifiedArtifactStore:
             raise TypeError("reference must be a VerifiedSnapshot")
         metadata_path = self._metadata_path(reference.artifact_id)
         try:
-            stored = self._reference_from_dict(json.loads(metadata_path.read_text(encoding="utf-8")))
+            metadata_bytes = self._read_regular_file(metadata_path)
+            stored = self._reference_from_dict(json.loads(metadata_bytes.decode("utf-8")))
         except FileNotFoundError as exc:
             raise ValueError("snapshot metadata is missing") from exc
         if stored != reference:
@@ -264,7 +288,7 @@ class VerifiedArtifactStore:
         """Return bytes only after metadata, size, and digest have been verified."""
         self.verify(reference)
         blob_path = self._blob_path(reference.sha256)
-        payload = blob_path.read_bytes()
+        payload = self._read_regular_file(blob_path)
         if len(payload) != reference.size_bytes or hashlib.sha256(payload).hexdigest() != reference.sha256:
             raise ValueError("snapshot changed during retrieval")
         return payload
@@ -276,7 +300,8 @@ class VerifiedArtifactStore:
             return ()
         for metadata_path in sorted(self.metadata_root.glob("*.json")):
             try:
-                reference = self._reference_from_dict(json.loads(metadata_path.read_text(encoding="utf-8")))
+                metadata_bytes = self._read_regular_file(metadata_path)
+                reference = self._reference_from_dict(json.loads(metadata_bytes.decode("utf-8")))
                 if metadata_path.stem != reference.artifact_id:
                     continue
                 self.verify(reference)
