@@ -1,10 +1,20 @@
 import json,tempfile,unittest
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor,ProcessPoolExecutor
 from pathlib import Path
 from src.execution_identity import ExecutionIdentity,ExecutionIdentityContext
 from src.production_audit import JsonlProductionAuditSink
 from src.production_evidence import ProductionEvidence
 from src.verified_snapshot_store import VerifiedArtifactStore
+def _process_qa_decision(args):
+ path,digest,index=args
+ sink=JsonlProductionAuditSink(path)
+ try:
+  sink.record_qa_decision(job_id="job-1",output_sha256=digest,decision="approved" if index%2==0 else "rejected",reviewer_id=f"process-reviewer-{index}")
+  return "recorded"
+ except ValueError as exc:
+  if "already recorded" in str(exc): return "rejected"
+  raise
+
 class JsonlProductionAuditSinkTests(unittest.TestCase):
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup); root=Path(self.temp.name)
@@ -47,6 +57,14 @@ class JsonlProductionAuditSinkTests(unittest.TestCase):
     raise
   with ThreadPoolExecutor(max_workers=8) as pool:
    outcomes=list(pool.map(decide,range(8)))
+  self.assertEqual(outcomes.count("recorded"),1)
+  events=self.sink.verify_chain()
+  self.assertEqual(sum(event["event_type"]=="qa_decision_recorded" for event in events),1)
+ def test_cross_process_qa_decisions_are_serialized(self):
+  self.sink.record_evidence(self.evidence)
+  args=[(str(self.path),self.evidence.output_sha256,index) for index in range(4)]
+  with ProcessPoolExecutor(max_workers=4) as pool:
+   outcomes=list(pool.map(_process_qa_decision,args))
   self.assertEqual(outcomes.count("recorded"),1)
   events=self.sink.verify_chain()
   self.assertEqual(sum(event["event_type"]=="qa_decision_recorded" for event in events),1)
