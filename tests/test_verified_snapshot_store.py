@@ -54,6 +54,18 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must not be empty"):
             self.store.put_verified(source, allowed_root=self.allowed)
 
+    def test_refuses_to_overwrite_corrupt_existing_content_address(self):
+        source = self.write_source(payload=b"immutable")
+        reference = self.store.put_verified(source, allowed_root=self.allowed, artifact_id="first")
+        blob = self.store.root / reference.storage_key
+        blob.chmod(0o644)
+        blob.write_bytes(b"corrupt")
+
+        another_source = self.write_source("another.bin", b"immutable")
+        with self.assertRaisesRegex(ValueError, "integrity verification"):
+            self.store.put_verified(another_source, allowed_root=self.allowed, artifact_id="second")
+        self.assertEqual(blob.read_bytes(), b"corrupt")
+
     def test_rejects_duplicate_artifact_identity(self):
         source = self.write_source()
         self.store.put_verified(source, allowed_root=self.allowed, artifact_id="same-id")
