@@ -27,6 +27,29 @@ def _require_key(key: bytes) -> None:
         raise ValueError("HMAC key must contain at least 32 bytes")
 
 
+def _verify_audit_events(events: list[dict]) -> bool:
+    """Verify every JSONL event hash and previous-hash link before checkpointing."""
+    if not isinstance(events, list) or not events:
+        return False
+    expected_previous = "0" * 64
+    for event in events:
+        if not isinstance(event, dict):
+            return False
+        recorded = event.get("event_hash")
+        if (not isinstance(recorded, str) or len(recorded) != 64
+                or any(char not in "0123456789abcdef" for char in recorded)):
+            return False
+        if event.get("previous_hash") != expected_previous:
+            return False
+        unhashed = {key: value for key, value in event.items() if key != "event_hash"}
+        canonical = json.dumps(unhashed, sort_keys=True, separators=(",", ":"))
+        calculated = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        if not hmac.compare_digest(recorded, calculated):
+            return False
+        expected_previous = recorded
+    return True
+
+
 @dataclass(frozen=True)
 class ReviewerPrincipal:
     subject: str
@@ -187,8 +210,8 @@ class AuditCheckpointAuthority:
 
     def create(self, events: list[dict], store: IndependentCheckpointStore,
                *, now: int | None = None) -> AuditCheckpoint:
-        if not events:
-            raise ValueError("cannot checkpoint an empty audit chain")
+        if not _verify_audit_events(events):
+            raise ValueError("cannot checkpoint an invalid or unverified audit chain")
         previous = store.latest()
         sequence = 1 if previous is None else previous.sequence + 1
         if previous is not None and len(events) <= previous.event_count:
@@ -206,7 +229,8 @@ class AuditCheckpointAuthority:
 
     def verify(self, events: list[dict], store: IndependentCheckpointStore) -> bool:
         checkpoint = store.latest()
-        if checkpoint is None or len(events) != checkpoint.event_count or not events:
+        if (checkpoint is None or len(events) != checkpoint.event_count
+                or not _verify_audit_events(events)):
             return False
         if events[-1].get("event_hash") != checkpoint.head_hash or checkpoint.key_id != self.key_id:
             return False
