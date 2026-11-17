@@ -37,7 +37,7 @@ class JsonlProductionAuditSink:
                "previous_hash":previous_hash,"payload":payload}
         canonical=json.dumps(event,sort_keys=True,separators=(",",":"))
         event["event_hash"]=hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-        with self.path.open("a",encoding="utf-8") as stream: stream.write(json.dumps(event,sort_keys=True)+"\\n")
+        with self.path.open("a",encoding="utf-8") as stream: stream.write(json.dumps(event,sort_keys=True)+"\n")
         return event
 
     def verify_chain(self) -> list[dict]:
