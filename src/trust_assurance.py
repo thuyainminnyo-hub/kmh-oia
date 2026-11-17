@@ -127,13 +127,14 @@ class ReviewerReplayStore:
 @dataclass(frozen=True)
 class AuditCheckpoint:
     sequence: int
+    event_count: int
     head_hash: str
     created_at: int
     key_id: str
     signature: str
 
     def unsigned(self) -> dict:
-        return {"sequence": self.sequence, "head_hash": self.head_hash,
+        return {"sequence": self.sequence, "event_count": self.event_count, "head_hash": self.head_hash,
                 "created_at": self.created_at, "key_id": self.key_id}
 
 
@@ -195,7 +196,7 @@ class AuditCheckpointAuthority:
         head = events[-1].get("event_hash")
         if not isinstance(head, str) or len(head) != 64:
             raise ValueError("audit chain head is invalid")
-        unsigned = {"sequence": sequence, "head_hash": head,
+        unsigned = {"sequence": sequence, "event_count": len(events), "head_hash": head,
                     "created_at": int(time.time()) if now is None else now,
                     "key_id": self.key_id}
         signature = hmac.new(self._key, _canonical(unsigned), hashlib.sha256).hexdigest()
@@ -205,7 +206,7 @@ class AuditCheckpointAuthority:
 
     def verify(self, events: list[dict], store: IndependentCheckpointStore) -> bool:
         checkpoint = store.latest()
-        if checkpoint is None or len(events) != checkpoint.sequence or not events:
+        if checkpoint is None or len(events) != checkpoint.event_count or not events:
             return False
         if events[-1].get("event_hash") != checkpoint.head_hash or checkpoint.key_id != self.key_id:
             return False
