@@ -1,6 +1,6 @@
 # P0-C — Verified Snapshot Storage
 
-Status: IMPLEMENTED ON FEATURE BRANCH; LOCAL TEST EXECUTION AND CI VALIDATION PENDING
+Status: IMPLEMENTED ON FEATURE BRANCH; exact-head GitHub CI verified on commit `424cd2a6d29fb30fbd0a725e6d84c55dc6154ac4` (594 repository tests passed; Tests and Validation workflows passed).
 
 ## Scope
 
