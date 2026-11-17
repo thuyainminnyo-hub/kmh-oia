@@ -19,6 +19,14 @@ class ProductionEvidenceTests(unittest.TestCase):
    evidence=self.build(Path(tmp)); parsed=json.loads(evidence.to_json())
    self.assertEqual(parsed["qa_decision"],"pending"); self.assertEqual(parsed["execution_id"],"exec-1")
    self.assertEqual(parsed["identity_key"],ExecutionIdentity("a","i","prod","s").key)
+ def test_rejects_directly_constructed_cross_job_manifest(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   evidence=self.build(Path(tmp)); values=dict(evidence.__dict__); values["artifact_id"]="job-another"
+   with self.assertRaisesRegex(ValueError,"artifact_id"): ProductionEvidence(**values)
+ def test_rejects_snapshot_reference_digest_mismatch(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   evidence=self.build(Path(tmp)); values=dict(evidence.__dict__); values["snapshot_reference"]="sha256/00/00/"+"0"*64
+   with self.assertRaisesRegex(ValueError,"snapshot_reference"): ProductionEvidence(**values)
  def test_invalid_digest_is_rejected(self):
   with self.assertRaisesRegex(ValueError,"SHA-256"):
    ProductionEvidence(job_id="job",adapter_name="fake",output_path="/tmp/out",output_sha256="bad",output_size_bytes=1,elapsed_ms=0,
