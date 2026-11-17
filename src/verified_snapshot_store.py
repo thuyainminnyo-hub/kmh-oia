@@ -255,7 +255,8 @@ class VerifiedArtifactStore:
             total = 0
             with os.fdopen(fd, "rb", closefd=False) as stream:
                 while True:
-                    chunk = stream.read(_CHUNK_SIZE)
+                    read_size = _CHUNK_SIZE if max_bytes is None else min(_CHUNK_SIZE, max_bytes - total + 1)
+                    chunk = stream.read(read_size)
                     if not chunk:
                         break
                     total += len(chunk)
