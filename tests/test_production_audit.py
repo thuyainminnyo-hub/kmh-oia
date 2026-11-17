@@ -1,4 +1,5 @@
 import json,tempfile,unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from src.execution_identity import ExecutionIdentity,ExecutionIdentityContext
 from src.production_audit import JsonlProductionAuditSink
@@ -35,6 +36,20 @@ class JsonlProductionAuditSinkTests(unittest.TestCase):
   self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved",reviewer_id="reviewer-1")
   with self.assertRaisesRegex(ValueError,"already recorded"):
    self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="rejected",reviewer_id="reviewer-2")
+ def test_concurrent_qa_decisions_are_serialized(self):
+  self.sink.record_evidence(self.evidence)
+  def decide(index):
+   try:
+    self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved" if index%2==0 else "rejected",reviewer_id=f"reviewer-{index}")
+    return "recorded"
+   except ValueError as exc:
+    if "already recorded" in str(exc): return "rejected"
+    raise
+  with ThreadPoolExecutor(max_workers=8) as pool:
+   outcomes=list(pool.map(decide,range(8)))
+  self.assertEqual(outcomes.count("recorded"),1)
+  events=self.sink.verify_chain()
+  self.assertEqual(sum(event["event_type"]=="qa_decision_recorded" for event in events),1)
  def test_qa_decision_rejects_without_prior_evidence(self):
   with self.assertRaisesRegex(ValueError,"prior evidence event"):
    self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved",reviewer_id="reviewer")
