@@ -119,7 +119,8 @@ class AuditCheckpointTests(unittest.TestCase):
     def test_checkpoint_round_trip_and_independent_head_verification(self):
         events = [{"event_hash": "1" * 64}, {"event_hash": "2" * 64}]
         checkpoint = self.authority.create(events, self.store, now=200)
-        self.assertEqual(checkpoint.sequence, 1)\n        self.assertEqual(checkpoint.event_count, 2)
+        self.assertEqual(checkpoint.sequence, 1)
+        self.assertEqual(checkpoint.event_count, 2)
         self.assertTrue(self.authority.verify(events, self.store))
 
     def test_rewritten_chain_head_is_detected(self):
