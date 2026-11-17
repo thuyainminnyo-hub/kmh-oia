@@ -81,7 +81,7 @@ class JsonlProductionAuditSink:
     def record_qa_decision(self, *, job_id: str, output_sha256: str,
                            decision: Literal["approved","rejected"],
                            reviewer_token: str, reviewer_authority,
-                           reviewer_replay_store) -> dict:
+                           reviewer_replay_store, required_role: str = "qa_approver") -> dict:
         """Authenticate a one-time reviewer assertion before recording a QA decision."""
         from src.trust_assurance import ReviewerReplayStore, ReviewerTokenAuthority
 
@@ -90,7 +90,7 @@ class JsonlProductionAuditSink:
         if not isinstance(reviewer_replay_store, ReviewerReplayStore):
             raise TypeError("reviewer_replay_store must be a ReviewerReplayStore")
         principal = reviewer_authority.verify(
-            reviewer_token, required_role="qa_approver",
+            reviewer_token, required_role=required_role,
             replay_store=reviewer_replay_store,
         )
         return self._record_qa_decision(
