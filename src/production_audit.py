@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 from src.production_evidence import ProductionEvidence
+from src.verified_snapshot_store import VerifiedArtifactStore, VerifiedSnapshot
 
 AuditEventType = Literal["evidence_created", "qa_decision_recorded"]
 
@@ -44,7 +45,21 @@ class JsonlProductionAuditSink:
                 finally:
                     fcntl.flock(lock_stream.fileno(), fcntl.LOCK_UN)
 
-    def record_evidence(self, evidence: ProductionEvidence) -> dict:
+    def record_evidence(self, evidence: ProductionEvidence, *, snapshot_store: VerifiedArtifactStore) -> dict:
+        if not isinstance(evidence, ProductionEvidence):
+            raise TypeError("evidence must be a ProductionEvidence")
+        if not isinstance(snapshot_store, VerifiedArtifactStore):
+            raise TypeError("snapshot_store must be a VerifiedArtifactStore")
+        reference = VerifiedSnapshot(
+            artifact_id=evidence.artifact_id,
+            sha256=evidence.output_sha256,
+            size_bytes=evidence.output_size_bytes,
+            storage_key=evidence.snapshot_reference,
+            verification_version=evidence.verification_version,
+        )
+        # Never audit a manifest merely because its fields are self-consistent:
+        # verify its metadata and blob against the trusted snapshot store first.
+        snapshot_store.verify(reference)
         fields = ("adapter_name","output_path","output_sha256","output_size_bytes","elapsed_ms",
                   "provider_execution_id","snapshot_reference","artifact_id","execution_id",
                   "command_id","identity_key","verification_version","qa_decision")
