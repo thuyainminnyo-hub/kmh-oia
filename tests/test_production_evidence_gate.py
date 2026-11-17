@@ -18,6 +18,17 @@ class ProductionEvidenceGateTests(unittest.TestCase):
   evidence=create_verified_evidence(job_id="job-1",adapter_name="fake",output_path=str(output),allowed_output_root=root,elapsed_ms=20,provider_execution_id="provider-audit",execution_context=context,snapshot_store=store,audit_sink=sink)
   events=sink.verify_chain(); self.assertEqual(len(events),1); self.assertEqual(events[0]["payload"]["snapshot_reference"],evidence.snapshot_reference)
   self.assertEqual(events[0]["payload"]["identity_key"],evidence.identity_key)
+ def test_records_absolute_lexical_path_for_relative_output(self):
+  root,output,context,store=self.setup_case()
+  evidence=create_verified_evidence(job_id="job-1",adapter_name="fake",output_path="image.bin",allowed_output_root=root,elapsed_ms=10,provider_execution_id="provider-relative",execution_context=context,snapshot_store=store)
+  self.assertEqual(evidence.output_path,str(output))
+
+ def test_does_not_resolve_source_symlink_in_recorded_path(self):
+  root,output,context,store=self.setup_case()
+  link=root/"image-link.bin"; link.symlink_to(output)
+  with self.assertRaises(ValueError):
+   create_verified_evidence(job_id="job-1",adapter_name="fake",output_path=str(link),allowed_output_root=root,elapsed_ms=10,provider_execution_id="provider-link",execution_context=context,snapshot_store=store)
+
  def test_rejects_missing_output(self):
   root,output,context,store=self.setup_case(); output.unlink()
   with self.assertRaises((ValueError,FileNotFoundError)):
