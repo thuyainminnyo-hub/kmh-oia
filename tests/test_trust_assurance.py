@@ -4,6 +4,7 @@ from pathlib import Path
 
 from src.trust_assurance import (
     AuditCheckpointAuthority,
+    record_authenticated_qa_decision,
     IndependentCheckpointStore,
     ReviewerReplayStore,
     ReviewerTokenAuthority,
@@ -71,6 +72,36 @@ class ReviewerTrustTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "issuer or audience"):
             self.authority.verify(token, required_role="qa_approver",
                                   replay_store=self.replay, now=101)
+
+
+    def test_authenticated_qa_decision_uses_verified_subject_not_caller_claim(self):
+        class Sink:
+            def record_qa_decision(self, **kwargs):
+                return kwargs
+
+        token = self.authority.issue(subject="verified-reviewer", roles=["qa_approver"], now=100)
+        result = record_authenticated_qa_decision(
+            audit_sink=Sink(), authority=self.authority, replay_store=self.replay,
+            reviewer_token=token, job_id="job-1", output_sha256="a" * 64,
+            decision="approved", now=101,
+        )
+        self.assertEqual(result["reviewer_id"], "verified-reviewer")
+
+    def test_authenticated_qa_decision_rejects_forged_reviewer_before_sink(self):
+        class Sink:
+            called = False
+            def record_qa_decision(self, **kwargs):
+                self.called = True
+                return kwargs
+
+        sink = Sink()
+        with self.assertRaisesRegex(ValueError, "invalid reviewer assertion"):
+            record_authenticated_qa_decision(
+                audit_sink=sink, authority=self.authority, replay_store=self.replay,
+                reviewer_token="forged", job_id="job-1", output_sha256="a" * 64,
+                decision="approved", now=101,
+            )
+        self.assertFalse(sink.called)
 
     def test_weak_keys_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "32 bytes"):
