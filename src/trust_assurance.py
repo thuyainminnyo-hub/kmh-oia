@@ -211,3 +211,21 @@ class AuditCheckpointAuthority:
             return False
         expected = hmac.new(self._key, _canonical(checkpoint.unsigned()), hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, checkpoint.signature)
+
+
+def record_authenticated_qa_decision(*, audit_sink, authority: ReviewerTokenAuthority,
+                                     replay_store: ReviewerReplayStore, reviewer_token: str,
+                                     job_id: str, output_sha256: str, decision: str,
+                                     required_role: str = "qa_approver",
+                                     now: int | None = None) -> dict:
+    """Authenticate and consume a reviewer assertion before appending a QA event.
+
+    The nonce is claimed before the audit append. If the append fails, issue a
+    fresh short-lived assertion rather than reusing the consumed token.
+    """
+    principal = authority.verify(reviewer_token, required_role=required_role,
+                                 replay_store=replay_store, now=now)
+    return audit_sink.record_qa_decision(
+        job_id=job_id, output_sha256=output_sha256, decision=decision,
+        reviewer_id=principal.subject,
+    )
