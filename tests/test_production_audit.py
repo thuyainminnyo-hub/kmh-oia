@@ -23,6 +23,20 @@ class JsonlProductionAuditSinkTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,"hash mismatch"): self.sink.verify_chain()
  def test_rejects_invalid_qa_decision(self):
   with self.assertRaisesRegex(ValueError,"QA decision"): self.sink.record_qa_decision(job_id="job",output_sha256="a"*64,decision="pending",reviewer_id="reviewer")
+ def test_qa_decision_binds_to_matching_evidence_event(self):
+  evidence_event=self.sink.record_evidence(self.evidence)
+  qa_event=self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved",reviewer_id="reviewer")
+  self.assertEqual(qa_event["payload"]["evidence_event_hash"],evidence_event["event_hash"])
+  self.assertEqual(qa_event["payload"]["snapshot_reference"],self.evidence.snapshot_reference)
+  self.assertEqual(qa_event["payload"]["execution_id"],self.evidence.execution_id)
+  self.assertEqual(qa_event["payload"]["identity_key"],self.evidence.identity_key)
+ def test_qa_decision_rejects_without_prior_evidence(self):
+  with self.assertRaisesRegex(ValueError,"prior evidence event"):
+   self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved",reviewer_id="reviewer")
+ def test_qa_decision_rejects_wrong_digest(self):
+  self.sink.record_evidence(self.evidence)
+  with self.assertRaisesRegex(ValueError,"prior evidence event"):
+   self.sink.record_qa_decision(job_id="job-1",output_sha256="0"*64,decision="approved",reviewer_id="reviewer")
  def test_rejects_blank_reviewer(self):
   with self.assertRaisesRegex(ValueError,"reviewer_id"): self.sink.record_qa_decision(job_id="job",output_sha256="a"*64,decision="approved",reviewer_id=" ")
 if __name__=="__main__": unittest.main()
