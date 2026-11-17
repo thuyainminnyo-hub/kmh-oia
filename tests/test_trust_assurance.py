@@ -137,11 +137,17 @@ class AuditCheckpointTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "empty"):
             self.authority.create([], self.store, now=200)
 
-    def test_checkpoint_sequence_must_advance_by_one_event(self):
-        self.authority.create([{"event_hash": "1" * 64}], self.store, now=200)
-        with self.assertRaisesRegex(ValueError, "sequence"):
-            self.authority.create([{"event_hash": "1" * 64}, {"event_hash": "2" * 64},
-                                   {"event_hash": "3" * 64}], self.store, now=201)
+    def test_checkpoint_sequence_advances_when_audit_event_count_advances(self):
+        first = self.authority.create([{"event_hash": "1" * 64}], self.store, now=200)
+        second = self.authority.create([{"event_hash": "2" * 64}, {"event_hash": "3" * 64}], self.store, now=201)
+        self.assertEqual((first.sequence, first.event_count), (1, 1))
+        self.assertEqual((second.sequence, second.event_count), (2, 2))
+
+    def test_checkpoint_rejects_no_new_audit_events(self):
+        events = [{"event_hash": "1" * 64}]
+        self.authority.create(events, self.store, now=200)
+        with self.assertRaisesRegex(ValueError, "event count"):
+            self.authority.create(events, self.store, now=201)
 
     def test_missing_checkpoint_fails_closed(self):
         self.assertFalse(self.authority.verify([{"event_hash": "1" * 64}], self.store))
