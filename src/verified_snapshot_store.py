@@ -20,7 +20,6 @@ import tempfile
 import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import BinaryIO
 
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -77,21 +76,6 @@ class VerifiedArtifactStore:
         finally:
             os.close(fd)
 
-    @staticmethod
-    def _copy_and_hash(source: BinaryIO, destination: BinaryIO) -> tuple[str, int]:
-        digest = hashlib.sha256()
-        size = 0
-        while True:
-            chunk = source.read(_CHUNK_SIZE)
-            if not chunk:
-                break
-            destination.write(chunk)
-            digest.update(chunk)
-            size += len(chunk)
-        if size <= 0:
-            raise ValueError("artifact must not be empty")
-        return digest.hexdigest(), size
-
     def _blob_path(self, digest: str) -> Path:
         if not isinstance(digest, str) or not _SHA256_RE.fullmatch(digest):
             raise ValueError("invalid snapshot digest")
@@ -112,7 +96,7 @@ class VerifiedArtifactStore:
                 storage_key=data["storage_key"],
                 verification_version=data["verification_version"],
             )
-        except (KeyError, TypeError) as exc:
+        except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid snapshot metadata") from exc
 
     def put_verified(
