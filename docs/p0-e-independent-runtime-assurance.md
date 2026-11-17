@@ -9,7 +9,7 @@ This branch adds a small, testable trust foundation:
 1. Short-lived reviewer assertions authenticated with HMAC-SHA256.
 2. Issuer, audience, key ID, expiry, future-issued, role and signature checks.
 3. Durable single-host SQLite nonce claims to reject assertion replay.
-4. An authenticated QA helper that derives reviewer_id from the verified assertion rather than a caller-supplied identity string.
+4. The production JSONL audit sink now requires a verified, one-time reviewer assertion for public QA-decision recording; the recorded reviewer_id is derived from the authenticated subject.
 5. HMAC-authenticated audit checkpoints retained in a separate SQLite trust ledger.
 6. Checkpoint creation and verification recompute every JSONL event hash and previous-hash link before accepting the independently retained sequence, event count and chain head.
 7. Health checks for the reviewer replay and checkpoint stores.
@@ -24,7 +24,7 @@ This branch adds a small, testable trust foundation:
 - Checkpoint creation and verification validate the full event hash chain themselves. A checkpoint anchors the chain head and event count; it does not authenticate the source runtime or prove visual quality.
 - Reviewer assertions are an application-level authentication mechanism. They do not establish a human's identity unless the assertion issuer itself is securely authenticated and governed.
 - The authenticated QA helper consumes a nonce before writing the QA event. If the append fails, issue a new assertion; do not reuse the consumed token.
-- No existing production route has been silently changed to require this new authentication helper. Integration into deployment identity, real reviewer login and production QA workflow remains a separate rollout.
+- The local production JSONL QA audit boundary now enforces the assertion contract. The upstream application/login route that issues reviewer assertions is not integrated; until a trusted issuer is connected, the pilot assertion issuer must remain an explicitly controlled service, not a user-facing identity system.
 - No live ComfyUI execution, external identity-provider integration, asymmetric signing, independent remote/WORM retention, or production readiness is claimed.
 
 ## Required deployment controls before production
