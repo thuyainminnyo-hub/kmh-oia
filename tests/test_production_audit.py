@@ -30,6 +30,11 @@ class JsonlProductionAuditSinkTests(unittest.TestCase):
   self.assertEqual(qa_event["payload"]["snapshot_reference"],self.evidence.snapshot_reference)
   self.assertEqual(qa_event["payload"]["execution_id"],self.evidence.execution_id)
   self.assertEqual(qa_event["payload"]["identity_key"],self.evidence.identity_key)
+ def test_rejects_second_conflicting_qa_decision_for_same_evidence(self):
+  self.sink.record_evidence(self.evidence)
+  self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved",reviewer_id="reviewer-1")
+  with self.assertRaisesRegex(ValueError,"already recorded"):
+   self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="rejected",reviewer_id="reviewer-2")
  def test_qa_decision_rejects_without_prior_evidence(self):
   with self.assertRaisesRegex(ValueError,"prior evidence event"):
    self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved",reviewer_id="reviewer")
