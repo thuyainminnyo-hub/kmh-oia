@@ -42,6 +42,7 @@ class ProductionEvidence:
     def from_snapshot(cls, *, job_id: str, adapter_name: str, output_path: str, snapshot: VerifiedSnapshot,
                       elapsed_ms: int, provider_execution_id: str | None, context: ExecutionIdentityContext) -> "ProductionEvidence":
         if not isinstance(snapshot, VerifiedSnapshot): raise TypeError("snapshot must be a VerifiedSnapshot")
+        if snapshot.artifact_id != f"job-{job_id}": raise ValueError("snapshot artifact_id does not match evidence job_id")
         if not isinstance(context, ExecutionIdentityContext): raise TypeError("context must be an ExecutionIdentityContext")
         return cls(job_id, adapter_name, output_path, snapshot.sha256, snapshot.size_bytes, elapsed_ms,
                    provider_execution_id, snapshot.storage_key, snapshot.artifact_id, context.execution_id,
