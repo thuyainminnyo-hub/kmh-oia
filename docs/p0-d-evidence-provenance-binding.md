@@ -13,6 +13,8 @@ This is a stacked feature branch based on `feature/p0-c-verified-snapshot-storag
 - Snapshot ingestion uses P0-C VerifiedArtifactStore. The evidence manifest records snapshot storage key, artifact ID, digest, size, verification version, execution ID, command ID, and canonical identity key.
 - Artifact ID is deterministically bound to the job ID (`job-<job_id>`); the manifest constructor rejects a snapshot reference belonging to a different job.
 - Audit events include the complete provenance binding and remain hash chained.
+- QA decisions require a prior evidence event matching both job ID and digest; the QA event links to the evidence event hash, snapshot reference, execution ID, and identity key. A second/conflicting QA decision for the same evidence event is rejected.
+- Evidence manifests themselves remain `pending`; QA decisions are separate append-only audit events, not mutable evidence-manifest status. Evidence integrity is not semantic quality approval.
 - QA remains `pending`; evidence integrity is not a semantic quality approval.
 
 ## Failure behavior
