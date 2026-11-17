@@ -9,7 +9,7 @@ class JsonlProductionAuditSinkTests(unittest.TestCase):
   self.temp=tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup); root=Path(self.temp.name)
   out=root/"out"; out.mkdir(); file=out/"image.png"; file.write_bytes(b"image fixture")
   store=VerifiedArtifactStore(root/"store"); snap=store.put_verified(file,allowed_root=out,artifact_id="job-job-1")
-  ctx=ExecutionIdentityContext(ExecutionIdentity("a","i","prod","s"),"cmd","exec")
+  ctx=ExecutionIdentityContext(ExecutionIdentity("a","i","prod","s"),"cmd","exec","job-1")
   self.path=root/"audit.jsonl"; self.sink=JsonlProductionAuditSink(self.path)
   self.evidence=ProductionEvidence.from_snapshot(job_id="job-1",adapter_name="fake",output_path=str(file),snapshot=snap,elapsed_ms=10,provider_execution_id="prompt-1",context=ctx)
  def test_records_evidence_and_qa_decision_in_hash_chain(self):
