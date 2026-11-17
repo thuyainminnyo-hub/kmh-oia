@@ -40,19 +40,19 @@ class JsonlProductionAuditSinkTests(unittest.TestCase):
  def test_rejects_invalid_qa_decision(self):
   with self.assertRaisesRegex(ValueError,"QA decision"): self.sink.record_qa_decision(job_id="job",output_sha256="a"*64,decision="pending",reviewer_id="reviewer")
  def test_qa_decision_binds_to_matching_evidence_event(self):
-  evidence_event=self.sink.record_evidence(self.evidence)
+  evidence_event=self.sink.record_evidence(self.evidence,snapshot_store=self.store)
   qa_event=self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved",reviewer_id="reviewer")
   self.assertEqual(qa_event["payload"]["evidence_event_hash"],evidence_event["event_hash"])
   self.assertEqual(qa_event["payload"]["snapshot_reference"],self.evidence.snapshot_reference)
   self.assertEqual(qa_event["payload"]["execution_id"],self.evidence.execution_id)
   self.assertEqual(qa_event["payload"]["identity_key"],self.evidence.identity_key)
  def test_rejects_second_conflicting_qa_decision_for_same_evidence(self):
-  self.sink.record_evidence(self.evidence)
+  self.sink.record_evidence(self.evidence,snapshot_store=self.store)
   self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved",reviewer_id="reviewer-1")
   with self.assertRaisesRegex(ValueError,"already recorded"):
    self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="rejected",reviewer_id="reviewer-2")
  def test_concurrent_qa_decisions_are_serialized(self):
-  self.sink.record_evidence(self.evidence)
+  self.sink.record_evidence(self.evidence,snapshot_store=self.store)
   def decide(index):
    try:
     self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved" if index%2==0 else "rejected",reviewer_id=f"reviewer-{index}")
@@ -66,7 +66,7 @@ class JsonlProductionAuditSinkTests(unittest.TestCase):
   events=self.sink.verify_chain()
   self.assertEqual(sum(event["event_type"]=="qa_decision_recorded" for event in events),1)
  def test_cross_process_qa_decisions_are_serialized(self):
-  self.sink.record_evidence(self.evidence)
+  self.sink.record_evidence(self.evidence,snapshot_store=self.store)
   args=[(str(self.path),self.evidence.output_sha256,index) for index in range(4)]
   with ProcessPoolExecutor(max_workers=4) as pool:
    outcomes=list(pool.map(_process_qa_decision,args))
@@ -77,7 +77,7 @@ class JsonlProductionAuditSinkTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,"prior evidence event"):
    self.sink.record_qa_decision(job_id="job-1",output_sha256=self.evidence.output_sha256,decision="approved",reviewer_id="reviewer")
  def test_qa_decision_rejects_wrong_digest(self):
-  self.sink.record_evidence(self.evidence)
+  self.sink.record_evidence(self.evidence,snapshot_store=self.store)
   with self.assertRaisesRegex(ValueError,"prior evidence event"):
    self.sink.record_qa_decision(job_id="job-1",output_sha256="0"*64,decision="approved",reviewer_id="reviewer")
  def test_rejects_blank_reviewer(self):
