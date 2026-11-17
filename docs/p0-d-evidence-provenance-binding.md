@@ -8,7 +8,7 @@ This is a stacked feature branch based on `feature/p0-c-verified-snapshot-storag
 
 ## Provenance contract
 - Execution identity is canonical JSON with sorted keys, SHA-256 keyed; delimiter collisions are avoided.
-- ProductionJob may carry an ExecutionIdentityContext (identity, command ID, execution ID). Evidence creation fails closed if it is absent.
+- ProductionJob carries an ExecutionIdentityContext (identity, command ID, execution ID, originating job ID). The job validates that the context job ID matches its own ID; evidence creation rejects missing or cross-job contexts.
 - Provider attribution comes only from AdapterResult / ProductionJob. A legacy caller-supplied provider ID is accepted only when exactly equal to the adapter-reported value; it cannot fill or override attribution.
 - Snapshot ingestion uses P0-C VerifiedArtifactStore. The evidence manifest records snapshot storage key, artifact ID, digest, size, verification version, execution ID, command ID, and canonical identity key.
 - Artifact ID is deterministically bound to the job ID (`job-<job_id>`); the manifest constructor rejects a snapshot reference belonging to a different job.
