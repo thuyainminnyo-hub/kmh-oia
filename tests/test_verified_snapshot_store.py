@@ -83,6 +83,37 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "integrity verification"):
             self.store.get_verified(reference)
 
+    def test_rejects_symlinked_blob(self):
+        source = self.write_source(payload=b"original")
+        reference = self.store.put_verified(source, allowed_root=self.allowed)
+        blob = self.store.root / reference.storage_key
+        blob.unlink()
+        outside = self.base / "outside-blob.bin"
+        outside.write_bytes(b"original")
+        blob.symlink_to(outside)
+        with self.assertRaisesRegex(ValueError, "symlink|safely open"):
+            self.store.verify(reference)
+
+    def test_rejects_symlinked_metadata(self):
+        source = self.write_source(payload=b"original")
+        reference = self.store.put_verified(source, allowed_root=self.allowed, artifact_id="symlink-meta")
+        metadata = self.store.metadata_root / "symlink-meta.json"
+        metadata.unlink()
+        outside = self.base / "outside-meta.json"
+        outside.write_text(
+            __import__("json").dumps({
+                "artifact_id": reference.artifact_id,
+                "sha256": reference.sha256,
+                "size_bytes": reference.size_bytes,
+                "storage_key": reference.storage_key,
+                "verification_version": reference.verification_version,
+            }),
+            encoding="utf-8",
+        )
+        metadata.symlink_to(outside)
+        with self.assertRaisesRegex(ValueError, "symlink|safely open"):
+            self.store.verify(reference)
+
     def test_rejects_metadata_substitution(self):
         source = self.write_source()
         reference = self.store.put_verified(source, allowed_root=self.allowed, artifact_id="asset-meta")
