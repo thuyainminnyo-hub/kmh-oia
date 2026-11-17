@@ -12,7 +12,9 @@ separate from byte identity (`sha256`).
 
 1. Resolve the source and enforce containment under the caller-supplied allowed root.
 2. Open the resolved regular file and read it once.
-3. Hash and copy the same byte stream into a staging file.
+3. Hash and copy the same byte stream into a staging file; compare descriptor identity,
+   size, and nanosecond timestamps before and after ingestion to reject observed
+   concurrent source mutation.
 4. Flush and fsync the staged file.
 5. Publish the digest-addressed blob with an atomic hard link that does not
    overwrite an existing blob. If the digest already exists, re-read and verify it.
