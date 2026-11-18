@@ -96,6 +96,7 @@ class ImageIntegrityTests(unittest.TestCase):
         self.assertEqual(result.detected_format, "PNG")
         self.assertEqual(result.size_bytes, len(raw))
         self.assertEqual(result.sha256, hashlib.sha256(raw).hexdigest())
+        self.assertEqual(result.verified_bytes, raw)
 
     def test_corrupt_chunk_crc_fails(self):
         raw = bytearray(make_png())

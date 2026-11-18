@@ -24,18 +24,22 @@ class JsonlProductionAuditSink:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def record_evidence(self, evidence: ProductionEvidence) -> dict:
+        payload = {
+            "adapter_name": evidence.adapter_name,
+            "output_path": evidence.output_path,
+            "output_sha256": evidence.output_sha256,
+            "output_size_bytes": evidence.output_size_bytes,
+            "elapsed_ms": evidence.elapsed_ms,
+            "provider_execution_id": evidence.provider_execution_id,
+            "qa_decision": evidence.qa_decision,
+        }
+        if evidence.snapshot_reference is not None:
+            payload["snapshot_reference"] = evidence.snapshot_reference
+            payload["verification_version"] = evidence.verification_version
         return self._append(
             event_type="evidence_created",
             job_id=evidence.job_id,
-            payload={
-                "adapter_name": evidence.adapter_name,
-                "output_path": evidence.output_path,
-                "output_sha256": evidence.output_sha256,
-                "output_size_bytes": evidence.output_size_bytes,
-                "elapsed_ms": evidence.elapsed_ms,
-                "provider_execution_id": evidence.provider_execution_id,
-                "qa_decision": evidence.qa_decision,
-            },
+            payload=payload,
         )
 
     def record_qa_decision(
