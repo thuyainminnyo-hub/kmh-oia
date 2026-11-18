@@ -48,13 +48,7 @@ class VerifiedArtifactStore:
             raise ValueError("snapshot root must be a non-empty path")
         self.root = Path(root).expanduser().absolute()
         self._require_secure_primitives()
-        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
-        info = os.lstat(self.root)
-        if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode):
-            raise RuntimeError("snapshot root must be a real directory, not a symlink")
-        if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077:
-            raise RuntimeError("snapshot root must be owned by the service UID and private (mode 0700)")
-        self._root_fd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        self._root_fd = self._open_trusted_root(self.root)
         self._verify_directory_fd(self._root_fd, "snapshot root")
         self.blob_root = self.root / "sha256"
         self.metadata_root = self.root / "artifacts"
@@ -70,6 +64,33 @@ class VerifiedArtifactStore:
         supported = getattr(os, "supports_dir_fd", set())
         if any(op not in supported for op in (os.open, os.link, os.unlink, os.stat)):
             raise RuntimeError("required descriptor-relative filesystem operations are unavailable")
+
+    @staticmethod
+    def _open_trusted_root(root: Path) -> int:
+        """Open/create every absolute root component without following symlinks."""
+        if not root.is_absolute():
+            raise ValueError("snapshot root must be absolute")
+        current = os.open(os.sep, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+        try:
+            for component in root.parts[1:]:
+                if component in {"", ".", ".."}:
+                    raise ValueError("snapshot root contains an unsafe path component")
+                try:
+                    os.mkdir(component, 0o700, dir_fd=current)
+                    os.fsync(current)
+                except FileExistsError:
+                    pass
+                nxt = os.open(
+                    component,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                    dir_fd=current,
+                )
+                os.close(current)
+                current = nxt
+            return current
+        except Exception:
+            os.close(current)
+            raise
 
     @staticmethod
     def _verify_directory_fd(fd: int, label: str) -> None:
@@ -104,6 +125,8 @@ class VerifiedArtifactStore:
                 if create:
                     try:
                         os.mkdir(part, 0o700, dir_fd=current)
+                        # Persist the new directory entry in its containing directory.
+                        os.fsync(current)
                     except FileExistsError:
                         pass
                 nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=current)
@@ -193,8 +216,9 @@ class VerifiedArtifactStore:
             fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=parent)
             temp_created = True
             self._write_all(fd, payload)
-            os.fsync(fd)
             os.fchmod(fd, 0o444)
+            # Sync after the mode change so data and inode metadata are durable.
+            os.fsync(fd)
             temp_info = os.fstat(fd)
             if not stat.S_ISREG(temp_info.st_mode) or temp_info.st_size != len(payload):
                 raise ValueError("temporary snapshot identity or size verification failed")
