@@ -1,0 +1,2 @@
+# Keep the web runtime explicit and reproducible for Vercel.
+fastapi==0.163.2
