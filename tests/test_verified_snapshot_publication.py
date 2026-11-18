@@ -63,7 +63,7 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
             finally:
                 os.close(parent)
             with self.assertRaisesRegex(ValueError, "byte-for-byte"):
-                store._publish_file(("artifacts",), "item.json", b"replacement", max_bytes=100)
+                store._publish_file(("artifacts",), "item.json", b"original!", max_bytes=100)
             self.assertEqual((store.metadata_root / "item.json").read_bytes(), b"original")
 
     def test_pub_04_concurrent_same_digest_writers_are_idempotent(self):

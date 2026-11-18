@@ -144,8 +144,11 @@ class VerifiedArtifactStore:
                 raise ValueError("snapshot file exceeds size limit")
             chunks.append(block)
         after = os.fstat(fd)
-        before_id = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
-        after_id = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+        # ctime is deliberately excluded: creating/removing a hard link changes
+        # inode metadata without changing the file's bytes. Concurrent idempotent
+        # publishers must not make a stable blob look like a content mutation.
+        before_id = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+        after_id = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
         if before_id != after_id:
             raise ValueError("snapshot file changed while being read")
         if expected_size is not None and total != expected_size:
