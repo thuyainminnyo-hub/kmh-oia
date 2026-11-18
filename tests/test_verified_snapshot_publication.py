@@ -171,5 +171,75 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
             self.assertFalse((store.metadata_root / "crash-job.json").exists())
 
 
+
+    def test_pub_11_mode_change_is_synced_before_publication(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "store")
+            real_fchmod = os.fchmod
+            real_fsync = os.fsync
+            events = []
+
+            def record_fchmod(fd, mode):
+                events.append(("fchmod", mode))
+                return real_fchmod(fd, mode)
+
+            def record_fsync(fd):
+                events.append(("fsync", os.fstat(fd).st_mode))
+                return real_fsync(fd)
+
+            with patch("src.verified_snapshot_store.os.fchmod", side_effect=record_fchmod), \
+                 patch("src.verified_snapshot_store.os.fsync", side_effect=record_fsync):
+                store._publish_file(("artifacts",), "durable.json", b"durable",
+                                    max_bytes=100)
+
+            fchmod_index = next(i for i, event in enumerate(events) if event[0] == "fchmod")
+            file_fsync_index = next(
+                i for i, event in enumerate(events)
+                if event[0] == "fsync" and stat.S_ISREG(event[1])
+            )
+            self.assertLess(fchmod_index, file_fsync_index)
+
+    def test_pub_12_new_nested_directory_syncs_its_parent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "store")
+            real_mkdir = os.mkdir
+            real_fsync = os.fsync
+            events = []
+
+            def record_mkdir(path, mode=0o777, *, dir_fd=None):
+                result = real_mkdir(path, mode, dir_fd=dir_fd)
+                events.append(("mkdir", path))
+                return result
+
+            def record_fsync(fd):
+                result = real_fsync(fd)
+                events.append(("fsync", os.fstat(fd).st_ino))
+                return result
+
+            with patch("src.verified_snapshot_store.os.mkdir", side_effect=record_mkdir), \
+                 patch("src.verified_snapshot_store.os.fsync", side_effect=record_fsync):
+                nested_fd = store._open_directory(("sha256", "ab", "cd"), create=True)
+                os.close(nested_fd)
+
+            self.assertGreaterEqual(len(events), 4)
+            self.assertEqual([event[0] for event in events[:4]], ["mkdir", "fsync", "mkdir", "fsync"])
+
+    def test_pub_13_root_path_rejects_symlinked_ancestor(self):
+        if not hasattr(os, "symlink"):
+            self.skipTest("symlinks unavailable")
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            real_parent = base / "real-parent"
+            real_parent.mkdir(mode=0o700)
+            symlink_parent = base / "linked-parent"
+            try:
+                symlink_parent.symlink_to(real_parent, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest("symlink creation unavailable")
+            unsafe_root = symlink_parent / "store"
+            with self.assertRaises((OSError, RuntimeError)):
+                VerifiedArtifactStore(unsafe_root)
+
+
 if __name__ == "__main__":
     unittest.main()
