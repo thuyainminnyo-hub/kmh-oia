@@ -1,7 +1,7 @@
 """Evidence manifest for completed local-AI production jobs.
 
-The manifest records file integrity and execution metadata; it does not assess
-visual quality, policy compliance, or whether the asset satisfies its brief.
+A snapshot reference, when present, binds evidence to immutable bytes admitted
+from the upstream verifier. It does not assess visual quality or policy.
 """
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Literal
 import json
 
+from src.verified_snapshot_store import VerifiedSnapshot
 
 QADecision = Literal["pending", "approved", "rejected"]
 
@@ -25,6 +26,8 @@ class ProductionEvidence:
     elapsed_ms: int
     provider_execution_id: str | None
     qa_decision: QADecision = "pending"
+    snapshot_reference: str | None = None
+    verification_version: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("job_id", "adapter_name", "output_path", "output_sha256"):
@@ -45,6 +48,40 @@ class ProductionEvidence:
             raise ValueError("provider_execution_id must be None or a non-empty string")
         if self.qa_decision not in {"pending", "approved", "rejected"}:
             raise ValueError("qa_decision must be pending, approved, or rejected")
+        if (self.snapshot_reference is None) != (self.verification_version is None):
+            raise ValueError("snapshot_reference and verification_version must be set together")
+        if self.snapshot_reference is not None and (
+            not self.snapshot_reference.startswith("sha256/")
+            or not isinstance(self.verification_version, str)
+            or not self.verification_version.strip()
+        ):
+            raise ValueError("invalid verified snapshot reference/version")
+
+    @classmethod
+    def from_snapshot(
+        cls,
+        *,
+        job_id: str,
+        adapter_name: str,
+        output_path: str | Path,
+        snapshot: VerifiedSnapshot,
+        elapsed_ms: int,
+        provider_execution_id: str | None = None,
+    ) -> "ProductionEvidence":
+        if not isinstance(snapshot, VerifiedSnapshot):
+            raise TypeError("snapshot must be a VerifiedSnapshot")
+        return cls(
+            job_id=job_id,
+            adapter_name=adapter_name,
+            output_path=str(output_path),
+            output_sha256=snapshot.sha256,
+            output_size_bytes=snapshot.size_bytes,
+            elapsed_ms=elapsed_ms,
+            provider_execution_id=provider_execution_id,
+            qa_decision="pending",
+            snapshot_reference=snapshot.storage_key,
+            verification_version=snapshot.verification_version,
+        )
 
     @classmethod
     def from_output(
