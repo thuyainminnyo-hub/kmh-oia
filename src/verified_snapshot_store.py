@@ -153,9 +153,10 @@ class VerifiedArtifactStore:
         return b"".join(chunks)
 
     def _read_file(self, dirs: tuple[str, ...], name: str, *, max_bytes: int, expected_size: int | None = None) -> bytes:
-        parent = self._open_directory(dirs)
         fd = -1
+        parent = -1
         try:
+            parent = self._open_directory(dirs)
             fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=parent)
             return self._read_fd(fd, max_bytes=max_bytes, expected_size=expected_size)
         except OSError as exc:
@@ -163,7 +164,8 @@ class VerifiedArtifactStore:
         finally:
             if fd >= 0:
                 os.close(fd)
-            os.close(parent)
+            if parent >= 0:
+                os.close(parent)
 
     def _publish_file(self, dirs: tuple[str, ...], name: str, payload: bytes, *, max_bytes: int, expected_digest: str | None = None) -> bool:
         """Create an immutable name atomically; never replace an existing entry."""
