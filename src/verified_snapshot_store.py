@@ -167,6 +167,17 @@ class VerifiedArtifactStore:
             if parent >= 0:
                 os.close(parent)
 
+    def _read_no_follow(self, path: Path, *, expected_size: int | None = None, max_bytes: int) -> bytes:
+        """Compatibility wrapper retaining the bounded no-follow reader API."""
+        try:
+            relative = Path(path).relative_to(self.root)
+        except ValueError as exc:
+            raise ValueError("snapshot path must remain beneath the trusted root") from exc
+        if not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
+            raise ValueError("snapshot path must be a safe relative file path")
+        return self._read_file(tuple(relative.parts[:-1]), relative.parts[-1],
+                               max_bytes=max_bytes, expected_size=expected_size)
+
     def _publish_file(self, dirs: tuple[str, ...], name: str, payload: bytes, *, max_bytes: int, expected_digest: str | None = None) -> bool:
         """Create an immutable name atomically; never replace an existing entry."""
         if len(payload) > max_bytes:
