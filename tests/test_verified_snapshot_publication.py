@@ -1,5 +1,6 @@
 import hashlib
 import os
+import stat
 import tempfile
 import threading
 import unittest
@@ -240,6 +241,21 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
             with self.assertRaises((OSError, RuntimeError)):
                 VerifiedArtifactStore(unsafe_root)
 
+
+    def test_pub_14_compatibility_reader_rejects_invalid_bounds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "store")
+            target = store.metadata_root / "read.json"
+            self.assertTrue(store._publish_file(("artifacts",), "read.json",
+                                                b"bounded", max_bytes=100))
+            with self.assertRaisesRegex(ValueError, "max_bytes"):
+                store._read_no_follow(target, max_bytes=True)
+            with self.assertRaisesRegex(ValueError, "expected_size"):
+                store._read_no_follow(target, expected_size=True, max_bytes=100)
+            with self.assertRaisesRegex(ValueError, "expected_size"):
+                store._read_no_follow(target, expected_size=0, max_bytes=100)
+            with self.assertRaisesRegex(ValueError, "read limit"):
+                store._read_no_follow(target, expected_size=101, max_bytes=100)
 
 if __name__ == "__main__":
     unittest.main()

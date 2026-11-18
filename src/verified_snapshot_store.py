@@ -62,7 +62,7 @@ class VerifiedArtifactStore:
         if os.name != "posix" or any(not hasattr(os, flag) for flag in ("O_NOFOLLOW", "O_DIRECTORY", "O_CLOEXEC")):
             raise RuntimeError("secure snapshot publication is unsupported on this platform")
         supported = getattr(os, "supports_dir_fd", set())
-        if any(op not in supported for op in (os.open, os.link, os.unlink, os.stat)):
+        if any(op not in supported for op in (os.open, os.mkdir, os.link, os.unlink, os.stat)):
             raise RuntimeError("required descriptor-relative filesystem operations are unavailable")
 
     @staticmethod
@@ -199,6 +199,13 @@ class VerifiedArtifactStore:
             relative = Path(path).relative_to(self.root)
         except ValueError as exc:
             raise ValueError("snapshot path must remain beneath the trusted root") from exc
+        if not isinstance(max_bytes, int) or isinstance(max_bytes, bool) or max_bytes <= 0:
+            raise ValueError("max_bytes must be a positive integer")
+        if expected_size is not None:
+            if not isinstance(expected_size, int) or isinstance(expected_size, bool) or expected_size <= 0:
+                raise ValueError("expected_size must be a positive integer")
+            if expected_size > max_bytes:
+                raise ValueError("expected snapshot size exceeds read limit")
         if not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
             raise ValueError("snapshot path must be a safe relative file path")
         return self._read_file(tuple(relative.parts[:-1]), relative.parts[-1],
