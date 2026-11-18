@@ -19,6 +19,7 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ARTIFACT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _VERIFICATION_VERSION = "verified-bytes-v1"
 _MAX_METADATA_BYTES = 16 * 1024
+_MAX_SNAPSHOT_BYTES = 32 * 1024 * 1024  # Match src.image_integrity._MAX_FILE_BYTES.
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,8 @@ class VerifiedSnapshot:
             raise ValueError("sha256 must be a lowercase SHA-256 digest")
         if isinstance(self.size_bytes, bool) or not isinstance(self.size_bytes, int) or self.size_bytes <= 0:
             raise ValueError("size_bytes must be a positive integer")
+        if self.size_bytes > _MAX_SNAPSHOT_BYTES:
+            raise ValueError("snapshot size exceeds policy limit")
         expected = f"sha256/{self.sha256[:2]}/{self.sha256[2:4]}/{self.sha256}"
         if self.storage_key != expected:
             raise ValueError("storage_key does not match sha256")
@@ -75,46 +78,110 @@ class VerifiedArtifactStore:
         finally:
             os.close(fd)
 
-    def _read_no_follow(self, path: Path, *, max_bytes: int | None = None) -> bytes:
-        """Read a regular store file via descriptor-relative O_NOFOLLOW opens."""
+    def _read_no_follow(
+        self,
+        path: Path,
+        *,
+        expected_size: int | None = None,
+        max_bytes: int,
+    ) -> bytes:
+        """Read a regular store file with bounded, descriptor-relative no-follow access.
+
+        The root directory is opened component-by-component from the filesystem
+        root. Every descendant is then opened relative to a trusted directory
+        descriptor, so symlinks in intermediate components are rejected too.
+        """
+        if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
+            raise ValueError("max_bytes must be a positive integer")
+        if expected_size is not None:
+            if isinstance(expected_size, bool) or not isinstance(expected_size, int) or expected_size <= 0:
+                raise ValueError("expected_size must be a positive integer")
+            if expected_size > max_bytes:
+                raise ValueError("expected snapshot size exceeds read limit")
+
         relative = path.relative_to(self.root)
-        if not relative.parts:
-            raise ValueError("snapshot path must identify a file")
+        if not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
+            raise ValueError("snapshot path must be a safe relative file path")
+
         nofollow = getattr(os, "O_NOFOLLOW", 0)
         directory = getattr(os, "O_DIRECTORY", 0)
-        if not nofollow or not directory or os.open not in getattr(os, "supports_dir_fd", set()):
+        nonblock = getattr(os, "O_NONBLOCK", 0)
+        if (
+            not nofollow
+            or not directory
+            or os.open not in getattr(os, "supports_dir_fd", set())
+        ):
             raise RuntimeError("secure snapshot reads are unsupported on this platform")
-        root_fd = os.open(self.root, os.O_RDONLY | directory | nofollow)
+
+        root_fd = -1
         parent_fds: list[int] = []
         fd = -1
         try:
+            # Resolve the trusted root without following any path component.
+            root_fd = os.open(os.sep, os.O_RDONLY | directory | nofollow)
+            for component in self.root.parts[1:]:
+                next_fd = os.open(
+                    component, os.O_RDONLY | directory | nofollow, dir_fd=root_fd
+                )
+                os.close(root_fd)
+                root_fd = next_fd
+
             parent_fd = root_fd
             for component in relative.parts[:-1]:
-                parent_fd = os.open(component, os.O_RDONLY | directory | nofollow, dir_fd=parent_fd)
+                parent_fd = os.open(
+                    component, os.O_RDONLY | directory | nofollow, dir_fd=parent_fd
+                )
                 parent_fds.append(parent_fd)
-            fd = os.open(relative.parts[-1], os.O_RDONLY | nofollow, dir_fd=parent_fd)
-            info = os.fstat(fd)
-            if not stat.S_ISREG(info.st_mode):
+
+            fd = os.open(
+                relative.parts[-1], os.O_RDONLY | nofollow | nonblock, dir_fd=parent_fd
+            )
+            before = os.fstat(fd)
+            if not stat.S_ISREG(before.st_mode):
                 raise ValueError("snapshot entry is not a regular file")
+            if before.st_size < 0 or before.st_size > max_bytes:
+                raise ValueError("snapshot file exceeds size limit")
+            if expected_size is not None and before.st_size != expected_size:
+                raise ValueError("snapshot size mismatch")
+
             chunks: list[bytes] = []
             total = 0
             while True:
-                block = os.read(fd, 1024 * 1024 if max_bytes is None else min(1024 * 1024, max_bytes - total + 1))
+                # Read at most one byte beyond the policy ceiling to detect growth.
+                request_size = min(1024 * 1024, max_bytes - total + 1)
+                block = os.read(fd, request_size)
                 if not block:
                     break
                 total += len(block)
-                if max_bytes is not None and total > max_bytes:
-                    raise ValueError("snapshot metadata exceeds size limit")
+                if total > max_bytes:
+                    raise ValueError("snapshot file exceeds size limit")
                 chunks.append(block)
+
+            after = os.fstat(fd)
+            identity_before = (
+                before.st_dev, before.st_ino, before.st_size,
+                before.st_mtime_ns, before.st_ctime_ns,
+            )
+            identity_after = (
+                after.st_dev, after.st_ino, after.st_size,
+                after.st_mtime_ns, after.st_ctime_ns,
+            )
+            if identity_before != identity_after:
+                raise ValueError("snapshot file changed while being read")
+            if expected_size is not None and total != expected_size:
+                raise ValueError("snapshot size mismatch")
             return b"".join(chunks)
         except OSError as exc:
-            raise ValueError("unable to safely open snapshot path; symlink or missing component") from exc
+            raise ValueError(
+                "unable to safely open snapshot path; symlink or missing component"
+            ) from exc
         finally:
             if fd >= 0:
                 os.close(fd)
             for parent_fd in reversed(parent_fds):
                 os.close(parent_fd)
-            os.close(root_fd)
+            if root_fd >= 0:
+                os.close(root_fd)
 
     def put_bytes(
         self,
@@ -131,6 +198,8 @@ class VerifiedArtifactStore:
             raise ValueError("expected_sha256 must be a lowercase SHA-256 digest")
         if isinstance(expected_size_bytes, bool) or not isinstance(expected_size_bytes, int) or expected_size_bytes <= 0:
             raise ValueError("expected_size_bytes must be a positive integer")
+        if len(payload) > _MAX_SNAPSHOT_BYTES or expected_size_bytes > _MAX_SNAPSHOT_BYTES:
+            raise ValueError("snapshot size exceeds policy limit")
         digest = hashlib.sha256(payload).hexdigest()
         if len(payload) != expected_size_bytes or digest != expected_sha256:
             raise ValueError("verified payload does not match PNG integrity digest/size")
@@ -156,7 +225,9 @@ class VerifiedArtifactStore:
                 os.link(temp_path, blob_path)
                 self._fsync_dir(blob_path.parent)
             except FileExistsError:
-                existing = self._read_no_follow(blob_path)
+                existing = self._read_no_follow(
+                    blob_path, expected_size=len(payload), max_bytes=_MAX_SNAPSHOT_BYTES
+                )
                 if len(existing) != len(payload) or hashlib.sha256(existing).hexdigest() != digest:
                     raise ValueError("existing content-addressed snapshot failed integrity verification")
 
@@ -194,7 +265,11 @@ class VerifiedArtifactStore:
             raise ValueError("snapshot metadata is invalid") from exc
         if recorded != asdict(reference):
             raise ValueError("snapshot reference does not match stored metadata")
-        payload = self._read_no_follow(self._blob_path(reference.sha256))
+        payload = self._read_no_follow(
+            self._blob_path(reference.sha256),
+            expected_size=reference.size_bytes,
+            max_bytes=_MAX_SNAPSHOT_BYTES,
+        )
         if len(payload) != reference.size_bytes or hashlib.sha256(payload).hexdigest() != reference.sha256:
             raise ValueError("snapshot blob failed digest/size verification")
         return payload
