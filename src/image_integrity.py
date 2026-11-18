@@ -2,8 +2,8 @@
 
 V1 intentionally supports non-interlaced PNG only. The parser validates chunk
 ordering, CRCs, IHDR constraints, bounded decompression and scanline filters.
-It records a digest of the verified bytes; it does not establish visual
-quality, policy compliance, or image authenticity.
+It returns the exact validated byte sequence so downstream evidence can bind
+to those bytes without reopening a mutable source path.
 """
 from __future__ import annotations
 
@@ -18,8 +18,6 @@ import zlib
 from src.output_verification import verify_output_file
 
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-# Keep peak parser memory bounded for this local pilot. The file cap limits
-# the raw input plus retained IDAT data; the decoded cap bounds zlib output.
 _MAX_DIMENSION = 100_000
 _MAX_DECOMPRESSED_BYTES = 64 * 1024 * 1024
 _MAX_FILE_BYTES = 32 * 1024 * 1024
@@ -35,10 +33,11 @@ class ImageIntegrityResult:
     detected_format: str | None = None
     decode_verified: bool = False
     reason: str | None = None
+    verified_bytes: bytes | None = None
 
 
 def verify_png_integrity(output_path: str, allowed_root: str | Path) -> ImageIntegrityResult:
-    """Verify a contained non-empty PNG and hash the exact bytes read."""
+    """Verify a contained PNG and retain the exact bytes that passed parsing."""
     basic = verify_output_file(output_path, allowed_root)
     if not basic.verified or basic.resolved_path is None:
         return ImageIntegrityResult(False, size_bytes=basic.size_bytes, reason=basic.reason)
@@ -55,7 +54,7 @@ def verify_png_integrity(output_path: str, allowed_root: str | Path) -> ImageInt
         _validate_png(raw)
         return ImageIntegrityResult(
             True, str(path), len(raw), hashlib.sha256(raw).hexdigest(),
-            "PNG", True, None,
+            "PNG", True, None, raw,
         )
     except (OSError, ValueError, struct.error, zlib.error) as exc:
         return ImageIntegrityResult(
@@ -65,11 +64,7 @@ def verify_png_integrity(output_path: str, allowed_root: str | Path) -> ImageInt
 
 
 def _read_contained_file_no_follow(path: Path, root: Path) -> bytes:
-    """Read a regular file under root without following any path symlink.
-
-    Directory descriptors anchor each path traversal step, so a parent directory
-    or final filename swapped to a symlink between validation and read fails closed.
-    """
+    """Read a regular file under root without following any path symlink."""
     relative = path.relative_to(root)
     parts = relative.parts
     if not parts or any(part in {"", ".", ".."} for part in parts):
@@ -150,8 +145,6 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
             raise ValueError("truncated chunk data")
         if any(not (65 <= byte <= 90 or 97 <= byte <= 122) for byte in chunk_type):
             raise ValueError("invalid PNG chunk type")
-        # PNG reserves the third chunk-type byte as uppercase. Reject rather
-        # than interpreting a type with its reserved bit set.
         if chunk_type[2] & 0x20:
             raise ValueError("PNG chunk type reserved bit must be zero")
         data = raw[data_start:data_end]
@@ -215,7 +208,6 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
         else:
             if seen_idat:
                 idat_closed = True
-            # The first chunk-type byte's lowercase bit marks ancillary chunks.
             if not (chunk_type[0] & 0x20):
                 raise ValueError(f"unknown critical chunk {chunk_type!r}")
         offset = end
@@ -225,8 +217,6 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
     if offset != len(raw):
         raise ValueError("trailing bytes after IEND")
 
-    # Check the declared decompressed size before decompressing or collecting
-    # decoded rows. max_length prevents oversized output from being materialized.
     decoder = zlib.decompressobj()
     decoded = decoder.decompress(compressed, expected_decoded + 1)
     if len(decoded) != expected_decoded or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
@@ -234,9 +224,6 @@ def _validate_png(raw: bytes) -> tuple[int, int]:
     if any(decoded[row * (row_bytes + 1)] > 4 for row in range(height)):
         raise ValueError("invalid PNG scanline filter")
 
-    # For indexed-color PNGs, reconstruct filtered rows before reading packed
-    # pixel indices. The bit-depth range alone is not sufficient: each index
-    # must also refer to an entry actually present in PLTE.
     if color_type == 3:
         if palette_entries is None:
             raise ValueError("indexed-color PNG requires PLTE before IDAT")
@@ -267,15 +254,15 @@ def _unfilter_scanline(filter_type: int, filtered: bytes, previous: bytes,
         up = previous[i] if previous else 0
         upper_left = previous[i - bytes_per_pixel] if previous and i >= bytes_per_pixel else 0
 
-        if filter_type == 0:  # None
+        if filter_type == 0:
             predictor = 0
-        elif filter_type == 1:  # Sub
+        elif filter_type == 1:
             predictor = left
-        elif filter_type == 2:  # Up
+        elif filter_type == 2:
             predictor = up
-        elif filter_type == 3:  # Average
+        elif filter_type == 3:
             predictor = (left + up) // 2
-        elif filter_type == 4:  # Paeth
+        elif filter_type == 4:
             estimate = left + up - upper_left
             distance_left = abs(estimate - left)
             distance_up = abs(estimate - up)

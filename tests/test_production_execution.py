@@ -50,6 +50,19 @@ class ProductionExecutionBridgeTests(unittest.TestCase):
         self.assertEqual(result.attempt, 1)
         self.assertEqual(adapter.seen_job.status, "running")
 
+    def test_execute_with_integrity_returns_exact_validated_bytes(self):
+        artifact = self.root / "verified.png"
+        raw = valid_png_bytes()
+        artifact.write_bytes(raw)
+        job, integrity = self.bridge(
+            FakeAdapter(AdapterResult(True, str(artifact)))
+        ).execute_with_integrity(self.job)
+        self.assertEqual(job.status, "qa_pending")
+        self.assertIsNotNone(integrity)
+        self.assertTrue(integrity.verified)
+        self.assertEqual(integrity.verified_bytes, raw)
+        self.assertEqual(integrity.size_bytes, len(raw))
+
     def test_corrupt_png_fails_integrity_gate(self):
         artifact = self.root / "corrupt.png"
         artifact.write_bytes(b"\x89PNG\r\n\x1a\nnot-a-real-png")
