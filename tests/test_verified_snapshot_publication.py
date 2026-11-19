@@ -276,45 +276,46 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
         if attacker.pw_uid == os.geteuid():
             self.skipTest("service process already runs as the nobody UID")
 
-        # Put the store directly below /tmp. The attacker can traverse /tmp;
-        # only the store's 0700 mode should deny access. A writable sibling
-        # acts as a positive control to prove that sudo/nobody can create files.
+        privilege_probe = subprocess.run(
+            [sudo, "-n", "-u", "nobody", "--", "id", "-u"],
+            cwd="/", capture_output=True, text=True, check=False,
+        )
+        if privilege_probe.returncode != 0:
+            self.skipTest(
+                "CI runner cannot switch to nobody without interaction: "
+                + (privilege_probe.stderr.strip() or privilege_probe.stdout.strip())
+            )
+        self.assertEqual(privilege_probe.stdout.strip(), str(attacker.pw_uid))
+
+        # Store is directly below /tmp so nobody can traverse its parent.
+        # A writable sibling is a positive control; only the store's 0700
+        # mode should prevent file creation.
         store_root = Path(tempfile.mkdtemp(prefix="kmh-pub07-store-", dir="/tmp"))
         control = Path(tempfile.mkdtemp(prefix="kmh-pub07-control-", dir="/tmp"))
         os.chmod(store_root, 0o700)
         os.chmod(control, 0o777)
         store = VerifiedArtifactStore(store_root)
-        target = store.root / "attacker-created"
-        probe = (
-            "import os,sys\\n"
-            "path=sys.argv[1]\\n"
-            "try:\\n"
-            " fd=os.open(path, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)\\n"
-            "except PermissionError:\\n"
-            " sys.exit(0)\\n"
-            "except OSError:\\n"
-            " sys.exit(3)\\n"
-            "else:\\n"
-            " os.close(fd)\\n"
-            " os.unlink(path)\\n"
-            " sys.exit(2)\\n"
-        )
+
+        def try_write(path: Path):
+            return subprocess.run(
+                [sudo, "-n", "-u", "nobody", "--", "/bin/sh", "-c",
+                 'touch "$1" && rm "$1"', "sh", str(path)],
+                cwd="/", capture_output=True, text=True, check=False,
+            )
+
         try:
-            writable_control = subprocess.run(
-                [sudo, "-n", "-u", "nobody", "--", sys.executable, "-c",
-                 probe, str(control / "control-file")],
-                cwd="/", capture_output=True, text=True, check=False,
-            )
+            writable_control = try_write(control / "control-file")
             self.assertEqual(
-                writable_control.returncode, 2,
-                "positive control failed: nobody must write the 0777 sibling",
+                writable_control.returncode, 0,
+                "positive control failed; nobody could not write sibling: "
+                + (writable_control.stderr.strip() or writable_control.stdout.strip())
             )
-            denied = subprocess.run(
-                [sudo, "-n", "-u", "nobody", "--", sys.executable, "-c",
-                 probe, str(target)],
-                cwd="/", capture_output=True, text=True, check=False,
+            target = store.root / "attacker-created"
+            denied = try_write(target)
+            self.assertNotEqual(
+                denied.returncode, 0,
+                "nobody unexpectedly created a file inside the private snapshot root",
             )
-            self.assertEqual(denied.returncode, 0, denied.stderr or denied.stdout)
             self.assertFalse(target.exists())
         finally:
             store.close()
