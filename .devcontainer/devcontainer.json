@@ -1,0 +1,20 @@
+{
+  "name": "KMH OIA Phone-First Python Development",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.terminal.activateEnvironment": false,
+        "editor.formatOnSave": false
+      }
+    }
+  },
+  "postCreateCommand": "python --version && python -m compileall -q src tests scripts",
+  "remoteUser": "vscode"
+}
