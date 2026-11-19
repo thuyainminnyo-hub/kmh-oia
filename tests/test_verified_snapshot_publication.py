@@ -125,7 +125,7 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
             self.assertEqual(store.get_verified(ref), payload)
             self.assertEqual((store.metadata_root / "metadata-job.json").stat().st_mode & 0o777, 0o444)
 
-    def test_pub_07_store_directories_are_private_to_service_uid(self):
+    def test_pub_07a_store_directories_are_private_to_service_uid(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "store"
             store = VerifiedArtifactStore(root)
@@ -260,7 +260,7 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
                 store._read_no_follow(target, expected_size=101, max_bytes=100)
 
 
-    def test_pub_07_different_uid_process_cannot_write_store(self):
+    def test_pub_07b_different_uid_process_cannot_write_store(self):
         if os.name != "posix":
             self.skipTest("different-UID isolation requires POSIX")
         import pwd
@@ -276,32 +276,48 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
         if attacker.pw_uid == os.geteuid():
             self.skipTest("service process already runs as the nobody UID")
 
-        with tempfile.TemporaryDirectory() as tmp:
-            store = VerifiedArtifactStore(Path(tmp) / "store")
+        # Keep the store itself directly under /tmp. The attacker can traverse
+        # /tmp; only the store's service-owned 0700 directory should deny access.
+        with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+            store = VerifiedArtifactStore(Path(tmp))
             target = store.root / "attacker-created"
+            control = Path(tempfile.mkdtemp(prefix="kmh-pub07-control-", dir="/tmp"))
+            os.chmod(control, 0o777)
             probe = (
-                "import os,sys\n"
-                "path=sys.argv[1]\n"
-                "try:\n"
-                " fd=os.open(path, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)\n"
-                "except PermissionError:\n"
-                " sys.exit(0)\n"
-                "except OSError:\n"
-                " sys.exit(3)\n"
-                "else:\n"
-                " os.close(fd)\n"
-                " os.unlink(path)\n"
-                " sys.exit(2)\n"
+                "import os,sys\\n"
+                "path=sys.argv[1]\\n"
+                "try:\\n"
+                " fd=os.open(path, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)\\n"
+                "except PermissionError:\\n"
+                " sys.exit(0)\\n"
+                "except OSError:\\n"
+                " sys.exit(3)\\n"
+                "else:\\n"
+                " os.close(fd)\\n"
+                " os.unlink(path)\\n"
+                " sys.exit(2)\\n"
             )
-            result = subprocess.run(
-                [sudo, "-n", "-u", "nobody", "--", sys.executable, "-c", probe, str(target)],
-                cwd="/",
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
-            self.assertFalse(target.exists())
+            try:
+                writable_control = subprocess.run(
+                    [sudo, "-n", "-u", "nobody", "--", sys.executable, "-c",
+                     probe, str(control / "control-file")],
+                    cwd="/", capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(
+                    writable_control.returncode, 2,
+                    "positive control failed: nobody must be able to write the 0777 sibling",
+                )
+                denied = subprocess.run(
+                    [sudo, "-n", "-u", "nobody", "--", sys.executable, "-c",
+                     probe, str(target)],
+                    cwd="/", capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(denied.returncode, 0, denied.stderr or denied.stdout)
+                self.assertFalse(target.exists())
+            finally:
+                store.close()
+                os.chmod(control, 0o700)
+                shutil.rmtree(control)
 
     def _run_writer_until_hardlink_exit(self, root: Path, artifact_id: str, payload: bytes,
                                         stop_after_link: int) -> int:
@@ -360,7 +376,7 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 parent_store.get_verified(reference)
 
-    def test_pub_16_process_exit_after_metadata_link_keeps_logically_committed_pair(self):
+    def test_pub_16_process_exit_after_metadata_link_leaves_visible_unacknowledged_pair(self):
         if os.name != "posix":
             self.skipTest("process-level crash injection requires POSIX")
         with tempfile.TemporaryDirectory() as tmp:
@@ -369,6 +385,9 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
             payload = b"process stopped after metadata publication"
             digest = hashlib.sha256(payload).hexdigest()
             artifact_id = "process-crash-metadata"
+            # This exits before temp unlink, parent-directory fsync, and return
+            # from put_bytes(). It tests current-mount visibility after process
+            # termination only, not power-loss durability or acknowledged success.
             exit_code = self._run_writer_until_hardlink_exit(root, artifact_id, payload, 2)
             self.assertEqual(exit_code, 73)
 
