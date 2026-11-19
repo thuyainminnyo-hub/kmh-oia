@@ -1,13 +1,15 @@
 import hashlib
 import os
 import stat
+import subprocess
+import sys
 import tempfile
 import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from src.verified_snapshot_store import VerifiedArtifactStore
+from src.verified_snapshot_store import VerifiedArtifactStore, VerifiedSnapshot
 
 
 class SnapshotPublicationSecurityTests(unittest.TestCase):
@@ -256,6 +258,130 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
                 store._read_no_follow(target, expected_size=0, max_bytes=100)
             with self.assertRaisesRegex(ValueError, "read limit"):
                 store._read_no_follow(target, expected_size=101, max_bytes=100)
+
+
+    def test_pub_07_different_uid_process_cannot_write_store(self):
+        if os.name != "posix":
+            self.skipTest("different-UID isolation requires POSIX")
+        import pwd
+        import shutil
+
+        sudo = shutil.which("sudo")
+        if sudo is None:
+            self.skipTest("sudo is unavailable; run the dedicated UID isolation check on the Linux target")
+        try:
+            attacker = pwd.getpwnam("nobody")
+        except KeyError:
+            self.skipTest("unprivileged nobody account is unavailable")
+        if attacker.pw_uid == os.geteuid():
+            self.skipTest("service process already runs as the nobody UID")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "store")
+            target = store.root / "attacker-created"
+            probe = (
+                "import os,sys\n"
+                "path=sys.argv[1]\n"
+                "try:\n"
+                " fd=os.open(path, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)\n"
+                "except PermissionError:\n"
+                " sys.exit(0)\n"
+                "except OSError:\n"
+                " sys.exit(3)\n"
+                "else:\n"
+                " os.close(fd)\n"
+                " os.unlink(path)\n"
+                " sys.exit(2)\n"
+            )
+            result = subprocess.run(
+                [sudo, "-n", "-u", "nobody", "--", sys.executable, "-c", probe, str(target)],
+                cwd="/",
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+            self.assertFalse(target.exists())
+
+    def _run_writer_until_hardlink_exit(self, root: Path, artifact_id: str, payload: bytes,
+                                        stop_after_link: int) -> int:
+        if not hasattr(os, "fork"):
+            self.skipTest("process-level crash injection requires os.fork")
+        digest = hashlib.sha256(payload).hexdigest()
+        pid = os.fork()
+        if pid == 0:
+            try:
+                child_store = VerifiedArtifactStore(root)
+                real_link = os.link
+                link_count = 0
+
+                def exit_after_link(src, dst, **kwargs):
+                    nonlocal link_count
+                    result = real_link(src, dst, **kwargs)
+                    link_count += 1
+                    if link_count == stop_after_link:
+                        # Abrupt process termination: no Python finally blocks run.
+                        os._exit(73)
+                    return result
+
+                os.link = exit_after_link
+                child_store.put_bytes(
+                    payload,
+                    artifact_id=artifact_id,
+                    expected_sha256=digest,
+                    expected_size_bytes=len(payload),
+                )
+                os._exit(0)
+            except BaseException:
+                os._exit(74)
+        _, status = os.waitpid(pid, 0)
+        return os.waitstatus_to_exitcode(status)
+
+    def test_pub_15_process_exit_after_blob_link_leaves_no_committed_metadata(self):
+        if os.name != "posix":
+            self.skipTest("process-level crash injection requires POSIX")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "store"
+            parent_store = VerifiedArtifactStore(root)
+            payload = b"process stopped after blob publication"
+            digest = hashlib.sha256(payload).hexdigest()
+            artifact_id = "process-crash-blob"
+            exit_code = self._run_writer_until_hardlink_exit(root, artifact_id, payload, 1)
+            self.assertEqual(exit_code, 73)
+
+            reference = VerifiedSnapshot(
+                artifact_id=artifact_id,
+                sha256=digest,
+                size_bytes=len(payload),
+                storage_key=f"sha256/{digest[:2]}/{digest[2:4]}/{digest}",
+            )
+            self.assertTrue((root / reference.storage_key).is_file())
+            self.assertFalse((parent_store.metadata_root / f"{artifact_id}.json").exists())
+            with self.assertRaises(ValueError):
+                parent_store.get_verified(reference)
+
+    def test_pub_16_process_exit_after_metadata_link_keeps_logically_committed_pair(self):
+        if os.name != "posix":
+            self.skipTest("process-level crash injection requires POSIX")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "store"
+            parent_store = VerifiedArtifactStore(root)
+            payload = b"process stopped after metadata publication"
+            digest = hashlib.sha256(payload).hexdigest()
+            artifact_id = "process-crash-metadata"
+            exit_code = self._run_writer_until_hardlink_exit(root, artifact_id, payload, 2)
+            self.assertEqual(exit_code, 73)
+
+            reference = VerifiedSnapshot(
+                artifact_id=artifact_id,
+                sha256=digest,
+                size_bytes=len(payload),
+                storage_key=f"sha256/{digest[:2]}/{digest[2:4]}/{digest}",
+            )
+            metadata = parent_store.metadata_root / f"{artifact_id}.json"
+            self.assertTrue(metadata.is_file())
+            self.assertEqual(parent_store.get_verified(reference), payload)
+
 
 if __name__ == "__main__":
     unittest.main()
