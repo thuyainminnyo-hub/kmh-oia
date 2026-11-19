@@ -276,51 +276,51 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
         if attacker.pw_uid == os.geteuid():
             self.skipTest("service process already runs as the nobody UID")
 
-        # Put the store directly below /tmp (not in a 0700 TemporaryDirectory
-        # parent). The attacker can traverse /tmp; only the store's 0700 mode
-        # should deny access. A writable sibling is the positive control.
+        # Put the store directly below /tmp. The attacker can traverse /tmp;
+        # only the store's 0700 mode should deny access. A writable sibling
+        # acts as a positive control to prove that sudo/nobody can create files.
         store_root = Path(tempfile.mkdtemp(prefix="kmh-pub07-store-", dir="/tmp"))
         control = Path(tempfile.mkdtemp(prefix="kmh-pub07-control-", dir="/tmp"))
         os.chmod(store_root, 0o700)
         os.chmod(control, 0o777)
         store = VerifiedArtifactStore(store_root)
         target = store.root / "attacker-created"
-            probe = (
-                "import os,sys\\n"
-                "path=sys.argv[1]\\n"
-                "try:\\n"
-                " fd=os.open(path, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)\\n"
-                "except PermissionError:\\n"
-                " sys.exit(0)\\n"
-                "except OSError:\\n"
-                " sys.exit(3)\\n"
-                "else:\\n"
-                " os.close(fd)\\n"
-                " os.unlink(path)\\n"
-                " sys.exit(2)\\n"
+        probe = (
+            "import os,sys\\n"
+            "path=sys.argv[1]\\n"
+            "try:\\n"
+            " fd=os.open(path, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)\\n"
+            "except PermissionError:\\n"
+            " sys.exit(0)\\n"
+            "except OSError:\\n"
+            " sys.exit(3)\\n"
+            "else:\\n"
+            " os.close(fd)\\n"
+            " os.unlink(path)\\n"
+            " sys.exit(2)\\n"
+        )
+        try:
+            writable_control = subprocess.run(
+                [sudo, "-n", "-u", "nobody", "--", sys.executable, "-c",
+                 probe, str(control / "control-file")],
+                cwd="/", capture_output=True, text=True, check=False,
             )
-            try:
-                writable_control = subprocess.run(
-                    [sudo, "-n", "-u", "nobody", "--", sys.executable, "-c",
-                     probe, str(control / "control-file")],
-                    cwd="/", capture_output=True, text=True, check=False,
-                )
-                self.assertEqual(
-                    writable_control.returncode, 2,
-                    "positive control failed: nobody must be able to write the 0777 sibling",
-                )
-                denied = subprocess.run(
-                    [sudo, "-n", "-u", "nobody", "--", sys.executable, "-c",
-                     probe, str(target)],
-                    cwd="/", capture_output=True, text=True, check=False,
-                )
-                self.assertEqual(denied.returncode, 0, denied.stderr or denied.stdout)
-                self.assertFalse(target.exists())
-            finally:
-                store.close()
-                os.chmod(control, 0o700)
-                shutil.rmtree(control)
-                shutil.rmtree(store_root)
+            self.assertEqual(
+                writable_control.returncode, 2,
+                "positive control failed: nobody must write the 0777 sibling",
+            )
+            denied = subprocess.run(
+                [sudo, "-n", "-u", "nobody", "--", sys.executable, "-c",
+                 probe, str(target)],
+                cwd="/", capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(denied.returncode, 0, denied.stderr or denied.stdout)
+            self.assertFalse(target.exists())
+        finally:
+            store.close()
+            os.chmod(control, 0o700)
+            shutil.rmtree(control)
+            shutil.rmtree(store_root)
 
     def _run_writer_until_hardlink_exit(self, root: Path, artifact_id: str, payload: bytes,
                                         stop_after_link: int) -> int:
