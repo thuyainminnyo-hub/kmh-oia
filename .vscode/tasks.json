@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "KMH OIA: Run all unit tests",
+      "type": "shell",
+      "command": "python -m unittest discover -s tests -v",
+      "group": {"kind": "test", "isDefault": true},
+      "problemMatcher": []
+    },
+    {
+      "label": "KMH OIA: Compile check",
+      "type": "shell",
+      "command": "python -m compileall -q src tests scripts",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "KMH OIA: Deployment preflight (read-only)",
+      "type": "shell",
+      "command": "python scripts/deployment_preflight.py",
+      "problemMatcher": []
+    }
+  ]
+}
