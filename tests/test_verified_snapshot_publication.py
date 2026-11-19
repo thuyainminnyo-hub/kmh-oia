@@ -276,13 +276,15 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
         if attacker.pw_uid == os.geteuid():
             self.skipTest("service process already runs as the nobody UID")
 
-        # Keep the store itself directly under /tmp. The attacker can traverse
-        # /tmp; only the store's service-owned 0700 directory should deny access.
-        with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
-            store = VerifiedArtifactStore(Path(tmp))
-            target = store.root / "attacker-created"
-            control = Path(tempfile.mkdtemp(prefix="kmh-pub07-control-", dir="/tmp"))
-            os.chmod(control, 0o777)
+        # Put the store directly below /tmp (not in a 0700 TemporaryDirectory
+        # parent). The attacker can traverse /tmp; only the store's 0700 mode
+        # should deny access. A writable sibling is the positive control.
+        store_root = Path(tempfile.mkdtemp(prefix="kmh-pub07-store-", dir="/tmp"))
+        control = Path(tempfile.mkdtemp(prefix="kmh-pub07-control-", dir="/tmp"))
+        os.chmod(store_root, 0o700)
+        os.chmod(control, 0o777)
+        store = VerifiedArtifactStore(store_root)
+        target = store.root / "attacker-created"
             probe = (
                 "import os,sys\\n"
                 "path=sys.argv[1]\\n"
@@ -318,6 +320,7 @@ class SnapshotPublicationSecurityTests(unittest.TestCase):
                 store.close()
                 os.chmod(control, 0o700)
                 shutil.rmtree(control)
+                shutil.rmtree(store_root)
 
     def _run_writer_until_hardlink_exit(self, root: Path, artifact_id: str, payload: bytes,
                                         stop_after_link: int) -> int:
