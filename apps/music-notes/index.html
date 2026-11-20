@@ -146,7 +146,7 @@ const RESTORE_MAX_BYTES=5*1024*1024,RESTORE_MAX_RECORDS=500,RESTORE_MAX_NOTES=10
 function validateRestoreBackup(payload){
  const fail=m=>{throw Error("Invalid backup: "+m);};
  const object=x=>x!==null&&typeof x==="object"&&!Array.isArray(x);
- const text=(x,max)=>typeof x==="string"&&x.length>0&&x.length<=max&&!/[\\u0000-\\u001f\\u007f]/.test(x);
+ const text=(x,max)=>typeof x==="string"&&x.length>0&&x.length<=max&&!/[\u0000-\u001f\u007f]/.test(x);
  const integer=(x,min,max)=>Number.isInteger(x)&&x>=min&&x<=max;
  const finite=(x,min,max)=>typeof x==="number"&&Number.isFinite(x)&&x>=min&&x<=max;
  const keys=(o,allow)=>Object.keys(o).every(k=>allow.includes(k));
@@ -207,7 +207,7 @@ async function restoreBackupRecords(records){
 }
 async function restoreSelectedBackup(file,confirmImport=message=>window.confirm(message)){
  if(!file)throw Error("Choose a JSON backup first");
- if(!/\\.json$/i.test(file.name)||file.size===0||file.size>RESTORE_MAX_BYTES)throw Error("Backup must be a nonempty JSON file under 5 MB");
+ if(!/\.json$/i.test(file.name)||file.size===0||file.size>RESTORE_MAX_BYTES)throw Error("Backup must be a nonempty JSON file under 5 MB");
  const text=await file.text();
  if(new TextEncoder().encode(text).length>RESTORE_MAX_BYTES)throw Error("Backup exceeds 5 MB");
  const records=validateRestoreBackup(JSON.parse(text));
