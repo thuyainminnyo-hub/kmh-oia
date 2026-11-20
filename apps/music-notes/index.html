@@ -49,6 +49,13 @@ table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{text-align:left;
 <div class="row"><button id="refreshBtn" class="secondary">Refresh library</button><button id="exportBtn" class="secondary">Export JSON backup</button></div>
 <div id="library" class="small">Loading local library…</div>
 </section>
+<section class="panel">
+<h2>4. Restore Candidate Backup</h2>
+<p class="small">Restore a JSON backup exported by KMH Music Intelligence. Existing candidate IDs are never replaced. Validation happens before any database writes.</p>
+<label for="restoreFile">Select backup JSON</label><input id="restoreFile" type="file" accept=".json,application/json">
+<button id="restoreBtn" class="secondary">Validate &amp; Restore Backup</button>
+<p class="small">Backups contain candidate metadata and notes, NOT original MIDI file bytes. Back up your MIDI files separately. Restored candidates remain unverified.</p>
+</section>
 <p class="small">Privacy: selected MIDI files are parsed on-device. Candidate records are stored in this browser's IndexedDB. Browser storage is best-effort; export backups regularly. No automatic verification or promotion is provided.</p>
 </main>
 <script>
@@ -134,5 +141,91 @@ $("importBtn").addEventListener("click",async()=>{
 $("saveBtn").addEventListener("click",async()=>{try{if(!pending)throw Error("Import a MIDI file first");await storeCandidate(pending);let persistence="";if(navigator.storage?.persist){const granted=await navigator.storage.persist();persistence=granted?" Persistent storage granted.":" Browser did not grant persistent storage; export backups."; }if(navigator.storage?.estimate){const estimate=await navigator.storage.estimate();const used=Math.round((estimate.usage||0)/1024);persistence+=" Approx. origin storage used: "+used+" KB.";} $("status").textContent="Saved locally as candidate. Not verified."+persistence;await refreshLibrary();}catch(e){$("status").textContent="Save error: "+(e.name==="ConstraintError"?"This Candidate ID already exists. Choose a new ID.":e.message);}});
 $("refreshBtn").addEventListener("click",refreshLibrary);
 $("exportBtn").addEventListener("click",async()=>{try{const payload={schema_version:1,library_type:"kmh_music_intelligence_browser_candidates",songs:await allCandidates()};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="kmh-music-library-backup.json";a.click();URL.revokeObjectURL(url);$("status").textContent="JSON backup export requested by browser.";}catch(e){$("status").textContent="Export error: "+e.message;}});
+
+const RESTORE_MAX_BYTES=5*1024*1024,RESTORE_MAX_RECORDS=500,RESTORE_MAX_NOTES=100000;
+function validateRestoreBackup(payload){
+ const fail=m=>{throw Error("Invalid backup: "+m);};
+ const object=x=>x!==null&&typeof x==="object"&&!Array.isArray(x);
+ const text=(x,max)=>typeof x==="string"&&x.length>0&&x.length<=max&&!/[\\u0000-\\u001f\\u007f]/.test(x);
+ const integer=(x,min,max)=>Number.isInteger(x)&&x>=min&&x<=max;
+ const finite=(x,min,max)=>typeof x==="number"&&Number.isFinite(x)&&x>=min&&x<=max;
+ const keys=(o,allow)=>Object.keys(o).every(k=>allow.includes(k));
+ const rootKeys=["schema_version","library_type","songs"];
+ const recordKeys=["schema_version","song_id","title","source_name","source_sha256","tonic","mode","status","review_note","format_type","ticks_per_quarter","track_count","tempo_events","notes"];
+ const noteKeys=["track","channel","midi_pitch","velocity","start_tick","end_tick","start_seconds","end_seconds","pitch_name","octave","western_number","sargam"];
+ // Reject unsafe keys at every level (including unexpected nested fields).
+ const stack=[payload];let seenNodes=0;
+ while(stack.length){
+  const value=stack.pop();if(++seenNodes>250000)fail("too many values");
+  if(value&&typeof value==="object"){
+   for(const key of Object.keys(value)){
+    if(key==="__proto__"||key==="constructor"||key==="prototype")fail("unsafe key");
+    stack.push(value[key]);
+   }
+  }
+ }
+ if(!object(payload)||!keys(payload,rootKeys)||payload.schema_version!==1||payload.library_type!=="kmh_music_intelligence_browser_candidates"||!Array.isArray(payload.songs))fail("schema or library type mismatch");
+ if(payload.songs.length>RESTORE_MAX_RECORDS)fail("too many records");
+ let totalNotes=0;const ids=new Set();
+ for(const [i,r] of payload.songs.entries()){
+  if(!object(r)||!keys(r,recordKeys))fail("invalid candidate fields at "+i);
+  if(r.schema_version!==1||!text(r.song_id,128)||!text(r.title,240)||!text(r.source_name,255)||
+     !/^[a-f0-9]{64}$/.test(r.source_sha256)||!names.includes(r.tonic)||r.mode!=="major"||
+     r.status!=="candidate"||typeof r.review_note!=="string"||r.review_note.length>2000||
+     !integer(r.format_type,0,1)||!integer(r.ticks_per_quarter,1,32767)||
+     !integer(r.track_count,1,1024)||!Array.isArray(r.tempo_events)||r.tempo_events.length>10000||
+     !Array.isArray(r.notes)||r.notes.length===0)fail("invalid candidate at "+i);
+  if(ids.has(r.song_id))fail("duplicate candidate ID in backup");ids.add(r.song_id);
+  totalNotes+=r.notes.length;if(totalNotes>RESTORE_MAX_NOTES)fail("too many notes");
+  for(const tempo of r.tempo_events)if(!Array.isArray(tempo)||tempo.length!==2||
+      !integer(tempo[0],0,Number.MAX_SAFE_INTEGER)||!integer(tempo[1],1,16777215))fail("invalid tempo event");
+  for(const n of r.notes){
+   if(!object(n)||!keys(n,noteKeys)||
+      !integer(n.track,0,r.track_count-1)||!integer(n.channel,0,15)||
+      !integer(n.midi_pitch,0,127)||!integer(n.velocity,1,127)||
+      !integer(n.start_tick,0,Number.MAX_SAFE_INTEGER)||
+      !integer(n.end_tick,n.start_tick,Number.MAX_SAFE_INTEGER)||
+      !finite(n.start_seconds,0,1e10)||!finite(n.end_seconds,n.start_seconds,1e10)||
+      !text(n.pitch_name,12)||!integer(n.octave,-2,10)||
+      !text(n.western_number,12)||!text(n.sargam,32))fail("invalid MIDI note");
+  }
+ }
+ return payload.songs;
+}
+async function restoreBackupRecords(records){
+ const db=await openDB();
+ return new Promise((resolve,reject)=>{
+  let tx;try{
+   tx=db.transaction(STORE,"readwrite");
+   const store=tx.objectStore(STORE);
+   for(const record of records)store.add(record); // ConstraintError aborts the entire batch.
+  }catch(error){if(tx){try{tx.abort();}catch(_){}}db.close();reject(error);return;}
+  tx.oncomplete=()=>{db.close();resolve(records.length);};
+  tx.onabort=()=>{const error=tx.error;db.close();reject(error||Error("Restore transaction aborted"));};
+  tx.onerror=()=>{}; // Let the error bubble into an automatic transaction abort.
+ });
+}
+async function restoreSelectedBackup(file,confirmImport=message=>window.confirm(message)){
+ if(!file)throw Error("Choose a JSON backup first");
+ if(!/\\.json$/i.test(file.name)||file.size===0||file.size>RESTORE_MAX_BYTES)throw Error("Backup must be a nonempty JSON file under 5 MB");
+ const text=await file.text();
+ if(new TextEncoder().encode(text).length>RESTORE_MAX_BYTES)throw Error("Backup exceeds 5 MB");
+ const records=validateRestoreBackup(JSON.parse(text));
+ if(!records.length)throw Error("Backup contains no candidates");
+ // This is a user confirmation, not authorization for publication or verification.
+ if(!confirmImport("Import "+records.length+" candidates? Existing IDs will cause the entire batch to roll back. No existing candidate will be overwritten."))return 0;
+ return restoreBackupRecords(records);
+}
+$("restoreBtn").addEventListener("click",async()=>{
+ $("restoreBtn").disabled=true;
+ try{
+  const count=await restoreSelectedBackup($("restoreFile").files[0]);
+  $("status").textContent=count?"Restored "+count+" candidates locally. Candidates remain unverified.":"Restore cancelled; no changes made.";
+  await refreshLibrary();
+ }catch(error){
+  $("status").textContent="Restore failed, no completed import: "+(error.name==="ConstraintError"?"Candidate ID already exists.":error.message);
+ }finally{$("restoreBtn").disabled=false;}
+});
+
 refreshLibrary();
 </script></body></html>
