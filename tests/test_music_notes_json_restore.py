@@ -32,7 +32,7 @@ const payload=()=>({schema_version:1,library_type:"kmh_music_intelligence_browse
 const check = obj=>vm.runInContext("validateRestoreBackup("+JSON.stringify(obj)+")",ctx);
 assert.equal(check(payload()).length,1);
 const malformed=payload();malformed.schema_version=2;
-assert.throws(()=>check(malformed),/backup schema/i);
+assert.throws(()=>check(malformed),/schema or library type/i);
 const duplicate=payload();duplicate.songs.push(sample());
 assert.throws(()=>check(duplicate),/duplicate candidate/i);
 const polluted=payload();polluted.songs[0].notes[0]["__proto__bad"]="x";
