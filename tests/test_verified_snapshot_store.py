@@ -189,6 +189,19 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                 )
             self.assertEqual(list(outside.rglob("*")), [])
 
+    def test_fails_closed_without_no_follow_hard_link_support(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"capability guard"
+            with patch("src.verified_snapshot_store.os.supports_follow_symlinks", set()):
+                with self.assertRaisesRegex(RuntimeError, "no-follow snapshot hard-link"):
+                    store.put_bytes(
+                        payload, artifact_id="unsupported-link",
+                        expected_sha256=hashlib.sha256(payload).hexdigest(),
+                        expected_size_bytes=len(payload),
+                    )
+            self.assertFalse((store.metadata_root / "unsupported-link.json").exists())
+
     def test_rejects_final_blob_symlink(self):
         if not hasattr(os, "symlink"):
             self.skipTest("symlinks are unavailable")
