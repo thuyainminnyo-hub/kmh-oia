@@ -57,8 +57,7 @@ class VerifiedArtifactStore:
         self.blob_root = self.root / "sha256"
         self.metadata_root = self.root / "artifacts"
         self.staging_root = self.root / ".staging"
-        for directory in (self.blob_root, self.metadata_root, self.staging_root):
-            directory.mkdir(parents=True, exist_ok=True)
+        self._initialize_store_directories()
 
     def _require_private_store_directory(self, fd: int) -> None:
         """Fail closed if a published store directory is writable by others."""
@@ -86,6 +85,48 @@ class VerifiedArtifactStore:
             raise PermissionError("snapshot ancestor has an untrusted owner")
         if info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX:
             raise PermissionError("untrusted writable snapshot ancestor")
+
+    def _initialize_store_directories(self) -> None:
+        """Create private storage only beneath verified directory descriptors.
+
+        Check each existing ancestor before creating its child. Do not
+        publish any files or directories beneath an untrusted parent.
+        """
+        nofollow = getattr(os, "O_NOFOLLOW", 0)
+        directory = getattr(os, "O_DIRECTORY", 0)
+        if (
+            not nofollow or not directory
+            or not {os.open, os.mkdir}.issubset(os.supports_dir_fd)
+        ):
+            raise RuntimeError("secure store initialization is unsupported")
+        fd = os.open(os.sep, os.O_RDONLY | directory | nofollow)
+        try:
+            for component in self.root.parts[1:]:
+                self._require_trusted_store_ancestor(fd)
+                try:
+                    os.mkdir(component, mode=0o700, dir_fd=fd)
+                except FileExistsError:
+                    pass
+                child_fd = os.open(
+                    component, os.O_RDONLY | directory | nofollow, dir_fd=fd,
+                )
+                os.close(fd)
+                fd = child_fd
+            self._require_private_store_directory(fd)
+            for component in ("sha256", "artifacts", ".staging"):
+                try:
+                    os.mkdir(component, mode=0o700, dir_fd=fd)
+                except FileExistsError:
+                    pass
+                child_fd = os.open(
+                    component, os.O_RDONLY | directory | nofollow, dir_fd=fd,
+                )
+                try:
+                    self._require_private_store_directory(child_fd)
+                finally:
+                    os.close(child_fd)
+        finally:
+            os.close(fd)
 
     def _open_store_directory(self, *components: str) -> int:
         """Open the store root and children without following ancestor symlinks."""
