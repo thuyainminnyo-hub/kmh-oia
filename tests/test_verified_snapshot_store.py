@@ -3,6 +3,8 @@ import os
 import shutil
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from pathlib import Path
 from unittest.mock import patch
 
@@ -335,6 +337,58 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                 )
             self.assertFalse(
                 (store.metadata_root / "job-reused-symlink-test.json").exists()
+            )
+
+    def test_concurrent_identical_publication_is_consistent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"same immutable bytes from concurrent writers"
+            digest = hashlib.sha256(payload).hexdigest()
+            start = Barrier(8)
+
+            def publish(_):
+                start.wait(timeout=15)
+                return store.put_bytes(
+                    payload, artifact_id="concurrent-same",
+                    expected_sha256=digest, expected_size_bytes=len(payload),
+                )
+
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                references = list(pool.map(publish, range(8)))
+            self.assertTrue(all(ref == references[0] for ref in references))
+            self.assertEqual(store.get_verified(references[0]), payload)
+            self.assertEqual(list(store.staging_root.iterdir()), [])
+            self.assertEqual(
+                sorted(p.name for p in store.metadata_root.iterdir()),
+                ["concurrent-same.json"],
+            )
+
+    def test_concurrent_conflicting_artifact_ids_do_not_overwrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payloads = [b"candidate one", b"candidate two"]
+            start = Barrier(2)
+
+            def publish(payload):
+                start.wait(timeout=15)
+                try:
+                    return store.put_bytes(
+                        payload, artifact_id="concurrent-conflict",
+                        expected_sha256=hashlib.sha256(payload).hexdigest(),
+                        expected_size_bytes=len(payload),
+                    )
+                except FileExistsError:
+                    return None
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(publish, payloads))
+            winners = [reference for reference in results if reference is not None]
+            self.assertEqual(len(winners), 1)
+            self.assertIn(store.get_verified(winners[0]), payloads)
+            self.assertEqual(list(store.staging_root.iterdir()), [])
+            self.assertEqual(
+                sorted(p.name for p in store.metadata_root.iterdir()),
+                ["concurrent-conflict.json"],
             )
 
     def test_rejects_final_blob_symlink(self):
