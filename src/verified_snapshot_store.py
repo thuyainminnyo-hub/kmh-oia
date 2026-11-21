@@ -213,6 +213,15 @@ class VerifiedArtifactStore:
         blob_path.parent.mkdir(parents=True, exist_ok=True)
         metadata_path = self._metadata_path(artifact_id)
 
+        # Reject a substituted staging-directory symlink before publishing.
+        # This is an interim guard, not a descriptor-bound publication fix.
+        nofollow = getattr(os, "O_NOFOLLOW", 0)
+        directory = getattr(os, "O_DIRECTORY", 0)
+        if not nofollow or not directory:
+            raise RuntimeError("secure staging directory checks are unsupported")
+        staging_fd = os.open(self.staging_root, os.O_RDONLY | directory | nofollow)
+        os.close(staging_fd)
+
         fd, temp_name = tempfile.mkstemp(prefix="snapshot-", dir=self.staging_root)
         temp_path = Path(temp_name)
         try:
