@@ -210,7 +210,7 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
             original_open = os.open
 
             def fail_metadata_open(path, flags, *args, **kwargs):
-                if Path(path) == store.metadata_root:
+                if path == "artifacts" and kwargs.get("dir_fd") is not None:
                     raise PermissionError("injected metadata directory failure")
                 return original_open(path, flags, *args, **kwargs)
 
