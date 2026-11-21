@@ -341,6 +341,53 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                 (store.metadata_root / "job-reused-symlink-test.json").exists()
             )
 
+    def test_initialization_fsyncs_parent_of_new_store_directories(self):
+        if os.name != "posix":
+            self.skipTest("POSIX directory fsync semantics only")
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            parent_id = (parent.stat().st_dev, parent.stat().st_ino)
+            observed = set()
+            original_fsync = os.fsync
+
+            def observe(fd):
+                info = os.fstat(fd)
+                if stat.S_ISDIR(info.st_mode):
+                    observed.add((info.st_dev, info.st_ino))
+                return original_fsync(fd)
+
+            with patch("src.verified_snapshot_store.os.fsync", side_effect=observe):
+                store = VerifiedArtifactStore(parent / "snapshots")
+            root_info = store.root.stat()
+            self.assertIn(parent_id, observed)
+            self.assertIn((root_info.st_dev, root_info.st_ino), observed)
+
+    def test_new_digest_subdirectories_fsync_parent_entries(self):
+        if os.name != "posix":
+            self.skipTest("POSIX directory fsync semantics only")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            observed = set()
+            original_fsync = os.fsync
+
+            def observe(fd):
+                info = os.fstat(fd)
+                if stat.S_ISDIR(info.st_mode):
+                    observed.add((info.st_dev, info.st_ino))
+                return original_fsync(fd)
+
+            payload = b"new content addressed directory fsync fixture"
+            digest = hashlib.sha256(payload).hexdigest()
+            with patch("src.verified_snapshot_store.os.fsync", side_effect=observe):
+                store.put_bytes(
+                    payload, artifact_id="new-prefix-durability",
+                    expected_sha256=digest, expected_size_bytes=len(payload),
+                )
+            root = store.blob_root.stat()
+            first = (store.blob_root / digest[:2]).stat()
+            self.assertIn((root.st_dev, root.st_ino), observed)
+            self.assertIn((first.st_dev, first.st_ino), observed)
+
     def test_initializer_rejects_configured_root_symlink(self):
         if os.name != "posix" or not hasattr(os, "symlink"):
             self.skipTest("POSIX symlink test only")
