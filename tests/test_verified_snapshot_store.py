@@ -171,6 +171,24 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                 )
             self.assertEqual(list(outside.iterdir()), [])
 
+    def test_rejects_symlinked_blob_destination_during_publication(self):
+        if not hasattr(os, "symlink"):
+            self.skipTest("symlinks are unavailable")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            outside = Path(tmp) / "outside-blobs"
+            outside.mkdir()
+            payload = b"blob destination substitution"
+            digest = hashlib.sha256(payload).hexdigest()
+            first_level = store.blob_root / digest[:2]
+            first_level.symlink_to(outside, target_is_directory=True)
+            with self.assertRaises((ValueError, OSError, RuntimeError)):
+                store.put_bytes(
+                    payload, artifact_id="blob-parent-symlink",
+                    expected_sha256=digest, expected_size_bytes=len(payload),
+                )
+            self.assertEqual(list(outside.rglob("*")), [])
+
     def test_rejects_final_blob_symlink(self):
         if not hasattr(os, "symlink"):
             self.skipTest("symlinks are unavailable")
