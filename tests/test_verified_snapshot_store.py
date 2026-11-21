@@ -341,6 +341,30 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                 (store.metadata_root / "job-reused-symlink-test.json").exists()
             )
 
+    def test_initializer_rejects_configured_root_symlink(self):
+        if os.name != "posix" or not hasattr(os, "symlink"):
+            self.skipTest("POSIX symlink test only")
+        with tempfile.TemporaryDirectory() as tmp:
+            actual = Path(tmp) / "actual-private-root"
+            actual.mkdir(mode=0o700)
+            alias = Path(tmp) / "configured-snapshot-root"
+            alias.symlink_to(actual, target_is_directory=True)
+            with self.assertRaises((OSError, ValueError, RuntimeError)):
+                VerifiedArtifactStore(alias)
+            self.assertEqual(list(actual.iterdir()), [])
+
+    def test_initializer_rejects_configured_ancestor_symlink(self):
+        if os.name != "posix" or not hasattr(os, "symlink"):
+            self.skipTest("POSIX symlink test only")
+        with tempfile.TemporaryDirectory() as tmp:
+            actual_parent = Path(tmp) / "actual-parent"
+            actual_parent.mkdir(mode=0o700)
+            alias_parent = Path(tmp) / "configured-parent"
+            alias_parent.symlink_to(actual_parent, target_is_directory=True)
+            with self.assertRaises((OSError, ValueError, RuntimeError)):
+                VerifiedArtifactStore(alias_parent / "snapshots")
+            self.assertFalse((actual_parent / "snapshots").exists())
+
     def test_initializer_does_not_create_store_under_untrusted_parent(self):
         if os.name != "posix" or not hasattr(os, "geteuid"):
             self.skipTest("POSIX trusted initialization policy only")
