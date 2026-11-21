@@ -1,4 +1,4 @@
-# Snapshot publication security — SEC-241-01 / 02 / 03 / 04
+# Snapshot publication security — SEC-241-01 / 02 / 03 / 04 / 05
 
 **Status: OPEN — targeted implementation and CI verification completed; operational trust policy and independent security review NOT VERIFIED.**
 
@@ -56,6 +56,18 @@ Targeted CI evidence for `f75b08b2f0c0e9254f356befdf431ddfa0a34ac0`:
 **Exact-head verification:** Tests https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44912132860 — SUCCESS, **639 tests OK**, including the new initializer regression. Validation https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44912132912 — SUCCESS.
 
 This verifies the explicit test fixture, not all possible initialization races, symlinked configuration aliases, ACL/mount behavior, or the actual production environment. **Independent owner/security review is still required.**
+
+## SEC-241-05 — Configured root symlink aliases (draft)
+
+**Confirmed behavior:** The previous initializer used `Path(root).expanduser().resolve()`, which followed symlinks in the caller-supplied root path **before** the no-follow directory traversal. Consequently the original configured path's symlink components could be accepted as a resolved target.
+
+**Red-test evidence:** At `331200e09c973a271aeaace3c4cccb65e2e2a63f`, `test_initializer_rejects_configured_root_symlink` and `test_initializer_rejects_configured_ancestor_symlink` both failed with `AssertionError: ... not raised`: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44912831321 .
+
+**Draft remediation:** At `bc54661dc4d136a02e63c0a4150f578f474a16d2`, the initializer uses `os.path.abspath(Path(root).expanduser())` rather than `Path.resolve()`. This preserves symlink components for the existing `O_DIRECTORY | O_NOFOLLOW` descriptor-relative initialization checks. The Tests workflow log reports **641 tests OK** and both targeted regressions PASS: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44912883594 .
+
+**Compatibility warning:** Intentionally configured symlink paths to the snapshot store now fail closed. Before deployment, the owner must inspect existing configuration and explicitly provision the real approved path rather than silently permit a symlink alias. Do not alter production symlinks, mount points, or storage contents automatically. Confirm the final exact-head Validation workflow separately.
+
+**Remaining limitations:** Passing fixtures do not prove real host ACL/mount compatibility, absence of same-UID adversaries, or independent security approval.
 
 ## Release gates
 
