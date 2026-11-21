@@ -252,6 +252,91 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                 list((outside / "snapshots" / "artifacts").iterdir()), []
             )
 
+    def test_republished_artifact_verifies_only_pinned_entries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"pinned existing blob and metadata"
+            digest = hashlib.sha256(payload).hexdigest()
+            original = store.put_bytes(
+                payload, artifact_id="job-pinned-reuse",
+                expected_sha256=digest, expected_size_bytes=len(payload),
+            )
+            # Reusing an artifact must not re-open the mutable pathname.
+            with patch.object(
+                store, "_read_no_follow",
+                side_effect=AssertionError("mutable pathname reopened during publication"),
+            ):
+                repeated = store.put_bytes(
+                    payload, artifact_id="job-pinned-reuse",
+                    expected_sha256=digest, expected_size_bytes=len(payload),
+                )
+            self.assertEqual(repeated, original)
+
+    def test_root_replacement_during_deduplication_stays_on_pinned_store(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"unchanged data from pinned parent directory"
+            digest = hashlib.sha256(payload).hexdigest()
+            original = store.put_bytes(
+                payload, artifact_id="job-pinned-root",
+                expected_sha256=digest, expected_size_bytes=len(payload),
+            )
+            displaced_root = Path(tmp) / "original-snapshot-root"
+            saved_read = store._read_pinned_entry
+            replaced = False
+
+            def swap_then_read(*args, **kwargs):
+                nonlocal replaced
+                if not replaced:
+                    replaced = True
+                    store.root.rename(displaced_root)
+                    store.root.mkdir()
+                    impostor = store.root / original.storage_key
+                    impostor.parent.mkdir(parents=True)
+                    impostor.write_bytes(b"substituted pathname blob")
+                    (store.root / "artifacts").mkdir()
+                return saved_read(*args, **kwargs)
+
+            with patch.object(store, "_read_pinned_entry", side_effect=swap_then_read):
+                repeated = store.put_bytes(
+                    payload, artifact_id="job-pinned-root",
+                    expected_sha256=digest, expected_size_bytes=len(payload),
+                )
+            self.assertTrue(replaced)
+            self.assertEqual(repeated, original)
+            self.assertEqual(
+                (displaced_root / original.storage_key).read_bytes(), payload
+            )
+            self.assertTrue(
+                (displaced_root / "artifacts" / "job-pinned-root.json").exists()
+            )
+            self.assertEqual(list((store.root / "artifacts").iterdir()), [])
+
+    def test_deduplication_rejects_symlinked_blob_entry(self):
+        if not hasattr(os, "symlink"):
+            self.skipTest("symlinks are unavailable")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"cannot reuse a symlinked blob"
+            digest = hashlib.sha256(payload).hexdigest()
+            original = store.put_bytes(
+                payload, artifact_id="job-original-symlink-test",
+                expected_sha256=digest, expected_size_bytes=len(payload),
+            )
+            outside = Path(tmp) / "outside-original.bin"
+            outside.write_bytes(payload)
+            blob = store.root / original.storage_key
+            blob.unlink()
+            blob.symlink_to(outside)
+            with self.assertRaisesRegex(ValueError, "safely read published"):
+                store.put_bytes(
+                    payload, artifact_id="job-reused-symlink-test",
+                    expected_sha256=digest, expected_size_bytes=len(payload),
+                )
+            self.assertFalse(
+                (store.metadata_root / "job-reused-symlink-test.json").exists()
+            )
+
     def test_rejects_final_blob_symlink(self):
         if not hasattr(os, "symlink"):
             self.skipTest("symlinks are unavailable")
