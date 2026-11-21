@@ -499,13 +499,28 @@ class VerifiedArtifactStore:
                                 src_dir_fd=metadata_fd, dst_dir_fd=metadata_fd,
                                 follow_symlinks=False,
                             )
-                            os.fsync(metadata_fd)
                         except FileExistsError:
                             previous = self._read_pinned_after_collision(
                                 metadata_fd, f"{artifact_id}.json", max_bytes=_MAX_METADATA_BYTES,
                             )
                             if previous != encoded:
                                 raise FileExistsError(f"artifact_id already exists with different snapshot: {artifact_id}")
+                        else:
+                            try:
+                                os.fsync(metadata_fd)
+                            except OSError:
+                                # The link is visible, but the operation failed
+                                # its durability gate. Best-effort rollback only
+                                # our newly linked entry; never delete a
+                                # pre-existing collision winner.
+                                try:
+                                    os.unlink(f"{artifact_id}.json", dir_fd=metadata_fd)
+                                    os.fsync(metadata_fd)
+                                except OSError as rollback_error:
+                                    raise RuntimeError(
+                                        "metadata directory sync failed; rollback not confirmed"
+                                    ) from rollback_error
+                                raise
                     finally:
                         os.unlink(metadata_name, dir_fd=metadata_fd)
                 finally:
