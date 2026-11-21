@@ -1,4 +1,4 @@
-# Snapshot publication security — SEC-241-01 / SEC-241-02 / SEC-241-03
+# Snapshot publication security — SEC-241-01 / 02 / 03 / 04
 
 **Status: OPEN — targeted implementation and CI verification completed; operational trust policy and independent security review NOT VERIFIED.**
 
@@ -47,11 +47,22 @@ Targeted CI evidence for `f75b08b2f0c0e9254f356befdf431ddfa0a34ac0`:
 
 **Remaining gate:** Independent review must confirm this owner/mode/sticky policy against actual service accounts, ACLs, NFS/shared mounts, parent directory ownership, and real production storage. These local POSIX tests do not establish production filesystem compatibility or release authorization.
 
+## SEC-241-04 — Secure initialization (new)
+
+**Confirmed red test:** At `96c8f1cfd574a646fd93f2c417591115e63b7dec`, `test_initializer_does_not_create_store_under_untrusted_parent` failed with `PermissionError not raised`. Initialization had already created directories through `Path.mkdir()` before the publication-time trust checks.
+
+**Draft remediation:** `ba02abcef8dafeb7f6e11393f1390247156c86fb` replaces path-based initialization with `_initialize_store_directories()`, traversing from the filesystem root using pinned parent descriptors. It checks each existing ancestor's trust before `os.mkdir(..., dir_fd=parent_fd, mode=0o700)`, opens each new/existing directory with `O_DIRECTORY | O_NOFOLLOW`, validates private ownership/modes, and does not automatically `chmod` or `chown` existing deployment paths.
+
+**Exact-head verification:** Tests https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44912132860 — SUCCESS, **639 tests OK**, including the new initializer regression. Validation https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44912132912 — SUCCESS.
+
+This verifies the explicit test fixture, not all possible initialization races, symlinked configuration aliases, ACL/mount behavior, or the actual production environment. **Independent owner/security review is still required.**
+
 ## Release gates
 
 - [x] No-follow descriptor-relative publication implementation committed to draft branch.
 - [x] Targeted symlink, pinned reuse, metadata-failure and concurrent publication tests passed at the source HEAD listed above.
-- [ ] Root ownership, permissions, and ancestor threat model approved and enforced.
+- [x] Targeted POSIX root/ancestor permission and secure-initialization guards tested on CI.
+- [ ] Root ownership, permissions, filesystem ACL/mount behavior, and ancestor threat model approved for deployment.
 - [ ] Broader concurrent/multi-process stress and supported-platform verification.
 - [ ] Independent exact-head security review approval.
 - [ ] Authorized live ComfyUI run with output integrity, immutable evidence, independent QA, and explicit owner production release approval.
