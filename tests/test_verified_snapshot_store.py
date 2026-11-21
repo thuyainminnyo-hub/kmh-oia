@@ -339,6 +339,32 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                 (store.metadata_root / "job-reused-symlink-test.json").exists()
             )
 
+    def test_rejects_group_or_world_writable_store_directories(self):
+        if os.name != "posix" or not hasattr(os, "geteuid"):
+            self.skipTest("POSIX directory ownership policy only")
+        for directory_name in ("root", "blob_root", "staging_root", "metadata_root"):
+            with self.subTest(directory=directory_name):
+                with tempfile.TemporaryDirectory() as tmp:
+                    store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+                    target = getattr(store, directory_name)
+                    original_mode = target.stat().st_mode & 0o7777
+                    try:
+                        target.chmod(original_mode | 0o022)
+                        payload = b"untrusted directory permissions"
+                        with self.assertRaisesRegex(
+                            (PermissionError, RuntimeError), "store directory|writable"
+                        ):
+                            store.put_bytes(
+                                payload, artifact_id="untrusted-dir",
+                                expected_sha256=hashlib.sha256(payload).hexdigest(),
+                                expected_size_bytes=len(payload),
+                            )
+                    finally:
+                        target.chmod(original_mode)
+                    self.assertFalse(
+                        (store.metadata_root / "untrusted-dir.json").exists()
+                    )
+
     def test_concurrent_identical_publication_is_consistent(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = VerifiedArtifactStore(Path(tmp) / "snapshots")
