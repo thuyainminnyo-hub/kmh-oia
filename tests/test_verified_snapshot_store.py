@@ -341,6 +341,22 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                 (store.metadata_root / "job-reused-symlink-test.json").exists()
             )
 
+    def test_initializer_does_not_create_store_under_untrusted_parent(self):
+        if os.name != "posix" or not hasattr(os, "geteuid"):
+            self.skipTest("POSIX trusted initialization policy only")
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp) / "unsafe-initialization-parent"
+            parent.mkdir()
+            original_mode = parent.stat().st_mode & 0o7777
+            target = parent / "snapshots"
+            try:
+                parent.chmod(0o777)
+                with self.assertRaisesRegex(PermissionError, "untrusted writable snapshot ancestor"):
+                    VerifiedArtifactStore(target)
+                self.assertFalse(target.exists(), "unsafe root was created before trust validation")
+            finally:
+                parent.chmod(original_mode)
+
     def test_rejects_nonsticky_writable_store_ancestor(self):
         if os.name != "posix" or not hasattr(os, "geteuid"):
             self.skipTest("POSIX ancestor trust policy only")
