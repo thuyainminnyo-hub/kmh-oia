@@ -455,6 +455,66 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
             )
             self.assertEqual(store.get_verified(reference), payload)
 
+    def test_multiprocess_conflicting_artifact_ids_preserve_first_writer(self):
+        if "fork" not in multiprocessing.get_all_start_methods():
+            self.skipTest("multiprocess fork test requires POSIX fork")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payloads = (b"process candidate alpha", b"process candidate beta")
+            context = multiprocessing.get_context("fork")
+            start = context.Barrier(2)
+            outcomes = context.Queue()
+
+            def publish(payload):
+                try:
+                    start.wait(timeout=15)
+                    reference = VerifiedArtifactStore(store.root).put_bytes(
+                        payload, artifact_id="multiprocess-conflict",
+                        expected_sha256=hashlib.sha256(payload).hexdigest(),
+                        expected_size_bytes=len(payload),
+                    )
+                    outcomes.put(("winner", reference.sha256))
+                except FileExistsError:
+                    outcomes.put(("conflict", None))
+                except BaseException as exc:
+                    outcomes.put(("error", type(exc).__name__ + ": " + str(exc)))
+
+            workers = [context.Process(target=publish, args=(payload,)) for payload in payloads]
+            try:
+                for worker in workers:
+                    worker.start()
+                for worker in workers:
+                    worker.join(timeout=20)
+                self.assertFalse(any(worker.is_alive() for worker in workers))
+                self.assertEqual([worker.exitcode for worker in workers], [0, 0])
+                results = [outcomes.get(timeout=5) for _ in workers]
+            finally:
+                for worker in workers:
+                    if worker.is_alive():
+                        worker.terminate()
+                    worker.join(timeout=2)
+                outcomes.close()
+                outcomes.join_thread()
+            winners = [value for status, value in results if status == "winner"]
+            self.assertEqual(len(winners), 1, results)
+            self.assertEqual(
+                [status for status, _ in results].count("conflict"), 1, results
+            )
+            self.assertEqual(
+                sorted(path.name for path in store.metadata_root.iterdir()),
+                ["multiprocess-conflict.json"],
+            )
+            self.assertEqual(list(store.staging_root.iterdir()), [])
+            winning_payload = next(
+                payload for payload in payloads
+                if hashlib.sha256(payload).hexdigest() == winners[0]
+            )
+            reference = store.put_bytes(
+                winning_payload, artifact_id="multiprocess-conflict",
+                expected_sha256=winners[0], expected_size_bytes=len(winning_payload),
+            )
+            self.assertEqual(store.get_verified(reference), winning_payload)
+
     def test_concurrent_identical_publication_is_consistent(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = VerifiedArtifactStore(Path(tmp) / "snapshots")
