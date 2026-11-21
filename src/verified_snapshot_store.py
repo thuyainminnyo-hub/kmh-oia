@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import stat
 import tempfile
 from dataclasses import asdict, dataclass
@@ -52,12 +53,204 @@ class VerifiedArtifactStore:
     def __init__(self, root: str | Path) -> None:
         if not isinstance(root, (str, Path)) or not str(root).strip():
             raise ValueError("snapshot root must be a non-empty path")
-        self.root = Path(root).expanduser().resolve()
+        # Keep the configured path's symlink components visible to the
+        # no-follow directory initializer; resolve() would erase that evidence.
+        # abspath() normalizes relative/.. components without following links.
+        self.root = Path(os.path.abspath(Path(root).expanduser()))
         self.blob_root = self.root / "sha256"
         self.metadata_root = self.root / "artifacts"
         self.staging_root = self.root / ".staging"
-        for directory in (self.blob_root, self.metadata_root, self.staging_root):
-            directory.mkdir(parents=True, exist_ok=True)
+        self._initialize_store_directories()
+
+    def _require_private_store_directory(self, fd: int) -> None:
+        """Fail closed if a published store directory is writable by others."""
+        if not hasattr(os, "geteuid"):
+            raise RuntimeError("snapshot store directory ownership checks are unsupported")
+        info = os.fstat(fd)
+        if not stat.S_ISDIR(info.st_mode):
+            raise RuntimeError("snapshot store directory is not a directory")
+        if info.st_uid != os.geteuid() or info.st_mode & 0o022:
+            raise PermissionError("snapshot store directory ownership or writable permissions are unsafe")
+
+    def _require_trusted_store_ancestor(self, fd: int) -> None:
+        """Reject untrusted or replaceable ancestor directories.
+
+        Private directories are enforced separately. A trusted sticky parent
+        (e.g. root-owned /tmp) is allowed because other users cannot rename
+        entries owned by the store process.
+        """
+        if not hasattr(os, "geteuid"):
+            raise RuntimeError("snapshot ancestor ownership checks are unsupported")
+        info = os.fstat(fd)
+        if not stat.S_ISDIR(info.st_mode):
+            raise RuntimeError("snapshot ancestor is not a directory")
+        if info.st_uid not in (0, os.geteuid()):
+            raise PermissionError("snapshot ancestor has an untrusted owner")
+        if info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX:
+            raise PermissionError("untrusted writable snapshot ancestor")
+
+    def _initialize_store_directories(self) -> None:
+        """Create private storage only beneath verified directory descriptors.
+
+        Check each existing ancestor before creating its child. Do not
+        publish any files or directories beneath an untrusted parent.
+        """
+        nofollow = getattr(os, "O_NOFOLLOW", 0)
+        directory = getattr(os, "O_DIRECTORY", 0)
+        if (
+            not nofollow or not directory
+            or not {os.open, os.mkdir}.issubset(os.supports_dir_fd)
+        ):
+            raise RuntimeError("secure store initialization is unsupported")
+        fd = os.open(os.sep, os.O_RDONLY | directory | nofollow)
+        try:
+            for component in self.root.parts[1:]:
+                self._require_trusted_store_ancestor(fd)
+                try:
+                    os.mkdir(component, mode=0o700, dir_fd=fd)
+                except FileExistsError:
+                    pass
+                child_fd = os.open(
+                    component, os.O_RDONLY | directory | nofollow, dir_fd=fd,
+                )
+                try:
+                    # Persist the child directory entry in its parent.
+                    # Also sync on FileExistsError: another writer may have
+                    # created this entry but not durably committed it yet.
+                    os.fsync(fd)
+                except BaseException:
+                    os.close(child_fd)
+                    raise
+                os.close(fd)
+                fd = child_fd
+            self._require_private_store_directory(fd)
+            for component in ("sha256", "artifacts", ".staging"):
+                try:
+                    os.mkdir(component, mode=0o700, dir_fd=fd)
+                except FileExistsError:
+                    pass
+                child_fd = os.open(
+                    component, os.O_RDONLY | directory | nofollow, dir_fd=fd,
+                )
+                try:
+                    self._require_private_store_directory(child_fd)
+                    os.fsync(fd)
+                finally:
+                    os.close(child_fd)
+        finally:
+            os.close(fd)
+
+    def _open_store_directory(self, *components: str) -> int:
+        """Open the store root and children without following ancestor symlinks."""
+        nofollow = getattr(os, "O_NOFOLLOW", 0)
+        directory = getattr(os, "O_DIRECTORY", 0)
+        if not nofollow or not directory or os.open not in os.supports_dir_fd:
+            raise RuntimeError("secure store directory traversal is unsupported")
+        fd = os.open(os.sep, os.O_RDONLY | directory | nofollow)
+        root_depth = len(self.root.parts) - 1
+        try:
+            for index, component in enumerate((*self.root.parts[1:], *components)):
+                if index < root_depth:
+                    self._require_trusted_store_ancestor(fd)
+                else:
+                    self._require_private_store_directory(fd)
+                next_fd = os.open(
+                    component, os.O_RDONLY | directory | nofollow, dir_fd=fd
+                )
+                os.close(fd)
+                fd = next_fd
+            self._require_private_store_directory(fd)
+            return fd
+        except BaseException:
+            os.close(fd)
+            raise
+
+    def _read_pinned_entry(
+        self, parent_fd: int, name: str, *, max_bytes: int,
+        expected_size: int | None = None,
+    ) -> bytes:
+        """Read an existing publication entry from its pinned parent directory.
+
+        This must not reopen self.root via a mutable pathname: a concurrent
+        root rename could otherwise verify a different store generation.
+        """
+        if not isinstance(name, str) or name in {"", ".", ".."} or "/" in name or "\\" in name:
+            raise ValueError("invalid snapshot entry name")
+        if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
+            raise ValueError("max_bytes must be a positive integer")
+        if expected_size is not None and (
+            isinstance(expected_size, bool)
+            or not isinstance(expected_size, int)
+            or expected_size <= 0
+            or expected_size > max_bytes
+        ):
+            raise ValueError("invalid expected snapshot size")
+        nofollow = getattr(os, "O_NOFOLLOW", 0)
+        if not nofollow or os.open not in os.supports_dir_fd:
+            raise RuntimeError("secure descriptor-relative snapshot reads are unsupported")
+        fd = -1
+        try:
+            fd = os.open(
+                name, os.O_RDONLY | nofollow | getattr(os, "O_NONBLOCK", 0),
+                dir_fd=parent_fd,
+            )
+            before = os.fstat(fd)
+            if not stat.S_ISREG(before.st_mode):
+                raise ValueError("snapshot entry is not a regular file")
+            if before.st_size < 0 or before.st_size > max_bytes:
+                raise ValueError("snapshot file exceeds size limit")
+            if expected_size is not None and before.st_size != expected_size:
+                raise ValueError("snapshot size mismatch")
+            chunks: list[bytes] = []
+            total = 0
+            while True:
+                block = os.read(fd, min(1024 * 1024, max_bytes - total + 1))
+                if not block:
+                    break
+                total += len(block)
+                if total > max_bytes:
+                    raise ValueError("snapshot file exceeds size limit")
+                chunks.append(block)
+            after = os.fstat(fd)
+            identity_before = (
+                before.st_dev, before.st_ino, before.st_size,
+                before.st_mtime_ns, before.st_ctime_ns,
+            )
+            identity_after = (
+                after.st_dev, after.st_ino, after.st_size,
+                after.st_mtime_ns, after.st_ctime_ns,
+            )
+            if identity_before != identity_after:
+                raise ValueError("snapshot file changed while being read")
+            if expected_size is not None and total != expected_size:
+                raise ValueError("snapshot size mismatch")
+            return b"".join(chunks)
+        except OSError as exc:
+            raise ValueError("unable to safely read published snapshot entry") from exc
+        finally:
+            if fd >= 0:
+                os.close(fd)
+
+    def _read_pinned_after_collision(
+        self, parent_fd: int, name: str, *, max_bytes: int,
+        expected_size: int | None = None,
+    ) -> bytes:
+        """Retry transient ctime changes while retaining the pinned parent.
+
+        Creating/removing an extra hard link changes inode ctime even when
+        the data is unchanged. Never accept a changing read: reopen from the
+        same directory descriptor and require stable bounds and identity.
+        """
+        for attempt in range(3):
+            try:
+                return self._read_pinned_entry(
+                    parent_fd, name, max_bytes=max_bytes,
+                    expected_size=expected_size,
+                )
+            except ValueError as exc:
+                if str(exc) != "snapshot file changed while being read" or attempt == 2:
+                    raise
+        raise AssertionError("unreachable snapshot verification retry state")
 
     def _blob_path(self, digest: str) -> Path:
         if not _SHA256_RE.fullmatch(digest):
@@ -210,48 +403,136 @@ class VerifiedArtifactStore:
             storage_key=f"sha256/{digest[:2]}/{digest[2:4]}/{digest}",
         )
         blob_path = self._blob_path(digest)
-        blob_path.parent.mkdir(parents=True, exist_ok=True)
         metadata_path = self._metadata_path(artifact_id)
 
-        fd, temp_name = tempfile.mkstemp(prefix="snapshot-", dir=self.staging_root)
-        temp_path = Path(temp_name)
+        # Reject a substituted staging-directory symlink before publishing.
+        # Keep the verified staging descriptor open through creation and cleanup.
+        nofollow = getattr(os, "O_NOFOLLOW", 0)
+        directory = getattr(os, "O_DIRECTORY", 0)
+        if not nofollow or not directory:
+            raise RuntimeError("secure staging directory checks are unsupported")
+        if not {os.open, os.link, os.unlink, os.mkdir}.issubset(os.supports_dir_fd):
+            raise RuntimeError("descriptor-relative snapshot publication is unsupported")
+        if os.link not in os.supports_follow_symlinks:
+            raise RuntimeError("no-follow snapshot hard-link publication is unsupported")
+        # Resolve each blob component relative to a verified parent descriptor.
+        # Reject symlinks even when an attacker substitutes a directory.
+        root_fd = self._open_store_directory()
+        blob_fds = []
         try:
-            with os.fdopen(fd, "wb") as stream:
-                stream.write(payload)
-                stream.flush()
-                os.fsync(stream.fileno())
-                os.fchmod(stream.fileno(), 0o444)
-            try:
-                os.link(temp_path, blob_path)
-                self._fsync_dir(blob_path.parent)
-            except FileExistsError:
-                existing = self._read_no_follow(
-                    blob_path, expected_size=len(payload), max_bytes=_MAX_SNAPSHOT_BYTES
+            parent_fd = root_fd
+            for component in ("sha256", digest[:2], digest[2:4]):
+                try:
+                    os.mkdir(component, mode=0o700, dir_fd=parent_fd)
+                except FileExistsError:
+                    pass
+                child_fd = os.open(
+                    component, os.O_RDONLY | directory | nofollow, dir_fd=parent_fd,
                 )
-                if len(existing) != len(payload) or hashlib.sha256(existing).hexdigest() != digest:
-                    raise ValueError("existing content-addressed snapshot failed integrity verification")
-
-            encoded = (json.dumps(asdict(reference), sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
-            meta_fd, meta_name = tempfile.mkstemp(prefix="metadata-", dir=self.metadata_root)
-            meta_temp = Path(meta_name)
+                blob_fds.append(child_fd)
+                self._require_private_store_directory(child_fd)
+                # The blob directory name must outlive a power loss even
+                # when this writer encountered a concurrently-created entry.
+                os.fsync(parent_fd)
+                parent_fd = child_fd
+        except BaseException:
+            for opened_fd in reversed(blob_fds):
+                os.close(opened_fd)
+            os.close(root_fd)
+            raise
+        blob_parent_fd = blob_fds[-1]
+        staging_fd = -1
+        try:
+            staging_fd = os.open(".staging", os.O_RDONLY | directory | nofollow, dir_fd=root_fd)
+            self._require_private_store_directory(staging_fd)
+        except BaseException:
+            if staging_fd >= 0:
+                os.close(staging_fd)
+            for opened_fd in reversed(blob_fds):
+                os.close(opened_fd)
+            os.close(root_fd)
+            raise
+        temp_name = "snapshot-" + secrets.token_hex(16)
+        try:
+            fd = os.open(
+                temp_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | nofollow,
+                0o600, dir_fd=staging_fd,
+            )
             try:
-                with os.fdopen(meta_fd, "wb") as stream:
-                    stream.write(encoded)
+                with os.fdopen(fd, "wb") as stream:
+                    stream.write(payload)
                     stream.flush()
                     os.fsync(stream.fileno())
                     os.fchmod(stream.fileno(), 0o444)
                 try:
-                    os.link(meta_temp, metadata_path)
-                    self._fsync_dir(self.metadata_root)
+                    os.link(
+                        temp_name, digest, src_dir_fd=staging_fd,
+                        dst_dir_fd=blob_parent_fd, follow_symlinks=False,
+                    )
+                    os.fsync(blob_parent_fd)
                 except FileExistsError:
-                    previous = self._read_no_follow(metadata_path, max_bytes=_MAX_METADATA_BYTES)
-                    if previous != encoded:
-                        raise FileExistsError(f"artifact_id already exists with different snapshot: {artifact_id}")
+                    existing = self._read_pinned_after_collision(
+                        blob_parent_fd, digest,
+                        expected_size=len(payload), max_bytes=_MAX_SNAPSHOT_BYTES,
+                    )
+                    if len(existing) != len(payload) or hashlib.sha256(existing).hexdigest() != digest:
+                        raise ValueError("existing content-addressed snapshot failed integrity verification")
+
+                encoded = (json.dumps(asdict(reference), sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+                metadata_fd = os.open("artifacts", os.O_RDONLY | directory | nofollow, dir_fd=root_fd)
+                try:
+                    self._require_private_store_directory(metadata_fd)
+                    metadata_name = "metadata-" + secrets.token_hex(16)
+                    meta_fd = os.open(
+                        metadata_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | nofollow,
+                        0o600, dir_fd=metadata_fd,
+                    )
+                    try:
+                        with os.fdopen(meta_fd, "wb") as stream:
+                            stream.write(encoded)
+                            stream.flush()
+                            os.fsync(stream.fileno())
+                            os.fchmod(stream.fileno(), 0o444)
+                        try:
+                            os.link(
+                                metadata_name, f"{artifact_id}.json",
+                                src_dir_fd=metadata_fd, dst_dir_fd=metadata_fd,
+                                follow_symlinks=False,
+                            )
+                        except FileExistsError:
+                            previous = self._read_pinned_after_collision(
+                                metadata_fd, f"{artifact_id}.json", max_bytes=_MAX_METADATA_BYTES,
+                            )
+                            if previous != encoded:
+                                raise FileExistsError(f"artifact_id already exists with different snapshot: {artifact_id}")
+                        else:
+                            try:
+                                os.fsync(metadata_fd)
+                            except OSError:
+                                # The link is visible, but the operation failed
+                                # its durability gate. Best-effort rollback only
+                                # our newly linked entry; never delete a
+                                # pre-existing collision winner.
+                                try:
+                                    os.unlink(f"{artifact_id}.json", dir_fd=metadata_fd)
+                                    os.fsync(metadata_fd)
+                                except OSError as rollback_error:
+                                    raise RuntimeError(
+                                        "metadata directory sync failed; rollback not confirmed"
+                                    ) from rollback_error
+                                raise
+                    finally:
+                        os.unlink(metadata_name, dir_fd=metadata_fd)
+                finally:
+                    os.close(metadata_fd)
+                return reference
             finally:
-                meta_temp.unlink(missing_ok=True)
-            return reference
+                os.unlink(temp_name, dir_fd=staging_fd)
         finally:
-            temp_path.unlink(missing_ok=True)
+            os.close(staging_fd)
+            for opened_fd in reversed(blob_fds):
+                os.close(opened_fd)
+            os.close(root_fd)
 
     def get_verified(self, reference: VerifiedSnapshot) -> bytes:
         if not isinstance(reference, VerifiedSnapshot):
