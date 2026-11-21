@@ -60,6 +60,16 @@ class VerifiedArtifactStore:
         for directory in (self.blob_root, self.metadata_root, self.staging_root):
             directory.mkdir(parents=True, exist_ok=True)
 
+    def _require_private_store_directory(self, fd: int) -> None:
+        """Fail closed if a published store directory is writable by others."""
+        if not hasattr(os, "geteuid"):
+            raise RuntimeError("snapshot store directory ownership checks are unsupported")
+        info = os.fstat(fd)
+        if not stat.S_ISDIR(info.st_mode):
+            raise RuntimeError("snapshot store directory is not a directory")
+        if info.st_uid != os.geteuid() or info.st_mode & 0o022:
+            raise PermissionError("snapshot store directory ownership or writable permissions are unsafe")
+
     def _open_store_directory(self, *components: str) -> int:
         """Open the store root and children without following ancestor symlinks."""
         nofollow = getattr(os, "O_NOFOLLOW", 0)
@@ -74,6 +84,7 @@ class VerifiedArtifactStore:
                 )
                 os.close(fd)
                 fd = next_fd
+            self._require_private_store_directory(fd)
             return fd
         except BaseException:
             os.close(fd)
@@ -323,6 +334,7 @@ class VerifiedArtifactStore:
                     component, os.O_RDONLY | directory | nofollow, dir_fd=parent_fd,
                 )
                 blob_fds.append(child_fd)
+                self._require_private_store_directory(child_fd)
                 parent_fd = child_fd
         except BaseException:
             for opened_fd in reversed(blob_fds):
