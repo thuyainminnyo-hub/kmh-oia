@@ -265,7 +265,7 @@ class VerifiedArtifactStore:
             raise
         blob_parent_fd = blob_fds[-1]
         try:
-            staging_fd = self._open_store_directory(".staging")
+            staging_fd = os.open(".staging", os.O_RDONLY | directory | nofollow, dir_fd=root_fd)
         except BaseException:
             for opened_fd in reversed(blob_fds):
                 os.close(opened_fd)
@@ -297,7 +297,7 @@ class VerifiedArtifactStore:
                         raise ValueError("existing content-addressed snapshot failed integrity verification")
 
                 encoded = (json.dumps(asdict(reference), sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
-                metadata_fd = self._open_store_directory("artifacts")
+                metadata_fd = os.open("artifacts", os.O_RDONLY | directory | nofollow, dir_fd=root_fd)
                 try:
                     metadata_name = "metadata-" + secrets.token_hex(16)
                     meta_fd = os.open(
