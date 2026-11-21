@@ -271,6 +271,42 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
             self.assertEqual(list(store.staging_root.iterdir()), [])
             self.assertEqual(list(store.metadata_root.iterdir()), [])
 
+    def test_metadata_rollback_fsync_failure_reports_unconfirmed_durability(self):
+        if os.name != "posix":
+            self.skipTest("POSIX directory fsync semantics only")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"metadata rollback sync failure is not silently accepted"
+            digest = hashlib.sha256(payload).hexdigest()
+            info = store.metadata_root.stat()
+            metadata_identity = (info.st_dev, info.st_ino)
+            original_fsync = os.fsync
+            failures = 0
+
+            def reject_metadata_sync(fd):
+                nonlocal failures
+                current = os.fstat(fd)
+                if stat.S_ISDIR(current.st_mode) and (
+                    current.st_dev, current.st_ino
+                ) == metadata_identity and (
+                    failures or (store.metadata_root / "rollback-fsync-failure.json").exists()
+                ):
+                    failures += 1
+                    raise OSError("injected repeated metadata directory fsync failure")
+                return original_fsync(fd)
+
+            with patch("src.verified_snapshot_store.os.fsync", side_effect=reject_metadata_sync):
+                with self.assertRaisesRegex(RuntimeError, "rollback not confirmed"):
+                    store.put_bytes(
+                        payload, artifact_id="rollback-fsync-failure",
+                        expected_sha256=digest, expected_size_bytes=len(payload),
+                    )
+            self.assertEqual(failures, 2)
+            self.assertFalse(
+                (store.metadata_root / "rollback-fsync-failure.json").exists()
+            )
+            self.assertEqual(list(store.staging_root.iterdir()), [])
+
     def test_rejects_replaced_store_root_ancestor_symlink_on_publication(self):
         if not hasattr(os, "symlink"):
             self.skipTest("symlinks are unavailable")
