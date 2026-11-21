@@ -211,7 +211,6 @@ class VerifiedArtifactStore:
             storage_key=f"sha256/{digest[:2]}/{digest[2:4]}/{digest}",
         )
         blob_path = self._blob_path(digest)
-        blob_path.parent.mkdir(parents=True, exist_ok=True)
         metadata_path = self._metadata_path(artifact_id)
 
         # Reject a substituted staging-directory symlink before publishing.
@@ -220,9 +219,37 @@ class VerifiedArtifactStore:
         directory = getattr(os, "O_DIRECTORY", 0)
         if not nofollow or not directory:
             raise RuntimeError("secure staging directory checks are unsupported")
-        if not {os.open, os.link, os.unlink}.issubset(os.supports_dir_fd):
+        if not {os.open, os.link, os.unlink, os.mkdir}.issubset(os.supports_dir_fd):
             raise RuntimeError("descriptor-relative snapshot publication is unsupported")
-        staging_fd = os.open(self.staging_root, os.O_RDONLY | directory | nofollow)
+        # Resolve each blob component relative to a verified parent descriptor.
+        # Reject symlinks even when an attacker substitutes a directory.
+        root_fd = os.open(self.root, os.O_RDONLY | directory | nofollow)
+        blob_fds = []
+        try:
+            parent_fd = root_fd
+            for component in ("sha256", digest[:2], digest[2:4]):
+                try:
+                    os.mkdir(component, mode=0o700, dir_fd=parent_fd)
+                except FileExistsError:
+                    pass
+                child_fd = os.open(
+                    component, os.O_RDONLY | directory | nofollow, dir_fd=parent_fd,
+                )
+                blob_fds.append(child_fd)
+                parent_fd = child_fd
+        except BaseException:
+            for opened_fd in reversed(blob_fds):
+                os.close(opened_fd)
+            os.close(root_fd)
+            raise
+        blob_parent_fd = blob_fds[-1]
+        try:
+            staging_fd = os.open(self.staging_root, os.O_RDONLY | directory | nofollow)
+        except BaseException:
+            for opened_fd in reversed(blob_fds):
+                os.close(opened_fd)
+            os.close(root_fd)
+            raise
         temp_name = "snapshot-" + secrets.token_hex(16)
         try:
             fd = os.open(
@@ -236,8 +263,11 @@ class VerifiedArtifactStore:
                     os.fsync(stream.fileno())
                     os.fchmod(stream.fileno(), 0o444)
                 try:
-                    os.link(temp_name, blob_path, src_dir_fd=staging_fd, follow_symlinks=False)
-                    self._fsync_dir(blob_path.parent)
+                    os.link(
+                        temp_name, digest, src_dir_fd=staging_fd,
+                        dst_dir_fd=blob_parent_fd, follow_symlinks=False,
+                    )
+                    os.fsync(blob_parent_fd)
                 except FileExistsError:
                     existing = self._read_no_follow(
                         blob_path, expected_size=len(payload), max_bytes=_MAX_SNAPSHOT_BYTES
@@ -279,6 +309,9 @@ class VerifiedArtifactStore:
                 os.unlink(temp_name, dir_fd=staging_fd)
         finally:
             os.close(staging_fd)
+            for opened_fd in reversed(blob_fds):
+                os.close(opened_fd)
+            os.close(root_fd)
 
     def get_verified(self, reference: VerifiedSnapshot) -> bytes:
         if not isinstance(reference, VerifiedSnapshot):
