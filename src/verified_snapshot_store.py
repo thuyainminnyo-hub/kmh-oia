@@ -246,23 +246,34 @@ class VerifiedArtifactStore:
                         raise ValueError("existing content-addressed snapshot failed integrity verification")
 
                 encoded = (json.dumps(asdict(reference), sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
-                meta_fd, meta_name = tempfile.mkstemp(prefix="metadata-", dir=self.metadata_root)
-                meta_temp = Path(meta_name)
+                metadata_fd = os.open(self.metadata_root, os.O_RDONLY | directory | nofollow)
                 try:
-                    with os.fdopen(meta_fd, "wb") as stream:
-                        stream.write(encoded)
-                        stream.flush()
-                        os.fsync(stream.fileno())
-                        os.fchmod(stream.fileno(), 0o444)
+                    metadata_name = "metadata-" + secrets.token_hex(16)
+                    meta_fd = os.open(
+                        metadata_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | nofollow,
+                        0o600, dir_fd=metadata_fd,
+                    )
                     try:
-                        os.link(meta_temp, metadata_path)
-                        self._fsync_dir(self.metadata_root)
-                    except FileExistsError:
-                        previous = self._read_no_follow(metadata_path, max_bytes=_MAX_METADATA_BYTES)
-                        if previous != encoded:
-                            raise FileExistsError(f"artifact_id already exists with different snapshot: {artifact_id}")
+                        with os.fdopen(meta_fd, "wb") as stream:
+                            stream.write(encoded)
+                            stream.flush()
+                            os.fsync(stream.fileno())
+                            os.fchmod(stream.fileno(), 0o444)
+                        try:
+                            os.link(
+                                metadata_name, f"{artifact_id}.json",
+                                src_dir_fd=metadata_fd, dst_dir_fd=metadata_fd,
+                                follow_symlinks=False,
+                            )
+                            os.fsync(metadata_fd)
+                        except FileExistsError:
+                            previous = self._read_no_follow(metadata_path, max_bytes=_MAX_METADATA_BYTES)
+                            if previous != encoded:
+                                raise FileExistsError(f"artifact_id already exists with different snapshot: {artifact_id}")
+                    finally:
+                        os.unlink(metadata_name, dir_fd=metadata_fd)
                 finally:
-                    meta_temp.unlink(missing_ok=True)
+                    os.close(metadata_fd)
                 return reference
             finally:
                 os.unlink(temp_name, dir_fd=staging_fd)
