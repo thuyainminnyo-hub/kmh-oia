@@ -342,9 +342,13 @@ class VerifiedArtifactStore:
             os.close(root_fd)
             raise
         blob_parent_fd = blob_fds[-1]
+        staging_fd = -1
         try:
             staging_fd = os.open(".staging", os.O_RDONLY | directory | nofollow, dir_fd=root_fd)
+            self._require_private_store_directory(staging_fd)
         except BaseException:
+            if staging_fd >= 0:
+                os.close(staging_fd)
             for opened_fd in reversed(blob_fds):
                 os.close(opened_fd)
             os.close(root_fd)
@@ -378,6 +382,7 @@ class VerifiedArtifactStore:
                 encoded = (json.dumps(asdict(reference), sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
                 metadata_fd = os.open("artifacts", os.O_RDONLY | directory | nofollow, dir_fd=root_fd)
                 try:
+                    self._require_private_store_directory(metadata_fd)
                     metadata_name = "metadata-" + secrets.token_hex(16)
                     meta_fd = os.open(
                         metadata_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | nofollow,
