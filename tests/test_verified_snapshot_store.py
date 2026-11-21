@@ -202,6 +202,29 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                     )
             self.assertFalse((store.metadata_root / "unsupported-link.json").exists())
 
+    def test_metadata_publication_failure_does_not_admit_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"metadata failure after blob publication"
+            digest = hashlib.sha256(payload).hexdigest()
+            original_open = os.open
+
+            def fail_metadata_open(path, flags, *args, **kwargs):
+                if Path(path) == store.metadata_root:
+                    raise PermissionError("injected metadata directory failure")
+                return original_open(path, flags, *args, **kwargs)
+
+            with patch("src.verified_snapshot_store.os.open", side_effect=fail_metadata_open):
+                with self.assertRaisesRegex(PermissionError, "injected metadata"):
+                    store.put_bytes(
+                        payload, artifact_id="metadata-failure",
+                        expected_sha256=digest, expected_size_bytes=len(payload),
+                    )
+            self.assertFalse((store.metadata_root / "metadata-failure.json").exists())
+            self.assertEqual(list(store.staging_root.iterdir()), [])
+            # A content-addressed orphan may exist; it must not be admitted as evidence.
+            self.assertEqual((store.blob_root / digest[:2] / digest[2:4] / digest).read_bytes(), payload)
+
     def test_rejects_final_blob_symlink(self):
         if not hasattr(os, "symlink"):
             self.skipTest("symlinks are unavailable")
