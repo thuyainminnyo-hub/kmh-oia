@@ -365,6 +365,40 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                         (store.metadata_root / "untrusted-dir.json").exists()
                     )
 
+    def test_deduplication_retries_after_hardlink_count_changes(self):
+        # Unlinking an extra hard link modifies ctime, not file contents.
+        # The collision reader should retry against the same pinned parent.
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"content survives benign hard-link count changes"
+            digest = hashlib.sha256(payload).hexdigest()
+            first = store.put_bytes(
+                payload, artifact_id="ctime-original",
+                expected_sha256=digest, expected_size_bytes=len(payload),
+            )
+            blob = store.root / first.storage_key
+            extra_link = blob.parent / "extra-hardlink"
+            os.link(blob, extra_link)
+            original_read = os.read
+            unlinked = False
+
+            def unlink_while_reading(fd, count):
+                nonlocal unlinked
+                if not unlinked:
+                    unlinked = True
+                    extra_link.unlink()
+                return original_read(fd, count)
+
+            with patch("src.verified_snapshot_store.os.read", side_effect=unlink_while_reading):
+                repeated = store.put_bytes(
+                    payload, artifact_id="ctime-reused",
+                    expected_sha256=digest, expected_size_bytes=len(payload),
+                )
+            self.assertTrue(unlinked)
+            self.assertFalse(extra_link.exists())
+            self.assertEqual(repeated.sha256, first.sha256)
+            self.assertEqual(store.get_verified(repeated), payload)
+
     def test_concurrent_identical_publication_is_consistent(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = VerifiedArtifactStore(Path(tmp) / "snapshots")
