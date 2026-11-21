@@ -53,7 +53,10 @@ class VerifiedArtifactStore:
     def __init__(self, root: str | Path) -> None:
         if not isinstance(root, (str, Path)) or not str(root).strip():
             raise ValueError("snapshot root must be a non-empty path")
-        self.root = Path(root).expanduser().resolve()
+        # Keep the configured path's symlink components visible to the
+        # no-follow directory initializer; resolve() would erase that evidence.
+        # abspath() normalizes relative/.. components without following links.
+        self.root = Path(os.path.abspath(Path(root).expanduser()))
         self.blob_root = self.root / "sha256"
         self.metadata_root = self.root / "artifacts"
         self.staging_root = self.root / ".staging"
