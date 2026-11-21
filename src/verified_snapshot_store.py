@@ -79,6 +79,72 @@ class VerifiedArtifactStore:
             os.close(fd)
             raise
 
+    def _read_pinned_entry(
+        self, parent_fd: int, name: str, *, max_bytes: int,
+        expected_size: int | None = None,
+    ) -> bytes:
+        """Read an existing publication entry from its pinned parent directory.
+
+        This must not reopen self.root via a mutable pathname: a concurrent
+        root rename could otherwise verify a different store generation.
+        """
+        if not isinstance(name, str) or name in {"", ".", ".."} or "/" in name or "\\" in name:
+            raise ValueError("invalid snapshot entry name")
+        if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
+            raise ValueError("max_bytes must be a positive integer")
+        if expected_size is not None and (
+            isinstance(expected_size, bool)
+            or not isinstance(expected_size, int)
+            or expected_size <= 0
+            or expected_size > max_bytes
+        ):
+            raise ValueError("invalid expected snapshot size")
+        nofollow = getattr(os, "O_NOFOLLOW", 0)
+        if not nofollow or os.open not in os.supports_dir_fd:
+            raise RuntimeError("secure descriptor-relative snapshot reads are unsupported")
+        fd = -1
+        try:
+            fd = os.open(
+                name, os.O_RDONLY | nofollow | getattr(os, "O_NONBLOCK", 0),
+                dir_fd=parent_fd,
+            )
+            before = os.fstat(fd)
+            if not stat.S_ISREG(before.st_mode):
+                raise ValueError("snapshot entry is not a regular file")
+            if before.st_size < 0 or before.st_size > max_bytes:
+                raise ValueError("snapshot file exceeds size limit")
+            if expected_size is not None and before.st_size != expected_size:
+                raise ValueError("snapshot size mismatch")
+            chunks: list[bytes] = []
+            total = 0
+            while True:
+                block = os.read(fd, min(1024 * 1024, max_bytes - total + 1))
+                if not block:
+                    break
+                total += len(block)
+                if total > max_bytes:
+                    raise ValueError("snapshot file exceeds size limit")
+                chunks.append(block)
+            after = os.fstat(fd)
+            identity_before = (
+                before.st_dev, before.st_ino, before.st_size,
+                before.st_mtime_ns, before.st_ctime_ns,
+            )
+            identity_after = (
+                after.st_dev, after.st_ino, after.st_size,
+                after.st_mtime_ns, after.st_ctime_ns,
+            )
+            if identity_before != identity_after:
+                raise ValueError("snapshot file changed while being read")
+            if expected_size is not None and total != expected_size:
+                raise ValueError("snapshot size mismatch")
+            return b"".join(chunks)
+        except OSError as exc:
+            raise ValueError("unable to safely read published snapshot entry") from exc
+        finally:
+            if fd >= 0:
+                os.close(fd)
+
     def _blob_path(self, digest: str) -> Path:
         if not _SHA256_RE.fullmatch(digest):
             raise ValueError("invalid snapshot digest")
@@ -290,8 +356,9 @@ class VerifiedArtifactStore:
                     )
                     os.fsync(blob_parent_fd)
                 except FileExistsError:
-                    existing = self._read_no_follow(
-                        blob_path, expected_size=len(payload), max_bytes=_MAX_SNAPSHOT_BYTES
+                    existing = self._read_pinned_entry(
+                        blob_parent_fd, digest,
+                        expected_size=len(payload), max_bytes=_MAX_SNAPSHOT_BYTES,
                     )
                     if len(existing) != len(payload) or hashlib.sha256(existing).hexdigest() != digest:
                         raise ValueError("existing content-addressed snapshot failed integrity verification")
@@ -318,7 +385,9 @@ class VerifiedArtifactStore:
                             )
                             os.fsync(metadata_fd)
                         except FileExistsError:
-                            previous = self._read_no_follow(metadata_path, max_bytes=_MAX_METADATA_BYTES)
+                            previous = self._read_pinned_entry(
+                                metadata_fd, f"{artifact_id}.json", max_bytes=_MAX_METADATA_BYTES,
+                            )
                             if previous != encoded:
                                 raise FileExistsError(f"artifact_id already exists with different snapshot: {artifact_id}")
                     finally:
