@@ -113,6 +113,14 @@ class VerifiedArtifactStore:
                 child_fd = os.open(
                     component, os.O_RDONLY | directory | nofollow, dir_fd=fd,
                 )
+                try:
+                    # Persist the child directory entry in its parent.
+                    # Also sync on FileExistsError: another writer may have
+                    # created this entry but not durably committed it yet.
+                    os.fsync(fd)
+                except BaseException:
+                    os.close(child_fd)
+                    raise
                 os.close(fd)
                 fd = child_fd
             self._require_private_store_directory(fd)
@@ -126,6 +134,7 @@ class VerifiedArtifactStore:
                 )
                 try:
                     self._require_private_store_directory(child_fd)
+                    os.fsync(fd)
                 finally:
                     os.close(child_fd)
         finally:
@@ -422,6 +431,9 @@ class VerifiedArtifactStore:
                 )
                 blob_fds.append(child_fd)
                 self._require_private_store_directory(child_fd)
+                # The blob directory name must outlive a power loss even
+                # when this writer encountered a concurrently-created entry.
+                os.fsync(parent_fd)
                 parent_fd = child_fd
         except BaseException:
             for opened_fd in reversed(blob_fds):
