@@ -6,11 +6,11 @@ import stat
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from threading import Barrier, Event
 from pathlib import Path
 from unittest.mock import patch
 
-from src.verified_snapshot_store import VerifiedArtifactStore
+from src.verified_snapshot_store import VerifiedArtifactStore, VerifiedSnapshot
 
 
 class VerifiedArtifactStoreTests(unittest.TestCase):
@@ -231,6 +231,62 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
             self.assertEqual(list(store.staging_root.iterdir()), [])
             # A content-addressed orphan may exist; it must not be admitted as evidence.
             self.assertEqual((store.blob_root / digest[:2] / digest[2:4] / digest).read_bytes(), payload)
+
+    def test_reader_does_not_admit_metadata_before_commit_sync(self):
+        """A linked metadata record is visible before its durability fsync.
+
+        This is a required admission-policy regression: reads must reject
+        a reference until publication has crossed the commit/durability gate.
+        """
+        if os.name != "posix":
+            self.skipTest("POSIX directory fsync semantics only")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"transiently visible metadata is not committed evidence"
+            digest = hashlib.sha256(payload).hexdigest()
+            artifact_id = "pending-commit-visibility"
+            reference = VerifiedSnapshot(
+                artifact_id=artifact_id,
+                sha256=digest,
+                size_bytes=len(payload),
+                storage_key=f"sha256/{digest[:2]}/{digest[2:4]}/{digest}",
+            )
+            metadata_name = store.metadata_root / f"{artifact_id}.json"
+            info = store.metadata_root.stat()
+            metadata_identity = (info.st_dev, info.st_ino)
+            reached_unsynced_publication = Event()
+            release_sync = Event()
+            original_fsync = os.fsync
+
+            def hold_metadata_sync(fd):
+                info = os.fstat(fd)
+                if (
+                    stat.S_ISDIR(info.st_mode)
+                    and (info.st_dev, info.st_ino) == metadata_identity
+                    and metadata_name.exists()
+                ):
+                    reached_unsynced_publication.set()
+                    if not release_sync.wait(timeout=15):
+                        raise TimeoutError("unsynced publication test deadlocked")
+                return original_fsync(fd)
+
+            with patch("src.verified_snapshot_store.os.fsync", side_effect=hold_metadata_sync):
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    future = pool.submit(
+                        store.put_bytes, payload, artifact_id=artifact_id,
+                        expected_sha256=digest, expected_size_bytes=len(payload),
+                    )
+                    try:
+                        self.assertTrue(
+                            reached_unsynced_publication.wait(timeout=10),
+                            "metadata publication never reached its durability barrier",
+                        )
+                        with self.assertRaises((FileNotFoundError, ValueError, RuntimeError)):
+                            store.get_verified(reference)
+                    finally:
+                        release_sync.set()
+                    self.assertEqual(future.result(timeout=15), reference)
+            self.assertEqual(store.get_verified(reference), payload)
 
     def test_metadata_fsync_failure_rolls_back_uncommitted_record(self):
         if os.name != "posix":
