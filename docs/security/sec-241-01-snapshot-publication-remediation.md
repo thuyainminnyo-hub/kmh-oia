@@ -34,6 +34,19 @@ These checks are deterministic tests and bounded concurrent fixtures, not proof 
 5. **Threat model.** Document whether other processes or tenants can create, rename, chmod, chown, or replace store components, and whether attackers can modify the running process's credentials or memory. Directory-descriptor hardening does not defend against a fully compromised same-privilege process.
 6. **Independent review.** Examine file descriptor lifecycle, collision behavior, concurrent root replacement, filesystem permissions, and realistic storage mounts, with exact-head evidence and severity/disposition. Check PR #147 scope separately.
 
+## Root ancestor trust-policy implementation (draft)
+
+At source commit `f75b08b2f0c0e9254f356befdf431ddfa0a34ac0`, the no-follow publication opener checks each ancestor using its **opened directory descriptor**. Untrusted ancestor owners and group/other-writable directories **without** the sticky bit fail closed. The store root and its blob/staging/metadata children require ownership by the process effective UID and no group/other write permissions.
+
+Trusted sticky parents such as root-owned `/tmp` may be accepted to preserve standard POSIX temp-directory compatibility. This is not a general claim that sticky directories are a secure place for multi-tenant evidence: the directory owner, process owner, privileged actors, filesystem ACLs, mount semantics, and same-UID processes still matter. This code makes **no automatic chmod/chown changes** to existing deployment directories.
+
+Targeted CI evidence for `f75b08b2f0c0e9254f356befdf431ddfa0a34ac0`:
+- Tests: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44911815626 — SUCCESS, 638 tests OK.
+- Validation: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44911815572 — SUCCESS.
+- The test log explicitly confirms `test_rejects_nonsticky_writable_store_ancestor` and `test_allows_sticky_writable_ancestor_for_private_store` passed.
+
+**Remaining gate:** Independent review must confirm this owner/mode/sticky policy against actual service accounts, ACLs, NFS/shared mounts, parent directory ownership, and real production storage. These local POSIX tests do not establish production filesystem compatibility or release authorization.
+
 ## Release gates
 
 - [x] No-follow descriptor-relative publication implementation committed to draft branch.
