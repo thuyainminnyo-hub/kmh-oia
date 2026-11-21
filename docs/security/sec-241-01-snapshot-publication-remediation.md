@@ -1,4 +1,4 @@
-# Snapshot publication security — SEC-241-01 / 02 / 03 / 04 / 05 / 06 / 07
+# Snapshot publication security — SEC-241-01 / 02 / 03 / 04 / 05 / 06 / 07 / 08
 
 **Status: OPEN — targeted implementation and CI verification completed; operational trust policy and independent security review NOT VERIFIED.**
 
@@ -93,6 +93,34 @@ This verifies the explicit test fixture, not all possible initialization races, 
 
 **Limitations / HOLD:** This is **best-effort rollback**, not a transaction or power-loss atomicity guarantee. A concurrent reader could observe the metadata hard link between publication and unsuccessful sync/rollback, and a real filesystem can fail the compensating unlink or sync. Orphan blobs remain possible after metadata failure. No physical power-loss tests, actual target-mount behavior, crash recovery, customer data, or live production execution is verified. An independent reviewer must assess a transactional evidence-commit protocol or admission rule if no transient visibility of uncommitted metadata is an explicit requirement. See https://man7.org/linux/man-pages/man2/fsync.2.html .
 
+## SEC-241-08 — Readers admit visible metadata before durability sync (CONFIRMED, UNRESOLVED)
+
+**Controlled test evidence:** In `test_reader_does_not_admit_metadata_before_commit_sync`, the publishing writer is paused at the final metadata-directory `fsync` *after* `artifact_id.json` is hard-linked. During that pause, `get_verified(reference)` successfully returns the snapshot, instead of rejecting it as uncommitted. The red-test commit `6f5feca64df1ed598649bfdbf0762cc2a829801f` failed exactly this assertion: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44934513803 (646 tests, one failure). No crash or real storage outage was simulated.
+
+**Tracking:** Commit `fe8900e28a3f1362549dd55ade7281286b72b2b8` intentionally marks this *still-failing* test `@unittest.expectedFailure`. It remains an **OPEN security gate and must not be described as passing** merely because the overall CI suite may complete successfully. Remove this marker and demand a true PASS at the approved remediation HEAD.
+
+**Why SEC-241-07 rollback is insufficient:** Undoing a metadata link *after* an `fsync` error cannot revoke data a concurrent reader has already returned. Atomic namespace visibility and crash durability are separate properties; a plain `link()` or `rename()` does not imply that the containing directory entry has been durably synchronized.
+
+### Reviewer decision required before production-code protocol changes
+
+The owner/security reviewer must select and explicitly specify the **admission boundary**, acceptable compatibility/migration behavior, and target-filesystem model. Candidate designs for review (not implementations):
+
+1. **Durable metadata + explicit commit/admission record:** Make `get_verified` reject metadata lacking a validated commit record. Create or expose that record only after the underlying metadata and blob have been durably synced. Examine marker publication/fsync failure, no-overwrite semantics, marker-to-metadata identity, cross-process idempotency, and legacy records without commit markers. A commit marker visible before its own directory `fsync` may still disappear after a crash, so distinguish acknowledgment semantics from pre-sync read safety.
+2. **Cross-process publication/read coordination:** Use a verified shared locking/transactional mechanism that readers and writers both honor and that supports the actual target filesystem. Review crash recovery and what happens when the writer dies while holding the lock. A thread-only mutex is insufficient for independent workers; lock semantics may differ on NFS/other mounts.
+3. **Transactional store or append-only evidence ledger:** Consider an explicit committed-state index with recovery rules if the existing file-layout protocol cannot express the required guarantees. Require a data migration/replay plan; do not silently reinterpret old entries as committed.
+
+### Acceptance criteria (NOT VERIFIED)
+
+- [ ] The pre-commit reader test passes **without** `expectedFailure` at the exact reviewed HEAD.
+- [ ] A simulated metadata `fsync` failure cannot cause the public reader API to acknowledge uncommitted evidence, including during rollback.
+- [ ] Concurrent writers of identical and conflicting artifact IDs have deterministic safe outcomes, no overwrite, and no success before admission.
+- [ ] The commit/admission indicator cannot be forged, followed through symlinks, or mismatched against the immutable metadata and blob.
+- [ ] Crash states before/after each durability barrier have explicit replay/recovery rules; no destructive orphan cleanup without owner approval.
+- [ ] Existing metadata records and third-party consumers are handled by an explicit compatibility decision, not an automatic migration.
+- [ ] Multi-process target-filesystem evidence, independent exact-head security QA, and owner authorization are attached.
+
+**Decision: SEC-241-08 OPEN / FAIL (expected-failure regression). No merge or deployment.**
+
 ## Release gates
 
 - [x] No-follow descriptor-relative publication implementation committed to draft branch.
@@ -100,6 +128,7 @@ This verifies the explicit test fixture, not all possible initialization races, 
 - [x] Targeted POSIX root/ancestor permission and secure-initialization guards tested on CI.
 - [ ] Root ownership, permissions, filesystem ACL/mount behavior, and ancestor threat model approved for deployment.
 - [ ] Broader concurrent/multi-process stress and supported-platform verification.
+- [ ] SEC-241-08 admission-policy regression PASS (currently expected failure; NOT VERIFIED).
 - [ ] Independent exact-head security review approval.
 - [ ] Authorized live ComfyUI run with output integrity, immutable evidence, independent QA, and explicit owner production release approval.
 
