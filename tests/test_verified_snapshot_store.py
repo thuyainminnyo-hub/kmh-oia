@@ -228,6 +228,30 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
             # A content-addressed orphan may exist; it must not be admitted as evidence.
             self.assertEqual((store.blob_root / digest[:2] / digest[2:4] / digest).read_bytes(), payload)
 
+    def test_rejects_replaced_store_root_ancestor_symlink_on_publication(self):
+        if not hasattr(os, "symlink"):
+            self.skipTest("symlinks are unavailable")
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp) / "trusted-parent"
+            parent.mkdir()
+            store = VerifiedArtifactStore(parent / "snapshots")
+            displaced = Path(tmp) / "displaced-parent"
+            parent.rename(displaced)
+            outside = Path(tmp) / "outside-parent"
+            outside.mkdir()
+            shutil.copytree(displaced / "snapshots", outside / "snapshots")
+            parent.symlink_to(outside, target_is_directory=True)
+            payload = b"ancestor symlink substitution"
+            with self.assertRaises((ValueError, OSError, RuntimeError)):
+                store.put_bytes(
+                    payload, artifact_id="ancestor-substitution",
+                    expected_sha256=hashlib.sha256(payload).hexdigest(),
+                    expected_size_bytes=len(payload),
+                )
+            self.assertEqual(
+                list((outside / "snapshots" / "artifacts").iterdir()), []
+            )
+
     def test_rejects_final_blob_symlink(self):
         if not hasattr(os, "symlink"):
             self.skipTest("symlinks are unavailable")
