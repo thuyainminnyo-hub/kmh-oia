@@ -1,4 +1,4 @@
-# Snapshot publication security — SEC-241-01 / 02 / 03 / 04 / 05
+# Snapshot publication security — SEC-241-01 / 02 / 03 / 04 / 05 / 06
 
 **Status: OPEN — targeted implementation and CI verification completed; operational trust policy and independent security review NOT VERIFIED.**
 
@@ -68,6 +68,18 @@ This verifies the explicit test fixture, not all possible initialization races, 
 **Compatibility warning:** Intentionally configured symlink paths to the snapshot store now fail closed. Before deployment, the owner must inspect existing configuration and explicitly provision the real approved path rather than silently permit a symlink alias. Do not alter production symlinks, mount points, or storage contents automatically. Confirm the final exact-head Validation workflow separately.
 
 **Remaining limitations:** Passing fixtures do not prove real host ACL/mount compatibility, absence of same-UID adversaries, or independent security approval.
+
+## SEC-241-06 — Directory-entry durability and fsync ordering
+
+**Observed behavior:** After no-follow descriptor-relative `mkdir` at initialization and while building the content-addressed blob prefix tree, the prior implementation did not explicitly `fsync` the parent directories of new entries. File-level `fsync` and final blob/metadata directory `fsync` alone do not guarantee new ancestor directory entries survive a crash. See https://man7.org/linux/man-pages/man2/fsync.2.html .
+
+**Confirmed red test:** At `d2f6bdf0d08cf0aa6c99e9a2e6f40f5a2b181d0c`, `test_initialization_fsyncs_parent_of_new_store_directories` and `test_new_digest_subdirectories_fsync_parent_entries` both failed: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44913083004 .
+
+**Draft code remediation:** `a8fa03ebadba302ad17c9a86a5ec912b0c2b24f0` calls `os.fsync(parent_fd)` after confirming the newly created or preexisting child entry via a no-follow open. The parent is synced even on `FileExistsError` to account for a concurrent writer having created a not-yet-durable directory. Any `fsync` error propagates rather than silently claiming success.
+
+**Exact source HEAD CI evidence:** Tests https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44913152826 — SUCCESS, **643 tests OK**, including the two new cases. Validation https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44913152825 — SUCCESS.
+
+**Remaining limitations:** These are deterministic checks of the `fsync` calls. They do **not** constitute a power-loss, storage-controller, network-filesystem, NFS or overlayfs crash-recovery test. The independently approved target-host filesystem contract, resilience to injected `fsync` failures and actual durable recovery evidence are still NOT VERIFIED. Added sync calls can affect performance and supported-filesystem compatibility and require target-host review.
 
 ## Release gates
 
