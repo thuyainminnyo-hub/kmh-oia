@@ -156,6 +156,27 @@ class VerifiedArtifactStore:
             if fd >= 0:
                 os.close(fd)
 
+    def _read_pinned_after_collision(
+        self, parent_fd: int, name: str, *, max_bytes: int,
+        expected_size: int | None = None,
+    ) -> bytes:
+        """Retry transient ctime changes while retaining the pinned parent.
+
+        Creating/removing an extra hard link changes inode ctime even when
+        the data is unchanged. Never accept a changing read: reopen from the
+        same directory descriptor and require stable bounds and identity.
+        """
+        for attempt in range(3):
+            try:
+                return self._read_pinned_entry(
+                    parent_fd, name, max_bytes=max_bytes,
+                    expected_size=expected_size,
+                )
+            except ValueError as exc:
+                if str(exc) != "snapshot file changed while being read" or attempt == 2:
+                    raise
+        raise AssertionError("unreachable snapshot verification retry state")
+
     def _blob_path(self, digest: str) -> Path:
         if not _SHA256_RE.fullmatch(digest):
             raise ValueError("invalid snapshot digest")
@@ -372,7 +393,7 @@ class VerifiedArtifactStore:
                     )
                     os.fsync(blob_parent_fd)
                 except FileExistsError:
-                    existing = self._read_pinned_entry(
+                    existing = self._read_pinned_after_collision(
                         blob_parent_fd, digest,
                         expected_size=len(payload), max_bytes=_MAX_SNAPSHOT_BYTES,
                     )
@@ -402,7 +423,7 @@ class VerifiedArtifactStore:
                             )
                             os.fsync(metadata_fd)
                         except FileExistsError:
-                            previous = self._read_pinned_entry(
+                            previous = self._read_pinned_after_collision(
                                 metadata_fd, f"{artifact_id}.json", max_bytes=_MAX_METADATA_BYTES,
                             )
                             if previous != encoded:
