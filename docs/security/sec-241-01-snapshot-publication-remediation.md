@@ -1,4 +1,4 @@
-# Snapshot publication security — SEC-241-01 / 02 / 03 / 04 / 05 / 06
+# Snapshot publication security — SEC-241-01 / 02 / 03 / 04 / 05 / 06 / 07
 
 **Status: OPEN — targeted implementation and CI verification completed; operational trust policy and independent security review NOT VERIFIED.**
 
@@ -80,6 +80,18 @@ This verifies the explicit test fixture, not all possible initialization races, 
 **Exact source HEAD CI evidence:** Tests https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44913152826 — SUCCESS, **643 tests OK**, including the two new cases. Validation https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44913152825 — SUCCESS.
 
 **Remaining limitations:** These are deterministic checks of the `fsync` calls. They do **not** constitute a power-loss, storage-controller, network-filesystem, NFS or overlayfs crash-recovery test. The independently approved target-host filesystem contract, resilience to injected `fsync` failures and actual durable recovery evidence are still NOT VERIFIED. Added sync calls can affect performance and supported-filesystem compatibility and require target-host review.
+
+## SEC-241-07 — Metadata directory fsync failure and rollback (draft)
+
+**Observed failure:** The previous metadata publication sequence created the final metadata hard link, then called `os.fsync(metadata_fd)`. If that sync raised an `OSError`, `put_bytes` failed yet the newly created metadata entry remained visible. This is an error-recovery and evidence-admission ambiguity; it is **not** proof that a real disk crash occurred.
+
+**Red-test evidence:** At `e1749d1b8abd7d953d83ff823a9522ed5978f24e`, `test_metadata_fsync_failure_rolls_back_uncommitted_record` failed because the final metadata file remained after an injected directory fsync failure. CI: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44934042809 — FAIL.
+
+**Draft remediation:** Commit `85701e7e9fd75e4bb4e5a4c91c6187e71cef6a23` separates metadata `FileExistsError` collision verification from successful publication. If a newly linked metadata entry fails the durability `fsync`, the code attempts to unlink **only the entry it created** and sync the parent again. If rollback fails, it raises a clear `RuntimeError` indicating rollback was not confirmed; it does not claim success or remove a preexisting collision winner.
+
+**CI evidence:** Tests https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44934112187 — SUCCESS, **644 tests OK**, including the red-then-green regression. A follow-up test at `684acf5b2a933214501b6ff5a7b0cc29b6614549` verifies that a second fsync failure during rollback produces the unconfirmed-durability error; Tests https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44934190852 — SUCCESS, **645 tests OK**. Refer to the exact-head Validation run when it completes.
+
+**Limitations / HOLD:** This is **best-effort rollback**, not a transaction or power-loss atomicity guarantee. A concurrent reader could observe the metadata hard link between publication and unsuccessful sync/rollback, and a real filesystem can fail the compensating unlink or sync. Orphan blobs remain possible after metadata failure. No physical power-loss tests, actual target-mount behavior, crash recovery, customer data, or live production execution is verified. An independent reviewer must assess a transactional evidence-commit protocol or admission rule if no transient visibility of uncommitted metadata is an explicit requirement. See https://man7.org/linux/man-pages/man2/fsync.2.html .
 
 ## Release gates
 
