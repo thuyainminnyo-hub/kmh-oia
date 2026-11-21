@@ -2,6 +2,7 @@ import hashlib
 import multiprocessing
 import os
 import shutil
+import stat
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -339,6 +340,49 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
             self.assertFalse(
                 (store.metadata_root / "job-reused-symlink-test.json").exists()
             )
+
+    def test_rejects_nonsticky_writable_store_ancestor(self):
+        if os.name != "posix" or not hasattr(os, "geteuid"):
+            self.skipTest("POSIX ancestor trust policy only")
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp) / "unsafe-parent"
+            parent.mkdir()
+            store = VerifiedArtifactStore(parent / "snapshots")
+            original_mode = parent.stat().st_mode & 0o7777
+            payload = b"ancestor permission policy"
+            try:
+                parent.chmod(0o777)
+                with self.assertRaisesRegex(PermissionError, "untrusted writable snapshot ancestor"):
+                    store.put_bytes(
+                        payload, artifact_id="unsafe-ancestor",
+                        expected_sha256=hashlib.sha256(payload).hexdigest(),
+                        expected_size_bytes=len(payload),
+                    )
+            finally:
+                parent.chmod(original_mode)
+            self.assertFalse((store.metadata_root / "unsafe-ancestor.json").exists())
+
+    def test_allows_sticky_writable_ancestor_for_private_store(self):
+        if os.name != "posix" or not hasattr(os, "geteuid"):
+            self.skipTest("POSIX sticky-directory semantics only")
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp) / "sticky-parent"
+            parent.mkdir()
+            original_mode = parent.stat().st_mode & 0o7777
+            try:
+                parent.chmod(0o1777)
+                if not parent.stat().st_mode & stat.S_ISVTX:
+                    self.skipTest("sticky bit not supported on this filesystem")
+                store = VerifiedArtifactStore(parent / "snapshots")
+                payload = b"private store inside sticky parent"
+                reference = store.put_bytes(
+                    payload, artifact_id="sticky-parent",
+                    expected_sha256=hashlib.sha256(payload).hexdigest(),
+                    expected_size_bytes=len(payload),
+                )
+                self.assertEqual(store.get_verified(reference), payload)
+            finally:
+                parent.chmod(original_mode)
 
     def test_rejects_group_or_world_writable_store_directories(self):
         if os.name != "posix" or not hasattr(os, "geteuid"):
