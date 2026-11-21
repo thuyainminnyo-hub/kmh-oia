@@ -214,12 +214,15 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                     raise PermissionError("injected metadata directory failure")
                 return original_open(path, flags, *args, **kwargs)
 
-            with patch("src.verified_snapshot_store.os.open", side_effect=fail_metadata_open):
-                with self.assertRaisesRegex(PermissionError, "injected metadata"):
-                    store.put_bytes(
-                        payload, artifact_id="metadata-failure",
-                        expected_sha256=digest, expected_size_bytes=len(payload),
-                    )
+            # The mock replaces os.open's identity; preserve its advertised
+            # dir_fd capability while injecting the targeted metadata failure.
+            with patch("src.verified_snapshot_store.os.open", side_effect=fail_metadata_open) as mocked_open:
+                with patch("src.verified_snapshot_store.os.supports_dir_fd", os.supports_dir_fd | {mocked_open}):
+                    with self.assertRaisesRegex(PermissionError, "injected metadata"):
+                        store.put_bytes(
+                            payload, artifact_id="metadata-failure",
+                            expected_sha256=digest, expected_size_bytes=len(payload),
+                        )
             self.assertFalse((store.metadata_root / "metadata-failure.json").exists())
             self.assertEqual(list(store.staging_root.iterdir()), [])
             # A content-addressed orphan may exist; it must not be admitted as evidence.
