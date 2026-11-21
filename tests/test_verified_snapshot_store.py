@@ -232,6 +232,45 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
             # A content-addressed orphan may exist; it must not be admitted as evidence.
             self.assertEqual((store.blob_root / digest[:2] / digest[2:4] / digest).read_bytes(), payload)
 
+    def test_metadata_fsync_failure_rolls_back_uncommitted_record(self):
+        if os.name != "posix":
+            self.skipTest("POSIX directory fsync semantics only")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"metadata fsync failure must not admit evidence"
+            digest = hashlib.sha256(payload).hexdigest()
+            metadata_info = store.metadata_root.stat()
+            metadata_identity = (metadata_info.st_dev, metadata_info.st_ino)
+            original_fsync = os.fsync
+            injected = False
+
+            def fail_metadata_directory_fsync(fd):
+                nonlocal injected
+                info = os.fstat(fd)
+                if (
+                    not injected
+                    and stat.S_ISDIR(info.st_mode)
+                    and (info.st_dev, info.st_ino) == metadata_identity
+                    and (store.metadata_root / "metadata-fsync-failure.json").exists()
+                ):
+                    injected = True
+                    raise OSError("injected metadata directory fsync failure")
+                return original_fsync(fd)
+
+            with patch("src.verified_snapshot_store.os.fsync", side_effect=fail_metadata_directory_fsync):
+                with self.assertRaisesRegex(OSError, "injected metadata directory fsync failure"):
+                    store.put_bytes(
+                        payload, artifact_id="metadata-fsync-failure",
+                        expected_sha256=digest, expected_size_bytes=len(payload),
+                    )
+            self.assertTrue(injected)
+            self.assertFalse(
+                (store.metadata_root / "metadata-fsync-failure.json").exists(),
+                "metadata must not remain admitted after failed durability sync",
+            )
+            self.assertEqual(list(store.staging_root.iterdir()), [])
+            self.assertEqual(list(store.metadata_root.iterdir()), [])
+
     def test_rejects_replaced_store_root_ancestor_symlink_on_publication(self):
         if not hasattr(os, "symlink"):
             self.skipTest("symlinks are unavailable")
