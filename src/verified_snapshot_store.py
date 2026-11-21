@@ -70,6 +70,23 @@ class VerifiedArtifactStore:
         if info.st_uid != os.geteuid() or info.st_mode & 0o022:
             raise PermissionError("snapshot store directory ownership or writable permissions are unsafe")
 
+    def _require_trusted_store_ancestor(self, fd: int) -> None:
+        """Reject untrusted or replaceable ancestor directories.
+
+        Private directories are enforced separately. A trusted sticky parent
+        (e.g. root-owned /tmp) is allowed because other users cannot rename
+        entries owned by the store process.
+        """
+        if not hasattr(os, "geteuid"):
+            raise RuntimeError("snapshot ancestor ownership checks are unsupported")
+        info = os.fstat(fd)
+        if not stat.S_ISDIR(info.st_mode):
+            raise RuntimeError("snapshot ancestor is not a directory")
+        if info.st_uid not in (0, os.geteuid()):
+            raise PermissionError("snapshot ancestor has an untrusted owner")
+        if info.st_mode & 0o022 and not info.st_mode & stat.S_ISVTX:
+            raise PermissionError("untrusted writable snapshot ancestor")
+
     def _open_store_directory(self, *components: str) -> int:
         """Open the store root and children without following ancestor symlinks."""
         nofollow = getattr(os, "O_NOFOLLOW", 0)
@@ -77,8 +94,13 @@ class VerifiedArtifactStore:
         if not nofollow or not directory or os.open not in os.supports_dir_fd:
             raise RuntimeError("secure store directory traversal is unsupported")
         fd = os.open(os.sep, os.O_RDONLY | directory | nofollow)
+        root_depth = len(self.root.parts) - 1
         try:
-            for component in (*self.root.parts[1:], *components):
+            for index, component in enumerate((*self.root.parts[1:], *components)):
+                if index < root_depth:
+                    self._require_trusted_store_ancestor(fd)
+                else:
+                    self._require_private_store_directory(fd)
                 next_fd = os.open(
                     component, os.O_RDONLY | directory | nofollow, dir_fd=fd
                 )
