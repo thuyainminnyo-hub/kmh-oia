@@ -221,6 +221,8 @@ class VerifiedArtifactStore:
             raise RuntimeError("secure staging directory checks are unsupported")
         if not {os.open, os.link, os.unlink, os.mkdir}.issubset(os.supports_dir_fd):
             raise RuntimeError("descriptor-relative snapshot publication is unsupported")
+        if os.link not in os.supports_follow_symlinks:
+            raise RuntimeError("no-follow snapshot hard-link publication is unsupported")
         # Resolve each blob component relative to a verified parent descriptor.
         # Reject symlinks even when an attacker substitutes a directory.
         root_fd = os.open(self.root, os.O_RDONLY | directory | nofollow)
