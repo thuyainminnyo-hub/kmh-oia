@@ -153,6 +153,24 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
                 )
             self.assertEqual(list(outside.iterdir()), [])
 
+    def test_rejects_symlinked_metadata_directory_during_publication(self):
+        if not hasattr(os, "symlink"):
+            self.skipTest("symlinks are unavailable")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            outside = Path(tmp) / "outside-metadata"
+            outside.mkdir()
+            store.metadata_root.rmdir()
+            os.symlink(outside, store.metadata_root, target_is_directory=True)
+            payload = b"metadata directory substitution"
+            with self.assertRaises((ValueError, OSError, RuntimeError)):
+                store.put_bytes(
+                    payload, artifact_id="metadata-symlink",
+                    expected_sha256=hashlib.sha256(payload).hexdigest(),
+                    expected_size_bytes=len(payload),
+                )
+            self.assertEqual(list(outside.iterdir()), [])
+
     def test_rejects_final_blob_symlink(self):
         if not hasattr(os, "symlink"):
             self.skipTest("symlinks are unavailable")
