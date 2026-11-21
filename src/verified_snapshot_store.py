@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import stat
 import tempfile
 from dataclasses import asdict, dataclass
@@ -214,53 +215,59 @@ class VerifiedArtifactStore:
         metadata_path = self._metadata_path(artifact_id)
 
         # Reject a substituted staging-directory symlink before publishing.
-        # This is an interim guard, not a descriptor-bound publication fix.
+        # Keep the verified staging descriptor open through creation and cleanup.
         nofollow = getattr(os, "O_NOFOLLOW", 0)
         directory = getattr(os, "O_DIRECTORY", 0)
         if not nofollow or not directory:
             raise RuntimeError("secure staging directory checks are unsupported")
+        if not {os.open, os.link, os.unlink}.issubset(os.supports_dir_fd):
+            raise RuntimeError("descriptor-relative snapshot publication is unsupported")
         staging_fd = os.open(self.staging_root, os.O_RDONLY | directory | nofollow)
-        os.close(staging_fd)
-
-        fd, temp_name = tempfile.mkstemp(prefix="snapshot-", dir=self.staging_root)
-        temp_path = Path(temp_name)
+        temp_name = "snapshot-" + secrets.token_hex(16)
         try:
-            with os.fdopen(fd, "wb") as stream:
-                stream.write(payload)
-                stream.flush()
-                os.fsync(stream.fileno())
-                os.fchmod(stream.fileno(), 0o444)
+            fd = os.open(
+                temp_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | nofollow,
+                0o600, dir_fd=staging_fd,
+            )
             try:
-                os.link(temp_path, blob_path)
-                self._fsync_dir(blob_path.parent)
-            except FileExistsError:
-                existing = self._read_no_follow(
-                    blob_path, expected_size=len(payload), max_bytes=_MAX_SNAPSHOT_BYTES
-                )
-                if len(existing) != len(payload) or hashlib.sha256(existing).hexdigest() != digest:
-                    raise ValueError("existing content-addressed snapshot failed integrity verification")
-
-            encoded = (json.dumps(asdict(reference), sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
-            meta_fd, meta_name = tempfile.mkstemp(prefix="metadata-", dir=self.metadata_root)
-            meta_temp = Path(meta_name)
-            try:
-                with os.fdopen(meta_fd, "wb") as stream:
-                    stream.write(encoded)
+                with os.fdopen(fd, "wb") as stream:
+                    stream.write(payload)
                     stream.flush()
                     os.fsync(stream.fileno())
                     os.fchmod(stream.fileno(), 0o444)
                 try:
-                    os.link(meta_temp, metadata_path)
-                    self._fsync_dir(self.metadata_root)
+                    os.link(temp_name, blob_path, src_dir_fd=staging_fd, follow_symlinks=False)
+                    self._fsync_dir(blob_path.parent)
                 except FileExistsError:
-                    previous = self._read_no_follow(metadata_path, max_bytes=_MAX_METADATA_BYTES)
-                    if previous != encoded:
-                        raise FileExistsError(f"artifact_id already exists with different snapshot: {artifact_id}")
+                    existing = self._read_no_follow(
+                        blob_path, expected_size=len(payload), max_bytes=_MAX_SNAPSHOT_BYTES
+                    )
+                    if len(existing) != len(payload) or hashlib.sha256(existing).hexdigest() != digest:
+                        raise ValueError("existing content-addressed snapshot failed integrity verification")
+
+                encoded = (json.dumps(asdict(reference), sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+                meta_fd, meta_name = tempfile.mkstemp(prefix="metadata-", dir=self.metadata_root)
+                meta_temp = Path(meta_name)
+                try:
+                    with os.fdopen(meta_fd, "wb") as stream:
+                        stream.write(encoded)
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                        os.fchmod(stream.fileno(), 0o444)
+                    try:
+                        os.link(meta_temp, metadata_path)
+                        self._fsync_dir(self.metadata_root)
+                    except FileExistsError:
+                        previous = self._read_no_follow(metadata_path, max_bytes=_MAX_METADATA_BYTES)
+                        if previous != encoded:
+                            raise FileExistsError(f"artifact_id already exists with different snapshot: {artifact_id}")
+                finally:
+                    meta_temp.unlink(missing_ok=True)
+                return reference
             finally:
-                meta_temp.unlink(missing_ok=True)
-            return reference
+                os.unlink(temp_name, dir_fd=staging_fd)
         finally:
-            temp_path.unlink(missing_ok=True)
+            os.close(staging_fd)
 
     def get_verified(self, reference: VerifiedSnapshot) -> bytes:
         if not isinstance(reference, VerifiedSnapshot):
