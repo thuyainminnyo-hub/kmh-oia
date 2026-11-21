@@ -1,4 +1,5 @@
 import hashlib
+import multiprocessing
 import os
 import shutil
 import tempfile
@@ -398,6 +399,61 @@ class VerifiedArtifactStoreTests(unittest.TestCase):
             self.assertFalse(extra_link.exists())
             self.assertEqual(repeated.sha256, first.sha256)
             self.assertEqual(store.get_verified(repeated), payload)
+
+    def test_multiprocess_identical_publication_preserves_single_record(self):
+        if "fork" not in multiprocessing.get_all_start_methods():
+            self.skipTest("multiprocess fork test requires POSIX fork")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = VerifiedArtifactStore(Path(tmp) / "snapshots")
+            payload = b"same verified payload from independent worker processes"
+            digest = hashlib.sha256(payload).hexdigest()
+            context = multiprocessing.get_context("fork")
+            start = context.Barrier(4)
+            outcomes = context.Queue()
+
+            def publish():
+                try:
+                    start.wait(timeout=15)
+                    for _ in range(3):
+                        reference = VerifiedArtifactStore(store.root).put_bytes(
+                            payload, artifact_id="multiprocess-shared",
+                            expected_sha256=digest, expected_size_bytes=len(payload),
+                        )
+                        if reference.sha256 != digest:
+                            raise AssertionError("unexpected digest from publication")
+                    outcomes.put(("ok", digest))
+                except BaseException as exc:
+                    outcomes.put(("error", type(exc).__name__ + ": " + str(exc)))
+
+            workers = [context.Process(target=publish) for _ in range(4)]
+            try:
+                for worker in workers:
+                    worker.start()
+                for worker in workers:
+                    worker.join(timeout=20)
+                self.assertFalse(any(worker.is_alive() for worker in workers))
+                self.assertEqual([worker.exitcode for worker in workers], [0] * 4)
+                self.assertEqual(
+                    [outcomes.get(timeout=5) for _ in workers],
+                    [("ok", digest)] * 4,
+                )
+            finally:
+                for worker in workers:
+                    if worker.is_alive():
+                        worker.terminate()
+                    worker.join(timeout=2)
+                outcomes.close()
+                outcomes.join_thread()
+            self.assertEqual(list(store.staging_root.iterdir()), [])
+            self.assertEqual(
+                sorted(path.name for path in store.metadata_root.iterdir()),
+                ["multiprocess-shared.json"],
+            )
+            reference = store.put_bytes(
+                payload, artifact_id="multiprocess-shared",
+                expected_sha256=digest, expected_size_bytes=len(payload),
+            )
+            self.assertEqual(store.get_verified(reference), payload)
 
     def test_concurrent_identical_publication_is_consistent(self):
         with tempfile.TemporaryDirectory() as tmp:
