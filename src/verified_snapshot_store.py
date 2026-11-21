@@ -60,6 +60,25 @@ class VerifiedArtifactStore:
         for directory in (self.blob_root, self.metadata_root, self.staging_root):
             directory.mkdir(parents=True, exist_ok=True)
 
+    def _open_store_directory(self, *components: str) -> int:
+        """Open the store root and children without following ancestor symlinks."""
+        nofollow = getattr(os, "O_NOFOLLOW", 0)
+        directory = getattr(os, "O_DIRECTORY", 0)
+        if not nofollow or not directory or os.open not in os.supports_dir_fd:
+            raise RuntimeError("secure store directory traversal is unsupported")
+        fd = os.open(os.sep, os.O_RDONLY | directory | nofollow)
+        try:
+            for component in (*self.root.parts[1:], *components):
+                next_fd = os.open(
+                    component, os.O_RDONLY | directory | nofollow, dir_fd=fd
+                )
+                os.close(fd)
+                fd = next_fd
+            return fd
+        except BaseException:
+            os.close(fd)
+            raise
+
     def _blob_path(self, digest: str) -> Path:
         if not _SHA256_RE.fullmatch(digest):
             raise ValueError("invalid snapshot digest")
@@ -225,7 +244,7 @@ class VerifiedArtifactStore:
             raise RuntimeError("no-follow snapshot hard-link publication is unsupported")
         # Resolve each blob component relative to a verified parent descriptor.
         # Reject symlinks even when an attacker substitutes a directory.
-        root_fd = os.open(self.root, os.O_RDONLY | directory | nofollow)
+        root_fd = self._open_store_directory()
         blob_fds = []
         try:
             parent_fd = root_fd
@@ -246,7 +265,7 @@ class VerifiedArtifactStore:
             raise
         blob_parent_fd = blob_fds[-1]
         try:
-            staging_fd = os.open(self.staging_root, os.O_RDONLY | directory | nofollow)
+            staging_fd = self._open_store_directory(".staging")
         except BaseException:
             for opened_fd in reversed(blob_fds):
                 os.close(opened_fd)
@@ -278,7 +297,7 @@ class VerifiedArtifactStore:
                         raise ValueError("existing content-addressed snapshot failed integrity verification")
 
                 encoded = (json.dumps(asdict(reference), sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
-                metadata_fd = os.open(self.metadata_root, os.O_RDONLY | directory | nofollow)
+                metadata_fd = self._open_store_directory("artifacts")
                 try:
                     metadata_name = "metadata-" + secrets.token_hex(16)
                     meta_fd = os.open(
