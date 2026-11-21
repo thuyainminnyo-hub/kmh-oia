@@ -1,26 +1,46 @@
-# SEC-241-01 — Snapshot publication path hardening (review specification)
+# Snapshot publication security — SEC-241-01 / SEC-241-02 / SEC-241-03
 
-Status: **OPEN / NOT VERIFIED**. This document is a remediation specification, **not** a security fix or production authorization.
+**Status: OPEN — targeted implementation and CI verification completed; operational trust policy and independent security review NOT VERIFIED.**
 
-## Evidence and scope
+This file is an evidence and reviewer handoff, **not** an authorization to merge, deploy, or release. Production remains **HOLD**.
 
-At PR #241 HEAD `52f6ebf042055cbb2ffb1fa35e9949163910a8e1`, `src/verified_snapshot_store.py` performs no-follow descriptor-relative reads (lines 81–184) but uses path-based publication in `put_bytes` (lines 212–254): `mkdir`, `mkstemp`, `os.link`, and `unlink`. The exact exploitability depends on whether an attacker can modify snapshot-store directories. No exploit has been demonstrated.
+## Scope and implemented controls
 
-## Proposed minimal security change
+The original PR #241 read implementation bounded snapshot files and rejected symlink traversal, while write publication used path-based operations. Draft PR #246 (based on PR #241) adds:
 
-1. Document and enforce a **trusted, privately writable store root** with explicit ownership/permissions and deployment checks. Reject untrusted or symlinked directory components where supported; do not silently follow mutable directories.
-2. Bind staging, blob, and metadata operations to verified directory descriptors; use `dir_fd`-relative creation/link/unlink where supported. Fail closed on unsupported platforms instead of silently falling back to path-based operations.
-3. Preserve the current digest, byte-length, no-follow read, metadata binding, and fsync guarantees. Avoid overwriting an existing content-addressed blob or artifact metadata.
-4. Define crash consistency for a blob published before metadata. Orphan blobs must not be represented as admitted evidence; implement bounded, auditable cleanup only after approval.
-5. Add deterministic tests for staging-directory symlink substitution, blob-parent symlink substitution, metadata-directory substitution, concurrent publication, and failure between blob and metadata publication. Include platform skip/fail-closed expectations.
-6. Independently review the exact changed HEAD, rerun CI and targeted adversarial tests, and attach reproducible logs. Re-review PR #147 scope (MLCW files) separately.
+- Descriptor-relative no-follow traversal for the store root and ancestors.
+- A pinned root directory descriptor shared by blob, staging, and metadata publication.
+- Descriptor-relative temporary-file creation, hard-link publication, and cleanup.
+- Pinned-directory bounded verification of existing blob and metadata entries; no path-based re-open in the write-time collision branches.
+- Fail-closed checks for required `os.supports_dir_fd`, `os.supports_follow_symlinks`, and `O_NOFOLLOW`/directory flags.
+- Tests for symlink replacement, existing entry integrity, root replacement at deduplication, metadata failure injection, and concurrent writers.
 
-## Acceptance gates
+## Verified CI evidence
 
-- [ ] Filesystem trust model and supported platforms documented
-- [ ] Descriptor-bound publication implemented and reviewed
-- [ ] Negative/race regression tests PASS on exact HEAD
-- [ ] Exact-head CI PASS and independent security approval
-- [ ] Authorized live ComfyUI output, integrity evidence, immutable audit, independent QA, and owner release authorization
+At test commit `6a4f84d74efdc3ce35292a33d7f3528c682021fc`:
 
-**NO MERGE / NO DEPLOY / PRODUCTION HOLD.**
+- KMH OIA Tests: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44903690812 — SUCCESS.
+- KMH OIA Validation: https://github.com/thuyainminnyo-hub/kmh-oia/actions/runs/44903690819 — SUCCESS.
+- The unittest log reported **632 tests, OK**, including `test_concurrent_identical_publication_is_consistent` and `test_concurrent_conflicting_artifact_ids_do_not_overwrite`.
+
+These checks are deterministic tests and bounded concurrent fixtures, not proof against all adversarial scheduling or production attacker access.
+
+## Operational trust-model decisions still needed
+
+1. **Ownership and write permissions.** Define a dedicated process/service identity, required owner/group/modes for root, `sha256`, `artifacts`, and `.staging`. In the default conservative model, untrusted users/groups must not have write permission in these directories. Determine whether shared-group writes are ever authorized. Do not silently `chmod` or `chown` existing customer deployments.
+2. **Ancestor protection.** Identify who can rename or substitute any store-root ancestor. A directory descriptor pins an object after opening it, but this alone does not guarantee that its pathname remains accessible or controlled. Ensure storage mount/parent directories are provisioned and governed by trusted actors.
+3. **Platform contract.** State supported OS/filesystems. Descriptor-relative APIs are platform-dependent. Unsupported configurations must fail closed, not silently fall back.
+4. **Evidence identity and durability.** Define owner-approved recovery for blob publication that succeeds before metadata. The orphan blob is not a committed evidence record. Define backup, crash recovery, durability, and retention; no automatic destructive cleanup without authorization.
+5. **Threat model.** Document whether other processes or tenants can create, rename, chmod, chown, or replace store components, and whether attackers can modify the running process's credentials or memory. Directory-descriptor hardening does not defend against a fully compromised same-privilege process.
+6. **Independent review.** Examine file descriptor lifecycle, collision behavior, concurrent root replacement, filesystem permissions, and realistic storage mounts, with exact-head evidence and severity/disposition. Check PR #147 scope separately.
+
+## Release gates
+
+- [x] No-follow descriptor-relative publication implementation committed to draft branch.
+- [x] Targeted symlink, pinned reuse, metadata-failure and concurrent publication tests passed at the source HEAD listed above.
+- [ ] Root ownership, permissions, and ancestor threat model approved and enforced.
+- [ ] Broader concurrent/multi-process stress and supported-platform verification.
+- [ ] Independent exact-head security review approval.
+- [ ] Authorized live ComfyUI run with output integrity, immutable evidence, independent QA, and explicit owner production release approval.
+
+**NO MERGE · NO DEPLOY · PRODUCTION HOLD.**
